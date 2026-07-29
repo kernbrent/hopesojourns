@@ -4,7 +4,10 @@ const header = `
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <nav class="nav-wrap" aria-label="Main navigation">
-      <a class="brand" href="/"><span class="brand-mark">HS</span> Hope Sojourns</a>
+      <a class="brand" href="/" aria-label="Hope Sojourns home">
+        <img class="brand-icon" src="/assets/hope-sojourns-icon.png" alt="">
+        <span class="brand-copy"><strong>Hope Sojourns</strong><small>Go with faith. Serve with hope.</small></span>
+      </a>
       <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links">Menu</button>
       <div class="nav-links" id="nav-links">
         <a href="/#trips">Trips</a>
@@ -25,7 +28,9 @@ const footer = `
   <footer class="site-footer">
     <div class="footer-grid">
       <div>
-        <a class="brand" href="/"><span class="brand-mark">HS</span> Hope Sojourns</a>
+        <a class="footer-brand" href="/" aria-label="Hope Sojourns home">
+          <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with faith. Serve with hope.">
+        </a>
         <p>Purposeful journeys shaped around humility, local partnership, and practical Christian service.</p>
       </div>
       <div>
