@@ -26,6 +26,40 @@ body {
   line-height: 1.7;
 }
 
+/* Past trip archive */
+.past-trip-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+.past-trip-card { overflow:hidden; border:1px solid var(--line); border-radius:var(--radius); background:white; box-shadow:var(--shadow); }
+.past-trip-card img { width:100%; aspect-ratio:16/9; object-fit:cover; }
+.past-trip-card-content { padding:clamp(22px,4vw,34px); }
+.past-trip-card-content h2 { margin:.25rem 0 .7rem; }
+.past-trip-card-content p { color:var(--muted); }
+.past-trip-card .trip-status { color:var(--coral); font-size:.76rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+.trip-detail-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr); gap:clamp(30px,6vw,70px); align-items:start; }
+.trip-facts { padding:28px; border-left:4px solid var(--gold); border-radius:0 var(--radius) var(--radius) 0; background:var(--cream); }
+.trip-facts h2 { margin-top:0; font-size:1.5rem; }
+.trip-facts dl { margin:0; }
+.trip-facts dt { margin-top:1rem; color:var(--forest); font-weight:900; }
+.trip-facts dd { margin:.15rem 0 0; color:var(--muted); }
+.trip-page-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:28px; align-items:center; }
+.gallery-toolbar { display:flex; flex-wrap:wrap; gap:10px; margin:24px 0; }
+.gallery-filter { min-height:44px; padding:9px 16px; border:1px solid var(--forest); border-radius:999px; background:transparent; color:var(--forest); font:inherit; font-weight:800; cursor:pointer; }
+.gallery-filter[aria-pressed="true"] { background:var(--forest); color:white; }
+.archive-gallery { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+.archive-photo { margin:0; overflow:hidden; border:1px solid var(--line); border-radius:18px; background:white; box-shadow:0 10px 28px rgba(23,63,53,.1); }
+.archive-photo a { display:block; overflow:hidden; background:#e8ece8; }
+.archive-photo img { width:100%; aspect-ratio:4/3; object-fit:cover; transition:transform .25s ease; }
+.archive-photo a:hover img,.archive-photo a:focus-visible img { transform:scale(1.025); }
+.archive-photo figcaption { padding:14px 16px 16px; color:var(--muted); font-size:.88rem; line-height:1.45; }
+.archive-photo figcaption strong { display:block; margin-bottom:3px; color:var(--forest); }
+.gallery-status { color:var(--muted); }
+.page-hero.map-hero { height:33vh; min-height:0; max-height:none; background:#4b3924; }
+.page-hero.map-hero img { object-fit:cover; object-position:center; }
+.map-hero::after { background:linear-gradient(90deg,rgba(11,39,32,.9),rgba(11,39,32,.12) 62%,transparent),linear-gradient(0deg,rgba(11,39,32,.55),transparent 60%); }
+.map-hero .hero-content { align-self:center; }
+.map-hero .hero-content > p:last-child { max-width:650px; }
+@media (max-width:760px) { .past-trip-grid,.trip-detail-grid { grid-template-columns:1fr; } .archive-gallery { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:480px) { .archive-gallery { grid-template-columns:1fr; } .gallery-filter { width:100%; } }
+
 body > main,
 body > .site-header,
 body > .cta-band,

@@ -11,6 +11,7 @@ const header = `
       <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links">Menu</button>
       <div class="nav-links" id="nav-links">
         <a href="/#trips">Trips</a>
+        <a href="/past-trips/">Past trips</a>
         <a href="/internships/">Internships</a>
         <a href="/about/">About us</a>
         <a class="button" href="${calendarUrl}" target="_blank" rel="noopener">Book a conversation</a>
@@ -37,6 +38,7 @@ const footer = `
         <h3>Explore</h3>
         <div class="footer-links">
           <a href="/#trips">Mission trips</a>
+          <a href="/past-trips/">Past trips</a>
           <a href="/internships/">Internships</a>
           <a href="/about/">About us</a>
         </div>
