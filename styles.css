@@ -657,8 +657,6 @@ main > .section.compact { padding-block: 48px; }
   font-size: .85rem;
 }
 
-.credits { font-size: .92rem; }
-.credits li + li { margin-top: 14px; }
 
 @media (max-width: 850px) {
   body > main,

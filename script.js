@@ -47,8 +47,7 @@ const footer = `
         <h3>Connect</h3>
         <div class="footer-links">
           <a href="${calendarUrl}" target="_blank" rel="noopener">Schedule a meeting</a>
-          <a href="https://christiansteps.net/" target="_blank" rel="noopener">Christian Steps Ministries</a>
-          <a href="/credits/">Photo credits</a>
+          <span>Christian Steps Ministries</span>
         </div>
       </div>
     </div>
