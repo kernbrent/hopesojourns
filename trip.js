@@ -67,6 +67,23 @@ const tripData = {
     setting: "Rural Arkansas",
     note: "Project assignments will be based on current camp and community needs."
   },
+  "mexico-city": {
+    title: "Mexico City, Mexico",
+    eyebrow: "A joint journey of practical care",
+    image: "/assets/mexico-city.jpg",
+    alt: "Palacio de Bellas Artes and the Mexico City skyline",
+    intro: "In 2027, Hope Sojourns is developing a joint trip with Metro Relief of Dallas to support a sister ministry serving people experiencing homelessness in Mexico City.",
+    partners: [
+      ["Metro Relief of Dallas", "Helping coordinate the joint team and connect Hope Sojourns with a sister ministry in Mexico City."],
+      ["Sister ministry in Mexico City", "Serving neighbors experiencing homelessness through trusted, ongoing local relationships."]
+    ],
+    service: "Team members may support street outreach, meal or supply distribution, prayer, listening, conversation, and other practical needs identified by local ministry leaders.",
+    focus: "Homeless ministry",
+    setting: "Urban ministry",
+    teamSize: "10–15 people",
+    note: "Dates, costs, host-ministry details, travel requirements, and final team roles will be confirmed before registration opens.",
+    credit: "<a href=\"https://commons.wikimedia.org/wiki/File:Mexico_City_Palacio_de_bellas_artes.jpg\" target=\"_blank\" rel=\"noopener noreferrer\">Photo by Jeses via Wikimedia Commons</a>, used under <a href=\"https://creativecommons.org/licenses/by-sa/2.5/\" target=\"_blank\" rel=\"noopener noreferrer\">CC BY-SA 2.5</a>; cropped for display."
+  },
   others: {
     title: "Other Journeys",
     eyebrow: "The next place of service",
@@ -90,6 +107,7 @@ if (trip) {
       <img src="${trip.image}" alt="${trip.alt}">
       <div class="hero-content"><p class="eyebrow">${trip.eyebrow}</p><h1>${trip.title}</h1><p>${trip.intro}</p></div>
     </section>
+    ${trip.credit ? `<p class="image-credit">${trip.credit}</p>` : ""}
     <section class="section content-grid">
       <div class="prose">
         <p class="eyebrow">The opportunity</p>
@@ -105,7 +123,7 @@ if (trip) {
       <aside>
         <div class="info-card">
           <h3>Journey at a glance</h3>
-          <dl><dt>Primary focus</dt><dd>${trip.focus}</dd><dt>Setting</dt><dd>${trip.setting}</dd><dt>Status</dt><dd>Interest conversations open</dd></dl>
+          <dl><dt>Primary focus</dt><dd>${trip.focus}</dd><dt>Setting</dt><dd>${trip.setting}</dd>${trip.teamSize ? `<dt>Target team</dt><dd>${trip.teamSize}</dd>` : ""}<dt>Status</dt><dd>Interest conversations open</dd></dl>
           <a class="button" href="https://calendly.com/brent-kern" target="_blank" rel="noopener">Talk about this trip</a>
         </div>
       </aside>

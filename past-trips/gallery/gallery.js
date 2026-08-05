@@ -16,7 +16,7 @@
     status.textContent = `${visible.length} ${visible.length === 1 ? 'photo' : 'photos'} shown${trip === 'All trips' ? '' : ` from ${trip}`}.`;
     filters.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.trip === trip)));
   }
-  fetch('/past-trips/gallery/gallery-data.json?v=5').then(response => { if (!response.ok) throw new Error('Gallery unavailable'); return response.json(); }).then(data => {
+  fetch('/past-trips/gallery/gallery-data.json?v=8').then(response => { if (!response.ok) throw new Error('Gallery unavailable'); return response.json(); }).then(data => {
     const trips = ['All trips', ...new Set(data.images.map(item => item.trip))]; const initial = trips.includes(requested) ? requested : 'All trips';
     for (const trip of trips) { const button = document.createElement('button'); button.type = 'button'; button.className = 'gallery-filter'; button.dataset.trip = trip; button.textContent = trip; button.addEventListener('click', () => render(data.images, trip)); filters.append(button); }
     render(data.images, initial);
