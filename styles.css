@@ -196,6 +196,36 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 .button.light { background: white; color: var(--forest-dark) !important; }
 
+.floating-donate {
+  position: fixed;
+  z-index: 45;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  min-height: 52px;
+  padding: 0 24px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255,255,255,.9);
+  border-radius: 999px;
+  background: var(--gold);
+  box-shadow: 0 14px 32px rgba(11,39,32,.34);
+  color: var(--forest-dark);
+  font-size: .95rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.button.secondary.on-light {
+  border-color: var(--forest);
+  background: transparent;
+  color: var(--forest) !important;
+}
+.floating-donate:hover, .floating-donate:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(11,39,32,.42);
+}
+
 .hero {
   position: relative;
   display: grid;
@@ -205,7 +235,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   max-height: 420px;
   margin: 12px auto;
   overflow: hidden;
-  border-radius: 0 0 22px 22px;
+  border-radius: 22px;
   place-items: end start;
   background: var(--forest-dark);
   color: white;
@@ -268,9 +298,9 @@ h1 {
   max-width: 650px;
   margin: 0 0 14px;
   color: rgba(255,255,255,.86);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(1.1rem, 1.95vw, 1.55rem);
-  line-height: 1.45;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.7;
 }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 
@@ -621,6 +651,76 @@ main > .section.compact { padding-block: 48px; }
   color: white;
   box-shadow: 0 18px 44px rgba(23, 63, 53, .10);
 }
+
+.giving-intro {
+  display: grid;
+  grid-template-columns: 1.05fr .95fr;
+  align-items: start;
+  gap: 48px;
+}
+.giving-intro h2 { margin-bottom: 18px; }
+.giving-intro p { color: var(--muted); }
+.giving-status {
+  padding: 28px;
+  border: 1px solid rgba(217,155,66,.48);
+  border-radius: var(--radius);
+  background: #fff8e9;
+  box-shadow: 0 14px 34px rgba(23,63,53,.10);
+}
+.giving-status h3 { margin-bottom: 10px; font-size: 1.45rem; }
+.giving-status p:last-child { margin-bottom: 0; }
+.giving-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.giving-option {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: white;
+  box-shadow: 0 10px 28px rgba(23,63,53,.08);
+}
+.giving-option .value-number { margin-bottom: 24px; }
+.giving-option h3 { margin-bottom: 10px; font-size: 1.45rem; }
+.giving-option p { margin: 0; color: var(--muted); }
+.funds-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: white;
+}
+.funds-row {
+  display: grid;
+  grid-template-columns: minmax(190px, .7fr) minmax(0, 1.3fr);
+  gap: 24px;
+  padding: 24px 28px;
+}
+.funds-row + .funds-row { border-top: 1px solid var(--line); }
+.funds-row h3 { margin: 0; font-size: 1.22rem; }
+.funds-row p { margin: 0; color: var(--muted); }
+.commitment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.commitment {
+  padding: 24px;
+  border-left: 4px solid var(--gold);
+  border-radius: 0 18px 18px 0;
+  background: var(--cream);
+}
+.commitment h3 { margin-bottom: 7px; font-size: 1.25rem; }
+.commitment p { margin: 0; color: var(--muted); }
+.giving-note {
+  margin-top: 28px;
+  padding: 24px 28px;
+  border-radius: 18px;
+  background: var(--forest-dark);
+  color: white;
+}
+.giving-note p { margin: 0; color: rgba(255,255,255,.82); }
 .footer-grid {
   display: grid;
   width: min(1180px, calc(100% - 32px));
@@ -697,7 +797,8 @@ main > .section.compact { padding-block: 48px; }
   .section-head, .cta-inner { align-items: flex-start; flex-direction: column; }
   .three-up, .tracks { grid-template-columns: 1fr; }
   .trip-card, .trip-card:nth-child(n) { grid-column: span 12; min-height: 340px; }
-  .internship-callout, .content-grid, .about-grid { grid-template-columns: 1fr; }
+  .internship-callout, .content-grid, .about-grid, .giving-intro { grid-template-columns: 1fr; }
+  .giving-options { grid-template-columns: 1fr; }
   .info-card { position: static; }
   .partner-strip { grid-template-columns: 1fr; }
   .partner-strip img { width: 150px; }
@@ -712,6 +813,15 @@ main > .section.compact { padding-block: 48px; }
   body > .site-footer { width: 100%; }
   .site-header { margin-top: 0; border-radius: 0; }
   .site-footer { border-radius: 0; }
+  .floating-donate {
+    left: max(10px, env(safe-area-inset-left));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    min-height: 46px;
+    padding-inline: 18px;
+    font-size: .88rem;
+  }
+  .funds-row { grid-template-columns: 1fr; gap: 8px; padding: 22px; }
+  .commitment-grid { grid-template-columns: 1fr; }
   .hero { width: calc(100% - 16px); border-radius: 16px; }
   main > .section { width: calc(100% - 16px); padding: 38px 18px; border-radius: 16px; }
   .mission-band { width: calc(100% - 16px); border-radius: 16px; }
@@ -740,3 +850,30 @@ main > .section.compact { padding-block: 48px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Hosted PayPal and Venmo giving */
+.hosted-giving {
+  display: grid;
+  grid-template-columns: 1fr minmax(300px, .8fr);
+  align-items: start;
+  gap: clamp(30px, 6vw, 64px);
+  scroll-margin-top: 100px;
+}
+.hosted-giving-copy h2 { margin-bottom: 16px; }
+.hosted-giving-copy > p { color: var(--muted); }
+.hosted-giving-note {
+  padding: 16px 18px;
+  border-left: 4px solid var(--gold);
+  border-radius: 0 14px 14px 0;
+  background: var(--cream);
+}
+.paypal-embed {
+  width: 100%;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: white;
+  box-shadow: 0 10px 28px rgba(23,63,53,.08);
+}
+.paypal-embed noscript p { margin: 0; color: var(--muted); font-size: .9rem; }
+@media (max-width: 850px) { .hosted-giving { grid-template-columns: 1fr; } }

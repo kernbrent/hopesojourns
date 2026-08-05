@@ -1,4 +1,5 @@
 const calendarUrl = "https://calendly.com/brent-kern";
+const donateUrl = "/giving/#donate";
 
 const header = `
   <a class="skip-link" href="#main">Skip to content</a>
@@ -13,6 +14,7 @@ const header = `
         <a href="/#trips">Trips</a>
         <a href="/past-trips/">Past trips</a>
         <a href="/internships/">Internships</a>
+        <a href="/giving/">Giving</a>
         <a href="/about/">About us</a>
         <a class="button" href="${calendarUrl}" target="_blank" rel="noopener">Book a conversation</a>
       </div>
@@ -40,6 +42,7 @@ const footer = `
           <a href="/#trips">Mission trips</a>
           <a href="/past-trips/">Past trips</a>
           <a href="/internships/">Internships</a>
+          <a href="/giving/">Giving</a>
           <a href="/about/">About us</a>
         </div>
       </div>
@@ -55,6 +58,7 @@ const footer = `
   </footer>`;
 
 document.body.insertAdjacentHTML("afterbegin", header);
+document.body.insertAdjacentHTML("beforeend", `<a class="floating-donate" href="${donateUrl}" aria-label="View secure Hope Sojourns donation options">Donate now</a>`);
 document.body.insertAdjacentHTML("beforeend", footer);
 document.getElementById("year").textContent = new Date().getFullYear();
 
