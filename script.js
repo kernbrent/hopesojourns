@@ -55,6 +55,10 @@ const footer = `
       </div>
     </div>
     <div class="footer-bottom"><span>© <span id="year"></span> Hope Sojourns</span><span>Travel with purpose. Serve with humility.</span></div>
+    <a class="developer-credit" href="https://careersteps.net/" aria-label="Visit Career Steps Consulting LLC">
+      <img src="/assets/career-steps-logo.png" alt="" width="28" height="28">
+      <span>Website developed and maintained by <strong>Career Steps Consulting LLC.</strong></span>
+    </a>
   </footer>`;
 
 document.body.insertAdjacentHTML("afterbegin", header);
