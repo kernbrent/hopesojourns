@@ -886,13 +886,16 @@ main > .section.compact { padding-block: 48px; }
 @media (max-width: 850px) { .hosted-giving { grid-template-columns: 1fr; } }
 
 .developer-credit {
-  display: inline-flex;
+  display: flex;
+  width: fit-content;
   align-items: center;
+  justify-content: center;
   gap: .55rem;
-  margin-top: 1rem;
+  margin: 1rem auto 0;
   color: rgba(255, 255, 255, .72);
   font-size: .78rem;
   line-height: 1.35;
+  text-align: center;
   text-decoration: none;
   transition: color .2s ease, opacity .2s ease;
 }
@@ -906,5 +909,5 @@ main > .section.compact { padding-block: 48px; }
   opacity: .8;
 }
 @media (max-width: 560px) {
-  .developer-credit { max-width: 19rem; text-align: left; }
+  .developer-credit { max-width: 19rem; }
 }
