@@ -77,3 +77,87 @@ links?.querySelectorAll("a").forEach(link => link.addEventListener("click", () =
   toggle?.setAttribute("aria-expanded", "false");
   links.classList.remove("open");
 }));
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const pageHero = document.querySelector(".hero, .page-hero");
+const journeyPath = document.querySelector(".journey-path");
+const revealSelector = [
+  ".mission-band",
+  "main > .section",
+  ".value-card",
+  ".trip-card",
+  ".internship-callout",
+  ".partner-strip",
+  ".past-trip-card",
+  ".track",
+  ".ministry-item",
+  ".info-card",
+  ".giving-option",
+  ".commitment",
+  ".archive-photo",
+  ".trip-facts",
+  ".portrait",
+  ".hosted-giving",
+].join(", ");
+const staggerSelector = [
+  ".three-up",
+  ".trip-grid",
+  ".tracks",
+  ".past-trip-grid",
+  ".giving-options",
+  ".commitment-grid",
+  ".ministry-list",
+  ".archive-gallery",
+].join(", ");
+
+if (!reduceMotion) {
+  document.documentElement.classList.add("motion-enabled");
+  pageHero?.classList.add("hero-animate");
+
+  const applyStagger = root => root.querySelectorAll(staggerSelector).forEach(group => {
+    [...group.children].forEach((item, index) => {
+      item.style.setProperty("--reveal-delay", `${Math.min(index * 85, 425)}ms`);
+    });
+  });
+
+  let revealObserver;
+  if ("IntersectionObserver" in window) {
+    revealObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        revealObserver.unobserve(entry.target);
+      });
+    }, { rootMargin: "0px 0px -8%", threshold: 0.12 });
+
+  }
+
+  const registerReveals = root => {
+    if (root.matches?.(".hero, .page-hero")) root.classList.add("hero-animate");
+    root.querySelectorAll?.(".hero, .page-hero").forEach(hero => hero.classList.add("hero-animate"));
+    const candidates = [];
+    if (root.matches?.(revealSelector)) candidates.push(root);
+    candidates.push(...root.querySelectorAll?.(revealSelector) || []);
+    candidates.forEach(element => {
+      if (element.classList.contains("reveal-item")) return;
+      element.classList.add("reveal-item");
+      if (revealObserver) revealObserver.observe(element);
+      else element.classList.add("is-visible");
+    });
+    applyStagger(root);
+  };
+
+  registerReveals(document);
+  if (journeyPath) {
+    journeyPath.classList.add("reveal-item");
+    if (revealObserver) revealObserver.observe(journeyPath);
+    else journeyPath.classList.add("is-visible");
+  }
+
+  const contentObserver = new MutationObserver(records => {
+    records.forEach(record => record.addedNodes.forEach(node => {
+      if (node.nodeType === Node.ELEMENT_NODE) registerReveals(node);
+    }));
+  });
+  contentObserver.observe(document.querySelector("main") || document.body, { childList: true, subtree: true });
+}

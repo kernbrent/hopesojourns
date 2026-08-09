@@ -55,7 +55,7 @@ const tripData = {
   arkansas: {
     title: "Shephard of the Ozarks",
     eyebrow: "Serve close to home",
-    image: "/assets/arkansas.jpg",
+    image: "/assets/soto-buffalo-conference-center.png",
     alt: "The Buffalo River in the Arkansas Ozarks",
     intro: "The Arkansas Ozarks offer a meaningful domestic mission setting where camp ministry and community service come together.",
     partners: [
