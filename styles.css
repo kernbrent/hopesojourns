@@ -227,8 +227,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .hero::after {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(11,39,32,.92) 0%, rgba(11,39,32,.65) 46%, rgba(11,39,32,.18) 80%),
-              linear-gradient(0deg, rgba(11,39,32,.55), transparent 58%);
+  background: radial-gradient(circle at 86% 14%, rgba(243,199,128,.3), transparent 32%),
+              linear-gradient(90deg, rgba(11,39,32,.78) 0%, rgba(11,39,32,.42) 46%, rgba(11,39,32,.08) 80%),
+              linear-gradient(0deg, rgba(11,39,32,.38), transparent 58%);
   content: "";
 }
 
@@ -238,6 +239,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: brightness(1.12) saturate(1.16) contrast(1.03);
 }
 
 .hero-content {
@@ -286,6 +288,48 @@ h1 {
   line-height: 1.7;
 }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* Homepage hero visual trial — isolated for easy removal. */
+.hero-title-accent { color: #f3c780; }
+.hero-journey-line {
+  position: absolute;
+  z-index: 1;
+  right: 3%;
+  bottom: 52px;
+  width: 49%;
+  overflow: visible;
+  fill: rgba(243,199,128,.92);
+  pointer-events: none;
+}
+.hero-journey-line path {
+  fill: none;
+  stroke: rgba(243,199,128,.72);
+  stroke-dasharray: 8 10;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+.hero-proof {
+  position: absolute;
+  z-index: 3;
+  right: 24px;
+  bottom: 18px;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hero-proof li {
+  padding: 7px 11px;
+  border: 1px solid rgba(255,255,255,.42);
+  border-radius: 999px;
+  background: rgba(11,39,32,.58);
+  color: white;
+  font-size: .7rem;
+  font-weight: 850;
+  letter-spacing: .025em;
+  backdrop-filter: blur(7px);
+}
 
 .section {
   width: min(1180px, calc(100% - 32px));
@@ -352,6 +396,86 @@ main > .section.compact { padding-block: 48px; }
 }
 .value-card h3 { margin-bottom: 10px; font-size: 1.45rem; }
 .value-card p { margin: 0; color: var(--muted); }
+
+/* Homepage approach and journeys visual trial — isolated for easy removal. */
+.approach-band {
+  position: relative;
+  border-color: rgba(243,199,128,.28);
+  background:
+    radial-gradient(circle at 92% 5%, rgba(243,199,128,.2), transparent 30%),
+    linear-gradient(135deg, #17483c 0%, #0b2b24 72%);
+  box-shadow: 0 18px 42px rgba(11,39,32,.2);
+  color: white;
+}
+.approach-band::before {
+  position: absolute;
+  top: -88px;
+  right: -64px;
+  width: 250px;
+  height: 250px;
+  border: 1px solid rgba(243,199,128,.2);
+  border-radius: 50%;
+  box-shadow: 0 0 0 28px rgba(243,199,128,.035), 0 0 0 58px rgba(243,199,128,.025);
+  content: "";
+  pointer-events: none;
+}
+.approach-band .section { position: relative; z-index: 1; }
+.approach-band .section-head h2 { color: white; }
+.approach-band .section-lead { color: rgba(255,255,255,.76); }
+.approach-band .value-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255,255,255,.18);
+  background: rgba(255,253,248,.97);
+  box-shadow: 0 16px 32px rgba(4,21,17,.2);
+}
+.approach-band .value-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 6px;
+  background: var(--gold);
+  content: "";
+}
+.approach-band .value-card:nth-child(2)::before { background: var(--coral); }
+.approach-band .value-card:nth-child(3)::before { background: #73a997; }
+.approach-band .value-number {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 24px;
+  border-radius: 50%;
+  background: #f7e4bd;
+  color: var(--forest-dark);
+  place-items: center;
+}
+.approach-band .value-card:nth-child(2) .value-number { background: #f4d1c3; }
+.approach-band .value-card:nth-child(3) .value-number { background: #d8ebe4; }
+.approach-band .value-card h3 { color: var(--forest-dark); }
+.approach-band .value-card p { color: #50665f; }
+
+main > .section.journeys-section {
+  position: relative;
+  border-color: rgba(217,155,66,.32);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(230,126,92,.12), transparent 26%),
+    linear-gradient(145deg, #fffdf8, #fff7e8);
+}
+.journeys-section .section-head h2 { color: var(--forest-dark); }
+.journeys-section .section-lead {
+  max-width: 570px;
+  padding: 15px 18px;
+  border-left: 4px solid var(--coral);
+  border-radius: 0 14px 14px 0;
+  background: rgba(255,255,255,.62);
+}
+.journeys-section .journey-path {
+  height: 72px;
+  margin: -12px 0 28px;
+  padding: 7px 20px;
+  border: 1px solid rgba(217,155,66,.25);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(217,155,66,.12), rgba(23,63,53,.08));
+}
 
 .trip-grid {
   display: grid;
@@ -444,7 +568,7 @@ main > .section.compact { padding-block: 48px; }
 .trip-schedule {
   display: grid;
   gap: 7px;
-  max-width: 680px;
+  width: 50%;
   margin: 0 0 16px;
   padding: 0;
   list-style: none;
@@ -487,11 +611,17 @@ main > .section.compact { padding-block: 48px; }
   from { transform: scale(1.045); filter: saturate(.82) contrast(.92) blur(2px); }
   to { transform: scale(1); filter: saturate(1) contrast(1) blur(0); }
 }
+@keyframes hero-home-image-settle {
+  from { transform: scale(1.045); filter: brightness(.98) saturate(.94) contrast(.95) blur(2px); }
+  to { transform: scale(1); filter: brightness(1.12) saturate(1.16) contrast(1.03) blur(0); }
+}
 @keyframes hero-content-arrive {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.motion-enabled .hero-animate .hero-media,
+.motion-enabled .hero-animate .hero-media {
+  animation: hero-home-image-settle 1.4s cubic-bezier(.22,.8,.3,1) both;
+}
 .motion-enabled .page-hero.hero-animate > img {
   animation: hero-image-settle 1.4s cubic-bezier(.22,.8,.3,1) both;
 }
@@ -972,6 +1102,7 @@ main > .section.compact { padding-block: 48px; }
   .hero-content { padding-block: 96px 56px; }
   .hero-actions .button { width: 100%; }
   .trip-card-content { right: 20px; bottom: 20px; left: 20px; }
+  .trip-schedule { width: min(100%, 240px); }
   .trip-schedule li { padding: 7px 9px; }
   .internship-copy, .internship-list { padding: 28px; }
   .footer-grid { grid-template-columns: 1fr; }
