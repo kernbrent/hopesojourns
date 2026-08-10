@@ -79,12 +79,43 @@ links?.querySelectorAll("a").forEach(link => link.addEventListener("click", () =
   links.classList.remove("open");
 }));
 
+const approachTabs = [...document.querySelectorAll(".approach-tab")];
+const approachPanels = [...document.querySelectorAll(".approach-panel")];
+const approachDetailShell = document.getElementById("approach-detail-shell");
+const approachCollapse = document.querySelector(".approach-collapse");
+const selectApproach = selectedTab => {
+  approachTabs.forEach(tab => {
+    const selected = tab === selectedTab;
+    tab.setAttribute("aria-expanded", String(selected));
+  });
+  approachPanels.forEach(panel => {
+    panel.hidden = panel.id !== selectedTab.getAttribute("aria-controls");
+  });
+  approachDetailShell?.classList.add("is-expanded");
+  approachDetailShell?.setAttribute("aria-hidden", "false");
+  approachDetailShell?.removeAttribute("inert");
+};
+const collapseApproach = () => {
+  approachTabs.forEach(tab => tab.setAttribute("aria-expanded", "false"));
+  approachDetailShell?.classList.remove("is-expanded");
+  approachDetailShell?.setAttribute("aria-hidden", "true");
+  approachDetailShell?.setAttribute("inert", "");
+};
+approachTabs.forEach(tab => {
+  tab.addEventListener("click", () => selectApproach(tab));
+});
+approachCollapse?.addEventListener("click", () => {
+  const selectedTab = approachTabs.find(tab => tab.getAttribute("aria-expanded") === "true");
+  collapseApproach();
+  selectedTab?.focus();
+});
+
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const pageHero = document.querySelector(".hero, .page-hero");
 const journeyPath = document.querySelector(".journey-path");
 const revealSelector = [
   ".mission-band",
-  "main > .section",
+  "main > .section:not(.resource-article-layout)",
   ".value-card",
   ".trip-card",
   ".internship-callout",

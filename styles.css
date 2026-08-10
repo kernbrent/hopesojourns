@@ -424,10 +424,16 @@ main > .section.compact { padding-block: 48px; }
 .approach-band .section-lead { color: rgba(255,255,255,.76); }
 .approach-band .value-card {
   position: relative;
+  width: 100%;
   overflow: hidden;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   border-color: rgba(255,255,255,.18);
   background: rgba(255,253,248,.97);
   box-shadow: 0 16px 32px rgba(4,21,17,.2);
+  cursor: pointer;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 }
 .approach-band .value-card::before {
   position: absolute;
@@ -444,14 +450,144 @@ main > .section.compact { padding-block: 48px; }
   height: 42px;
   margin-bottom: 24px;
   border-radius: 50%;
-  background: #f7e4bd;
+  background:
+    linear-gradient(rgba(247, 228, 189, .78), rgba(247, 228, 189, .78)),
+    url("/assets/hope-sojourns-icon.png") center / 28px no-repeat,
+    #f7e4bd;
   color: var(--forest-dark);
   place-items: center;
 }
-.approach-band .value-card:nth-child(2) .value-number { background: #f4d1c3; }
-.approach-band .value-card:nth-child(3) .value-number { background: #d8ebe4; }
+.approach-band .value-card:nth-child(2) .value-number {
+  background:
+    linear-gradient(rgba(244, 209, 195, .78), rgba(244, 209, 195, .78)),
+    url("/assets/hope-sojourns-icon.png") center / 28px no-repeat,
+    #f4d1c3;
+}
+.approach-band .value-card:nth-child(3) .value-number {
+  background:
+    linear-gradient(rgba(216, 235, 228, .78), rgba(216, 235, 228, .78)),
+    url("/assets/hope-sojourns-icon.png") center / 28px no-repeat,
+    #d8ebe4;
+}
 .approach-band .value-card h3 { color: var(--forest-dark); }
 .approach-band .value-card p { color: #50665f; }
+.approach-tab:hover,
+.approach-tab:focus-visible {
+  transform: translateY(-4px);
+  border-color: rgba(243,199,128,.72);
+  box-shadow: 0 20px 38px rgba(4,21,17,.28);
+}
+.approach-tab:focus-visible { outline: 3px solid #f3c780; outline-offset: 4px; }
+.approach-tab[aria-expanded="true"] {
+  transform: translateY(-5px);
+  border-color: #f3c780;
+  box-shadow: 0 20px 42px rgba(4,21,17,.32), 0 0 0 3px rgba(243,199,128,.18);
+}
+.approach-card-action {
+  display: inline-flex;
+  gap: 7px;
+  margin-top: 22px;
+  color: var(--coral);
+  font-size: .8rem;
+  font-weight: 900;
+  letter-spacing: .025em;
+}
+.approach-tab[aria-expanded="true"] .approach-card-action { color: var(--forest-dark); }
+.approach-detail-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows .48s cubic-bezier(.22,.8,.3,1), margin-top .48s cubic-bezier(.22,.8,.3,1), opacity .3s ease, visibility 0s linear .48s;
+}
+.approach-detail-shell.is-expanded {
+  grid-template-rows: 1fr;
+  margin-top: 24px;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows .48s cubic-bezier(.22,.8,.3,1), margin-top .48s cubic-bezier(.22,.8,.3,1), opacity .32s ease .08s, visibility 0s;
+}
+.approach-detail-inner { min-height: 0; overflow: hidden; }
+.approach-collapse {
+  display: flex;
+  width: fit-content;
+  margin: 0 4px 10px auto;
+  padding: 7px 11px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(243,199,128,.5);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: white;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+.approach-collapse:hover,
+.approach-collapse:focus-visible { background: rgba(243,199,128,.2); }
+.approach-collapse:focus-visible { outline: 3px solid #f3c780; outline-offset: 3px; }
+.approach-panel {
+  display: grid;
+  grid-template-columns: minmax(0,.9fr) minmax(300px,1.1fr);
+  gap: clamp(26px,5vw,64px);
+  padding: clamp(26px,4vw,42px);
+  border: 1px solid rgba(243,199,128,.4);
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255,253,248,.98), rgba(247,228,189,.95));
+  color: var(--ink);
+  box-shadow: inset 0 1px rgba(255,255,255,.8), 0 16px 34px rgba(4,21,17,.2);
+}
+.approach-panel[hidden] { display: none; }
+.approach-panel h3 { margin: 4px 0 10px; color: var(--forest-dark); font-size: clamp(1.7rem,2.6vw,2.25rem); }
+.approach-panel p:not(.approach-panel-kicker) { margin: 0 0 20px; color: #50665f; }
+.approach-panel-kicker {
+  margin: 0;
+  color: var(--coral);
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.approach-panel .button { width: fit-content; }
+.approach-checklist,
+.approach-skill-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  align-content: center;
+  list-style: none;
+}
+.approach-checklist li,
+.approach-skill-list li {
+  position: relative;
+  padding: 12px 16px 12px 44px;
+  border: 1px solid rgba(23,63,53,.13);
+  border-radius: 14px;
+  background: rgba(255,255,255,.7);
+  color: var(--forest-dark);
+  font-weight: 750;
+}
+.approach-checklist li::before,
+.approach-skill-list li::before {
+  position: absolute;
+  top: 11px;
+  left: 14px;
+  display: grid;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--forest-dark);
+  content: "✓";
+  font-size: .72rem;
+  font-weight: 900;
+  place-items: center;
+}
+.approach-skill-list { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.approach-skill-list li:last-child { grid-column: 1 / -1; }
 
 main > .section.journeys-section {
   position: relative;
@@ -741,6 +877,32 @@ main > .section.journeys-section {
   mix-blend-mode: multiply;
 }
 .partner-strip h2 { font-size: clamp(2rem, 4vw, 3.5rem); }
+
+/* Christian Steps partnership feature: reuse a local copy of the Christian Steps home banner. */
+.mission-band:has(.partner-strip) {
+  background-image:
+    linear-gradient(90deg, rgba(5, 43, 33, .96) 0%, rgba(7, 49, 37, .82) 48%, rgba(7, 49, 37, .4) 100%),
+    url("/assets/christian-steps-home-banner.png");
+  background-position: center;
+  background-size: cover;
+}
+.mission-band .partner-strip {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.mission-band .partner-strip h2 { color: #fffdf5; }
+.mission-band .partner-strip .section-lead { color: rgba(255, 253, 245, .88); }
+.mission-band .partner-strip .eyebrow { color: var(--gold); }
+.mission-band .partner-strip .text-link,
+.mission-band .partner-strip .text-link:visited { color: #fffdf5; }
+.mission-band .partner-strip img {
+  padding: 10px;
+  background: rgba(255, 253, 245, .95);
+  mix-blend-mode: normal;
+}
 
 .page-hero {
   position: relative;
@@ -1057,6 +1219,9 @@ main > .section.journeys-section {
   .page-hero .hero-content { padding: 28px 22px; }
   .section-head, .cta-inner { align-items: flex-start; flex-direction: column; }
   .three-up, .tracks { grid-template-columns: 1fr; }
+  .approach-panel { grid-template-columns: 1fr; }
+  .approach-skill-list { grid-template-columns: 1fr; }
+  .approach-skill-list li:last-child { grid-column: auto; }
   .trip-card, .trip-card:nth-child(n) { grid-column: span 12; min-height: 340px; }
   .trip-card.has-schedule { min-height: 390px; }
   .trip-card.trip-card-multi-schedule { min-height: 440px; }
