@@ -6,14 +6,14 @@ const header = `
   <header class="site-header">
     <nav class="nav-wrap" aria-label="Main navigation">
       <a class="brand" href="/" aria-label="Hope Sojourns home">
-        <img class="brand-icon" src="/assets/hope-sojourns-icon.png" alt="">
-        <span class="brand-copy"><strong>Hope Sojourns</strong><small>Go with faith. Serve with hope.</small></span>
+        <img class="brand-logo" src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with Hope. Serve with Faith.">
       </a>
       <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links">Menu</button>
       <div class="nav-links" id="nav-links">
         <a href="/#trips">Trips</a>
         <a href="/past-trips/">Past trips</a>
         <a href="/internships/">Internships</a>
+        <a href="/resources/">Resources</a>
         <a href="/giving/">Giving</a>
         <a href="/about/">About us</a>
         <a class="button" href="${calendarUrl}" target="_blank" rel="noopener">Book a conversation</a>
@@ -32,7 +32,7 @@ const footer = `
     <div class="footer-grid">
       <div>
         <a class="footer-brand" href="/" aria-label="Hope Sojourns home">
-          <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with faith. Serve with hope.">
+          <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with Hope. Serve with Faith.">
         </a>
         <p>Purposeful journeys shaped around humility, local partnership, and practical Christian service.</p>
       </div>
@@ -42,6 +42,7 @@ const footer = `
           <a href="/#trips">Mission trips</a>
           <a href="/past-trips/">Past trips</a>
           <a href="/internships/">Internships</a>
+          <a href="/resources/">Resources</a>
           <a href="/giving/">Giving</a>
           <a href="/about/">About us</a>
         </div>

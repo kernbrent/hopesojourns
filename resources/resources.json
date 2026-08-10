@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "updated": "2026-08-09",
+  "items": [
+    {
+      "id": "do-you-see-me",
+      "type": "Article",
+      "title": "Do You See Me?",
+      "subtitle": "Learning to See People the Way Jesus Does",
+      "description": "A reflection on seeing beyond labels, honoring the dignity and stories of overlooked people, and learning to see with the compassion of Jesus.",
+      "author": "Brent D Kern",
+      "date": "2026-08-09",
+      "url": "/resources/do-you-see-me/",
+      "actionLabel": "Read the article",
+      "featured": true,
+      "collection": "Seeing People",
+      "tags": [
+        "dignity",
+        "compassion",
+        "homelessness",
+        "missions",
+        "listening"
+      ],
+      "relatedIds": [
+        "do-you-see-me-sermon"
+      ]
+    },
+    {
+      "id": "do-you-see-me-sermon",
+      "type": "Sermon",
+      "title": "Do You See Me? \u2014 Sermon",
+      "description": "A companion message to the article, exploring how Jesus sees people and calls His followers to stop, listen, and respond with compassion.",
+      "author": "Brent D Kern",
+      "status": "Coming soon",
+      "featured": false,
+      "collection": "Seeing People",
+      "tags": [
+        "dignity",
+        "compassion",
+        "seeing people",
+        "Jesus"
+      ],
+      "relatedIds": [
+        "do-you-see-me"
+      ]
+    },
+    {
+      "id": "have-you-ever-fed-jesus",
+      "type": "Article",
+      "title": "Have You Ever Fed Jesus?",
+      "description": "An invitation to see Christ in the overlooked and hurting, keeping faces and dignity at the center of practical love.",
+      "author": "Brent D Kern",
+      "date": "2025-10-13",
+      "url": "https://christiansteps.net/Articles/HaveYouEverFedJesus.html",
+      "actionLabel": "Read on Christian Steps",
+      "collection": "The Least of These",
+      "tags": [
+        "Matthew 25",
+        "dignity",
+        "service",
+        "compassion"
+      ],
+      "relatedIds": [
+        "least-of-these-sermon",
+        "have-you-ever-fed-jesus-devotional"
+      ]
+    },
+    {
+      "id": "least-of-these-sermon",
+      "type": "Sermon",
+      "title": "The Least of These",
+      "description": "Have you ever fed Jesus? A message about recognizing Christ in people who are hungry, vulnerable, displaced, or overlooked.",
+      "author": "Brent D Kern",
+      "date": "2025-10-13",
+      "duration": "46 min",
+      "url": "https://youtu.be/Hx0x19gCSz0?si=EFGLMfI8zSKah_Ys",
+      "actionLabel": "Watch on YouTube",
+      "collection": "The Least of These",
+      "tags": [
+        "Matthew 25",
+        "homelessness",
+        "service",
+        "Jesus"
+      ],
+      "relatedIds": [
+        "have-you-ever-fed-jesus",
+        "have-you-ever-fed-jesus-devotional"
+      ]
+    },
+    {
+      "id": "have-you-ever-fed-jesus-devotional",
+      "type": "Devotional",
+      "title": "Have You Ever Fed Jesus? \u2014 Devotional",
+      "description": "A brief devotional on seeing Jesus in the overlooked and letting compassion replace contempt.",
+      "author": "Brent D Kern",
+      "date": "2025-10-13",
+      "url": "https://christiansteps.net/Articles/HaveYouEverFedJesus_Devotional.html",
+      "actionLabel": "Read the devotional",
+      "collection": "The Least of These",
+      "tags": [
+        "Matthew 25",
+        "reflection",
+        "compassion"
+      ],
+      "relatedIds": [
+        "have-you-ever-fed-jesus",
+        "least-of-these-sermon"
+      ]
+    },
+    {
+      "id": "leave-or-go",
+      "type": "Sermon",
+      "title": "Leave or Go",
+      "description": "Does God call us merely to leave a place, or does He call us to go toward another place and purpose? A helpful reflection for anyone discerning a journey of service.",
+      "author": "Brent D Kern",
+      "date": "2022-06-10",
+      "duration": "33 min",
+      "url": "https://media.christiansteps.net/casts/Sermon-LeaveOrGo.mp3",
+      "actionLabel": "Listen to the sermon",
+      "collection": "Preparing to Go",
+      "tags": [
+        "calling",
+        "discernment",
+        "missions",
+        "obedience"
+      ],
+      "relatedIds": []
+    },
+    {
+      "id": "i-walked-today-where-jesus-walked",
+      "type": "Song",
+      "title": "I Walked Today Where Jesus Walked",
+      "description": "A reflective song about encountering the places and story of Jesus, inviting travelers to let sacred journeys deepen their faith.",
+      "author": "Brent D. Kern",
+      "duration": "4:39",
+      "url": "https://media.christiansteps.net/music/NoMoreTears/IWalkedTodayWhereJesusWalked.mp3",
+      "actionLabel": "Listen to the song",
+      "collection": "Sacred Journeys",
+      "tags": [
+        "Jesus",
+        "pilgrimage",
+        "travel",
+        "reflection",
+        "worship"
+      ],
+      "relatedIds": []
+    }
+  ]
+}
