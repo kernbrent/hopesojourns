@@ -124,7 +124,7 @@ if (trip) {
         <div class="info-card">
           <h3>Journey at a glance</h3>
           <dl><dt>Primary focus</dt><dd>${trip.focus}</dd><dt>Setting</dt><dd>${trip.setting}</dd>${trip.teamSize ? `<dt>Target team</dt><dd>${trip.teamSize}</dd>` : ""}<dt>Status</dt><dd>Interest conversations open</dd></dl>
-          <a class="button" href="https://calendly.com/brent-kern" target="_blank" rel="noopener">Talk about this trip</a>
+          <a class="button" href="/schedule/">Talk about this trip</a>
         </div>
       </aside>
     </section>`;

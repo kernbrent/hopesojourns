@@ -1,4 +1,4 @@
-const calendarUrl = "https://calendly.com/brent-kern";
+const calendarUrl = "/schedule/";
 const donateUrl = "/giving/#donate";
 
 const header = `
@@ -16,7 +16,7 @@ const header = `
         <a href="/resources/">Resources</a>
         <a href="/giving/">Giving</a>
         <a href="/about/">About us</a>
-        <a class="button" href="${calendarUrl}" target="_blank" rel="noopener">Book a conversation</a>
+        <a class="button" href="${calendarUrl}">Book a conversation</a>
       </div>
     </nav>
   </header>`;
@@ -25,7 +25,7 @@ const footer = `
   <section class="cta-band">
     <div class="cta-inner">
       <div><h2>Where might hope lead you?</h2><p>Tell us what is stirring—joining a team, exploring an internship, or building a ministry partnership.</p></div>
-      <a class="button light" href="${calendarUrl}" target="_blank" rel="noopener">Book a conversation</a>
+      <a class="button light" href="${calendarUrl}">Book a conversation</a>
     </div>
   </section>
   <footer class="site-footer">
@@ -50,7 +50,7 @@ const footer = `
       <div>
         <h3>Connect</h3>
         <div class="footer-links">
-          <a href="${calendarUrl}" target="_blank" rel="noopener">Schedule a meeting</a>
+          <a href="${calendarUrl}">Schedule a meeting</a>
           <span>Christian Steps Ministries</span>
         </div>
       </div>

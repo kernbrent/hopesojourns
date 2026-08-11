@@ -1051,6 +1051,121 @@ main > .section.journeys-section {
   line-height: 1.28;
 }
 
+/* On-site conversation scheduling */
+.schedule-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: min(calc(100% - 32px), 1180px);
+  min-height: 330px;
+  margin: 12px auto 0;
+  overflow: hidden;
+  border-radius: 22px 22px 0 0;
+  align-items: end;
+  background:
+    linear-gradient(110deg, rgba(11,39,32,.96), rgba(23,82,67,.9) 58%, rgba(39,93,77,.72)),
+    url("/assets/athens.jpg") center 44% / cover;
+  color: white;
+}
+.schedule-hero::before {
+  position: absolute;
+  z-index: -1;
+  right: -90px;
+  bottom: -155px;
+  width: 430px;
+  height: 430px;
+  border: 56px solid rgba(217,155,66,.18);
+  border-radius: 50%;
+  content: "";
+}
+.schedule-hero-inner {
+  width: min(100% - 64px, 920px);
+  padding: clamp(44px, 8vw, 78px) 0;
+}
+.schedule-hero h1 {
+  max-width: 780px;
+  margin: 0 0 16px;
+  color: white;
+  font-size: clamp(2.7rem, 6vw, 5rem);
+  line-height: .98;
+}
+.schedule-hero .schedule-lead {
+  max-width: 720px;
+  margin: 0;
+  color: rgba(255,255,255,.86);
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+}
+.schedule-section {
+  width: min(calc(100% - 32px), 1180px);
+  margin: 0 auto;
+  padding: clamp(34px, 6vw, 68px) clamp(16px, 4vw, 42px) 48px;
+  background:
+    radial-gradient(circle at 94% 8%, rgba(217,155,66,.14), transparent 22rem),
+    #edf3ef;
+}
+.schedule-intro {
+  display: grid;
+  max-width: 1040px;
+  margin: 0 auto 26px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 30px;
+}
+.schedule-intro h2 { margin: 0 0 8px; font-size: clamp(2rem, 3vw, 2.65rem); }
+.schedule-intro p { max-width: 700px; margin: 0; color: var(--muted); }
+.schedule-duration {
+  display: inline-flex;
+  padding: 9px 14px;
+  border: 1px solid rgba(39,93,77,.2);
+  border-radius: 999px;
+  background: rgba(255,255,255,.74);
+  color: var(--forest);
+  font-size: .86rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.scheduler-card {
+  max-width: 1040px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(39,93,77,.14);
+  border-radius: 22px;
+  background: white;
+  box-shadow: var(--shadow);
+}
+.scheduler-card .calendly-inline-widget { min-width: 280px; height: 720px; }
+.calendar-fallback {
+  margin: 24px 0 0;
+  color: var(--muted);
+  font-size: .92rem;
+  text-align: center;
+}
+.calendar-fallback a { color: var(--forest); font-weight: 800; }
+
+@media (max-width: 850px) {
+  .schedule-hero,
+  .schedule-section { width: min(calc(100% - 18px), 1180px); }
+  .schedule-hero { min-height: 360px; border-radius: 18px 18px 0 0; }
+  .schedule-hero-inner { width: calc(100% - 44px); }
+  .schedule-intro { grid-template-columns: 1fr; align-items: start; gap: 15px; }
+  .scheduler-card .calendly-inline-widget { height: 760px; }
+}
+
+@media (max-width: 560px) {
+  .schedule-hero,
+  .schedule-section { width: 100%; }
+  .schedule-hero { min-height: 350px; margin-top: 0; border-radius: 0; }
+  .schedule-hero-inner { width: calc(100% - 36px); padding-block: 54px; }
+  .schedule-hero h1 { font-size: clamp(2.5rem, 13vw, 3.8rem); }
+  .schedule-section { padding: 34px 8px 42px; }
+  .schedule-intro { padding-inline: 10px; }
+  .scheduler-card { border-radius: 14px; }
+  .scheduler-card .calendly-inline-widget { height: 800px; }
+  .calendar-fallback { padding-inline: 14px; }
+}
+
 .cta-band {
   background: var(--coral);
   color: white;
