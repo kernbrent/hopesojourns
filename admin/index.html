@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Private administrative documents and resources for Hope Sojourns.">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>Admin Portal | Hope Sojourns</title>
+  <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
+  <link rel="stylesheet" href="/styles.css?v=13">
+  <link rel="stylesheet" href="/admin/admin.css?v=1">
+</head>
+<body class="admin-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="admin-header">
+    <a class="admin-brand" href="/" aria-label="Hope Sojourns home">
+      <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with Hope. Serve with Faith.">
+    </a>
+    <a class="admin-return" href="/">Return to main site</a>
+  </header>
+
+  <main id="main">
+    <section class="admin-shell" aria-labelledby="admin-title">
+      <div class="admin-heading">
+        <p class="eyebrow">Private ministry library</p>
+        <h1 id="admin-title">Admin Portal</h1>
+        <p>Sign in to access Hope Sojourns supplemental documents and administrative resources.</p>
+      </div>
+
+      <section class="admin-card admin-login" id="login-panel" aria-labelledby="login-title">
+        <div>
+          <p class="eyebrow">Authorized access</p>
+          <h2 id="login-title">Sign in</h2>
+          <p>Use the Hope Sojourns administrative ID and password.</p>
+        </div>
+        <form id="admin-login-form" autocomplete="off">
+          <label for="admin-id">ID</label>
+          <input id="admin-id" name="admin-id" type="text" autocomplete="username" required>
+
+          <label for="admin-password">Password</label>
+          <input id="admin-password" name="admin-password" type="password" autocomplete="current-password" required>
+
+          <button class="admin-submit" type="submit">Open Admin Portal</button>
+          <p class="admin-status" id="login-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="admin-card admin-library" id="resources-panel" aria-labelledby="library-title" hidden>
+        <div class="admin-library-heading">
+          <div>
+            <p class="eyebrow">Hope Sojourns</p>
+            <h2 id="library-title">Admin Library</h2>
+          </div>
+          <button class="admin-signout" id="admin-signout" type="button">Sign out</button>
+        </div>
+
+        <section class="admin-group" aria-labelledby="supplemental-title">
+          <div class="admin-group-heading">
+            <span class="admin-group-number" aria-hidden="true">01</span>
+            <div><p class="eyebrow">Ready to use</p><h3 id="supplemental-title">Supplemental Documents</h3></div>
+          </div>
+          <ul class="admin-resource-list">
+            <li class="admin-resource-item">
+              <div class="admin-resource-icon admin-resource-icon-pdf" aria-hidden="true">PDF</div>
+              <div class="admin-resource-copy"><h4>Hope Sojourns Brochure</h4><p>Open or download the print-ready two-page trifold brochure.</p></div>
+              <a class="admin-download" href="/brochure/Hope-Sojourns-Trifold-Brochure-Full-Page.pdf" target="_blank" rel="noopener">Open brochure</a>
+            </li>
+            <li class="admin-resource-item">
+              <div class="admin-resource-icon" aria-hidden="true">W</div>
+              <div class="admin-resource-copy"><h4>Donor Request Letter</h4><p>Download the Hope Sojourns support-request letter for prospective ministry partners.</p></div>
+              <a class="admin-download" href="/admin/supplemental-documents/Hope-Sojourns-Donor-Request-Letter.docx" download>Download Word document</a>
+            </li>
+            <li class="admin-resource-item">
+              <div class="admin-resource-icon" aria-hidden="true">W</div>
+              <div class="admin-resource-copy"><h4>Giving Statement Letter</h4><p>Download the editable annual donor contribution receipt template.</p></div>
+              <a class="admin-download" href="/admin/supplemental-documents/Hope-Sojourns-Giving-Statement-Template.docx" download>Download Word document</a>
+            </li>
+          </ul>
+        </section>
+
+        <section class="admin-group admin-group-resources" aria-labelledby="admin-resources-title">
+          <div class="admin-group-heading">
+            <span class="admin-group-number" aria-hidden="true">02</span>
+            <div><p class="eyebrow">Growing library</p><h3 id="admin-resources-title">Resources</h3></div>
+          </div>
+          <div class="admin-empty-state">
+            <span aria-hidden="true">+</span>
+            <div><h4>No resources have been added yet.</h4><p>Future administrative tools, reports, and reference materials will appear here.</p></div>
+          </div>
+        </section>
+      </section>
+
+      <noscript><p class="admin-noscript">JavaScript must be enabled to sign in to the Admin Portal.</p></noscript>
+    </section>
+  </main>
+
+  <footer class="admin-footer">
+    <p>Hope Sojourns &middot; Go with hope. Serve with faith.</p>
+    <p>&copy; <span id="year"></span> Hope Sojourns</p>
+  </footer>
+  <script src="/admin/admin.js?v=6" defer></script>
+</body>
+</html>
