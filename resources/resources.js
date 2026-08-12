@@ -14,9 +14,11 @@
   const related = item => (item.relatedIds || []).map(id => items.find(x => x.id === id)).filter(Boolean);
   const card = (item, isFeatured = false) => {
     const connected = related(item);
-    const meta = [item.type, item.duration, date(item.date), item.status].filter(Boolean).map(esc).join(" · ");
+    const meta = [item.type, item.format, item.pageCount, item.fileSize, item.duration, date(item.date), item.status].filter(Boolean).map(esc).join(" · ");
     const action = isAudio(item)
       ? `<audio class="resource-audio" controls preload="metadata" src="${esc(item.url)}" aria-label="Play ${esc(item.title)}">Your browser does not support audio playback. <a href="${esc(item.url)}">Open the audio file</a>.</audio>`
+      : item.url && item.downloadLabel
+      ? `<div class="resource-download-actions"><a class="button" href="${esc(item.url)}" target="_blank" rel="noopener" aria-label="${esc(item.actionLabel || "Open the PDF")} (PDF, opens in a new tab)">${esc(item.actionLabel || "Open the PDF")}</a><a class="text-link" href="${esc(item.url)}" download="${esc(item.downloadName || "")}" aria-label="${esc(item.downloadLabel)}${item.fileSize ? ` (${esc(item.fileSize)})` : ""}">${esc(item.downloadLabel)} <span aria-hidden="true">&darr;</span></a></div>`
       : item.url
       ? `<a class="text-link" href="${esc(item.url)}"${/^https?:/.test(item.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(item.actionLabel || "Explore")} &rarr;</a>`
       : `<span class="resource-coming">${esc(item.status || "Coming soon")}</span>`;
@@ -29,9 +31,10 @@
       const haystack = [item.title,item.subtitle,item.description,item.author,item.collection,item.type,...(item.tags || [])].join(" ").toLowerCase();
       return (activeType === "All" || item.type === activeType) && (!q || haystack.includes(q));
     });
-    const featuredItem = visible.find(x => x.featured);
-    featured.innerHTML = featuredItem ? `<p class="eyebrow">Featured</p>${card(featuredItem, true)}` : "";
-    grid.innerHTML = visible.filter(x => x !== featuredItem).map(x => card(x)).join("");
+    const featuredItems = visible.filter(x => x.featured);
+    const featuredIds = new Set(featuredItems.map(x => x.id));
+    featured.innerHTML = featuredItems.length ? `<p class="eyebrow">Featured</p><div class="featured-resource-grid">${featuredItems.map(x => card(x, true)).join("")}</div>` : "";
+    grid.innerHTML = visible.filter(x => !featuredIds.has(x.id)).map(x => card(x)).join("");
     count.textContent = `${visible.length} ${visible.length === 1 ? "resource" : "resources"}`;
     empty.hidden = visible.length !== 0;
   };

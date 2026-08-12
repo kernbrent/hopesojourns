@@ -1,7 +1,38 @@
 {
-  "version": 1,
-  "updated": "2026-08-09",
+  "version": 3,
+  "updated": "2026-08-11",
   "items": [
+    {
+      "id": "hope-sojourns-brochure",
+      "type": "Brochure",
+      "title": "Hope Sojourns Brochure",
+      "subtitle": "A Printable Overview for Individuals and Groups",
+      "description": "Share the Hope Sojourns mission, approach, featured journeys, group opportunities, internships, and ways to begin a conversation.",
+      "author": "Hope Sojourns",
+      "date": "2026-08-11",
+      "url": "/brochure/Hope-Sojourns-Trifold-Brochure-Full-Page.pdf",
+      "actionLabel": "Open and print the brochure",
+      "downloadLabel": "Download the PDF",
+      "downloadName": "Hope-Sojourns-Brochure.pdf",
+      "format": "PDF",
+      "pageCount": "2 pages",
+      "fileSize": "573 KB",
+      "featured": true,
+      "tags": [
+        "brochure",
+        "pdf",
+        "print",
+        "download",
+        "overview",
+        "mission journeys",
+        "internships",
+        "group trips",
+        "churches",
+        "schools",
+        "partners"
+      ],
+      "relatedIds": []
+    },
     {
       "id": "do-you-see-me",
       "type": "Article",
