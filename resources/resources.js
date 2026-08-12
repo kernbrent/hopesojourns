@@ -10,11 +10,14 @@
   let activeType = "All";
   const esc = value => String(value ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
   const date = value => value ? new Intl.DateTimeFormat("en-US", {year:"numeric",month:"short",day:"numeric"}).format(new Date(`${value}T12:00:00`)) : "";
+  const isAudio = item => Boolean(item.url && /\.(mp3|m4a|aac|wav|ogg)(?:[?#].*)?$/i.test(item.url));
   const related = item => (item.relatedIds || []).map(id => items.find(x => x.id === id)).filter(Boolean);
   const card = (item, isFeatured = false) => {
     const connected = related(item);
     const meta = [item.type, item.duration, date(item.date), item.status].filter(Boolean).map(esc).join(" · ");
-    const action = item.url
+    const action = isAudio(item)
+      ? `<audio class="resource-audio" controls preload="metadata" src="${esc(item.url)}" aria-label="Play ${esc(item.title)}">Your browser does not support audio playback. <a href="${esc(item.url)}">Open the audio file</a>.</audio>`
+      : item.url
       ? `<a class="text-link" href="${esc(item.url)}"${/^https?:/.test(item.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(item.actionLabel || "Explore")} &rarr;</a>`
       : `<span class="resource-coming">${esc(item.status || "Coming soon")}</span>`;
     const links = connected.length ? `<div class="resource-related"><strong>Continue this theme</strong>${connected.map(x => x.url ? `<a href="${esc(x.url)}"${/^https?:/.test(x.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.type)}: ${esc(x.title)}</a>` : `<span>${esc(x.type)}: ${esc(x.title)} (${esc(x.status || "Coming soon")})</span>`).join("")}</div>` : "";
@@ -40,4 +43,11 @@
     search.addEventListener("input", render);
     render();
   }).catch(() => { count.textContent = "Resources could not be loaded."; empty.hidden = false; empty.textContent = "Please try again later."; });
+
+  document.addEventListener("play", event => {
+    if (!event.target.matches("audio.resource-audio")) return;
+    document.querySelectorAll("audio.resource-audio").forEach(player => {
+      if (player !== event.target && !player.paused) player.pause();
+    });
+  }, true);
 })();
