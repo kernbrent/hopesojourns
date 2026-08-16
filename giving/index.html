@@ -7,9 +7,9 @@
   <title>Giving & Transparency | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="apple-touch-icon" href="/assets/hope-sojourns-icon.png">
-  <link rel="stylesheet" href="/styles.css?v=13">
+  <link rel="stylesheet" href="/styles.css?v=14">
   <script src="/script.js?v=6" defer></script>
-  <script src="https://www.paypal.com/sdk/js?client-id=BAAO5ZLwH0VK6GG-K78NbTtsVzmhybUK22klnHDbShjOAopjhezen49SCu-A3NtwYHT4olYNFP4cw7g4t8&components=hosted-buttons&enable-funding=venmo&currency=USD"></script>
+  <script src="/giving/giving.js?v=1" defer></script>
 </head>
 <body>
   <main id="main">
@@ -43,17 +43,46 @@
       <div class="hosted-giving-copy">
         <p class="eyebrow">Secure giving</p>
         <h2 id="secure-giving-title">Give to Hope Sojourns.</h2>
-        <p>Donations are processed by Christian Steps Ministries in cooperation with Hope Sojourns. PayPal securely handles the transaction, with eligible donors also able to use Venmo or supported cards.</p>
+        <p>Donations are processed by Christian Steps Ministries in cooperation with Hope Sojourns. Choose a one-time, monthly, or yearly gift below. PayPal securely handles the transaction, with eligible donors also able to use Venmo or supported cards.</p>
         <p class="hosted-giving-note">Your gift will be identified in Christian Steps Ministries' records as originating from Hope Sojourns.</p>
       </div>
-      <div class="paypal-embed" aria-label="PayPal and Venmo donation options for Hope Sojourns">
-        <div id="paypal-container-HFD3CR29GNDP4"></div>
-        <script>
-          paypal.HostedButtons({
-            hostedButtonId: "HFD3CR29GNDP4",
-          }).render("#paypal-container-HFD3CR29GNDP4")
-        </script>
-        <noscript><p>JavaScript is required to display the secure PayPal and Venmo donation options.</p></noscript>
+      <div class="paypal-embed giving-widget" data-giving-widget data-paypal-api="https://hope-sojourns-paypal.kernbrent.workers.dev" aria-label="Secure PayPal giving options for Hope Sojourns">
+        <fieldset class="giving-frequency">
+          <legend>Choose how often to give</legend>
+          <div class="giving-frequency-options">
+            <input class="giving-choice-input" type="radio" name="giving-frequency" id="giving-once" value="once" checked>
+            <label for="giving-once">One-Time</label>
+            <input class="giving-choice-input" type="radio" name="giving-frequency" id="giving-monthly" value="monthly">
+            <label for="giving-monthly">Monthly</label>
+            <input class="giving-choice-input" type="radio" name="giving-frequency" id="giving-yearly" value="yearly">
+            <label for="giving-yearly">Yearly</label>
+          </div>
+        </fieldset>
+
+        <div class="giving-amount-field">
+          <label for="giving-amount">Gift amount</label>
+          <div class="giving-amount-input">
+            <span aria-hidden="true">$</span>
+            <input id="giving-amount" name="giving-amount" type="number" min="1" max="100000" step="0.01" inputmode="decimal" value="50" aria-describedby="giving-cadence-note">
+            <span class="giving-currency">USD</span>
+          </div>
+        </div>
+
+        <div class="giving-quick-amounts" role="group" aria-label="Suggested gift amounts">
+          <button type="button" data-giving-amount="25" aria-pressed="false">$25</button>
+          <button type="button" data-giving-amount="50" aria-pressed="true">$50</button>
+          <button type="button" data-giving-amount="100" aria-pressed="false">$100</button>
+          <button type="button" data-giving-amount="250" aria-pressed="false">$250</button>
+          <button type="button" data-giving-other aria-pressed="false">Other</button>
+        </div>
+
+        <p class="giving-cadence-note" id="giving-cadence-note">A single gift of $50.00.</p>
+        <h3 class="giving-payment-label" id="giving-payment-label">Choose a payment method to complete your gift</h3>
+        <div class="giving-paypal-buttons" id="giving-paypal-buttons" aria-labelledby="giving-payment-label"></div>
+        <p class="giving-status-message" id="giving-status" role="status" aria-live="polite">Loading secure payment options…</p>
+        <p class="giving-checkout-note">Your amount and schedule stay on this page. PayPal opens its secure checkout only when you are ready to authorize the gift.</p>
+        <p class="giving-fallback" id="giving-fallback" hidden>Secure checkout is temporarily unavailable here. <a href="https://www.paypal.com/donate/?hosted_button_id=HFD3CR29GNDP4">Use the original PayPal giving page</a>.</p>
+        <noscript><p>JavaScript is required for inline giving. <a href="https://www.paypal.com/donate/?hosted_button_id=HFD3CR29GNDP4">Use the secure PayPal giving page</a>.</p></noscript>
       </div>
     </section>
 
@@ -97,7 +126,7 @@
 
     <section class="section compact" aria-labelledby="giving-conversation">
       <div class="section-head">
-        <div><p class="eyebrow">Join the work</p><h2 id="giving-conversation">Help build Hope Sojourns.</h2><p class="section-lead">Give securely through the Christian Steps Ministries PayPal page, or talk with Brent about the vision, current needs, and accountability plan.</p></div>
+        <div><p class="eyebrow">Join the work</p><h2 id="giving-conversation">Help build Hope Sojourns.</h2><p class="section-lead">Give securely using the options above, or talk with Brent about the vision, current needs, and accountability plan.</p></div>
         <div class="hero-actions"><a class="button" href="#donate">Donate now</a><a class="button secondary on-light" href="/schedule/">Talk with Brent</a></div>
       </div>
     </section>

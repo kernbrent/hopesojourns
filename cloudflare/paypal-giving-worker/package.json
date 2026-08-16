@@ -1,0 +1,19 @@
+{
+  "name": "hope-sojourns-paypal-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "types": "wrangler types",
+    "deploy:dry": "wrangler deploy --dry-run",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "latest",
+    "vitest": "latest",
+    "wrangler": "latest"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "hope-sojourns-paypal",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "PAYPAL_API_BASE": "https://api-m.paypal.com",
+    "PAYPAL_CURRENCY": "USD",
+    "PAYPAL_MONTHLY_PLAN_ID": "P-4AE74408U85415625NJ7YEXA",
+    "PAYPAL_YEARLY_PLAN_ID": "P-4TP487072M021190CNJ7YEXA",
+    "PAYPAL_WEBHOOK_ID": "9XD00386NL920472V",
+    "ALLOWED_ORIGINS": "https://hopesojourns.com,https://www.hopesojourns.com,https://hopesojourns.pages.dev,http://localhost:*,http://127.0.0.1:*"
+  },
+  "secrets": {
+    "required": ["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "SETUP_KEY"]
+  }
+}
