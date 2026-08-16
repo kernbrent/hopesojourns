@@ -17,6 +17,8 @@
     const meta = [item.type, item.format, item.pageCount, item.fileSize, item.duration, date(item.date), item.status].filter(Boolean).map(esc).join(" · ");
     const action = isAudio(item)
       ? `<audio class="resource-audio" controls preload="metadata" src="${esc(item.url)}" aria-label="Play ${esc(item.title)}">Your browser does not support audio playback. <a href="${esc(item.url)}">Open the audio file</a>.</audio>`
+      : item.url && item.downloadUrl
+      ? `<div class="resource-download-actions"><a class="text-link" href="${esc(item.url)}"${/^https?:/.test(item.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(item.actionLabel || "Explore")} &rarr;</a><a class="button compact secondary on-light" href="${esc(item.downloadUrl)}" download="${esc(item.downloadName || "")}" aria-label="${esc(item.downloadLabel || "Download PDF")} version of ${esc(item.title)}">${esc(item.downloadLabel || "Download PDF")} <span aria-hidden="true">&darr;</span></a></div>`
       : item.url && item.downloadLabel
       ? `<div class="resource-download-actions"><a class="button" href="${esc(item.url)}" target="_blank" rel="noopener" aria-label="${esc(item.actionLabel || "Open the PDF")} (PDF, opens in a new tab)">${esc(item.actionLabel || "Open the PDF")}</a><a class="text-link" href="${esc(item.url)}" download="${esc(item.downloadName || "")}" aria-label="${esc(item.downloadLabel)}${item.fileSize ? ` (${esc(item.fileSize)})` : ""}">${esc(item.downloadLabel)} <span aria-hidden="true">&darr;</span></a></div>`
       : item.url

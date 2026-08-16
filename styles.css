@@ -204,6 +204,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
   background: transparent;
   color: var(--forest) !important;
 }
+.button.compact {
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: .88rem;
+}
 .floating-donate:hover, .floating-donate:focus-visible {
   transform: translateY(-3px);
   box-shadow: 0 18px 40px rgba(11,39,32,.42);
@@ -1705,6 +1710,7 @@ main > .section.journeys-section {
 .resource-article h2 { margin-top:2.4rem; font-size:clamp(1.75rem,3vw,2.3rem); }
 .resource-article > p { font-size:1.04rem; }
 .resource-byline { display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:28px; padding-bottom:18px; border-bottom:1px solid var(--line); color:var(--muted); font-size:.85rem; font-weight:800; }
+.resource-byline .button { margin-left:auto; }
 .resource-opening-quote { margin-top:0; }
 .resource-scripture { margin:24px 0 8px; padding:22px 24px; border-left:4px solid var(--gold); border-radius:0 16px 16px 0; background:#fff8e9; color:#3e4b45; }
 .resource-scripture p { margin:.5rem 0; }
@@ -1713,4 +1719,4 @@ main > .section.journeys-section {
 .resource-article-aside h2 { font-size:1.6rem; }
 .resource-article-aside p { color:var(--muted); }
 @media (max-width:850px) { .resource-tools,.resource-article-layout,.featured-resource-grid { grid-template-columns:1fr; } .resource-article-aside { position:static; } }
-@media (max-width:680px) { .resource-grid { grid-template-columns:1fr; } .resource-filter { flex:1 1 auto; } .resource-download-actions { align-items:stretch; flex-direction:column; } .resource-download-actions .button { width:100%; } }
+@media (max-width:680px) { .resource-grid { grid-template-columns:1fr; } .resource-filter { flex:1 1 auto; } .resource-download-actions { align-items:stretch; flex-direction:column; } .resource-download-actions .button,.resource-byline .button { width:100%; margin-left:0; } }
