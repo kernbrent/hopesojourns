@@ -85,9 +85,22 @@ links?.querySelectorAll("a").forEach(link => link.addEventListener("click", () =
 }));
 
 const approachTabs = [...document.querySelectorAll(".approach-tab")];
+const approachTabsGroup = document.querySelector(".approach-tabs");
 const approachPanels = [...document.querySelectorAll(".approach-panel")];
 const approachDetailShell = document.getElementById("approach-detail-shell");
 const approachCollapse = document.querySelector(".approach-collapse");
+const alignApproachTiles = () => {
+  if (!approachTabsGroup) return;
+  requestAnimationFrame(() => {
+    const headerHeight = document.querySelector(".site-header")?.getBoundingClientRect().height || 0;
+    const tilesTop = window.scrollY + approachTabsGroup.getBoundingClientRect().top;
+    const targetTop = Math.max(0, tilesTop - headerHeight - 12);
+    window.scrollTo({
+      top: targetTop,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  });
+};
 const selectApproach = selectedTab => {
   approachTabs.forEach(tab => {
     const selected = tab === selectedTab;
@@ -99,6 +112,7 @@ const selectApproach = selectedTab => {
   approachDetailShell?.classList.add("is-expanded");
   approachDetailShell?.setAttribute("aria-hidden", "false");
   approachDetailShell?.removeAttribute("inert");
+  alignApproachTiles();
 };
 const collapseApproach = () => {
   approachTabs.forEach(tab => tab.setAttribute("aria-expanded", "false"));
@@ -116,6 +130,9 @@ approachCollapse?.addEventListener("click", () => {
 });
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const invitationIntro = document.querySelector("[data-invitation-intro]");
+const introReplayButton = document.querySelector("[data-intro-replay]");
+const introLastSeenDateKey = "hope-sojourns-home-intro-last-seen-date";
 const pageHero = document.querySelector(".hero, .page-hero");
 const journeyPath = document.querySelector(".journey-path");
 const revealSelector = [
@@ -149,6 +166,97 @@ const staggerSelector = [
 
 if (!reduceMotion) {
   document.documentElement.classList.add("motion-enabled");
+
+  if (invitationIntro) {
+    let invitationPlaying = false;
+    let invitationTimer;
+    const localDateKey = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+    const readLastSeenDate = () => {
+      try {
+        const storedDate = localStorage.getItem(introLastSeenDateKey);
+        if (storedDate) return storedDate;
+      } catch {
+        // Fall through to session storage when local storage is unavailable.
+      }
+      try {
+        return sessionStorage.getItem(introLastSeenDateKey);
+      } catch {
+        return null;
+      }
+    };
+    const recordSeenDate = date => {
+      try {
+        localStorage.setItem(introLastSeenDateKey, date);
+      } catch {
+        // Session storage below preserves same-tab navigation behavior.
+      }
+      try {
+        sessionStorage.setItem(introLastSeenDateKey, date);
+      } catch {
+        // The introduction can still play when browser storage is unavailable.
+      }
+    };
+    const isPageReload = () => {
+      const navigationEntry = performance.getEntriesByType?.("navigation")?.[0];
+      if (navigationEntry) return navigationEntry.type === "reload";
+      return performance.navigation?.type === 1;
+    };
+    const finishInvitation = () => {
+      if (!invitationPlaying) return;
+      invitationPlaying = false;
+      window.clearTimeout(invitationTimer);
+      invitationIntro.hidden = true;
+      invitationIntro.classList.remove("is-playing", "is-dismissing");
+      document.documentElement.classList.remove("invitation-playing");
+      introReplayButton?.removeAttribute("disabled");
+      invitationIntro.removeEventListener("animationend", handleInvitationAnimationEnd);
+      document.removeEventListener("pointerdown", dismissInvitation);
+      document.removeEventListener("keydown", dismissInvitation);
+    };
+    const dismissInvitation = () => {
+      if (!invitationPlaying) return;
+      invitationIntro.classList.add("is-dismissing");
+      window.setTimeout(finishInvitation, 250);
+    };
+    const handleInvitationAnimationEnd = event => {
+      if (event.target === invitationIntro) finishInvitation();
+    };
+    const playInvitation = () => {
+      if (invitationPlaying) return;
+      invitationPlaying = true;
+      document.documentElement.classList.add("invitation-playing");
+      introReplayButton?.setAttribute("disabled", "");
+      invitationIntro.hidden = false;
+      invitationIntro.classList.remove("is-playing", "is-dismissing");
+      void invitationIntro.offsetWidth;
+      invitationIntro.addEventListener("animationend", handleInvitationAnimationEnd);
+      document.addEventListener("pointerdown", dismissInvitation, { once: true });
+      document.addEventListener("keydown", dismissInvitation, { once: true });
+      requestAnimationFrame(() => invitationIntro.classList.add("is-playing"));
+      invitationTimer = window.setTimeout(finishInvitation, 5600);
+    };
+
+    const today = localDateKey();
+    if (isPageReload() || readLastSeenDate() !== today) {
+      recordSeenDate(today);
+      playInvitation();
+    }
+    introReplayButton?.addEventListener("click", playInvitation);
+    window.addEventListener("pageshow", () => {
+      const currentDate = localDateKey();
+      if (readLastSeenDate() === currentDate) return;
+      recordSeenDate(currentDate);
+      playInvitation();
+    });
+    window.addEventListener("pagehide", finishInvitation);
+  }
+
   pageHero?.classList.add("hero-animate");
 
   const applyStagger = root => root.querySelectorAll(staggerSelector).forEach(group => {

@@ -7,15 +7,23 @@
   <title>Hope Sojourns | Purposeful Mission Travel</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="apple-touch-icon" href="/assets/hope-sojourns-icon.png">
-  <link rel="stylesheet" href="/styles.css?v=15">
-  <script src="/script.js?v=8" defer></script>
+  <link rel="stylesheet" href="/styles.css?v=20">
+  <script src="/script.js?v=13" defer></script>
 </head>
 <body>
+  <div class="invitation-intro" data-invitation-intro aria-hidden="true" hidden>
+    <div class="invitation-intro-content">
+      <p class="invitation-intro-overline">Hope Sojourns Mission Trips</p>
+      <p class="invitation-intro-title">You are Invited.</p>
+      <span class="invitation-intro-rule" aria-hidden="true"></span>
+      <p class="invitation-intro-tagline">Go with Hope. Serve with Faith.</p>
+    </div>
+  </div>
   <main id="main">
     <section class="hero">
       <img class="hero-media" src="/assets/athens.jpg" alt="Athens spreading toward the Acropolis under a warm sky">
       <div class="hero-content">
-        <p class="eyebrow">Go with purpose</p>
+        <p class="eyebrow">You are Invited</p>
         <h1>Travel farther. <span class="hero-title-accent">Serve closer.</span></h1>
         <p>Hope Sojourns brings willing people alongside trusted local ministries—creating room to listen, learn, encourage, and meet practical needs.</p>
         <div class="hero-actions">
@@ -23,6 +31,10 @@
           <a class="button secondary" href="/internships/">Student internships</a>
         </div>
       </div>
+      <button class="intro-replay-button" type="button" data-intro-replay aria-label="Replay the Hope Sojourns welcome introduction">
+        <span aria-hidden="true">&#8635;</span>
+        <span>Replay intro</span>
+      </button>
       <svg class="hero-journey-line" viewBox="0 0 520 92" aria-hidden="true">
         <path d="M8 72C116 84 156 18 260 31c92 11 121 57 246 16" />
         <circle cx="8" cy="72" r="5" />
@@ -71,8 +83,12 @@
         <div><p class="eyebrow">Upcoming possibilities</p><h2>Journeys with a reason to go.</h2></div>
         <p class="section-lead">These holder pages introduce developing opportunities. Dates, costs, team roles, and final partner plans will be confirmed as each journey takes shape.</p>
       </div>
-      <div class="journey-path" aria-hidden="true">
-        <svg viewBox="0 0 1000 72" role="presentation" focusable="false">
+      <aside class="journey-path journey-invitation" aria-label="Mission trip invitation">
+        <div class="journey-invitation-copy">
+          <p class="journey-invitation-title">You are Invited.</p>
+          <p class="journey-invitation-tagline">Go with Hope. Serve with Faith.</p>
+        </div>
+        <svg viewBox="0 0 1000 72" aria-hidden="true" focusable="false">
           <path d="M8 48 C115 10 205 68 310 34 S505 18 610 42 S805 68 958 26" />
           <circle class="journey-path-start" cx="8" cy="48" r="5" />
           <g class="journey-path-pin" transform="translate(958 26)">
@@ -80,7 +96,7 @@
             <circle cx="0" cy="0" r="4" />
           </g>
         </svg>
-      </div>
+      </aside>
       <div class="trip-grid">
         <article class="trip-card has-schedule">
           <img src="https://christiansteps.net/Images/tripmap/2026-06-4_athens_3.jpg" alt="Hope Sojourns team members gathered on Mars Hill in Athens" loading="lazy">
