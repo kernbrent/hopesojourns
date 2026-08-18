@@ -1,5 +1,6 @@
 const calendarUrl = "/schedule/";
 const donateUrl = "/giving/#donate";
+const siteVersion = "1.0.0";
 
 const header = `
   <a class="skip-link" href="#main">Skip to content</a>
@@ -55,11 +56,15 @@ const footer = `
         </div>
       </div>
     </div>
-    <div class="footer-bottom"><span>© <span id="year"></span> Hope Sojourns</span><span>Travel with purpose. Serve with humility.</span></div>
-    <a class="developer-credit" href="https://careersteps.net/" aria-label="Visit Career Steps Consulting LLC">
-      <img src="/assets/career-steps-logo.png" alt="" width="28" height="28">
-      <span>Website developed and maintained by <strong>Career Steps Consulting LLC.</strong></span>
-    </a>
+    <div class="footer-bottom">
+      <span class="footer-copyright">© <span id="year"></span> Hope Sojourns</span>
+      <a class="developer-credit" href="https://careersteps.net/" aria-label="Visit Career Steps Consulting LLC">
+        <img src="/assets/career-steps-logo.png" alt="" width="28" height="28">
+        <span>Website developed and maintained by <strong>Career Steps Consulting LLC.</strong></span>
+      </a>
+      <span class="footer-tagline">Travel with purpose. Serve with humility.</span>
+    </div>
+    <p class="site-version">Version ${siteVersion}</p>
   </footer>`;
 
 document.body.insertAdjacentHTML("afterbegin", header);
@@ -228,10 +233,14 @@ if (photoViewerEnabled) {
     .filter(image => image.getClientRects().length > 0);
 
   const photoCaption = image => {
-    const figureCaption = image.closest("figure")?.querySelector("figcaption")?.textContent
-      ?.replace(/\s+/g, " ")
+    const figureCaption = image.closest("figure")?.querySelector("figcaption");
+    const figureLabel = figureCaption?.querySelector("strong")?.textContent?.trim();
+    const figureDescription = figureCaption?.textContent
+      ?.slice(figureLabel?.length || 0)
+      .replace(/\s+/g, " ")
       .trim();
-    return figureCaption || image.alt || "Trip photo";
+    const combinedCaption = [figureLabel, figureDescription].filter(Boolean).join(" — ");
+    return combinedCaption || image.alt || "Trip photo";
   };
 
   const fullPhotoSource = image => {
