@@ -193,3 +193,153 @@ if (!reduceMotion) {
   });
   contentObserver.observe(document.querySelector("main") || document.body, { childList: true, subtree: true });
 }
+
+const photoViewerEnabled = document.body.hasAttribute("data-photo-viewer");
+
+if (photoViewerEnabled) {
+  const photoViewerMain = document.querySelector("main");
+
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="photo-lightbox" role="dialog" aria-modal="true" aria-label="Trip photo viewer" aria-hidden="true" hidden>
+      <button type="button" class="photo-lightbox-close" aria-label="Close photo viewer">&times;</button>
+      <div class="photo-lightbox-media">
+        <img class="photo-lightbox-image" alt="">
+      </div>
+      <p class="photo-lightbox-caption"></p>
+      <p class="photo-lightbox-position" aria-live="polite"></p>
+      <div class="photo-lightbox-controls">
+        <button type="button" class="photo-lightbox-button photo-lightbox-previous">&#9664; Previous</button>
+        <button type="button" class="photo-lightbox-button photo-lightbox-next">Next &#9654;</button>
+      </div>
+    </div>`);
+
+  const photoLightbox = document.querySelector(".photo-lightbox");
+  const lightboxImage = photoLightbox.querySelector(".photo-lightbox-image");
+  const lightboxCaption = photoLightbox.querySelector(".photo-lightbox-caption");
+  const lightboxPosition = photoLightbox.querySelector(".photo-lightbox-position");
+  const lightboxClose = photoLightbox.querySelector(".photo-lightbox-close");
+  const lightboxPrevious = photoLightbox.querySelector(".photo-lightbox-previous");
+  const lightboxNext = photoLightbox.querySelector(".photo-lightbox-next");
+  let pagePhotos = [];
+  let currentPhotoIndex = 0;
+  let photoViewerReturnFocus = null;
+
+  const visiblePagePhotos = () => [...photoViewerMain.querySelectorAll("img:not([data-photo-viewer-ignore])")]
+    .filter(image => image.getClientRects().length > 0);
+
+  const photoCaption = image => {
+    const figureCaption = image.closest("figure")?.querySelector("figcaption")?.textContent
+      ?.replace(/\s+/g, " ")
+      .trim();
+    return figureCaption || image.alt || "Trip photo";
+  };
+
+  const fullPhotoSource = image => {
+    const linkedSource = image.closest("a")?.href;
+    const isImageLink = linkedSource && /\.(?:avif|gif|jpe?g|png|webp)(?:[?#].*)?$/i.test(linkedSource);
+    return isImageLink ? linkedSource : (image.currentSrc || image.src);
+  };
+
+  const preparePhotoTriggers = () => {
+    const photos = visiblePagePhotos();
+    photos.forEach((image, index) => {
+      const linkedTrigger = image.closest("a");
+      const trigger = linkedTrigger && photoViewerMain.contains(linkedTrigger) ? linkedTrigger : image;
+      trigger.dataset.photoViewerTrigger = "";
+      trigger.classList.add("photo-viewer-trigger");
+      trigger.setAttribute("aria-label", `Open photo ${index + 1} of ${photos.length}: ${photoCaption(image)}`);
+      if (trigger === image) {
+        trigger.setAttribute("role", "button");
+        trigger.tabIndex = 0;
+      }
+    });
+  };
+
+  const updatePhotoLightbox = () => {
+    const image = pagePhotos[currentPhotoIndex];
+    const caption = photoCaption(image);
+    lightboxImage.src = fullPhotoSource(image);
+    lightboxImage.alt = caption;
+    lightboxCaption.textContent = caption;
+    lightboxPosition.textContent = `Photo ${currentPhotoIndex + 1} of ${pagePhotos.length}`;
+    const singlePhoto = pagePhotos.length < 2;
+    lightboxPrevious.disabled = singlePhoto;
+    lightboxNext.disabled = singlePhoto;
+  };
+
+  const openPhotoLightbox = image => {
+    pagePhotos = visiblePagePhotos();
+    currentPhotoIndex = pagePhotos.indexOf(image);
+    if (currentPhotoIndex < 0) return;
+    photoViewerReturnFocus = image.closest("[data-photo-viewer-trigger]") || image;
+    document.body.classList.add("photo-lightbox-open");
+    photoLightbox.hidden = false;
+    photoLightbox.setAttribute("aria-hidden", "false");
+    updatePhotoLightbox();
+    lightboxClose.focus();
+  };
+
+  const closePhotoLightbox = () => {
+    document.body.classList.remove("photo-lightbox-open");
+    photoLightbox.hidden = true;
+    photoLightbox.setAttribute("aria-hidden", "true");
+    lightboxImage.removeAttribute("src");
+    photoViewerReturnFocus?.focus();
+  };
+
+  const showPreviousPhoto = () => {
+    currentPhotoIndex = (currentPhotoIndex - 1 + pagePhotos.length) % pagePhotos.length;
+    updatePhotoLightbox();
+  };
+
+  const showNextPhoto = () => {
+    currentPhotoIndex = (currentPhotoIndex + 1) % pagePhotos.length;
+    updatePhotoLightbox();
+  };
+
+  photoViewerMain.addEventListener("click", event => {
+    const trigger = event.target.closest("[data-photo-viewer-trigger]");
+    if (!trigger || !photoViewerMain.contains(trigger)) return;
+    const image = trigger.matches("img") ? trigger : trigger.querySelector("img");
+    if (!image) return;
+    event.preventDefault();
+    openPhotoLightbox(image);
+  });
+
+  photoViewerMain.addEventListener("keydown", event => {
+    const trigger = event.target.closest("img[data-photo-viewer-trigger]");
+    if (!trigger || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    openPhotoLightbox(trigger);
+  });
+
+  lightboxClose.addEventListener("click", closePhotoLightbox);
+  lightboxPrevious.addEventListener("click", showPreviousPhoto);
+  lightboxNext.addEventListener("click", showNextPhoto);
+  photoLightbox.addEventListener("click", event => {
+    if (event.target === photoLightbox) closePhotoLightbox();
+  });
+
+  document.addEventListener("keydown", event => {
+    if (photoLightbox.hidden) return;
+    if (event.key === "Escape") closePhotoLightbox();
+    if (event.key === "ArrowLeft" && pagePhotos.length > 1) showPreviousPhoto();
+    if (event.key === "ArrowRight" && pagePhotos.length > 1) showNextPhoto();
+    if (event.key !== "Tab") return;
+
+    const focusable = [...photoLightbox.querySelectorAll("button:not([disabled])")];
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  preparePhotoTriggers();
+  const photoTriggerObserver = new MutationObserver(preparePhotoTriggers);
+  photoTriggerObserver.observe(photoViewerMain, { childList: true, subtree: true });
+}
