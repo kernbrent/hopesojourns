@@ -1528,7 +1528,6 @@ main > .section.internship-opportunities-section {
   box-shadow: 0 10px 28px rgba(23,63,53,.08);
   transition: transform .32s ease, box-shadow .32s ease, border-color .32s ease;
 }
-.internship-opportunity:nth-child(n+4) { grid-column: span 6; }
 .internship-opportunity::before {
   position: absolute;
   top: 0;
@@ -1617,6 +1616,28 @@ main > .section.internship-opportunities-section {
   text-transform: uppercase;
 }
 .internship-opportunity dd { margin: 2px 0 0; color: var(--ink); font-weight: 800; }
+.internship-brand-mark {
+  display: grid;
+  grid-column: span 4;
+  min-height: 315px;
+  padding: 24px;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+}
+.internship-brand-mark img {
+  width: min(168px, 70%);
+  height: auto;
+  filter: drop-shadow(0 12px 22px rgba(23,63,53,.12));
+}
+.internship-brand-mark p {
+  margin: 14px 0 0;
+  color: var(--forest-dark);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.65rem,2.5vw,2.15rem);
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
 .opportunity-next-step {
   display: flex;
   margin-top: 22px;
@@ -1986,7 +2007,7 @@ main > .section.internship-opportunities-section {
   .three-up, .tracks { grid-template-columns: 1fr; }
   .internship-opportunity,
   .internship-opportunity:nth-child(n) { grid-column: span 6; }
-  .internship-opportunity:last-child:nth-child(odd) { grid-column: span 12; }
+  .internship-brand-mark { grid-column: span 6; }
   .opportunity-next-step { align-items: flex-start; flex-direction: column; }
   .approach-panel { grid-template-columns: 1fr; }
   .approach-skill-list { grid-template-columns: 1fr; }
@@ -2046,7 +2067,8 @@ main > .section.internship-opportunities-section {
   .internship-invitation-intro .invitation-intro-title { font-size: clamp(2.45rem, 11.5vw, 4rem); }
   .internship-opportunity,
   .internship-opportunity:nth-child(n),
-  .internship-opportunity:last-child:nth-child(odd) { grid-column: span 12; }
+  .internship-brand-mark { grid-column: span 12; }
+  .internship-brand-mark { min-height: 250px; }
   .internship-track summary,
   .track-expanded-content { padding-right: 22px; padding-left: 22px; }
   .opportunity-next-step .button { width: 100%; }
