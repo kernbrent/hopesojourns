@@ -132,7 +132,7 @@ approachCollapse?.addEventListener("click", () => {
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const invitationIntro = document.querySelector("[data-invitation-intro]");
 const introReplayButton = document.querySelector("[data-intro-replay]");
-const introLastSeenDateKey = "hope-sojourns-home-intro-last-seen-date";
+const introLastSeenDateKey = invitationIntro?.dataset.introStorageKey || "hope-sojourns-home-intro-last-seen-date";
 const pageHero = document.querySelector(".hero, .page-hero");
 const journeyPath = document.querySelector(".journey-path");
 const revealSelector = [
@@ -141,6 +141,8 @@ const revealSelector = [
   ".value-card",
   ".trip-card",
   ".internship-callout",
+  ".internship-opportunity",
+  ".opportunity-next-step",
   ".partner-strip",
   ".past-trip-card",
   ".track",
@@ -157,6 +159,7 @@ const staggerSelector = [
   ".three-up",
   ".trip-grid",
   ".tracks",
+  ".opportunity-grid",
   ".past-trip-grid",
   ".giving-options",
   ".commitment-grid",
