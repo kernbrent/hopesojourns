@@ -1,6 +1,6 @@
 {
-  "version": 4,
-  "updated": "2026-08-15",
+  "version": 5,
+  "updated": "2026-08-18",
   "items": [
     {
       "id": "hope-sojourns-brochure",
@@ -56,6 +56,30 @@
         "listening"
       ],
       "relatedIds": [
+        "do-you-see-me-song",
+        "do-you-see-me-sermon"
+      ]
+    },
+    {
+      "id": "do-you-see-me-song",
+      "type": "Song",
+      "title": "Do You See Me? \u2014 Song",
+      "description": "A reflective piano song by Eric Clanton, written to accompany the Do You See Me? article and sermon.",
+      "author": "Eric Clanton",
+      "duration": "4:16",
+      "url": "/resources/do-you-see-me/DoYouSeeMe_Song.mp3",
+      "actionLabel": "Listen to the song",
+      "featured": false,
+      "collection": "Seeing People",
+      "tags": [
+        "dignity",
+        "compassion",
+        "reflection",
+        "piano",
+        "music"
+      ],
+      "relatedIds": [
+        "do-you-see-me",
         "do-you-see-me-sermon"
       ]
     },
@@ -65,7 +89,10 @@
       "title": "Do You See Me? \u2014 Sermon",
       "description": "A companion message to the article, exploring how Jesus sees people and calls His followers to stop, listen, and respond with compassion.",
       "author": "Brent D Kern",
-      "status": "Coming soon",
+      "date": "2026-08-15",
+      "duration": "44:37",
+      "url": "/resources/do-you-see-me/DoYouSeeMe_Sermon_08152026.mp3",
+      "actionLabel": "Listen to the sermon",
       "featured": false,
       "collection": "Seeing People",
       "tags": [
@@ -75,7 +102,8 @@
         "Jesus"
       ],
       "relatedIds": [
-        "do-you-see-me"
+        "do-you-see-me",
+        "do-you-see-me-song"
       ]
     },
     {

@@ -14,7 +14,7 @@
   const related = item => (item.relatedIds || []).map(id => items.find(x => x.id === id)).filter(Boolean);
   const card = (item, isFeatured = false) => {
     const connected = related(item);
-    const meta = [item.type, item.format, item.pageCount, item.fileSize, item.duration, date(item.date), item.status].filter(Boolean).map(esc).join(" · ");
+    const meta = [item.type, item.author, item.format, item.pageCount, item.fileSize, item.duration, date(item.date), item.status].filter(Boolean).map(esc).join(" · ");
     const action = isAudio(item)
       ? `<audio class="resource-audio" controls preload="metadata" src="${esc(item.url)}" aria-label="Play ${esc(item.title)}">Your browser does not support audio playback. <a href="${esc(item.url)}">Open the audio file</a>.</audio>`
       : item.url && item.downloadUrl
@@ -24,7 +24,7 @@
       : item.url
       ? `<a class="text-link" href="${esc(item.url)}"${/^https?:/.test(item.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(item.actionLabel || "Explore")} &rarr;</a>`
       : `<span class="resource-coming">${esc(item.status || "Coming soon")}</span>`;
-    const links = connected.length ? `<div class="resource-related"><strong>Continue this theme</strong>${connected.map(x => x.url ? `<a href="${esc(x.url)}"${/^https?:/.test(x.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.type)}: ${esc(x.title)}</a>` : `<span>${esc(x.type)}: ${esc(x.title)} (${esc(x.status || "Coming soon")})</span>`).join("")}</div>` : "";
+    const links = connected.length ? `<div class="resource-related"><strong>Continue this theme</strong>${connected.map(x => x.url ? `<a href="${esc(x.url)}"${/^https?:/.test(x.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.actionLabel || `${x.type}: ${x.title}`)} &rarr;</a>` : `<span>${esc(x.type)}: ${esc(x.title)} (${esc(x.status || "Coming soon")})</span>`).join("")}</div>` : "";
     return `<article class="resource-card${isFeatured ? " resource-card-featured" : ""}" data-type="${esc(item.type)}"><div class="resource-card-top"><span class="resource-type">${esc(item.type)}</span>${item.collection ? `<span class="resource-collection">Part of ${esc(item.collection)}</span>` : ""}</div><h3>${esc(item.title)}</h3>${item.subtitle ? `<p class="resource-subtitle">${esc(item.subtitle)}</p>` : ""}<p>${esc(item.description)}</p><div class="resource-meta">${meta}</div>${links}<div class="resource-action">${action}</div></article>`;
   };
   const render = () => {
