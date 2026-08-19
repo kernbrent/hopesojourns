@@ -52,6 +52,18 @@ type PeopleListRow = {
   submission_count: number;
   reply_count: number;
   interests_json: string;
+  teams_json: string;
+};
+
+type TeamListRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  member_count: number;
+  latest_assignment_at: string | null;
 };
 
 type PersonSubmissionRow = {
@@ -71,6 +83,7 @@ type AdminFilters = {
   opportunity: string;
   contactPreference: string;
   replyState: string;
+  team: string;
   dateFrom: string | null;
   dateToExclusive: string | null;
   sort: string;
@@ -140,6 +153,19 @@ function cleanMessage(value: unknown, maximum: number): string | null {
   const cleaned = value.normalize("NFKC").replace(/\r\n?/g, "\n").trim();
   if (!cleaned || cleaned.length > maximum || /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(cleaned)) return null;
   return cleaned;
+}
+
+function cleanOptionalMessage(value: unknown, maximum: number): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  return cleanMessage(value, maximum);
+}
+
+function normalizeTeamName(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/g, " ").trim();
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function base64Url(bytes: Uint8Array): string {
@@ -217,14 +243,18 @@ async function authenticate(request: Request, env: AdminEnv, requireCsrf = false
   return session;
 }
 
-async function audit(env: AdminEnv, entityType: string, entityId: string, eventType: string, metadata?: unknown): Promise<void> {
-  await env.DB.prepare(
+function auditStatement(env: AdminEnv, entityType: string, entityId: string, eventType: string, metadata?: unknown): D1PreparedStatement {
+  return env.DB.prepare(
     `INSERT INTO audit_events (id, entity_type, entity_id, event_type, metadata_json, created_at)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
   ).bind(
     crypto.randomUUID(), entityType, entityId, eventType,
     metadata === undefined ? null : JSON.stringify(metadata), new Date().toISOString(),
-  ).run();
+  );
+}
+
+async function audit(env: AdminEnv, entityType: string, entityId: string, eventType: string, metadata?: unknown): Promise<void> {
+  await auditStatement(env, entityType, entityId, eventType, metadata).run();
 }
 
 async function loginKey(request: Request, sessionSecret: string): Promise<string> {
@@ -360,6 +390,7 @@ function adminFilters(url: URL): AdminFilters {
   const opportunity = url.searchParams.get("opportunity") ?? "";
   const contactPreference = url.searchParams.get("contactPreference") ?? "";
   const replyState = url.searchParams.get("replyState") ?? "";
+  const team = url.searchParams.get("team") ?? "";
   const sort = url.searchParams.get("sort") ?? "newest";
   if (status && !ALLOWED_STATUSES.has(status)) throw new AdminError(400, "INVALID_FILTER", "Choose a valid status filter.");
   if (kind && kind !== "trip" && kind !== "internship") throw new AdminError(400, "INVALID_FILTER", "Choose a valid opportunity type.");
@@ -369,6 +400,9 @@ function adminFilters(url: URL): AdminFilters {
   }
   if (replyState && !["unreplied", "draft", "sent"].includes(replyState)) {
     throw new AdminError(400, "INVALID_FILTER", "Choose a valid reply state.");
+  }
+  if (team && team !== "unassigned" && !isUuid(team)) {
+    throw new AdminError(400, "INVALID_FILTER", "Choose a valid team.");
   }
   if (!["newest", "oldest", "name_asc", "name_desc"].includes(sort)) {
     throw new AdminError(400, "INVALID_FILTER", "Choose a valid sort order.");
@@ -385,6 +419,7 @@ function adminFilters(url: URL): AdminFilters {
     opportunity,
     contactPreference,
     replyState,
+    team,
     dateFrom,
     dateToExclusive,
     sort,
@@ -477,6 +512,12 @@ function filterSql(filters: AdminFilters, scope: "person" | "submission"): { whe
         )`);
     bindings.push(filters.replyState);
   }
+  if (filters.team === "unassigned") {
+    where.push("NOT EXISTS (SELECT 1 FROM team_members filtered_team_member WHERE filtered_team_member.person_id = p.id)");
+  } else if (filters.team) {
+    where.push("EXISTS (SELECT 1 FROM team_members filtered_team_member WHERE filtered_team_member.person_id = p.id AND filtered_team_member.team_id = ?)");
+    bindings.push(filters.team);
+  }
   return { whereSql: where.length ? `WHERE ${where.join(" AND ")}` : "", bindings };
 }
 
@@ -492,15 +533,23 @@ async function adminSummary(env: AdminEnv): Promise<Record<string, number>> {
 }
 
 async function adminFilterOptions(env: AdminEnv): Promise<Record<string, unknown>> {
-  const [opportunities, dates] = await Promise.all([
+  const [opportunities, dates, teams] = await Promise.all([
     env.DB.prepare(
       "SELECT slug, kind, title, location FROM opportunities WHERE active = 1 ORDER BY CASE kind WHEN 'trip' THEN 0 ELSE 1 END, sort_order",
     ).all<Record<string, string>>(),
     env.DB.prepare(
       "SELECT MIN(created_at) AS earliest, MAX(created_at) AS latest FROM interest_submissions",
     ).first<Record<string, string | null>>(),
+    env.DB.prepare(
+      "SELECT id, name, status FROM teams WHERE status = 'active' ORDER BY name_normalized",
+    ).all<Record<string, string>>(),
   ]);
-  return { opportunities: opportunities.results, earliestDate: dates?.earliest ?? null, latestDate: dates?.latest ?? null };
+  return {
+    opportunities: opportunities.results,
+    teams: teams.results,
+    earliestDate: dates?.earliest ?? null,
+    latestDate: dates?.latest ?? null,
+  };
 }
 
 async function listSubmissions(request: Request, env: AdminEnv): Promise<Response> {
@@ -626,7 +675,20 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
            FROM interests i JOIN opportunities o ON o.id = i.opportunity_id
            WHERE i.person_id = p.id ORDER BY o.kind, o.sort_order
          ) selected
-       ), '[]') AS interests_json
+       ), '[]') AS interests_json,
+       COALESCE((
+         SELECT json_group_array(json_object(
+           'id', selected_team.id,
+           'name', selected_team.name,
+           'status', selected_team.status,
+           'assignedAt', selected_team.assigned_at
+         ))
+         FROM (
+           SELECT t.id, t.name, t.status, tm.assigned_at
+           FROM team_members tm JOIN teams t ON t.id = tm.team_id
+           WHERE tm.person_id = p.id ORDER BY t.name_normalized
+         ) selected_team
+       ), '[]') AS teams_json
      FROM people p
      ${whereSql}
      ORDER BY ${selectedOrder}
@@ -649,6 +711,7 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
       submissionCount: Number(row.submission_count ?? 0),
       replyCount: Number(row.reply_count ?? 0),
       interests: parseJsonArray(row.interests_json),
+      teams: parseJsonArray(row.teams_json),
     })),
     summary,
     filterOptions,
@@ -669,7 +732,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
   ).bind(personId).first<Record<string, string | null>>();
   if (!person) throw new AdminError(404, "PERSON_NOT_FOUND", "This person was not found.");
 
-  const [interests, submissions, replies, registrations] = await Promise.all([
+  const [interests, submissions, replies, registrations, teams] = await Promise.all([
     env.DB.prepare(
       `SELECT i.id, i.status, i.created_at, i.updated_at, i.submission_id,
               o.slug, o.title, o.kind, o.location, o.partner, o.duration
@@ -714,6 +777,14 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
        FROM trip_registrations tr JOIN opportunities o ON o.id = tr.opportunity_id
        WHERE tr.person_id = ?1 ORDER BY tr.updated_at DESC`,
     ).bind(personId).all<Record<string, string | null>>(),
+    env.DB.prepare(
+      `SELECT t.id, t.name, t.description, t.status, tm.assigned_at,
+              CASE WHEN tm.person_id IS NULL THEN 0 ELSE 1 END AS assigned
+       FROM teams t
+       LEFT JOIN team_members tm ON tm.team_id = t.id AND tm.person_id = ?1
+       WHERE t.status = 'active' OR tm.person_id IS NOT NULL
+       ORDER BY t.name_normalized`,
+    ).bind(personId).all<Record<string, string | number | null>>(),
   ]);
   const submissionHistory = submissions.results.map(row => ({
     id: row.id,
@@ -775,8 +846,327 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
         submittedAt: row.submitted_at,
         updatedAt: row.updated_at,
       })),
+      teams: teams.results.map(row => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        status: row.status,
+        assigned: Boolean(row.assigned),
+        assignedAt: row.assigned_at,
+      })),
     },
   });
+}
+
+async function listTeams(request: Request, env: AdminEnv): Promise<Response> {
+  await authenticate(request, env);
+  const result = await env.DB.prepare(
+    `SELECT t.id, t.name, t.description, t.status, t.created_at, t.updated_at,
+            COUNT(tm.person_id) AS member_count, MAX(tm.assigned_at) AS latest_assignment_at
+     FROM teams t
+     LEFT JOIN team_members tm ON tm.team_id = t.id
+     GROUP BY t.id
+     ORDER BY CASE t.status WHEN 'active' THEN 0 ELSE 1 END, t.name_normalized`,
+  ).all<TeamListRow>();
+  return adminJson({
+    teams: result.results.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      status: row.status,
+      memberCount: Number(row.member_count ?? 0),
+      latestAssignmentAt: row.latest_assignment_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })),
+  });
+}
+
+async function createTeam(request: Request, env: AdminEnv): Promise<Response> {
+  await authenticate(request, env, true);
+  const body = await readAdminJson(request);
+  const name = cleanLine(body.name, 100);
+  const description = cleanOptionalMessage(body.description, 500);
+  if (!name) throw new AdminError(422, "INVALID_TEAM", "Enter a team name using 100 characters or fewer.");
+  if (body.description && !description) {
+    throw new AdminError(422, "INVALID_TEAM", "Use 500 characters or fewer for the team description.");
+  }
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  try {
+    await env.DB.prepare(
+      `INSERT INTO teams (id, name, name_normalized, description, status, created_at, updated_at)
+       VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?6)`,
+    ).bind(id, name, normalizeTeamName(name), description, now, now).run();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+      throw new AdminError(409, "TEAM_EXISTS", "A team with that name already exists.");
+    }
+    throw error;
+  }
+  await audit(env, "team", id, "created", { name });
+  return adminJson({
+    success: true,
+    team: { id, name, description, status: "active", memberCount: 0, createdAt: now, updatedAt: now },
+  }, 201);
+}
+
+async function teamDetail(request: Request, env: AdminEnv, teamId: string): Promise<Response> {
+  await authenticate(request, env);
+  const team = await env.DB.prepare(
+    `SELECT id, name, description, status, created_at, updated_at
+     FROM teams WHERE id = ?1 LIMIT 1`,
+  ).bind(teamId).first<Record<string, string | null>>();
+  if (!team) throw new AdminError(404, "TEAM_NOT_FOUND", "This team was not found.");
+
+  const [members, availablePeople] = await Promise.all([
+    env.DB.prepare(
+      `SELECT p.id, p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study,
+              p.created_at, p.updated_at, tm.assigned_at,
+              (SELECT MIN(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id) AS first_submission_at,
+              (SELECT MAX(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id) AS last_submission_at,
+              (SELECT COUNT(*) FROM interest_submissions s WHERE s.person_id = p.id) AS submission_count,
+              (SELECT COUNT(*) FROM submission_replies r
+               JOIN interest_submissions s ON s.id = r.submission_id WHERE s.person_id = p.id) AS reply_count,
+              COALESCE((
+                SELECT json_group_array(json_object(
+                  'id', selected.id, 'slug', selected.slug, 'title', selected.title, 'kind', selected.kind,
+                  'location', selected.location, 'partner', selected.partner, 'duration', selected.duration,
+                  'status', selected.status, 'createdAt', selected.created_at, 'updatedAt', selected.updated_at
+                ))
+                FROM (
+                  SELECT i.id, i.status, i.created_at, i.updated_at,
+                         o.slug, o.title, o.kind, o.location, o.partner, o.duration
+                  FROM interests i JOIN opportunities o ON o.id = i.opportunity_id
+                  WHERE i.person_id = p.id ORDER BY o.kind, o.sort_order
+                ) selected
+              ), '[]') AS interests_json
+       FROM team_members tm JOIN people p ON p.id = tm.person_id
+       WHERE tm.team_id = ?1
+       ORDER BY p.last_name COLLATE NOCASE, p.first_name COLLATE NOCASE`,
+    ).bind(teamId).all<Record<string, string | number | null>>(),
+    env.DB.prepare(
+      `SELECT p.id, p.first_name, p.last_name, p.email, p.phone,
+              COALESCE((
+                SELECT json_group_array(json_object('title', selected.title, 'status', selected.status))
+                FROM (
+                  SELECT o.title, i.status
+                  FROM interests i JOIN opportunities o ON o.id = i.opportunity_id
+                  WHERE i.person_id = p.id ORDER BY o.kind, o.sort_order
+                ) selected
+              ), '[]') AS interests_json
+       FROM people p
+       WHERE NOT EXISTS (
+         SELECT 1 FROM team_members tm WHERE tm.team_id = ?1 AND tm.person_id = p.id
+       )
+       ORDER BY p.last_name COLLATE NOCASE, p.first_name COLLATE NOCASE
+       LIMIT 500`,
+    ).bind(teamId).all<Record<string, string | null>>(),
+  ]);
+
+  return adminJson({
+    team: {
+      id: team.id,
+      name: team.name,
+      description: team.description,
+      status: team.status,
+      createdAt: team.created_at,
+      updatedAt: team.updated_at,
+      members: members.results.map(row => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        contactPreference: row.contact_preference,
+        fieldOfStudy: row.field_of_study,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        assignedAt: row.assigned_at,
+        firstSubmissionAt: row.first_submission_at,
+        lastSubmissionAt: row.last_submission_at,
+        submissionCount: Number(row.submission_count ?? 0),
+        replyCount: Number(row.reply_count ?? 0),
+        interests: parseJsonArray(String(row.interests_json ?? "[]")),
+      })),
+      availablePeople: availablePeople.results.map(row => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        interests: parseJsonArray(row.interests_json ?? "[]"),
+      })),
+    },
+  });
+}
+
+async function setPersonTeams(request: Request, env: AdminEnv, personId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const body = await readAdminJson(request);
+  const requestedTeamIds = body.teamIds;
+  if (!Array.isArray(requestedTeamIds) || requestedTeamIds.length > 30 || requestedTeamIds.some(id => typeof id !== "string" || !isUuid(id))) {
+    throw new AdminError(422, "INVALID_TEAMS", "Choose valid teams for this person.");
+  }
+  const desiredTeamIds = [...new Set(requestedTeamIds.filter((id): id is string => typeof id === "string"))];
+  const person = await env.DB.prepare("SELECT id FROM people WHERE id = ?1 LIMIT 1").bind(personId).first<{ id: string }>();
+  if (!person) throw new AdminError(404, "PERSON_NOT_FOUND", "This person was not found.");
+
+  if (desiredTeamIds.length) {
+    const placeholders = desiredTeamIds.map((_, index) => `?${index + 1}`).join(", ");
+    const found = await env.DB.prepare(`SELECT COUNT(*) AS total FROM teams WHERE id IN (${placeholders})`)
+      .bind(...desiredTeamIds).first<{ total: number }>();
+    if (Number(found?.total ?? 0) !== desiredTeamIds.length) {
+      throw new AdminError(422, "INVALID_TEAMS", "One of the selected teams no longer exists.");
+    }
+  }
+
+  const current = await env.DB.prepare("SELECT team_id FROM team_members WHERE person_id = ?1")
+    .bind(personId).all<{ team_id: string }>();
+  const currentIds = new Set(current.results.map(row => row.team_id));
+  const desiredIds = new Set(desiredTeamIds);
+  const toRemove = [...currentIds].filter(id => !desiredIds.has(id));
+  const toAdd = desiredTeamIds.filter(id => !currentIds.has(id));
+  const now = new Date().toISOString();
+  const statements = [
+    ...toRemove.map(teamId => env.DB.prepare("DELETE FROM team_members WHERE team_id = ?1 AND person_id = ?2").bind(teamId, personId)),
+    ...toAdd.map(teamId => env.DB.prepare(
+      "INSERT INTO team_members (team_id, person_id, assigned_at) VALUES (?1, ?2, ?3)",
+    ).bind(teamId, personId, now)),
+  ];
+  if (statements.length) await env.DB.batch(statements);
+  await audit(env, "person", personId, "teams_updated", { teamIds: desiredTeamIds, added: toAdd, removed: toRemove });
+  return adminJson({ success: true, personId, teamIds: desiredTeamIds, added: toAdd.length, removed: toRemove.length });
+}
+
+async function addTeamMember(request: Request, env: AdminEnv, teamId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const body = await readAdminJson(request);
+  const personId = typeof body.personId === "string" ? body.personId : "";
+  if (!isUuid(personId)) throw new AdminError(422, "INVALID_PERSON", "Choose a valid person to add.");
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(
+    `INSERT OR IGNORE INTO team_members (team_id, person_id, assigned_at)
+     SELECT t.id, p.id, ?1 FROM teams t, people p
+     WHERE t.id = ?2 AND t.status = 'active' AND p.id = ?3`,
+  ).bind(now, teamId, personId).run();
+  if (Number(result.meta.changes ?? 0) !== 1) {
+    const existing = await env.DB.prepare(
+      "SELECT 1 AS found FROM team_members WHERE team_id = ?1 AND person_id = ?2",
+    ).bind(teamId, personId).first<{ found: number }>();
+    if (existing) return adminJson({ success: true, alreadyAssigned: true, teamId, personId });
+    throw new AdminError(404, "TEAM_OR_PERSON_NOT_FOUND", "The team or person was not found.");
+  }
+  await audit(env, "team", teamId, "member_added", { personId });
+  return adminJson({ success: true, teamId, personId, assignedAt: now }, 201);
+}
+
+async function removeTeamMember(request: Request, env: AdminEnv, teamId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const body = await readAdminJson(request);
+  const personId = typeof body.personId === "string" ? body.personId : "";
+  if (!isUuid(personId)) throw new AdminError(422, "INVALID_PERSON", "Choose a valid person to remove.");
+  const result = await env.DB.prepare("DELETE FROM team_members WHERE team_id = ?1 AND person_id = ?2")
+    .bind(teamId, personId).run();
+  if (Number(result.meta.changes ?? 0) !== 1) throw new AdminError(404, "TEAM_MEMBER_NOT_FOUND", "This person is not on the team.");
+  await audit(env, "team", teamId, "member_removed", { personId });
+  return adminJson({ success: true, teamId, personId });
+}
+
+async function deleteTeam(request: Request, env: AdminEnv, teamId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const team = await env.DB.prepare(
+    `SELECT id, name,
+            (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = teams.id) AS member_count
+     FROM teams WHERE id = ?1 LIMIT 1`,
+  ).bind(teamId).first<{ id: string; name: string; member_count: number }>();
+  if (!team) throw new AdminError(404, "TEAM_NOT_FOUND", "This team was not found.");
+
+  const memberCount = Number(team.member_count ?? 0);
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM team_members WHERE team_id = ?1").bind(teamId),
+    env.DB.prepare("DELETE FROM teams WHERE id = ?1").bind(teamId),
+    auditStatement(env, "team", teamId, "deleted", { memberCount }),
+  ]);
+  return adminJson({ success: true, teamId, deletedMembers: memberCount });
+}
+
+async function deleteSubmission(request: Request, env: AdminEnv, submissionId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const submission = await env.DB.prepare(
+    `SELECT s.id, s.person_id,
+            (SELECT COUNT(*) FROM interests i WHERE i.submission_id = s.id) AS interest_count,
+            (SELECT COUNT(*) FROM submission_replies r WHERE r.submission_id = s.id) AS reply_count
+     FROM interest_submissions s WHERE s.id = ?1 LIMIT 1`,
+  ).bind(submissionId).first<{
+    id: string;
+    person_id: string;
+    interest_count: number;
+    reply_count: number;
+  }>();
+  if (!submission) throw new AdminError(404, "SUBMISSION_NOT_FOUND", "This request was not found.");
+
+  const interestCount = Number(submission.interest_count ?? 0);
+  const replyCount = Number(submission.reply_count ?? 0);
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM submission_replies WHERE submission_id = ?1").bind(submissionId),
+    env.DB.prepare("DELETE FROM interests WHERE submission_id = ?1").bind(submissionId),
+    env.DB.prepare("DELETE FROM interest_submissions WHERE id = ?1").bind(submissionId),
+    auditStatement(env, "interest_submission", submissionId, "deleted", {
+      personId: submission.person_id,
+      interestCount,
+      replyCount,
+    }),
+  ]);
+  return adminJson({
+    success: true,
+    submissionId,
+    personId: submission.person_id,
+    deletedInterests: interestCount,
+    deletedReplies: replyCount,
+  });
+}
+
+async function deletePerson(request: Request, env: AdminEnv, personId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const person = await env.DB.prepare(
+    `SELECT p.id,
+            (SELECT COUNT(*) FROM interest_submissions s WHERE s.person_id = p.id) AS submission_count,
+            (SELECT COUNT(*) FROM interests i WHERE i.person_id = p.id) AS interest_count,
+            (SELECT COUNT(*) FROM submission_replies r
+             JOIN interest_submissions s ON s.id = r.submission_id WHERE s.person_id = p.id) AS reply_count,
+            (SELECT COUNT(*) FROM trip_registrations tr WHERE tr.person_id = p.id) AS registration_count,
+            (SELECT COUNT(*) FROM team_members tm WHERE tm.person_id = p.id) AS team_count
+     FROM people p WHERE p.id = ?1 LIMIT 1`,
+  ).bind(personId).first<{
+    id: string;
+    submission_count: number;
+    interest_count: number;
+    reply_count: number;
+    registration_count: number;
+    team_count: number;
+  }>();
+  if (!person) throw new AdminError(404, "PERSON_NOT_FOUND", "This applicant was not found.");
+
+  const deleted = {
+    submissions: Number(person.submission_count ?? 0),
+    interests: Number(person.interest_count ?? 0),
+    replies: Number(person.reply_count ?? 0),
+    registrations: Number(person.registration_count ?? 0),
+    teamAssignments: Number(person.team_count ?? 0),
+  };
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM team_members WHERE person_id = ?1").bind(personId),
+    env.DB.prepare(
+      "DELETE FROM submission_replies WHERE submission_id IN (SELECT id FROM interest_submissions WHERE person_id = ?1)",
+    ).bind(personId),
+    env.DB.prepare("DELETE FROM interests WHERE person_id = ?1").bind(personId),
+    env.DB.prepare("DELETE FROM interest_submissions WHERE person_id = ?1").bind(personId),
+    env.DB.prepare("DELETE FROM trip_registrations WHERE person_id = ?1").bind(personId),
+    env.DB.prepare("DELETE FROM people WHERE id = ?1").bind(personId),
+    auditStatement(env, "person", personId, "deleted", deleted),
+  ]);
+  return adminJson({ success: true, personId, deleted });
 }
 
 async function submissionDetail(request: Request, env: AdminEnv, submissionId: string): Promise<Response> {
@@ -925,6 +1315,13 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
   const rows = await env.DB.prepare(
     `SELECT s.id AS submission_id, s.created_at AS submitted_at,
             p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study,
+            COALESCE((
+              SELECT group_concat(selected_team.name, '; ')
+              FROM (
+                SELECT t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id
+                WHERE tm.person_id = p.id ORDER BY t.name_normalized
+              ) selected_team
+            ), '') AS teams,
             s.preferred_timing, s.message,
             o.kind, o.title AS opportunity, o.location, o.partner, o.duration, i.status,
             (SELECT r.subject FROM submission_replies r WHERE r.submission_id = s.id ORDER BY r.created_at DESC LIMIT 1) AS last_reply_subject,
@@ -940,7 +1337,7 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
   ).bind(...bindings).all<Record<string, unknown>>();
   const columns = [
     "submission_id", "submitted_at", "first_name", "last_name", "email", "phone", "contact_preference",
-    "field_of_study", "preferred_timing", "message", "kind", "opportunity", "location", "partner", "duration",
+    "field_of_study", "teams", "preferred_timing", "message", "kind", "opportunity", "location", "partner", "duration",
     "status", "last_reply_subject", "last_reply_status", "last_reply_at",
   ];
   const csv = [columns.map(csvCell).join(","), ...rows.results.map(row => columns.map(column => csvCell(row[column])).join(","))].join("\r\n");
@@ -956,14 +1353,27 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "POST" && path === "/admin/login") return login(request, env);
   if (request.method === "GET" && path === "/admin/session") return sessionInfo(request, env);
   if (request.method === "POST" && path === "/admin/logout") return logout(request, env);
+  if (request.method === "GET" && path === "/admin/teams") return listTeams(request, env);
+  if (request.method === "POST" && path === "/admin/teams") return createTeam(request, env);
   if (request.method === "GET" && path === "/admin/people") return listPeople(request, env);
   if (request.method === "GET" && path === "/admin/submissions") return listSubmissions(request, env);
   if (request.method === "GET" && path === "/admin/export.csv") return exportCsv(request, env);
 
+  const personTeamsMatch = path.match(/^\/admin\/people\/([0-9a-f-]{36})\/teams$/i);
+  if (request.method === "POST" && personTeamsMatch) return setPersonTeams(request, env, personTeamsMatch[1]);
   const personMatch = path.match(/^\/admin\/people\/([0-9a-f-]{36})$/i);
   if (request.method === "GET" && personMatch) return personDetail(request, env, personMatch[1]);
+  if (request.method === "DELETE" && personMatch) return deletePerson(request, env, personMatch[1]);
+  const teamMemberMatch = path.match(/^\/admin\/teams\/([0-9a-f-]{36})\/members$/i);
+  if (request.method === "POST" && teamMemberMatch) return addTeamMember(request, env, teamMemberMatch[1]);
+  const teamMemberRemoveMatch = path.match(/^\/admin\/teams\/([0-9a-f-]{36})\/members\/remove$/i);
+  if (request.method === "POST" && teamMemberRemoveMatch) return removeTeamMember(request, env, teamMemberRemoveMatch[1]);
+  const teamMatch = path.match(/^\/admin\/teams\/([0-9a-f-]{36})$/i);
+  if (request.method === "GET" && teamMatch) return teamDetail(request, env, teamMatch[1]);
+  if (request.method === "DELETE" && teamMatch) return deleteTeam(request, env, teamMatch[1]);
   const detailMatch = path.match(/^\/admin\/submissions\/([0-9a-f-]{36})$/i);
   if (request.method === "GET" && detailMatch) return submissionDetail(request, env, detailMatch[1]);
+  if (request.method === "DELETE" && detailMatch) return deleteSubmission(request, env, detailMatch[1]);
   const statusMatch = path.match(/^\/admin\/submissions\/([0-9a-f-]{36})\/status$/i);
   if (request.method === "POST" && statusMatch) return updateInterestStatus(request, env, statusMatch[1]);
   const replyMatch = path.match(/^\/admin\/submissions\/([0-9a-f-]{36})\/replies$/i);

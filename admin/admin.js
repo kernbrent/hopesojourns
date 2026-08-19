@@ -9,18 +9,26 @@ const loginStatus = document.querySelector("#login-status");
 const peopleList = document.querySelector("#people-list");
 const submissionsList = document.querySelector("#submissions-list");
 const peopleGrid = document.querySelector("#people-grid");
+const teamsWorkspace = document.querySelector("#teams-workspace");
+const teamsList = document.querySelector("#teams-list");
+const teamCreateForm = document.querySelector("#team-create-form");
+const teamCreateStatus = document.querySelector("#team-create-status");
 const submissionsEmpty = document.querySelector("#submissions-empty");
 const submissionsStatus = document.querySelector("#submissions-status");
 const filterForm = document.querySelector("#submission-filters");
 const opportunityFilter = document.querySelector("#opportunity-filter");
+const teamFilter = document.querySelector("#team-filter");
 const resultsCount = document.querySelector("#results-count");
 const recordsTitle = document.querySelector("#records-title");
 const peopleViewTab = document.querySelector("#people-view-tab");
 const requestsViewTab = document.querySelector("#requests-view-tab");
 const gridViewTab = document.querySelector("#grid-view-tab");
+const teamsViewTab = document.querySelector("#teams-view-tab");
 const previousPage = document.querySelector("#previous-page");
 const nextPage = document.querySelector("#next-page");
 const pageLabel = document.querySelector("#page-label");
+const recordsPagination = document.querySelector("#records-pagination");
+const exportButton = document.querySelector("#export-submissions");
 const submissionDialog = document.querySelector("#submission-dialog");
 const submissionDetail = document.querySelector("#submission-detail");
 const detailStatus = document.querySelector("#detail-status");
@@ -130,6 +138,10 @@ function interestPill(interest) {
   return pill;
 }
 
+function teamPill(team) {
+  return element("span", "admin-interest-pill admin-team-pill", team.name);
+}
+
 function appendInterests(container, interests, limit = 3) {
   interests.slice(0, limit).forEach(item => {
     container.append(interestPill(item));
@@ -147,6 +159,9 @@ function renderPersonCard(person) {
   const identity = element("span", "admin-request-person");
   identity.append(element("strong", "", `${person.firstName} ${person.lastName}`));
   identity.append(element("small", "", `Latest activity ${formatDate(person.lastSubmissionAt)}`));
+  identity.append(element("small", "", person.teams?.length
+    ? `Teams: ${person.teams.map(team => team.name).join(", ")}`
+    : "Not assigned to a team"));
 
   const contact = element("span", "admin-request-contact");
   contact.append(element("span", "", person.email));
@@ -201,7 +216,7 @@ function renderPeopleGrid(people) {
   table.append(element("caption", "", "Filtered people records. Select a person's name to open their complete record."));
   const head = document.createElement("thead");
   const headingRow = document.createElement("tr");
-  ["Name", "Email", "Phone", "Contact by", "School or field", "Latest activity", "Trips and internships", "Requests", "Replies"].forEach(label => {
+  ["Name", "Email", "Cell phone", "Contact by", "School or field", "Teams", "Latest activity", "Trips and internships", "Requests", "Replies"].forEach(label => {
     const heading = element("th", "", label);
     heading.scope = "col";
     headingRow.append(heading);
@@ -225,6 +240,11 @@ function renderPeopleGrid(people) {
     gridCell(row, person.phone || "—", person.phone ? "" : "admin-grid-muted");
     gridCell(row, titleCase(person.contactPreference));
     gridCell(row, person.fieldOfStudy || "—", person.fieldOfStudy ? "" : "admin-grid-muted");
+    const teamsCell = gridCell(row, "");
+    const teamList = element("div", "admin-request-interests");
+    if (person.teams?.length) person.teams.forEach(team => teamList.append(teamPill(team)));
+    else teamList.append(element("span", "admin-grid-muted", "Unassigned"));
+    teamsCell.append(teamList);
     gridCell(row, formatDate(person.lastSubmissionAt));
 
     const interestsCell = gridCell(row, "");
@@ -255,7 +275,7 @@ function renderSummary(summary) {
 function filterQuery() {
   const formData = new FormData(filterForm);
   const params = new URLSearchParams({ page: String(state.page), pageSize: "25" });
-  for (const key of ["search", "status", "kind", "opportunity", "contactPreference", "replyState", "dateFrom", "dateTo", "sort"]) {
+  for (const key of ["search", "status", "kind", "opportunity", "contactPreference", "replyState", "team", "dateFrom", "dateTo", "sort"]) {
     const value = String(formData.get(key) || "").trim();
     if (value) params.set(key, value);
   }
@@ -283,6 +303,19 @@ function populateOpportunityFilter(filterOptions = {}) {
   }
   opportunityFilter.replaceChildren(firstOption, ...groups.values());
   if ([...opportunityFilter.options].some(option => option.value === selected)) opportunityFilter.value = selected;
+
+  const selectedTeam = teamFilter.value;
+  const everyTeam = element("option", "", "Every team");
+  everyTeam.value = "";
+  const unassigned = element("option", "", "Not assigned to a team");
+  unassigned.value = "unassigned";
+  const teamOptions = (Array.isArray(filterOptions.teams) ? filterOptions.teams : []).map(team => {
+    const option = element("option", "", team.name);
+    option.value = team.id;
+    return option;
+  });
+  teamFilter.replaceChildren(everyTeam, unassigned, ...teamOptions);
+  if ([...teamFilter.options].some(option => option.value === selectedTeam)) teamFilter.value = selectedTeam;
 
   const dateFrom = filterForm.elements.dateFrom;
   const dateTo = filterForm.elements.dateTo;
@@ -357,12 +390,48 @@ async function loadPeopleGrid() {
   }
 }
 
+function renderTeamCard(team) {
+  const card = element("article", "admin-team-card");
+  const header = element("header");
+  header.append(element("h3", "", team.name), statusPill(team.status));
+  const description = element("p", "", team.description || "No team description has been added yet.");
+  const footer = element("footer");
+  const activity = element("span", "", `${plural(team.memberCount, "member")} · ${team.latestAssignmentAt ? `Updated ${formatDate(team.latestAssignmentAt, false)}` : "Ready for applicants"}`);
+  const open = element("button", "admin-button admin-button-outline", "View team");
+  open.type = "button";
+  open.addEventListener("click", () => openTeam(team.id));
+  footer.append(activity, open);
+  card.append(header, description, footer);
+  return card;
+}
+
+async function loadTeams() {
+  submissionsStatus.textContent = "Loading teams…";
+  teamsList.setAttribute("aria-busy", "true");
+  try {
+    const { result } = await api("/teams");
+    teamsList.replaceChildren(...result.teams.map(renderTeamCard));
+    if (!result.teams.length) {
+      const empty = element("article", "admin-team-card");
+      empty.append(element("h3", "", "No teams yet"), element("p", "", "Create the first team above, then assign applicants from their records."));
+      teamsList.append(empty);
+    }
+    resultsCount.textContent = plural(result.teams.length, "team");
+    submissionsStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) submissionsStatus.textContent = error.message;
+  } finally {
+    teamsList.removeAttribute("aria-busy");
+  }
+}
+
 async function loadRecords() {
   previousPage.disabled = true;
   nextPage.disabled = true;
   if (state.view === "people") await loadPeople();
   else if (state.view === "requests") await loadSubmissions();
-  else await loadPeopleGrid();
+  else if (state.view === "grid") await loadPeopleGrid();
+  else await loadTeams();
 }
 
 function switchView(view, focusTab = false) {
@@ -371,6 +440,7 @@ function switchView(view, focusTab = false) {
   const showPeople = view === "people";
   const showRequests = view === "requests";
   const showGrid = view === "grid";
+  const showTeams = view === "teams";
   peopleViewTab.classList.toggle("is-active", showPeople);
   peopleViewTab.setAttribute("aria-selected", String(showPeople));
   peopleViewTab.tabIndex = showPeople ? 0 : -1;
@@ -380,11 +450,19 @@ function switchView(view, focusTab = false) {
   gridViewTab.classList.toggle("is-active", showGrid);
   gridViewTab.setAttribute("aria-selected", String(showGrid));
   gridViewTab.tabIndex = showGrid ? 0 : -1;
+  teamsViewTab.classList.toggle("is-active", showTeams);
+  teamsViewTab.setAttribute("aria-selected", String(showTeams));
+  teamsViewTab.tabIndex = showTeams ? 0 : -1;
   peopleList.hidden = !showPeople;
   submissionsList.hidden = !showRequests;
   peopleGrid.hidden = !showGrid;
-  recordsTitle.textContent = showPeople ? "All people" : showRequests ? "Individual requests" : "People spreadsheet";
-  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : gridViewTab).focus();
+  teamsWorkspace.hidden = !showTeams;
+  filterForm.hidden = showTeams;
+  recordsPagination.hidden = showTeams;
+  exportButton.hidden = showTeams;
+  submissionsEmpty.hidden = true;
+  recordsTitle.textContent = showPeople ? "All people" : showRequests ? "Individual requests" : showGrid ? "People spreadsheet" : "Teams";
+  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : showGrid ? gridViewTab : teamsViewTab).focus();
   loadRecords();
 }
 
@@ -570,6 +648,51 @@ function createContactHero(record, activityLabel, activityValue) {
   return hero;
 }
 
+async function refreshAfterDeletion(successMessage) {
+  submissionDialog.close();
+  state.currentRecordId = "";
+  if (state.view === "teams") {
+    await loadTeams();
+    try {
+      const { result } = await api("/people?page=1&pageSize=1");
+      renderSummary(result.summary);
+      populateOpportunityFilter(result.filterOptions);
+    } catch (error) {
+      if (error.status !== 401) submissionsStatus.textContent = error.message;
+    }
+  } else {
+    await loadRecords();
+  }
+  submissionsStatus.textContent = successMessage;
+}
+
+function createDeletionPanel({ title, description, buttonLabel, promptMessage, path, successMessage }) {
+  const section = element("section", "admin-detail-card admin-detail-card-wide admin-danger-zone");
+  const copy = element("div");
+  copy.append(element("h3", "", title), element("p", "", description));
+  const button = element("button", "admin-button admin-button-danger", buttonLabel);
+  button.type = "button";
+  button.addEventListener("click", async () => {
+    const confirmation = window.prompt(`${promptMessage}\n\nType DELETE to confirm.`);
+    if (confirmation === null) return;
+    if (confirmation !== "DELETE") {
+      detailStatus.textContent = "Nothing was deleted. Enter DELETE exactly to confirm permanent deletion.";
+      return;
+    }
+    setBusy(button, true, "Deleting…");
+    detailStatus.textContent = "Deleting this record permanently…";
+    try {
+      await api(path, { method: "DELETE" });
+      await refreshAfterDeletion(successMessage);
+    } catch (error) {
+      detailStatus.textContent = error.message;
+      setBusy(button, false);
+    }
+  });
+  section.append(copy, button);
+  return section;
+}
+
 function renderSubmissionDetail(submission) {
   const fragment = document.createDocumentFragment();
   fragment.append(createContactHero(submission, "Received", formatDate(submission.createdAt)));
@@ -599,6 +722,14 @@ function renderSubmissionDetail(submission) {
     interests,
     createReplyComposer(submission, submission.id, "submission"),
     createReplyHistory(submission, "submission"),
+    createDeletionPanel({
+      title: "Delete this request",
+      description: `Permanently removes this request, ${plural(submission.interests.filter(interest => interest.selectedInSubmission !== false).length, "linked interest")}, and ${plural(submission.replies.length, "saved reply")}. The applicant’s other records remain.`,
+      buttonLabel: "Delete request permanently",
+      promptMessage: `Delete the request from ${submission.firstName} ${submission.lastName}? This cannot be undone.`,
+      path: `/submissions/${submission.id}`,
+      successMessage: `The request from ${submission.firstName} ${submission.lastName} was permanently deleted.`,
+    }),
   );
   fragment.append(grid);
   submissionDetail.replaceChildren(fragment);
@@ -610,6 +741,7 @@ function renderPersonStats(person) {
     [person.interests.length, "Interests"],
     [person.submissions.length, "Requests"],
     [person.replies.length, "Saved replies"],
+    [person.teams.filter(team => team.assigned).length, "Teams"],
     [person.registrations.length, "Registrations"],
   ];
   items.forEach(([value, label]) => {
@@ -669,6 +801,51 @@ function renderRegistrations(person) {
   return section;
 }
 
+function createTeamAssignments(person) {
+  const section = element("section", "admin-detail-card");
+  section.append(element("h3", "", "Team assignments"));
+  if (!person.teams.length) {
+    section.append(element("p", "admin-reply-help", "No teams have been created yet. Use the Teams tab to create one."));
+    return section;
+  }
+  const form = element("form", "admin-team-assignment-form");
+  const list = element("div", "admin-team-assignment-list");
+  person.teams.forEach(team => {
+    const choice = element("label", "admin-team-assignment-choice");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.name = "teamIds";
+    checkbox.value = team.id;
+    checkbox.checked = Boolean(team.assigned);
+    checkbox.disabled = team.status !== "active" && !team.assigned;
+    const copy = element("span");
+    copy.append(element("strong", "", team.name));
+    copy.append(element("small", "", team.status === "active" ? (team.description || "Active team") : "Archived team"));
+    choice.append(checkbox, copy);
+    list.append(choice);
+  });
+  const save = element("button", "admin-button admin-button-primary", "Save team assignments");
+  save.type = "submit";
+  form.append(list, save);
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    setBusy(save, true, "Saving…");
+    detailStatus.textContent = "";
+    try {
+      const teamIds = [...form.querySelectorAll("input[name='teamIds']:checked")].map(input => input.value);
+      await api(`/people/${person.id}/teams`, { method: "POST", body: { teamIds } });
+      detailStatus.textContent = "Team assignments saved.";
+      await Promise.all([loadPersonDetail(person.id), loadRecords()]);
+    } catch (error) {
+      detailStatus.textContent = error.message;
+    } finally {
+      setBusy(save, false);
+    }
+  });
+  section.append(form);
+  return section;
+}
+
 function renderPersonDetail(person) {
   const fragment = document.createDocumentFragment();
   const hero = createContactHero(person, "Latest activity", formatDate(person.submissions[0]?.createdAt || person.updatedAt));
@@ -690,15 +867,183 @@ function renderPersonDetail(person) {
   person.interests.forEach(interest => interests.append(createInterestRow(person, interest, "person")));
   if (!person.interests.length) interests.append(element("p", "admin-reply-help", "No interests are recorded for this person."));
 
-  grid.append(profile, interests, renderSubmissionHistory(person));
+  grid.append(profile, createTeamAssignments(person), interests, renderSubmissionHistory(person));
   const registrations = renderRegistrations(person);
   if (registrations) grid.append(registrations);
   grid.append(
     createReplyComposer(person, person.latestSubmissionId, "person"),
     createReplyHistory(person, "person"),
+    createDeletionPanel({
+      title: "Delete this applicant and all records",
+      description: `Permanently removes the applicant, ${plural(person.submissions.length, "request")}, ${plural(person.interests.length, "interest")}, ${plural(person.replies.length, "saved reply")}, ${plural(person.registrations.length, "registration")}, and every team assignment.`,
+      buttonLabel: "Delete applicant permanently",
+      promptMessage: `Delete ${person.firstName} ${person.lastName} and all information connected to this applicant? This cannot be undone.`,
+      path: `/people/${person.id}`,
+      successMessage: `${person.firstName} ${person.lastName} and all connected records were permanently deleted.`,
+    }),
   );
   fragment.append(grid);
   submissionDetail.replaceChildren(fragment);
+}
+
+function openTeamEmail(team) {
+  const emails = [...new Set(team.members.map(member => member.email).filter(Boolean))];
+  if (!emails.length) {
+    detailStatus.textContent = "Add at least one team member before opening a team email.";
+    return;
+  }
+  detailStatus.textContent = `Opening your email app with ${plural(emails.length, "address")} in the To field.`;
+  window.location.href = `mailto:${emails.join(",")}`;
+}
+
+function createTeamMemberCard(team, member) {
+  const card = element("article", "admin-team-member");
+  const identity = element("div");
+  identity.append(element("h4", "", `${member.firstName} ${member.lastName}`));
+  identity.append(element("small", "", `Assigned ${formatDate(member.assignedAt, false)}`));
+  identity.append(element("small", "", member.fieldOfStudy || "School or field not provided"));
+
+  const contact = element("div", "admin-team-member-contact");
+  const email = element("a", "", member.email);
+  email.href = `mailto:${member.email}`;
+  contact.append(email);
+  if (member.phone) {
+    const phone = element("a", "", member.phone);
+    phone.href = `tel:${member.phone.replace(/[^0-9+]/g, "")}`;
+    contact.append(phone);
+  } else {
+    contact.append(element("span", "", "Cell phone not provided"));
+  }
+  contact.append(element("span", "", `Prefers ${titleCase(member.contactPreference).toLowerCase()} · ${plural(member.submissionCount, "request")} · ${plural(member.replyCount, "reply")}`));
+
+  const interests = element("div", "admin-request-interests");
+  appendInterests(interests, member.interests, 4);
+
+  const actions = element("div", "admin-team-member-actions");
+  const view = element("button", "admin-button admin-button-outline", "Full record");
+  view.type = "button";
+  view.addEventListener("click", () => openPerson(member.id));
+  const remove = element("button", "admin-button admin-button-quiet", "Remove");
+  remove.type = "button";
+  remove.addEventListener("click", async () => {
+    if (!window.confirm(`Remove ${member.firstName} ${member.lastName} from ${team.name}?`)) return;
+    setBusy(remove, true, "Removing…");
+    detailStatus.textContent = "";
+    try {
+      await api(`/teams/${team.id}/members/remove`, { method: "POST", body: { personId: member.id } });
+      detailStatus.textContent = `${member.firstName} was removed from ${team.name}.`;
+      await Promise.all([loadTeamDetail(team.id), loadRecords()]);
+    } catch (error) {
+      detailStatus.textContent = error.message;
+    } finally {
+      setBusy(remove, false);
+    }
+  });
+  actions.append(view, remove);
+  card.append(identity, contact, interests, actions);
+  return card;
+}
+
+function renderTeamDetail(team) {
+  const fragment = document.createDocumentFragment();
+  const hero = element("section", "admin-detail-hero");
+  const copy = element("div");
+  copy.append(element("h3", "", team.name));
+  copy.append(element("p", "", team.description || "No team description has been added yet."));
+  copy.append(element("p", "", `Created ${formatDate(team.createdAt, false)}`));
+  const actions = element("div", "admin-team-detail-actions");
+  const emailTeam = element("button", "admin-button admin-button-primary", "Email entire team");
+  emailTeam.type = "button";
+  emailTeam.disabled = team.members.length === 0;
+  emailTeam.addEventListener("click", () => openTeamEmail(team));
+  actions.append(element("strong", "", plural(team.members.length, "member")), emailTeam);
+  hero.append(copy, actions);
+  fragment.append(hero);
+
+  const grid = element("div", "admin-detail-grid");
+  const emailNote = element("section", "admin-detail-card admin-detail-card-wide");
+  emailNote.append(element("p", "admin-team-email-note", "The team email button opens this machine’s preferred email app and places every team member’s email address in the To field. All recipients will be able to see the other addresses."));
+
+  const add = element("section", "admin-detail-card admin-detail-card-wide");
+  add.append(element("h3", "", "Add an applicant"));
+  if (team.availablePeople.length) {
+    const form = element("form", "admin-team-add-form");
+    const label = element("label");
+    label.append(element("span", "", "Applicant"));
+    const select = document.createElement("select");
+    select.name = "personId";
+    select.required = true;
+    team.availablePeople.forEach(person => {
+      const interests = person.interests?.map(interest => interest.title).slice(0, 3).join(", ") || "No interests recorded";
+      const option = element("option", "", `${person.lastName}, ${person.firstName} — ${interests} — ${person.email} — ${person.phone || "No cell"}`);
+      option.value = person.id;
+      select.append(option);
+    });
+    label.append(select);
+    const addButton = element("button", "admin-button admin-button-primary", "Add to team");
+    addButton.type = "submit";
+    form.append(label, addButton);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      setBusy(addButton, true, "Adding…");
+      detailStatus.textContent = "";
+      try {
+        await api(`/teams/${team.id}/members`, { method: "POST", body: { personId: select.value } });
+        detailStatus.textContent = "Applicant added to the team.";
+        await Promise.all([loadTeamDetail(team.id), loadRecords()]);
+      } catch (error) {
+        detailStatus.textContent = error.message;
+      } finally {
+        setBusy(addButton, false);
+      }
+    });
+    add.append(form);
+  } else {
+    add.append(element("p", "admin-reply-help", "Every applicant is already assigned to this team."));
+  }
+
+  const members = element("section", "admin-detail-card admin-detail-card-wide");
+  members.append(element("h3", "", "Team members and submitted information"));
+  const memberList = element("div", "admin-team-member-list");
+  if (team.members.length) team.members.forEach(member => memberList.append(createTeamMemberCard(team, member)));
+  else memberList.append(element("p", "admin-reply-help", "No applicants have been assigned to this team yet."));
+  members.append(memberList);
+  grid.append(
+    emailNote,
+    add,
+    members,
+    createDeletionPanel({
+      title: "Delete this team",
+      description: `Permanently removes the team and its ${plural(team.members.length, "assignment")}. Applicant records and submitted information remain in the portal.`,
+      buttonLabel: "Delete team permanently",
+      promptMessage: `Delete ${team.name}? Applicants will remain, but the team and all assignments to it will be removed. This cannot be undone.`,
+      path: `/teams/${team.id}`,
+      successMessage: `${team.name} was permanently deleted. Applicant records were kept.`,
+    }),
+  );
+  fragment.append(grid);
+  submissionDetail.replaceChildren(fragment);
+}
+
+async function loadTeamDetail(teamId) {
+  detailStatus.textContent = "Loading team…";
+  try {
+    const { result } = await api(`/teams/${teamId}`);
+    renderTeamDetail(result.team);
+    detailTitle.textContent = result.team.name;
+    detailStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) detailStatus.textContent = error.message;
+  }
+}
+
+async function openTeam(teamId) {
+  state.currentRecordId = teamId;
+  submissionDetail.replaceChildren();
+  detailEyebrow.textContent = "Complete team record";
+  detailTitle.textContent = "Team details";
+  if (!submissionDialog.open) submissionDialog.showModal();
+  await loadTeamDetail(teamId);
 }
 
 async function loadSubmissionDetail(submissionId) {
@@ -771,13 +1116,38 @@ document.querySelector("#admin-signout").addEventListener("click", async event =
 peopleViewTab.addEventListener("click", () => switchView("people"));
 requestsViewTab.addEventListener("click", () => switchView("requests"));
 gridViewTab.addEventListener("click", () => switchView("grid"));
+teamsViewTab.addEventListener("click", () => switchView("teams"));
 document.querySelector(".admin-view-tabs").addEventListener("keydown", event => {
   if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
   event.preventDefault();
-  const views = ["people", "requests", "grid"];
+  const views = ["people", "requests", "grid", "teams"];
   const direction = event.key === "ArrowRight" ? 1 : -1;
   const nextIndex = (views.indexOf(state.view) + direction + views.length) % views.length;
   switchView(views[nextIndex], true);
+});
+
+teamCreateForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = teamCreateForm.querySelector("button[type='submit']");
+  const formData = new FormData(teamCreateForm);
+  setBusy(submit, true, "Creating…");
+  teamCreateStatus.textContent = "";
+  try {
+    const { result } = await api("/teams", {
+      method: "POST",
+      body: {
+        name: String(formData.get("name") || ""),
+        description: String(formData.get("description") || ""),
+      },
+    });
+    teamCreateForm.reset();
+    teamCreateStatus.textContent = `${result.team.name} was created.`;
+    await loadTeams();
+  } catch (error) {
+    teamCreateStatus.textContent = error.message;
+  } finally {
+    setBusy(submit, false);
+  }
 });
 
 filterForm.addEventListener("submit", event => {
@@ -797,7 +1167,7 @@ document.querySelector("#refresh-submissions").addEventListener("click", event =
 previousPage.addEventListener("click", () => { if (state.page > 1) { state.page -= 1; loadRecords(); } });
 nextPage.addEventListener("click", () => { if (state.page < state.pages) { state.page += 1; loadRecords(); } });
 
-document.querySelector("#export-submissions").addEventListener("click", async event => {
+exportButton.addEventListener("click", async event => {
   const button = event.currentTarget;
   setBusy(button, true, "Preparing…");
   submissionsStatus.textContent = "";

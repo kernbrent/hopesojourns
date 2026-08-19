@@ -92,8 +92,8 @@ if (interestForm) {
       valid = false;
     }
     const phoneDigits = payload.phone.replace(/\D/g, "");
-    if (payload.contactPreference === "phone" && (phoneDigits.length < 7 || phoneDigits.length > 18)) {
-      const message = "Add a valid phone number if you prefer a phone call.";
+    if (phoneDigits.length < 7 || phoneDigits.length > 18) {
+      const message = "Enter a valid cell phone number with 7 to 18 digits.";
       interestForm.elements.phone.setCustomValidity(message);
       showFieldError("phone", message);
       valid = false;

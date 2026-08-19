@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=23">
   <script src="/script.js?v=15" defer></script>
-  <script src="/interest/interest.js?v=1" defer></script>
+  <script src="/interest/interest.js?v=2" defer></script>
 </head>
 <body data-interest-api-base="/api/interest">
   <main id="main">
@@ -91,8 +91,8 @@
                 <p class="form-field-error" data-error-for="email" id="email-error" hidden></p>
               </div>
               <div class="form-field form-field-wide">
-                <label for="phone">Phone <span class="field-optional">Optional unless you prefer a call</span></label>
-                <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" aria-describedby="phone-error">
+                <label for="phone">Cell phone <span aria-hidden="true">*</span></label>
+                <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" required aria-describedby="phone-error">
                 <p class="form-field-error" data-error-for="phone" id="phone-error" hidden></p>
               </div>
               <fieldset class="form-field form-field-wide contact-preference-field">
@@ -127,7 +127,7 @@
 
             <label class="consent-choice">
               <input type="checkbox" name="consent" value="yes" required aria-describedby="consent-error">
-              <span>I agree that Hope Sojourns may contact me about the opportunities I selected. <span aria-hidden="true">*</span></span>
+              <span>I agree that Hope Sojourns may contact me by email or cell phone about the opportunities I selected. <span aria-hidden="true">*</span></span>
             </label>
             <p class="form-field-error" data-error-for="consent" id="consent-error" hidden></p>
             <p class="interest-privacy-note">Your information will be used only to respond to your Hope Sojourns interest. Do not include passport, medical, or payment information here.</p>

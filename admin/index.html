@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=23">
-  <link rel="stylesheet" href="/admin/admin.css?v=5">
+  <link rel="stylesheet" href="/admin/admin.css?v=7">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -31,7 +31,7 @@
         <p>Review trip and internship interest, keep follow-up organized, and prepare personal replies.</p>
         <ul class="admin-login-features" aria-label="Portal features">
           <li><span aria-hidden="true">01</span> Complete history for every person</li>
-          <li><span aria-hidden="true">02</span> Card, request, and spreadsheet views</li>
+          <li><span aria-hidden="true">02</span> Card, spreadsheet, and team views</li>
           <li><span aria-hidden="true">03</span> Filtered, exportable, duplicate-protected records</li>
         </ul>
       </div>
@@ -54,7 +54,7 @@
         <div>
           <p class="eyebrow">Hope Sojourns response center</p>
           <h1 id="dashboard-title">People ready to explore.</h1>
-          <p>Each person can be connected to several trips and internships without creating duplicate records.</p>
+          <p>Connect each person’s submitted interests to the right serving team without creating duplicate records.</p>
         </div>
         <div class="admin-dashboard-actions">
           <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh</button>
@@ -83,6 +83,7 @@
           <button class="admin-view-tab is-active" id="people-view-tab" type="button" role="tab" aria-selected="true" aria-controls="people-list">All people</button>
           <button class="admin-view-tab" id="requests-view-tab" type="button" role="tab" aria-selected="false" aria-controls="submissions-list">Individual requests</button>
           <button class="admin-view-tab" id="grid-view-tab" type="button" role="tab" aria-selected="false" aria-controls="people-grid">Spreadsheet view</button>
+          <button class="admin-view-tab" id="teams-view-tab" type="button" role="tab" aria-selected="false" aria-controls="teams-workspace">Teams</button>
         </div>
         <form class="admin-filters" id="submission-filters" role="search">
           <label class="admin-search-field">
@@ -131,6 +132,13 @@
             </select>
           </label>
           <label>
+            <span>Team</span>
+            <select name="team" id="team-filter">
+              <option value="">Every team</option>
+              <option value="unassigned">Not assigned to a team</option>
+            </select>
+          </label>
+          <label>
             <span>Received from</span>
             <input name="dateFrom" type="date">
           </label>
@@ -154,13 +162,29 @@
         <div class="admin-request-list admin-people-list" id="people-list" role="tabpanel" aria-labelledby="people-view-tab" aria-live="polite"></div>
         <div class="admin-request-list" id="submissions-list" role="tabpanel" aria-labelledby="requests-view-tab" aria-live="polite" hidden></div>
         <div class="admin-grid-shell" id="people-grid" role="tabpanel" aria-labelledby="grid-view-tab" aria-live="polite" hidden></div>
+        <section class="admin-teams-workspace" id="teams-workspace" role="tabpanel" aria-labelledby="teams-view-tab" hidden>
+          <div class="admin-team-create-shell">
+            <div>
+              <p class="eyebrow">Build a serving team</p>
+              <h3>Create a team</h3>
+              <p>Give the team a clear name, then add applicants from their submitted forms.</p>
+            </div>
+            <form class="admin-team-create-form" id="team-create-form">
+              <label><span>Team name</span><input name="name" type="text" maxlength="100" required placeholder="For example: Athens Summer 2027"></label>
+              <label><span>Description <small>Optional</small></span><textarea name="description" maxlength="500" rows="3" placeholder="Dates, destination, or purpose"></textarea></label>
+              <button class="admin-button admin-button-primary" type="submit">Create team</button>
+              <p class="admin-form-status" id="team-create-status" role="status" aria-live="polite"></p>
+            </form>
+          </div>
+          <div class="admin-team-list" id="teams-list" aria-live="polite"></div>
+        </section>
         <div class="admin-empty" id="submissions-empty" hidden>
           <img src="/assets/hope-sojourns-icon.png" alt="" width="72" height="72">
           <h3>No records match these filters.</h3>
           <p>Clear one or more filters or refresh to check for new information.</p>
         </div>
         <p class="admin-load-status" id="submissions-status" role="status" aria-live="polite"></p>
-        <nav class="admin-pagination" aria-label="Request pages">
+        <nav class="admin-pagination" id="records-pagination" aria-label="Record pages">
           <button class="admin-button admin-button-quiet" id="previous-page" type="button">Previous</button>
           <span id="page-label">Page 1 of 1</span>
           <button class="admin-button admin-button-quiet" id="next-page" type="button">Next</button>
@@ -186,6 +210,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=9" defer></script>
+  <script src="/admin/admin.js?v=11" defer></script>
 </body>
 </html>

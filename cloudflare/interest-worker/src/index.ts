@@ -13,8 +13,8 @@ type InterestSubmission = {
   lastNameNormalized: string;
   email: string;
   emailNormalized: string;
-  phone: string | null;
-  phoneNormalized: string | null;
+  phone: string;
+  phoneNormalized: string;
   contactPreference: ContactPreference;
   fieldOfStudy: string | null;
   preferredTiming: string | null;
@@ -113,15 +113,18 @@ function validateEmail(value: unknown, errors: FieldErrors): { display: string; 
 }
 
 function validatePhone(value: unknown, errors: FieldErrors): { display: string; normalized: string } | null {
-  if (value === undefined || value === null || value === "") return null;
+  if (value === undefined || value === null || value === "") {
+    errors.phone = "Enter your cell phone number.";
+    return null;
+  }
   const display = cleanSingleLine(value, 40);
   if (!display || !/^[0-9+().\-\s]*(?:(?:x|ext\.?)\s*\d{1,6})?$/i.test(display)) {
-    errors.phone = "Enter a valid phone number.";
+    errors.phone = "Enter a valid cell phone number.";
     return null;
   }
   const normalized = normalizePhone(display);
   if (!normalized) {
-    errors.phone = "Enter a phone number with 7 to 18 digits.";
+    errors.phone = "Enter a cell phone number with 7 to 18 digits.";
     return null;
   }
   return { display, normalized };
@@ -150,7 +153,6 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
   const phone = validatePhone(value.phone, errors);
   const contactPreference = value.contactPreference === "phone" ? "phone" : value.contactPreference === "email" ? "email" : null;
   if (!contactPreference) errors.contactPreference = "Choose how you prefer to be contacted.";
-  if (contactPreference === "phone" && !phone) errors.phone = "Add a valid phone number if you prefer a phone call.";
 
   const fieldOfStudy = cleanOptionalSingleLine(value.fieldOfStudy, 140);
   if (value.fieldOfStudy && !fieldOfStudy) errors.fieldOfStudy = "Use 140 characters or fewer.";
@@ -163,7 +165,7 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
   if (!idempotencyKey || !/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) errors.form = "Refresh the page and try again.";
   if (value.consent !== true) errors.consent = "Confirm that Hope Sojourns may contact you.";
 
-  if (Object.keys(errors).length > 0 || !firstName || !lastName || !email || !contactPreference || !idempotencyKey) {
+  if (Object.keys(errors).length > 0 || !firstName || !lastName || !email || !phone || !contactPreference || !idempotencyKey) {
     throw new HttpError(422, "VALIDATION_ERROR", "Please review the highlighted fields.", errors);
   }
 
@@ -174,8 +176,8 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
     lastNameNormalized: normalizeName(lastName),
     email: email.display,
     emailNormalized: email.normalized,
-    phone: phone?.display ?? null,
-    phoneNormalized: phone?.normalized ?? null,
+    phone: phone.display,
+    phoneNormalized: phone.normalized,
     contactPreference,
     fieldOfStudy,
     preferredTiming,

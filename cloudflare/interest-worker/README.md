@@ -1,10 +1,10 @@
 # Hope Sojourns test forms and admin Worker
 
-This Cloudflare Worker stores trip and internship interest in a D1 database. It keeps personal information out of the static website, validates every submission on the server, accepts several opportunities for one person, and prevents duplicate person/opportunity rows and exact repeat submissions.
+This Cloudflare Worker stores trip and internship interest in a D1 database. It keeps personal information out of the static website, requires and validates both an email address and cell phone number, accepts several opportunities for one person, and prevents duplicate person/opportunity rows and exact repeat submissions.
 
 The trip-registration table is intentionally separate from public interest submissions. A later registration workflow can add sensitive application fields without mixing them into the low-friction interest form.
 
-The same Worker protects the hidden response portal. Administrator passwords are Cloudflare secrets, sessions use secure HTTP-only cookies, state-changing requests require a CSRF token, failed logins are rate limited, and every reply or status change is recorded. Administrators can review people as cards, individual requests, or a spreadsheet-style grid; open a complete person history; and filter or export by search, status, opportunity, contact preference, reply state, and received date. CSV exports neutralize spreadsheet formulas before download.
+The same Worker protects the hidden response portal. Administrator passwords are Cloudflare secrets, sessions use secure HTTP-only cookies, state-changing requests require a CSRF token, failed logins are rate limited, and every reply, status change, team, team assignment, or permanent deletion is recorded. Administrators can review people as cards, individual requests, or a spreadsheet-style grid; open a complete person history; create teams and manage applicants; open a complete team view; launch a team email in the machine's preferred email client; and filter or export by search, status, opportunity, contact preference, reply state, team, and received date. Confirmed deletion controls can remove an individual request, an applicant and every connected record, or a team while preserving its applicants. CSV exports neutralize spreadsheet formulas before download.
 
 ## Local validation
 

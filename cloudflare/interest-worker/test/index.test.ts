@@ -40,8 +40,8 @@ describe("submission validation", () => {
     })).toThrow("Please review the highlighted fields.");
   });
 
-  it("requires a phone number when phone is the preferred contact method", () => {
-    expect(() => validateSubmissionPayload({ ...validPayload, contactPreference: "phone", phone: "" }))
+  it("requires a cell phone number for every submission", () => {
+    expect(() => validateSubmissionPayload({ ...validPayload, contactPreference: "email", phone: "" }))
       .toThrow("Please review the highlighted fields.");
   });
 });
