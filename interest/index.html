@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Tell Hope Sojourns which mission trips and internships interest you. Select as many opportunities as you would like to explore.">
+  <title>Share Your Interest | Hope Sojourns</title>
+  <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
+  <link rel="apple-touch-icon" href="/assets/hope-sojourns-icon.png">
+  <link rel="stylesheet" href="/styles.css?v=23">
+  <script src="/script.js?v=15" defer></script>
+  <script src="/interest/interest.js?v=1" defer></script>
+</head>
+<body data-interest-api-base="/api/interest">
+  <main id="main">
+    <section class="page-hero interest-page-hero">
+      <img src="/assets/athens.jpg" alt="Athens spreading toward the Acropolis under a warm sky">
+      <div class="hero-content">
+        <p class="eyebrow">Take the next step</p>
+        <h1>Tell us where hope may be leading you.</h1>
+        <p>Choose every trip or internship you would like to explore. This is an expression of interest, not a commitment.</p>
+      </div>
+    </section>
+
+    <section class="section interest-intro-section">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">One form, several possibilities</p>
+          <h2>You do not have to choose just one.</h2>
+        </div>
+        <p class="section-lead">Select as many current trips and internship placements as you want. We will keep one contact record for you and connect each distinct opportunity to it.</p>
+      </div>
+
+      <form class="interest-form" id="interest-form" novalidate>
+        <noscript><p class="notice"><strong>JavaScript is required for this form.</strong> You may still <a href="/schedule/">book a conversation</a> with Hope Sojourns.</p></noscript>
+        <div class="interest-form-grid">
+          <section class="interest-form-panel interest-choice-panel" aria-labelledby="interest-choices-title">
+            <div class="form-panel-heading">
+              <span class="form-step">Step 1</span>
+              <h3 id="interest-choices-title">What would you like to explore?</h3>
+              <p>Choose all that apply.</p>
+            </div>
+
+            <fieldset class="interest-choice-group" data-choice-group="trip">
+              <legend>Mission trips</legend>
+              <div class="interest-choice-grid">
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="trip-athens"><span><strong>Athens, Greece</strong><small>Urban ministry and practical care</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="trip-kenya"><span><strong>Kenya</strong><small>Girls&rsquo; safety, education, and encouragement</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="trip-belize"><span><strong>Belize</strong><small>Rainforest community partnership</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="trip-nice"><span><strong>Nice, France</strong><small>Children, families, and Vacation Bible School</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="trip-arkansas"><span><strong>Shephard of the Ozarks</strong><small>Camp ministry and Arkansas community service</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="trip-mexico-city"><span><strong>Mexico City</strong><small>Homeless ministry with local partners</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="trip-future-journeys"><span><strong>Future journeys</strong><small>Keep me informed as new trips develop</small></span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="interest-choice-group" data-choice-group="internship">
+              <legend>Internships</legend>
+              <div class="interest-choice-grid">
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="internship-athens-greece"><span><strong>Athens, Greece</strong><small>New Start Ministries and Glocal Cafe &middot; 1&ndash;9 months</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="internship-england-light-group"><span><strong>England</strong><small>The Light Group &middot; 1&ndash;4 months</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="internship-mexico-gods-kitchen"><span><strong>Mexico</strong><small>God&rsquo;s Kitchen &middot; 2&ndash;6 months</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="internship-arkansas-soto"><span><strong>Northern Arkansas</strong><small>Shephard of the Ozarks &middot; 1&ndash;3 months</small></span></label>
+                <label class="interest-choice"><input type="checkbox" name="opportunities" value="internship-dallas-metro-relief"><span><strong>Dallas, Texas</strong><small>Metro Relief of Dallas &middot; 1&ndash;3 months</small></span></label>
+              </div>
+            </fieldset>
+            <p class="form-field-error" data-error-for="opportunities" id="opportunities-error" hidden></p>
+          </section>
+
+          <section class="interest-form-panel interest-contact-panel" aria-labelledby="interest-contact-title">
+            <div class="form-panel-heading">
+              <span class="form-step">Step 2</span>
+              <h3 id="interest-contact-title">How may we reach you?</h3>
+              <p>Required fields are marked with an asterisk.</p>
+            </div>
+
+            <div class="form-field-grid">
+              <div class="form-field">
+                <label for="first-name">First name <span aria-hidden="true">*</span></label>
+                <input id="first-name" name="firstName" type="text" autocomplete="given-name" maxlength="70" required aria-describedby="first-name-error">
+                <p class="form-field-error" data-error-for="firstName" id="first-name-error" hidden></p>
+              </div>
+              <div class="form-field">
+                <label for="last-name">Last name <span aria-hidden="true">*</span></label>
+                <input id="last-name" name="lastName" type="text" autocomplete="family-name" maxlength="70" required aria-describedby="last-name-error">
+                <p class="form-field-error" data-error-for="lastName" id="last-name-error" hidden></p>
+              </div>
+              <div class="form-field form-field-wide">
+                <label for="email">Email <span aria-hidden="true">*</span></label>
+                <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="email-error">
+                <p class="form-field-error" data-error-for="email" id="email-error" hidden></p>
+              </div>
+              <div class="form-field form-field-wide">
+                <label for="phone">Phone <span class="field-optional">Optional unless you prefer a call</span></label>
+                <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" aria-describedby="phone-error">
+                <p class="form-field-error" data-error-for="phone" id="phone-error" hidden></p>
+              </div>
+              <fieldset class="form-field form-field-wide contact-preference-field">
+                <legend>Preferred contact <span aria-hidden="true">*</span></legend>
+                <div class="inline-choice-row">
+                  <label><input type="radio" name="contactPreference" value="email" checked> Email</label>
+                  <label><input type="radio" name="contactPreference" value="phone"> Phone call</label>
+                </div>
+                <p class="form-field-error" data-error-for="contactPreference" hidden></p>
+              </fieldset>
+              <div class="form-field form-field-wide">
+                <label for="field-of-study">School, major, or field of study <span class="field-optional">Optional</span></label>
+                <input id="field-of-study" name="fieldOfStudy" type="text" maxlength="140" aria-describedby="field-of-study-error">
+                <p class="form-field-error" data-error-for="fieldOfStudy" id="field-of-study-error" hidden></p>
+              </div>
+              <div class="form-field form-field-wide">
+                <label for="preferred-timing">When are you hoping to go? <span class="field-optional">Optional</span></label>
+                <input id="preferred-timing" name="preferredTiming" type="text" maxlength="140" placeholder="For example: summer 2027 or flexible" aria-describedby="preferred-timing-error">
+                <p class="form-field-error" data-error-for="preferredTiming" id="preferred-timing-error" hidden></p>
+              </div>
+              <div class="form-field form-field-wide">
+                <label for="interest-message">What would you like us to know? <span class="field-optional">Optional</span></label>
+                <textarea id="interest-message" name="message" rows="5" maxlength="1500" aria-describedby="message-error"></textarea>
+                <p class="form-field-error" data-error-for="message" id="message-error" hidden></p>
+              </div>
+            </div>
+
+            <div class="form-honeypot" aria-hidden="true">
+              <label for="website">Website</label>
+              <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+
+            <label class="consent-choice">
+              <input type="checkbox" name="consent" value="yes" required aria-describedby="consent-error">
+              <span>I agree that Hope Sojourns may contact me about the opportunities I selected. <span aria-hidden="true">*</span></span>
+            </label>
+            <p class="form-field-error" data-error-for="consent" id="consent-error" hidden></p>
+            <p class="interest-privacy-note">Your information will be used only to respond to your Hope Sojourns interest. Do not include passport, medical, or payment information here.</p>
+
+            <p class="form-field-error" data-error-for="form" hidden></p>
+            <div class="interest-submit-row">
+              <button class="button" type="submit" data-submit-interest>Share my interest</button>
+              <a class="text-link" href="/schedule/">Prefer to talk first?</a>
+            </div>
+            <div class="interest-form-status" data-interest-status role="status" aria-live="polite" tabindex="-1"></div>
+          </section>
+        </div>
+      </form>
+
+      <section class="interest-success-panel" data-interest-success hidden tabindex="-1">
+        <img src="/assets/hope-sojourns-icon.png" alt="">
+        <div>
+          <p class="eyebrow">Interest received</p>
+          <h2>Thank you for taking the next step.</h2>
+          <p data-interest-success-message>A Hope Sojourns team member will follow up with you.</p>
+          <div class="hero-actions">
+            <a class="button" href="/">Return home</a>
+            <a class="button secondary on-light" href="/schedule/">Book a conversation</a>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="mission-band interest-process-band">
+      <div class="section content-grid">
+        <div class="prose">
+          <p class="eyebrow">What happens next</p>
+          <h2>Interest first. Registration follows.</h2>
+          <p>We will begin with a conversation about fit, timing, expectations, and current partner needs. When a particular trip is ready for registration, participants will receive a separate secure application.</p>
+        </div>
+        <aside>
+          <div class="info-card">
+            <h3>Why two steps?</h3>
+            <p>The interest form stays simple. The later registration process can carefully handle travel details, agreements, and other information that needs stronger privacy and review.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

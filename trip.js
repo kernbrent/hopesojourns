@@ -101,6 +101,7 @@ const tripData = {
 const slug = document.body.dataset.trip;
 const trip = tripData[slug];
 if (trip) {
+  const interestOpportunity = slug === "others" ? "trip-future-journeys" : `trip-${slug}`;
   document.title = `${trip.title} | Hope Sojourns`;
   document.getElementById("trip-main").innerHTML = `
     <section class="page-hero">
@@ -124,7 +125,10 @@ if (trip) {
         <div class="info-card">
           <h3>Journey at a glance</h3>
           <dl><dt>Primary focus</dt><dd>${trip.focus}</dd><dt>Setting</dt><dd>${trip.setting}</dd>${trip.teamSize ? `<dt>Target team</dt><dd>${trip.teamSize}</dd>` : ""}<dt>Status</dt><dd>Interest conversations open</dd></dl>
-          <a class="button" href="/schedule/">Talk about this trip</a>
+          <div class="info-card-actions">
+            <a class="button" href="/interest/?type=trip&amp;opportunity=${interestOpportunity}">I&rsquo;m interested in this trip</a>
+            <a class="text-link" href="/schedule/">Talk about this trip &rarr;</a>
+          </div>
         </div>
       </aside>
     </section>`;

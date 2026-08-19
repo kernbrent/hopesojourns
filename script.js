@@ -1,8 +1,10 @@
 const calendarUrl = "/schedule/";
 const donateUrl = "/giving/#donate";
-const siteVersion = "1.0.0";
+const siteVersion = "1.1.0";
+const isTestSite = window.location.hostname === "test.hopesojourns.com" || window.location.hostname.endsWith(".hopesojourns-test.pages.dev");
 
 const header = `
+  ${isTestSite ? '<div class="test-site-banner" role="status">Hope Sojourns test site · Forms and portal are ready for review</div>' : ''}
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <nav class="nav-wrap" aria-label="Main navigation">
@@ -17,6 +19,7 @@ const header = `
         <a href="/resources/">Resources</a>
         <a href="/giving/">Giving</a>
         <a href="/about/">About us</a>
+        <a href="/interest/">Get involved</a>
         <a class="button" href="${calendarUrl}">Book a conversation</a>
       </div>
     </nav>
@@ -26,7 +29,7 @@ const footer = `
   <section class="cta-band">
     <div class="cta-inner">
       <div><h2>Where might hope lead you?</h2><p>Tell us what is stirring—joining a team, exploring an internship, or building a ministry partnership.</p></div>
-      <a class="button light" href="${calendarUrl}">Book a conversation</a>
+      <a class="button light" href="/interest/">Share your interest</a>
     </div>
   </section>
   <footer class="site-footer">
@@ -51,6 +54,7 @@ const footer = `
       <div>
         <h3>Connect</h3>
         <div class="footer-links">
+          <a href="/interest/">Share your interest</a>
           <a href="${calendarUrl}">Schedule a meeting</a>
           <span>Christian Steps Ministries</span>
         </div>

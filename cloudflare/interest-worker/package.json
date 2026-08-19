@@ -1,0 +1,21 @@
+{
+  "name": "hope-sojourns-interest-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "types": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply hope-sojourns-forms-test --local",
+    "db:migrate:remote": "wrangler d1 migrations apply hope-sojourns-forms-test --remote",
+    "deploy:dry": "wrangler deploy --dry-run",
+    "dev": "wrangler dev --local"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.123.0"
+  }
+}

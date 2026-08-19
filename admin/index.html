@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Private administrative documents and resources for Hope Sojourns.">
-  <meta name="robots" content="noindex, nofollow, noarchive">
-  <title>Admin Portal | Hope Sojourns</title>
+  <meta name="description" content="Private Hope Sojourns response portal.">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'">
+  <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
-  <link rel="stylesheet" href="/styles.css?v=15">
-  <link rel="stylesheet" href="/admin/admin.css?v=2">
+  <link rel="stylesheet" href="/styles.css?v=23">
+  <link rel="stylesheet" href="/admin/admin.css?v=3">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -16,95 +17,125 @@
     <a class="admin-brand" href="/" aria-label="Hope Sojourns home">
       <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with Hope. Serve with Faith.">
     </a>
-    <a class="admin-return" href="/">Return to main site</a>
+    <div class="admin-header-actions">
+      <span class="admin-environment">Test portal</span>
+      <a class="admin-return" href="/">Return to test site</a>
+    </div>
   </header>
 
-  <main id="main">
-    <section class="admin-shell" aria-labelledby="admin-title">
-      <div class="admin-heading">
-        <p class="eyebrow">Private ministry library</p>
-        <h1 id="admin-title">Admin Portal</h1>
-        <p>Sign in to access Hope Sojourns supplemental documents and administrative resources.</p>
+  <main id="main" class="admin-main">
+    <section class="admin-login-shell" id="login-panel" aria-labelledby="login-title">
+      <div class="admin-login-intro">
+        <p class="eyebrow">Private response center</p>
+        <h1 id="login-title">Welcome back.</h1>
+        <p>Review trip and internship interest, keep follow-up organized, and prepare personal replies.</p>
+        <ul class="admin-login-features" aria-label="Portal features">
+          <li><span aria-hidden="true">01</span> One view of every request</li>
+          <li><span aria-hidden="true">02</span> Follow-up status for each opportunity</li>
+          <li><span aria-hidden="true">03</span> Exportable, duplicate-protected records</li>
+        </ul>
+      </div>
+      <section class="admin-login-card" aria-label="Administrator sign in">
+        <img src="/assets/hope-sojourns-icon.png" alt="" width="72" height="72">
+        <p class="eyebrow">Authorized access</p>
+        <h2>Open the portal</h2>
+        <form id="admin-login-form">
+          <label for="admin-password">Administrator password</label>
+          <input id="admin-password" name="password" type="password" autocomplete="current-password" required autofocus>
+          <button class="admin-button admin-button-primary" type="submit">Sign in securely</button>
+          <p class="admin-form-status" id="login-status" role="status" aria-live="polite"></p>
+        </form>
+        <p class="admin-security-note">Sessions close automatically after eight hours. Repeated incorrect attempts are temporarily blocked.</p>
+      </section>
+    </section>
+
+    <section class="admin-dashboard" id="dashboard-panel" aria-labelledby="dashboard-title" hidden>
+      <div class="admin-dashboard-heading">
+        <div>
+          <p class="eyebrow">Hope Sojourns response center</p>
+          <h1 id="dashboard-title">People ready to explore.</h1>
+          <p>Each person can be connected to several trips and internships without creating duplicate records.</p>
+        </div>
+        <div class="admin-dashboard-actions">
+          <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh</button>
+          <button class="admin-button admin-button-outline" id="export-submissions" type="button">Export CSV</button>
+          <button class="admin-button admin-button-dark" id="admin-signout" type="button">Sign out</button>
+        </div>
       </div>
 
-      <section class="admin-card admin-login" id="login-panel" aria-labelledby="login-title">
-        <div>
-          <p class="eyebrow">Authorized access</p>
-          <h2 id="login-title">Sign in</h2>
-          <p>Use the Hope Sojourns administrative ID and password.</p>
+      <section class="admin-summary-grid" aria-label="Interest summary">
+        <article class="admin-summary-card"><span>Total requests</span><strong id="summary-submissions">0</strong><small>Forms received</small></article>
+        <article class="admin-summary-card"><span>People</span><strong id="summary-people">0</strong><small>Distinct contacts</small></article>
+        <article class="admin-summary-card"><span>Interests</span><strong id="summary-interests">0</strong><small>Trips and internships</small></article>
+        <article class="admin-summary-card admin-summary-card-accent"><span>New</span><strong id="summary-new">0</strong><small>Awaiting follow-up</small></article>
+        <article class="admin-summary-card"><span>Replies sent</span><strong id="summary-replies">0</strong><small>Marked complete</small></article>
+      </section>
+
+      <section class="admin-workspace" aria-labelledby="requests-title">
+        <div class="admin-workspace-heading">
+          <div><p class="eyebrow">Inbox</p><h2 id="requests-title">Interest requests</h2></div>
+          <p id="results-count" aria-live="polite"></p>
         </div>
-        <form id="admin-login-form" autocomplete="off">
-          <label for="admin-id">ID</label>
-          <input id="admin-id" name="admin-id" type="text" autocomplete="username" required>
-
-          <label for="admin-password">Password</label>
-          <input id="admin-password" name="admin-password" type="password" autocomplete="current-password" required>
-
-          <button class="admin-submit" type="submit">Open Admin Portal</button>
-          <p class="admin-status" id="login-status" role="status" aria-live="polite"></p>
+        <form class="admin-filters" id="submission-filters" role="search">
+          <label class="admin-search-field">
+            <span>Search people</span>
+            <input name="search" type="search" placeholder="Name, email, or phone">
+          </label>
+          <label>
+            <span>Follow-up status</span>
+            <select name="status">
+              <option value="">All statuses</option>
+              <option value="new">New</option>
+              <option value="contacted">Contacted</option>
+              <option value="exploring">Exploring</option>
+              <option value="closed">Closed</option>
+            </select>
+          </label>
+          <label>
+            <span>Opportunity type</span>
+            <select name="kind">
+              <option value="">Trips and internships</option>
+              <option value="trip">Trips</option>
+              <option value="internship">Internships</option>
+            </select>
+          </label>
+          <button class="admin-button admin-button-primary" type="submit">Apply filters</button>
+          <button class="admin-filter-reset" id="reset-filters" type="button">Clear</button>
         </form>
-      </section>
 
-      <section class="admin-card admin-library" id="resources-panel" aria-labelledby="library-title" hidden>
-        <div class="admin-library-heading">
-          <div>
-            <p class="eyebrow">Hope Sojourns</p>
-            <h2 id="library-title">Admin Library</h2>
-          </div>
-          <button class="admin-signout" id="admin-signout" type="button">Sign out</button>
+        <div class="admin-request-list" id="submissions-list" aria-live="polite"></div>
+        <div class="admin-empty" id="submissions-empty" hidden>
+          <img src="/assets/hope-sojourns-icon.png" alt="" width="72" height="72">
+          <h3>No requests match these filters.</h3>
+          <p>Clear the filters or refresh to check for new interest.</p>
         </div>
-
-        <section class="admin-group" aria-labelledby="supplemental-title">
-          <div class="admin-group-heading">
-            <span class="admin-group-number" aria-hidden="true">01</span>
-            <div><p class="eyebrow">Ready to use</p><h3 id="supplemental-title">Supplemental Documents</h3></div>
-          </div>
-          <ul class="admin-resource-list">
-            <li class="admin-resource-item">
-              <div class="admin-resource-icon admin-resource-icon-pdf" aria-hidden="true">PDF</div>
-              <div class="admin-resource-copy"><h4>Hope Sojourns Brochure</h4><p>Open or download the print-ready two-page trifold brochure.</p></div>
-              <a class="admin-download" href="/brochure/Hope-Sojourns-Trifold-Brochure-Full-Page.pdf" target="_blank" rel="noopener">Open brochure</a>
-            </li>
-            <li class="admin-resource-item">
-              <div class="admin-resource-icon" aria-hidden="true">W</div>
-              <div class="admin-resource-copy"><h4>Donor Request Letter</h4><p>Download the Hope Sojourns support-request letter for prospective ministry partners.</p></div>
-              <a class="admin-download" href="/admin/supplemental-documents/Hope-Sojourns-Donor-Request-Letter.docx" download>Download Word document</a>
-            </li>
-            <li class="admin-resource-item">
-              <div class="admin-resource-icon" aria-hidden="true">W</div>
-              <div class="admin-resource-copy"><h4>Giving Statement Letter</h4><p>Download the editable annual donor contribution receipt template.</p></div>
-              <a class="admin-download" href="/admin/supplemental-documents/Hope-Sojourns-Giving-Statement-Template.docx" download>Download Word document</a>
-            </li>
-          </ul>
-        </section>
-
-        <section class="admin-group admin-group-resources" aria-labelledby="admin-resources-title">
-          <div class="admin-group-heading">
-            <span class="admin-group-number" aria-hidden="true">02</span>
-            <div><p class="eyebrow">Growing library</p><h3 id="admin-resources-title">Resources</h3></div>
-          </div>
-          <div class="admin-empty-state">
-            <span aria-hidden="true">+</span>
-            <div><h4>No resources have been added yet.</h4><p>Future administrative tools, reports, and reference materials will appear here.</p></div>
-          </div>
-        </section>
+        <p class="admin-load-status" id="submissions-status" role="status" aria-live="polite"></p>
+        <nav class="admin-pagination" aria-label="Request pages">
+          <button class="admin-button admin-button-quiet" id="previous-page" type="button">Previous</button>
+          <span id="page-label">Page 1 of 1</span>
+          <button class="admin-button admin-button-quiet" id="next-page" type="button">Next</button>
+        </nav>
       </section>
-
-      <noscript><p class="admin-noscript">JavaScript must be enabled to sign in to the Admin Portal.</p></noscript>
     </section>
   </main>
 
-  <footer class="admin-footer">
-    <div class="admin-footer-row">
-      <p>&copy; <span id="year"></span> Hope Sojourns</p>
-      <a class="admin-developer-credit" href="https://careersteps.net/" aria-label="Visit Career Steps Consulting LLC">
-        <img src="/assets/career-steps-logo.png" alt="" width="28" height="28">
-        <span>Website developed and maintained by <strong>Career Steps Consulting LLC.</strong></span>
-      </a>
-      <p>Go with Hope. Serve with Faith.</p>
+  <dialog class="admin-detail-dialog" id="submission-dialog" aria-labelledby="detail-title">
+    <div class="admin-detail-shell">
+      <header class="admin-detail-header">
+        <div><p class="eyebrow">Interest request</p><h2 id="detail-title">Request details</h2></div>
+        <button class="admin-dialog-close" id="close-submission-dialog" type="button" aria-label="Close request details">&times;</button>
+      </header>
+      <div class="admin-detail-content" id="submission-detail"></div>
+      <p class="admin-load-status" id="detail-status" role="status" aria-live="polite"></p>
     </div>
-    <p class="admin-site-version">Version 1.0.0</p>
+  </dialog>
+
+  <footer class="admin-footer">
+    <p>&copy; <span id="year"></span> Hope Sojourns</p>
+    <p>Private test environment &middot; Go with Hope. Serve with Faith.</p>
   </footer>
-  <script src="/admin/admin.js?v=6" defer></script>
+
+  <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
+  <script src="/admin/admin.js?v=7" defer></script>
 </body>
 </html>
