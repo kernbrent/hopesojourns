@@ -4,7 +4,7 @@ This Cloudflare Worker stores trip and internship interest in a D1 database. It 
 
 The trip-registration table is intentionally separate from public interest submissions. A later registration workflow can add sensitive application fields without mixing them into the low-friction interest form.
 
-The same Worker protects the hidden response portal. Administrator passwords are Cloudflare secrets, sessions use secure HTTP-only cookies, state-changing requests require a CSRF token, failed logins are rate limited, and every reply or status change is recorded. CSV exports neutralize spreadsheet formulas before download.
+The same Worker protects the hidden response portal. Administrator passwords are Cloudflare secrets, sessions use secure HTTP-only cookies, state-changing requests require a CSRF token, failed logins are rate limited, and every reply or status change is recorded. Administrators can review people as cards, individual requests, or a spreadsheet-style grid; open a complete person history; and filter or export by search, status, opportunity, contact preference, reply state, and received date. CSV exports neutralize spreadsheet formulas before download.
 
 ## Local validation
 

@@ -6,23 +6,33 @@ const dashboardPanel = document.querySelector("#dashboard-panel");
 const loginForm = document.querySelector("#admin-login-form");
 const passwordInput = document.querySelector("#admin-password");
 const loginStatus = document.querySelector("#login-status");
+const peopleList = document.querySelector("#people-list");
 const submissionsList = document.querySelector("#submissions-list");
+const peopleGrid = document.querySelector("#people-grid");
 const submissionsEmpty = document.querySelector("#submissions-empty");
 const submissionsStatus = document.querySelector("#submissions-status");
 const filterForm = document.querySelector("#submission-filters");
+const opportunityFilter = document.querySelector("#opportunity-filter");
 const resultsCount = document.querySelector("#results-count");
+const recordsTitle = document.querySelector("#records-title");
+const peopleViewTab = document.querySelector("#people-view-tab");
+const requestsViewTab = document.querySelector("#requests-view-tab");
+const gridViewTab = document.querySelector("#grid-view-tab");
 const previousPage = document.querySelector("#previous-page");
 const nextPage = document.querySelector("#next-page");
 const pageLabel = document.querySelector("#page-label");
 const submissionDialog = document.querySelector("#submission-dialog");
 const submissionDetail = document.querySelector("#submission-detail");
 const detailStatus = document.querySelector("#detail-status");
+const detailTitle = document.querySelector("#detail-title");
+const detailEyebrow = document.querySelector("#detail-eyebrow");
 
 const state = {
   csrfToken: "",
   page: 1,
   pages: 1,
-  currentSubmissionId: "",
+  view: "people",
+  currentRecordId: "",
 };
 
 function element(tag, className, text) {
@@ -43,6 +53,10 @@ function formatDate(value, includeTime = true) {
 
 function titleCase(value) {
   return String(value || "").replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function plural(count, singular, pluralForm = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
 function setBusy(button, busy, busyText) {
@@ -102,7 +116,7 @@ function showDashboard(session) {
   dashboardPanel.hidden = false;
   loginStatus.textContent = "";
   document.querySelector("#dashboard-title").focus?.();
-  loadSubmissions();
+  loadRecords();
 }
 
 function statusPill(status) {
@@ -114,6 +128,42 @@ function interestPill(interest) {
   pill.append(element("span", "", interest.kind === "internship" ? "Internship" : "Trip"));
   pill.append(document.createTextNode(` · ${interest.title}`));
   return pill;
+}
+
+function appendInterests(container, interests, limit = 3) {
+  interests.slice(0, limit).forEach(item => {
+    container.append(interestPill(item));
+    container.append(statusPill(item.status));
+  });
+  if (interests.length > limit) container.append(element("span", "admin-interest-pill", `+${interests.length - limit} more`));
+}
+
+function renderPersonCard(person) {
+  const card = element("button", "admin-request-card admin-person-card");
+  card.type = "button";
+  card.setAttribute("aria-label", `Open complete record for ${person.firstName} ${person.lastName}`);
+  card.addEventListener("click", () => openPerson(person.id));
+
+  const identity = element("span", "admin-request-person");
+  identity.append(element("strong", "", `${person.firstName} ${person.lastName}`));
+  identity.append(element("small", "", `Latest activity ${formatDate(person.lastSubmissionAt)}`));
+
+  const contact = element("span", "admin-request-contact");
+  contact.append(element("span", "", person.email));
+  contact.append(element("small", "", person.phone || `Prefers ${titleCase(person.contactPreference).toLowerCase()}`));
+
+  const interests = element("span", "admin-request-interests");
+  appendInterests(interests, person.interests);
+
+  const activity = element("span", "admin-person-activity");
+  activity.append(element("strong", "", plural(person.submissionCount, "request")));
+  activity.append(element("small", "", person.replyCount ? plural(person.replyCount, "saved reply") : "No reply prepared"));
+
+  const arrow = element("span", "admin-request-arrow", "→");
+  arrow.setAttribute("aria-hidden", "true");
+  arrow.append(element("small", "", "View everything"));
+  card.append(identity, contact, interests, activity, arrow);
+  return card;
 }
 
 function renderSubmissionCard(submission) {
@@ -128,20 +178,70 @@ function renderSubmissionCard(submission) {
 
   const contact = element("span", "admin-request-contact");
   contact.append(element("span", "", submission.email));
-  contact.append(element("small", "", submission.phone || `Prefers ${submission.contactPreference}`));
+  contact.append(element("small", "", submission.phone || `Prefers ${titleCase(submission.contactPreference).toLowerCase()}`));
 
   const interests = element("span", "admin-request-interests");
-  submission.interests.slice(0, 3).forEach(item => {
-    interests.append(interestPill(item));
-    interests.append(statusPill(item.status));
-  });
-  if (submission.interests.length > 3) interests.append(element("span", "admin-interest-pill", `+${submission.interests.length - 3} more`));
+  appendInterests(interests, submission.interests);
 
   const arrow = element("span", "admin-request-arrow", "→");
   arrow.setAttribute("aria-hidden", "true");
-  arrow.append(element("small", "", submission.replyCount ? `${submission.replyCount} saved ${submission.replyCount === 1 ? "reply" : "replies"}` : "Open request"));
+  arrow.append(element("small", "", submission.replyCount ? plural(submission.replyCount, "saved reply") : "Open request"));
   card.append(person, contact, interests, arrow);
   return card;
+}
+
+function gridCell(row, value, className = "") {
+  const cell = element("td", className, value);
+  row.append(cell);
+  return cell;
+}
+
+function renderPeopleGrid(people) {
+  const table = element("table", "admin-data-grid");
+  table.append(element("caption", "", "Filtered people records. Select a person's name to open their complete record."));
+  const head = document.createElement("thead");
+  const headingRow = document.createElement("tr");
+  ["Name", "Email", "Phone", "Contact by", "School or field", "Latest activity", "Trips and internships", "Requests", "Replies"].forEach(label => {
+    const heading = element("th", "", label);
+    heading.scope = "col";
+    headingRow.append(heading);
+  });
+  head.append(headingRow);
+
+  const body = document.createElement("tbody");
+  people.forEach(person => {
+    const row = document.createElement("tr");
+    const nameCell = gridCell(row, "");
+    const name = element("button", "admin-grid-name", `${person.firstName} ${person.lastName}`);
+    name.type = "button";
+    name.setAttribute("aria-label", `Open complete record for ${person.firstName} ${person.lastName}`);
+    name.addEventListener("click", () => openPerson(person.id));
+    nameCell.append(name);
+
+    const emailCell = gridCell(row, "");
+    const email = element("a", "admin-grid-email", person.email);
+    email.href = `mailto:${person.email}`;
+    emailCell.append(email);
+    gridCell(row, person.phone || "—", person.phone ? "" : "admin-grid-muted");
+    gridCell(row, titleCase(person.contactPreference));
+    gridCell(row, person.fieldOfStudy || "—", person.fieldOfStudy ? "" : "admin-grid-muted");
+    gridCell(row, formatDate(person.lastSubmissionAt));
+
+    const interestsCell = gridCell(row, "");
+    const interestList = element("div", "admin-grid-opportunities");
+    person.interests.forEach(interest => {
+      const item = element("div", "admin-grid-opportunity");
+      item.append(element("span", "", interest.title), statusPill(interest.status));
+      interestList.append(item);
+    });
+    if (!person.interests.length) interestList.append(element("span", "admin-grid-muted", "None recorded"));
+    interestsCell.append(interestList);
+    gridCell(row, String(person.submissionCount), "admin-grid-count");
+    gridCell(row, String(person.replyCount), "admin-grid-count");
+    body.append(row);
+  });
+  table.append(head, body);
+  return table;
 }
 
 function renderSummary(summary) {
@@ -155,35 +255,137 @@ function renderSummary(summary) {
 function filterQuery() {
   const formData = new FormData(filterForm);
   const params = new URLSearchParams({ page: String(state.page), pageSize: "25" });
-  for (const key of ["search", "status", "kind"]) {
+  for (const key of ["search", "status", "kind", "opportunity", "contactPreference", "replyState", "dateFrom", "dateTo", "sort"]) {
     const value = String(formData.get(key) || "").trim();
     if (value) params.set(key, value);
   }
   return params;
 }
 
+function populateOpportunityFilter(filterOptions = {}) {
+  const opportunities = Array.isArray(filterOptions.opportunities) ? filterOptions.opportunities : [];
+  const selected = opportunityFilter.value;
+  const firstOption = element("option", "", "Every opportunity");
+  firstOption.value = "";
+  const groups = new Map();
+  for (const opportunity of opportunities) {
+    const kind = opportunity.kind === "internship" ? "Internships" : "Trips";
+    if (!groups.has(kind)) {
+      const group = document.createElement("optgroup");
+      group.label = kind;
+      groups.set(kind, group);
+    }
+    const option = element("option", "", opportunity.location
+      ? `${opportunity.title} — ${opportunity.location}`
+      : opportunity.title);
+    option.value = opportunity.slug;
+    groups.get(kind).append(option);
+  }
+  opportunityFilter.replaceChildren(firstOption, ...groups.values());
+  if ([...opportunityFilter.options].some(option => option.value === selected)) opportunityFilter.value = selected;
+
+  const dateFrom = filterForm.elements.dateFrom;
+  const dateTo = filterForm.elements.dateTo;
+  if (filterOptions.earliestDate) {
+    dateFrom.min = String(filterOptions.earliestDate).slice(0, 10);
+    dateTo.min = String(filterOptions.earliestDate).slice(0, 10);
+  }
+  if (filterOptions.latestDate) {
+    dateFrom.max = String(filterOptions.latestDate).slice(0, 10);
+    dateTo.max = String(filterOptions.latestDate).slice(0, 10);
+  }
+}
+
+function applyResultMeta(result, recordCount, unit, pluralUnit) {
+  submissionsEmpty.hidden = recordCount > 0;
+  renderSummary(result.summary);
+  populateOpportunityFilter(result.filterOptions);
+  state.page = result.pagination.page;
+  state.pages = result.pagination.pages;
+  pageLabel.textContent = `Page ${state.page} of ${state.pages}`;
+  previousPage.disabled = state.page <= 1;
+  nextPage.disabled = state.page >= state.pages;
+  resultsCount.textContent = plural(result.pagination.total, unit, pluralUnit);
+}
+
+function applyListResult(result, records, renderCard, unit, pluralUnit) {
+  const list = state.view === "people" ? peopleList : submissionsList;
+  list.replaceChildren(...records.map(renderCard));
+  applyResultMeta(result, records.length, unit, pluralUnit);
+}
+
+async function loadPeople() {
+  submissionsStatus.textContent = "Loading people…";
+  peopleList.setAttribute("aria-busy", "true");
+  try {
+    const { result } = await api(`/people?${filterQuery()}`);
+    applyListResult(result, result.people, renderPersonCard, "person", "people");
+    submissionsStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) submissionsStatus.textContent = error.message;
+  } finally {
+    peopleList.removeAttribute("aria-busy");
+  }
+}
+
 async function loadSubmissions() {
   submissionsStatus.textContent = "Loading requests…";
   submissionsList.setAttribute("aria-busy", "true");
-  previousPage.disabled = true;
-  nextPage.disabled = true;
   try {
     const { result } = await api(`/submissions?${filterQuery()}`);
-    submissionsList.replaceChildren(...result.submissions.map(renderSubmissionCard));
-    submissionsEmpty.hidden = result.submissions.length > 0;
-    renderSummary(result.summary);
-    state.page = result.pagination.page;
-    state.pages = result.pagination.pages;
-    pageLabel.textContent = `Page ${state.page} of ${state.pages}`;
-    previousPage.disabled = state.page <= 1;
-    nextPage.disabled = state.page >= state.pages;
-    resultsCount.textContent = `${result.pagination.total} ${result.pagination.total === 1 ? "request" : "requests"}`;
+    applyListResult(result, result.submissions, renderSubmissionCard, "request", "requests");
     submissionsStatus.textContent = "";
   } catch (error) {
     if (error.status !== 401) submissionsStatus.textContent = error.message;
   } finally {
     submissionsList.removeAttribute("aria-busy");
   }
+}
+
+async function loadPeopleGrid() {
+  submissionsStatus.textContent = "Loading spreadsheet…";
+  peopleGrid.setAttribute("aria-busy", "true");
+  try {
+    const { result } = await api(`/people?${filterQuery()}`);
+    peopleGrid.replaceChildren(renderPeopleGrid(result.people));
+    applyResultMeta(result, result.people.length, "person", "people");
+    submissionsStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) submissionsStatus.textContent = error.message;
+  } finally {
+    peopleGrid.removeAttribute("aria-busy");
+  }
+}
+
+async function loadRecords() {
+  previousPage.disabled = true;
+  nextPage.disabled = true;
+  if (state.view === "people") await loadPeople();
+  else if (state.view === "requests") await loadSubmissions();
+  else await loadPeopleGrid();
+}
+
+function switchView(view, focusTab = false) {
+  state.view = view;
+  state.page = 1;
+  const showPeople = view === "people";
+  const showRequests = view === "requests";
+  const showGrid = view === "grid";
+  peopleViewTab.classList.toggle("is-active", showPeople);
+  peopleViewTab.setAttribute("aria-selected", String(showPeople));
+  peopleViewTab.tabIndex = showPeople ? 0 : -1;
+  requestsViewTab.classList.toggle("is-active", showRequests);
+  requestsViewTab.setAttribute("aria-selected", String(showRequests));
+  requestsViewTab.tabIndex = showRequests ? 0 : -1;
+  gridViewTab.classList.toggle("is-active", showGrid);
+  gridViewTab.setAttribute("aria-selected", String(showGrid));
+  gridViewTab.tabIndex = showGrid ? 0 : -1;
+  peopleList.hidden = !showPeople;
+  submissionsList.hidden = !showRequests;
+  peopleGrid.hidden = !showGrid;
+  recordsTitle.textContent = showPeople ? "All people" : showRequests ? "Individual requests" : "People spreadsheet";
+  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : gridViewTab).focus();
+  loadRecords();
 }
 
 function detailList(items) {
@@ -196,7 +398,11 @@ function detailList(items) {
   return list;
 }
 
-function createInterestRow(submission, interest) {
+function detailReload(recordType, recordId) {
+  return recordType === "person" ? loadPersonDetail(recordId) : loadSubmissionDetail(recordId);
+}
+
+function createInterestRow(record, interest, recordType) {
   const row = element("div", "admin-interest-row");
   const copy = element("div", "admin-interest-copy");
   copy.append(element("strong", "", interest.title));
@@ -215,15 +421,20 @@ function createInterestRow(submission, interest) {
   const save = element("button", "admin-button admin-button-quiet", "Save");
   save.type = "button";
   save.addEventListener("click", async () => {
+    const submissionId = recordType === "person" ? record.latestSubmissionId : record.id;
+    if (!submissionId) {
+      detailStatus.textContent = "A request is required before this status can be updated.";
+      return;
+    }
     setBusy(save, true, "Saving…");
     detailStatus.textContent = "";
     try {
-      await api(`/submissions/${submission.id}/status`, {
+      await api(`/submissions/${submissionId}/status`, {
         method: "POST",
         body: { interestId: interest.id, status: select.value },
       });
       detailStatus.textContent = `${interest.title} is now ${titleCase(select.value).toLowerCase()}.`;
-      await Promise.all([loadSubmissionDetail(submission.id), loadSubmissions()]);
+      await Promise.all([detailReload(recordType, record.id), loadRecords()]);
     } catch (error) {
       detailStatus.textContent = error.message;
     } finally {
@@ -235,15 +446,17 @@ function createInterestRow(submission, interest) {
   return row;
 }
 
-function createReplyItem(reply, submissionId) {
+function createReplyItem(reply, record, recordType) {
   const item = element("article", "admin-reply-item");
   const header = element("header");
   header.append(element("h4", "", reply.subject), statusPill(reply.deliveryStatus));
   const body = element("p", "", reply.body);
   const footer = element("footer");
+  footer.append(element("span", "", `To ${reply.recipientEmail || record.email}`));
   footer.append(element("span", "", reply.deliveryStatus === "sent"
     ? `Marked sent ${formatDate(reply.sentAt)}`
     : `Saved ${formatDate(reply.createdAt)}`));
+  if (recordType === "person" && reply.submissionId) footer.append(element("span", "", `For request received ${formatDate(reply.submissionCreatedAt, false)}`));
   if (reply.deliveryStatus !== "sent") {
     const markSent = element("button", "admin-button admin-button-outline", "Mark sent");
     markSent.type = "button";
@@ -252,7 +465,7 @@ function createReplyItem(reply, submissionId) {
       try {
         await api(`/replies/${reply.id}/sent`, { method: "POST", body: {} });
         detailStatus.textContent = "Reply marked as sent.";
-        await Promise.all([loadSubmissionDetail(submissionId), loadSubmissions()]);
+        await Promise.all([detailReload(recordType, record.id), loadRecords()]);
       } catch (error) {
         detailStatus.textContent = error.message;
       } finally {
@@ -262,60 +475,30 @@ function createReplyItem(reply, submissionId) {
     footer.append(markSent);
   }
   item.append(header, body, footer);
+  if (reply.errorMessage) item.append(element("p", "admin-reply-error", `Delivery note: ${reply.errorMessage}`));
   return item;
 }
 
-function replyDraft(submission) {
-  const selected = submission.interests.filter(interest => interest.selectedInSubmission).map(interest => interest.title);
+function replyDraft(record) {
+  const selected = record.interests
+    .filter(interest => interest.selectedInSubmission !== false)
+    .map(interest => interest.title);
   const opportunityText = selected.length ? selected.join(", ") : "Hope Sojourns";
   return {
-    subject: `Hope Sojourns follow-up for ${submission.firstName}`,
-    message: `Hi ${submission.firstName},\n\nThank you for sharing your interest in ${opportunityText}. I would be glad to learn more about what you are hoping for and answer your questions.\n\nWhat days or times would work well for a short conversation?\n\nGo with Hope. Serve with Faith.\nHope Sojourns`,
+    subject: `Hope Sojourns follow-up for ${record.firstName}`,
+    message: `Hi ${record.firstName},\n\nThank you for sharing your interest in ${opportunityText}. I would be glad to learn more about what you are hoping for and answer your questions.\n\nWhat days or times would work well for a short conversation?\n\nGo with Hope. Serve with Faith.\nHope Sojourns`,
   };
 }
 
-function renderSubmissionDetail(submission) {
-  const fragment = document.createDocumentFragment();
-  const hero = element("section", "admin-detail-hero");
-  const heroCopy = element("div");
-  heroCopy.append(element("h3", "", `${submission.firstName} ${submission.lastName}`));
-  const email = element("a", "", submission.email);
-  email.href = `mailto:${submission.email}`;
-  heroCopy.append(email);
-  if (submission.phone) {
-    const phone = element("p");
-    const phoneLink = element("a", "", submission.phone);
-    phoneLink.href = `tel:${submission.phone.replace(/[^0-9+]/g, "")}`;
-    phone.append(phoneLink);
-    heroCopy.append(phone);
-  }
-  const received = element("div");
-  received.append(element("p", "", "Received"), element("strong", "", formatDate(submission.createdAt)));
-  hero.append(heroCopy, received);
-  fragment.append(hero);
-
-  const grid = element("div", "admin-detail-grid");
-  const profile = element("section", "admin-detail-card");
-  profile.append(element("h3", "", "Contact profile"));
-  profile.append(detailList([
-    ["Preferred contact", titleCase(submission.contactPreference)],
-    ["School or field", submission.fieldOfStudy],
-    ["Preferred timing", submission.preferredTiming],
-    ["Consent recorded", formatDate(submission.consentAt)],
-  ]));
-
-  const message = element("section", "admin-detail-card");
-  message.append(element("h3", "", "What they shared"));
-  message.append(element("p", "", submission.message || "No additional message was included."));
-
-  const interests = element("section", "admin-detail-card admin-detail-card-wide");
-  interests.append(element("h3", "", "Trips and internships"));
-  submission.interests.forEach(interest => interests.append(createInterestRow(submission, interest)));
-
+function createReplyComposer(record, submissionId, recordType) {
   const reply = element("section", "admin-detail-card");
   reply.append(element("h3", "", "Prepare a reply"));
+  if (!submissionId) {
+    reply.append(element("p", "admin-reply-help", "A request is required before a reply can be prepared."));
+    return reply;
+  }
   const form = element("form", "admin-reply-form");
-  const draft = replyDraft(submission);
+  const draft = replyDraft(record);
   const subjectLabel = element("label");
   subjectLabel.append(element("span", "", "Subject"));
   const subject = document.createElement("input");
@@ -340,28 +523,180 @@ function renderSubmissionDetail(submission) {
     setBusy(send, true, "Preparing…");
     detailStatus.textContent = "";
     try {
-      const { result } = await api(`/submissions/${submission.id}/replies`, {
+      const { result } = await api(`/submissions/${submissionId}/replies`, {
         method: "POST",
         body: { subject: subject.value, message: replyMessage.value },
       });
       detailStatus.textContent = result.message;
       window.location.href = result.mailtoUrl;
-      await Promise.all([loadSubmissionDetail(submission.id), loadSubmissions()]);
+      await Promise.all([detailReload(recordType, record.id), loadRecords()]);
     } catch (error) {
       detailStatus.textContent = error.message;
     } finally {
       setBusy(send, false);
     }
   });
+  reply.append(form);
+  return reply;
+}
 
+function createReplyHistory(record, recordType) {
   const history = element("section", "admin-detail-card");
   history.append(element("h3", "", "Reply history"));
   const historyList = element("div", "admin-reply-history");
-  if (submission.replies.length) submission.replies.forEach(item => historyList.append(createReplyItem(item, submission.id)));
-  else historyList.append(element("p", "admin-reply-help", "No replies have been prepared for this request yet."));
+  if (record.replies.length) record.replies.forEach(item => historyList.append(createReplyItem(item, record, recordType)));
+  else historyList.append(element("p", "admin-reply-help", "No replies have been prepared yet."));
   history.append(historyList);
+  return history;
+}
 
-  grid.append(profile, message, interests, reply, history);
+function createContactHero(record, activityLabel, activityValue) {
+  const hero = element("section", "admin-detail-hero");
+  const heroCopy = element("div");
+  heroCopy.append(element("h3", "", `${record.firstName} ${record.lastName}`));
+  const email = element("a", "", record.email);
+  email.href = `mailto:${record.email}`;
+  heroCopy.append(email);
+  if (record.phone) {
+    const phone = element("p");
+    const phoneLink = element("a", "", record.phone);
+    phoneLink.href = `tel:${record.phone.replace(/[^0-9+]/g, "")}`;
+    phone.append(phoneLink);
+    heroCopy.append(phone);
+  }
+  const activity = element("div");
+  activity.append(element("p", "", activityLabel), element("strong", "", activityValue));
+  hero.append(heroCopy, activity);
+  return hero;
+}
+
+function renderSubmissionDetail(submission) {
+  const fragment = document.createDocumentFragment();
+  fragment.append(createContactHero(submission, "Received", formatDate(submission.createdAt)));
+
+  const grid = element("div", "admin-detail-grid");
+  const profile = element("section", "admin-detail-card");
+  profile.append(element("h3", "", "Contact profile"));
+  profile.append(detailList([
+    ["Preferred contact", titleCase(submission.contactPreference)],
+    ["School or field", submission.fieldOfStudy],
+    ["Preferred timing", submission.preferredTiming],
+    ["Consent recorded", formatDate(submission.consentAt)],
+    ["Source page", submission.sourcePage],
+  ]));
+
+  const message = element("section", "admin-detail-card");
+  message.append(element("h3", "", "What they shared"));
+  message.append(element("p", "", submission.message || "No additional message was included."));
+
+  const interests = element("section", "admin-detail-card admin-detail-card-wide");
+  interests.append(element("h3", "", "Trips and internships"));
+  submission.interests.forEach(interest => interests.append(createInterestRow(submission, interest, "submission")));
+
+  grid.append(
+    profile,
+    message,
+    interests,
+    createReplyComposer(submission, submission.id, "submission"),
+    createReplyHistory(submission, "submission"),
+  );
+  fragment.append(grid);
+  submissionDetail.replaceChildren(fragment);
+}
+
+function renderPersonStats(person) {
+  const stats = element("section", "admin-person-stats");
+  const items = [
+    [person.interests.length, "Interests"],
+    [person.submissions.length, "Requests"],
+    [person.replies.length, "Saved replies"],
+    [person.registrations.length, "Registrations"],
+  ];
+  items.forEach(([value, label]) => {
+    const stat = element("article", "admin-person-stat");
+    stat.append(element("strong", "", String(value)), element("span", "", label));
+    stats.append(stat);
+  });
+  return stats;
+}
+
+function renderSubmissionHistory(person) {
+  const section = element("section", "admin-detail-card admin-detail-card-wide");
+  section.append(element("h3", "", "Complete request history"));
+  const history = element("div", "admin-submission-history");
+  person.submissions.forEach((submission, index) => {
+    const record = element("article", "admin-submission-record");
+    const header = element("header");
+    const title = index === 0 ? "Most recent request" : `Earlier request ${person.submissions.length - index}`;
+    header.append(element("h4", "", title), element("time", "", formatDate(submission.createdAt)));
+    const selected = element("div", "admin-request-interests");
+    appendInterests(selected, submission.interests, submission.interests.length);
+    const shared = element("div", "admin-record-message");
+    shared.append(element("strong", "", "What they shared"));
+    shared.append(element("p", "", submission.message || "No additional message was included."));
+    const meta = element("div", "admin-record-meta");
+    meta.append(
+      element("span", "", `Preferred timing: ${submission.preferredTiming || "Not provided"}`),
+      element("span", "", `Consent: ${formatDate(submission.consentAt)}`),
+      element("span", "", `Source: ${submission.sourcePage || "Not recorded"}`),
+    );
+    record.append(header, selected, shared, meta);
+    history.append(record);
+  });
+  if (!person.submissions.length) history.append(element("p", "admin-reply-help", "No requests are recorded for this person."));
+  section.append(history);
+  return section;
+}
+
+function renderRegistrations(person) {
+  if (!person.registrations.length) return null;
+  const section = element("section", "admin-detail-card admin-detail-card-wide");
+  section.append(element("h3", "", "Trip registration history"));
+  const list = element("div", "admin-submission-history");
+  person.registrations.forEach(registration => {
+    const record = element("article", "admin-submission-record");
+    const header = element("header");
+    header.append(element("h4", "", registration.title), statusPill(registration.status));
+    record.append(header, detailList([
+      ["Location", registration.location],
+      ["Started", formatDate(registration.startedAt)],
+      ["Submitted", formatDate(registration.submittedAt)],
+      ["Last updated", formatDate(registration.updatedAt)],
+    ]));
+    list.append(record);
+  });
+  section.append(list);
+  return section;
+}
+
+function renderPersonDetail(person) {
+  const fragment = document.createDocumentFragment();
+  const hero = createContactHero(person, "Latest activity", formatDate(person.submissions[0]?.createdAt || person.updatedAt));
+  hero.append(renderPersonStats(person));
+  fragment.append(hero);
+
+  const grid = element("div", "admin-detail-grid");
+  const profile = element("section", "admin-detail-card");
+  profile.append(element("h3", "", "Contact profile"));
+  profile.append(detailList([
+    ["Preferred contact", titleCase(person.contactPreference)],
+    ["School or field", person.fieldOfStudy],
+    ["First recorded", formatDate(person.createdAt)],
+    ["Last updated", formatDate(person.updatedAt)],
+  ]));
+
+  const interests = element("section", "admin-detail-card admin-detail-card-wide");
+  interests.append(element("h3", "", "All trips and internships"));
+  person.interests.forEach(interest => interests.append(createInterestRow(person, interest, "person")));
+  if (!person.interests.length) interests.append(element("p", "admin-reply-help", "No interests are recorded for this person."));
+
+  grid.append(profile, interests, renderSubmissionHistory(person));
+  const registrations = renderRegistrations(person);
+  if (registrations) grid.append(registrations);
+  grid.append(
+    createReplyComposer(person, person.latestSubmissionId, "person"),
+    createReplyHistory(person, "person"),
+  );
   fragment.append(grid);
   submissionDetail.replaceChildren(fragment);
 }
@@ -371,7 +706,19 @@ async function loadSubmissionDetail(submissionId) {
   try {
     const { result } = await api(`/submissions/${submissionId}`);
     renderSubmissionDetail(result.submission);
-    document.querySelector("#detail-title").textContent = `${result.submission.firstName} ${result.submission.lastName}`;
+    detailTitle.textContent = `${result.submission.firstName} ${result.submission.lastName}`;
+    detailStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) detailStatus.textContent = error.message;
+  }
+}
+
+async function loadPersonDetail(personId) {
+  detailStatus.textContent = "Loading complete record…";
+  try {
+    const { result } = await api(`/people/${personId}`);
+    renderPersonDetail(result.person);
+    detailTitle.textContent = `${result.person.firstName} ${result.person.lastName}`;
     detailStatus.textContent = "";
   } catch (error) {
     if (error.status !== 401) detailStatus.textContent = error.message;
@@ -379,11 +726,21 @@ async function loadSubmissionDetail(submissionId) {
 }
 
 async function openSubmission(submissionId) {
-  state.currentSubmissionId = submissionId;
+  state.currentRecordId = submissionId;
   submissionDetail.replaceChildren();
-  document.querySelector("#detail-title").textContent = "Request details";
+  detailEyebrow.textContent = "Individual request";
+  detailTitle.textContent = "Request details";
   if (!submissionDialog.open) submissionDialog.showModal();
   await loadSubmissionDetail(submissionId);
+}
+
+async function openPerson(personId) {
+  state.currentRecordId = personId;
+  submissionDetail.replaceChildren();
+  detailEyebrow.textContent = "Complete person record";
+  detailTitle.textContent = "Everything gathered";
+  if (!submissionDialog.open) submissionDialog.showModal();
+  await loadPersonDetail(personId);
 }
 
 loginForm.addEventListener("submit", async event => {
@@ -411,29 +768,45 @@ document.querySelector("#admin-signout").addEventListener("click", async event =
   setBusy(event.currentTarget, false);
 });
 
+peopleViewTab.addEventListener("click", () => switchView("people"));
+requestsViewTab.addEventListener("click", () => switchView("requests"));
+gridViewTab.addEventListener("click", () => switchView("grid"));
+document.querySelector(".admin-view-tabs").addEventListener("keydown", event => {
+  if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+  event.preventDefault();
+  const views = ["people", "requests", "grid"];
+  const direction = event.key === "ArrowRight" ? 1 : -1;
+  const nextIndex = (views.indexOf(state.view) + direction + views.length) % views.length;
+  switchView(views[nextIndex], true);
+});
+
 filterForm.addEventListener("submit", event => {
   event.preventDefault();
   state.page = 1;
-  loadSubmissions();
+  loadRecords();
 });
 document.querySelector("#reset-filters").addEventListener("click", () => {
   filterForm.reset();
   state.page = 1;
-  loadSubmissions();
+  loadRecords();
 });
 document.querySelector("#refresh-submissions").addEventListener("click", event => {
   setBusy(event.currentTarget, true, "Refreshing…");
-  loadSubmissions().finally(() => setBusy(event.currentTarget, false));
+  loadRecords().finally(() => setBusy(event.currentTarget, false));
 });
-previousPage.addEventListener("click", () => { if (state.page > 1) { state.page -= 1; loadSubmissions(); } });
-nextPage.addEventListener("click", () => { if (state.page < state.pages) { state.page += 1; loadSubmissions(); } });
+previousPage.addEventListener("click", () => { if (state.page > 1) { state.page -= 1; loadRecords(); } });
+nextPage.addEventListener("click", () => { if (state.page < state.pages) { state.page += 1; loadRecords(); } });
 
 document.querySelector("#export-submissions").addEventListener("click", async event => {
   const button = event.currentTarget;
   setBusy(button, true, "Preparing…");
   submissionsStatus.textContent = "";
   try {
-    const response = await fetch(`${API_BASE}/export.csv`, { credentials: "same-origin" });
+    const params = filterQuery();
+    params.delete("page");
+    params.delete("pageSize");
+    params.set("view", state.view === "requests" ? "requests" : "people");
+    const response = await fetch(`${API_BASE}/export.csv?${params}`, { credentials: "same-origin" });
     if (!response.ok) {
       if (response.status === 401) showLogin("Your session ended. Sign in again.");
       throw new Error("The export could not be prepared.");
@@ -449,7 +822,7 @@ document.querySelector("#export-submissions").addEventListener("click", async ev
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    submissionsStatus.textContent = "The CSV export was downloaded.";
+    submissionsStatus.textContent = "The filtered CSV export was downloaded.";
   } catch (error) {
     submissionsStatus.textContent = error.message;
   } finally {

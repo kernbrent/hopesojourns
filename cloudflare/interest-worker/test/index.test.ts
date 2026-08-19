@@ -6,7 +6,7 @@ import {
   routePath,
   validateSubmissionPayload,
 } from "../src/index";
-import { csvCell, secureEqual } from "../src/admin";
+import { csvCell, dateFilterBound, secureEqual } from "../src/admin";
 
 const validPayload = {
   firstName: "  María ",
@@ -80,5 +80,12 @@ describe("admin security helpers", () => {
   it("neutralizes spreadsheet formulas in CSV exports", () => {
     expect(csvCell("=HYPERLINK(\"https://example.org\")")).toBe("\"'=HYPERLINK(\"\"https://example.org\"\")\"");
     expect(csvCell("ordinary text")).toBe("\"ordinary text\"");
+  });
+
+  it("turns inclusive calendar filters into safe UTC query bounds", () => {
+    expect(dateFilterBound("2026-08-19")).toBe("2026-08-19T00:00:00.000Z");
+    expect(dateFilterBound("2026-08-19", true)).toBe("2026-08-20T00:00:00.000Z");
+    expect(dateFilterBound(null)).toBeNull();
+    expect(() => dateFilterBound("2026-02-30")).toThrow("Choose a valid date filter.");
   });
 });

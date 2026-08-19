@@ -37,6 +37,45 @@ type SubmissionListRow = {
   last_reply_at: string | null;
 };
 
+type PeopleListRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  contact_preference: string;
+  field_of_study: string | null;
+  created_at: string;
+  updated_at: string;
+  first_submission_at: string;
+  last_submission_at: string;
+  submission_count: number;
+  reply_count: number;
+  interests_json: string;
+};
+
+type PersonSubmissionRow = {
+  id: string;
+  preferred_timing: string | null;
+  message: string | null;
+  source_page: string | null;
+  consent_at: string;
+  created_at: string;
+  interests_json: string;
+};
+
+type AdminFilters = {
+  search: string;
+  status: string;
+  kind: string;
+  opportunity: string;
+  contactPreference: string;
+  replyState: string;
+  dateFrom: string | null;
+  dateToExclusive: string | null;
+  sort: string;
+};
+
 class AdminError extends Error {
   constructor(
     readonly status: number,
@@ -304,41 +343,180 @@ function positiveInteger(value: string | null, fallback: number, maximum: number
   return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback;
 }
 
-async function listSubmissions(request: Request, env: AdminEnv): Promise<Response> {
-  await authenticate(request, env);
-  const url = new URL(request.url);
-  const search = (url.searchParams.get("search") ?? "").normalize("NFKC").trim().slice(0, 100);
+export function dateFilterBound(value: string | null, exclusiveEnd = false): string | null {
+  if (!value) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new AdminError(400, "INVALID_FILTER", "Choose a valid date filter.");
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    throw new AdminError(400, "INVALID_FILTER", "Choose a valid date filter.");
+  }
+  if (exclusiveEnd) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString();
+}
+
+function adminFilters(url: URL): AdminFilters {
   const status = url.searchParams.get("status") ?? "";
   const kind = url.searchParams.get("kind") ?? "";
-  const page = positiveInteger(url.searchParams.get("page"), 1, 10_000);
-  const pageSize = positiveInteger(url.searchParams.get("pageSize"), 25, 50);
+  const opportunity = url.searchParams.get("opportunity") ?? "";
+  const contactPreference = url.searchParams.get("contactPreference") ?? "";
+  const replyState = url.searchParams.get("replyState") ?? "";
+  const sort = url.searchParams.get("sort") ?? "newest";
   if (status && !ALLOWED_STATUSES.has(status)) throw new AdminError(400, "INVALID_FILTER", "Choose a valid status filter.");
-  if (kind && kind !== "trip" && kind !== "internship") throw new AdminError(400, "INVALID_FILTER", "Choose a valid opportunity filter.");
+  if (kind && kind !== "trip" && kind !== "internship") throw new AdminError(400, "INVALID_FILTER", "Choose a valid opportunity type.");
+  if (opportunity && !/^[a-z0-9-]{3,80}$/.test(opportunity)) throw new AdminError(400, "INVALID_FILTER", "Choose a valid opportunity.");
+  if (contactPreference && contactPreference !== "email" && contactPreference !== "phone") {
+    throw new AdminError(400, "INVALID_FILTER", "Choose a valid contact preference.");
+  }
+  if (replyState && !["unreplied", "draft", "sent"].includes(replyState)) {
+    throw new AdminError(400, "INVALID_FILTER", "Choose a valid reply state.");
+  }
+  if (!["newest", "oldest", "name_asc", "name_desc"].includes(sort)) {
+    throw new AdminError(400, "INVALID_FILTER", "Choose a valid sort order.");
+  }
+  const dateFrom = dateFilterBound(url.searchParams.get("dateFrom"));
+  const dateToExclusive = dateFilterBound(url.searchParams.get("dateTo"), true);
+  if (dateFrom && dateToExclusive && dateFrom >= dateToExclusive) {
+    throw new AdminError(400, "INVALID_FILTER", "The start date must be on or before the end date.");
+  }
+  return {
+    search: (url.searchParams.get("search") ?? "").normalize("NFKC").trim().slice(0, 100),
+    status,
+    kind,
+    opportunity,
+    contactPreference,
+    replyState,
+    dateFrom,
+    dateToExclusive,
+    sort,
+  };
+}
 
+function filterSql(filters: AdminFilters, scope: "person" | "submission"): { whereSql: string; bindings: unknown[] } {
   const where: string[] = [];
   const bindings: unknown[] = [];
-  if (search) {
-    const like = `%${escapeLike(search)}%`;
+  if (filters.search) {
+    const like = `%${escapeLike(filters.search)}%`;
     where.push(`(
       p.first_name LIKE ? ESCAPE '\\' OR p.last_name LIKE ? ESCAPE '\\' OR
       (p.first_name || ' ' || p.last_name) LIKE ? ESCAPE '\\' OR
-      p.email LIKE ? ESCAPE '\\' OR COALESCE(p.phone, '') LIKE ? ESCAPE '\\'
+      p.email LIKE ? ESCAPE '\\' OR COALESCE(p.phone, '') LIKE ? ESCAPE '\\' OR
+      COALESCE(p.field_of_study, '') LIKE ? ESCAPE '\\'
     )`);
-    bindings.push(like, like, like, like, like);
+    bindings.push(like, like, like, like, like, like);
   }
-  if (status) {
-    where.push("EXISTS (SELECT 1 FROM interests filtered_status WHERE filtered_status.person_id = s.person_id AND filtered_status.status = ?)");
-    bindings.push(status);
+  if (filters.status || filters.kind || filters.opportunity) {
+    const interestWhere = scope === "submission" ? [] : ["filtered_interest.person_id = p.id"];
+    if (filters.status) {
+      interestWhere.push("filtered_interest.status = ?");
+      bindings.push(filters.status);
+    }
+    if (filters.kind) {
+      interestWhere.push("filtered_opportunity.kind = ?");
+      bindings.push(filters.kind);
+    }
+    if (filters.opportunity) {
+      interestWhere.push("filtered_opportunity.slug = ?");
+      bindings.push(filters.opportunity);
+    }
+    where.push(scope === "submission"
+      ? `EXISTS (
+          SELECT 1 FROM json_each(s.selected_opportunities_json) filtered_selected
+          JOIN opportunities filtered_opportunity ON filtered_opportunity.slug = filtered_selected.value
+          JOIN interests filtered_interest
+            ON filtered_interest.person_id = p.id AND filtered_interest.opportunity_id = filtered_opportunity.id
+          ${interestWhere.length ? `WHERE ${interestWhere.join(" AND ")}` : ""}
+        )`
+      : `EXISTS (
+          SELECT 1 FROM interests filtered_interest
+          JOIN opportunities filtered_opportunity ON filtered_opportunity.id = filtered_interest.opportunity_id
+          WHERE ${interestWhere.join(" AND ")}
+        )`);
   }
-  if (kind) {
-    where.push(`EXISTS (
-      SELECT 1 FROM interests filtered_interest
-      JOIN opportunities filtered_opportunity ON filtered_opportunity.id = filtered_interest.opportunity_id
-      WHERE filtered_interest.person_id = s.person_id AND filtered_opportunity.kind = ?
-    )`);
-    bindings.push(kind);
+  if (filters.contactPreference) {
+    where.push("p.contact_preference = ?");
+    bindings.push(filters.contactPreference);
   }
-  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  if (filters.dateFrom || filters.dateToExclusive) {
+    if (scope === "submission") {
+      if (filters.dateFrom) {
+        where.push("s.created_at >= ?");
+        bindings.push(filters.dateFrom);
+      }
+      if (filters.dateToExclusive) {
+        where.push("s.created_at < ?");
+        bindings.push(filters.dateToExclusive);
+      }
+    } else {
+      const dateWhere = ["filtered_date.person_id = p.id"];
+      if (filters.dateFrom) {
+        dateWhere.push("filtered_date.created_at >= ?");
+        bindings.push(filters.dateFrom);
+      }
+      if (filters.dateToExclusive) {
+        dateWhere.push("filtered_date.created_at < ?");
+        bindings.push(filters.dateToExclusive);
+      }
+      where.push(`EXISTS (SELECT 1 FROM interest_submissions filtered_date WHERE ${dateWhere.join(" AND ")})`);
+    }
+  }
+  if (filters.replyState === "unreplied") {
+    where.push(scope === "submission"
+      ? "NOT EXISTS (SELECT 1 FROM submission_replies filtered_reply WHERE filtered_reply.submission_id = s.id)"
+      : `NOT EXISTS (
+          SELECT 1 FROM submission_replies filtered_reply
+          JOIN interest_submissions filtered_reply_submission ON filtered_reply_submission.id = filtered_reply.submission_id
+          WHERE filtered_reply_submission.person_id = p.id
+        )`);
+  } else if (filters.replyState) {
+    where.push(scope === "submission"
+      ? "EXISTS (SELECT 1 FROM submission_replies filtered_reply WHERE filtered_reply.submission_id = s.id AND filtered_reply.delivery_status = ?)"
+      : `EXISTS (
+          SELECT 1 FROM submission_replies filtered_reply
+          JOIN interest_submissions filtered_reply_submission ON filtered_reply_submission.id = filtered_reply.submission_id
+          WHERE filtered_reply_submission.person_id = p.id AND filtered_reply.delivery_status = ?
+        )`);
+    bindings.push(filters.replyState);
+  }
+  return { whereSql: where.length ? `WHERE ${where.join(" AND ")}` : "", bindings };
+}
+
+async function adminSummary(env: AdminEnv): Promise<Record<string, number>> {
+  return await env.DB.prepare(
+    `SELECT
+       (SELECT COUNT(*) FROM interest_submissions) AS submissions,
+       (SELECT COUNT(*) FROM people) AS people,
+       (SELECT COUNT(*) FROM interests) AS interests,
+       (SELECT COUNT(*) FROM interests WHERE status = 'new') AS new_interests,
+       (SELECT COUNT(*) FROM submission_replies WHERE delivery_status = 'sent') AS sent_replies`,
+  ).first<Record<string, number>>() ?? { submissions: 0, people: 0, interests: 0, new_interests: 0, sent_replies: 0 };
+}
+
+async function adminFilterOptions(env: AdminEnv): Promise<Record<string, unknown>> {
+  const [opportunities, dates] = await Promise.all([
+    env.DB.prepare(
+      "SELECT slug, kind, title, location FROM opportunities WHERE active = 1 ORDER BY CASE kind WHEN 'trip' THEN 0 ELSE 1 END, sort_order",
+    ).all<Record<string, string>>(),
+    env.DB.prepare(
+      "SELECT MIN(created_at) AS earliest, MAX(created_at) AS latest FROM interest_submissions",
+    ).first<Record<string, string | null>>(),
+  ]);
+  return { opportunities: opportunities.results, earliestDate: dates?.earliest ?? null, latestDate: dates?.latest ?? null };
+}
+
+async function listSubmissions(request: Request, env: AdminEnv): Promise<Response> {
+  await authenticate(request, env);
+  const url = new URL(request.url);
+  const filters = adminFilters(url);
+  const page = positiveInteger(url.searchParams.get("page"), 1, 10_000);
+  const pageSize = positiveInteger(url.searchParams.get("pageSize"), 25, 50);
+  const { whereSql, bindings } = filterSql(filters, "submission");
+  const orderOptions: Record<string, string> = {
+    newest: "s.created_at DESC",
+    oldest: "s.created_at ASC",
+    name_asc: "p.last_name COLLATE NOCASE ASC, p.first_name COLLATE NOCASE ASC, s.created_at DESC",
+    name_desc: "p.last_name COLLATE NOCASE DESC, p.first_name COLLATE NOCASE DESC, s.created_at DESC",
+  };
+  const orderBy = orderOptions[filters.sort] ?? orderOptions.newest;
   const countRow = await env.DB.prepare(
     `SELECT COUNT(*) AS total FROM interest_submissions s JOIN people p ON p.id = s.person_id ${whereSql}`,
   ).bind(...bindings).first<{ total: number }>();
@@ -371,17 +549,10 @@ async function listSubmissions(request: Request, env: AdminEnv): Promise<Respons
      FROM interest_submissions s
      JOIN people p ON p.id = s.person_id
      ${whereSql}
-     ORDER BY s.created_at DESC
+     ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
   ).bind(...bindings, pageSize, (page - 1) * pageSize).all<SubmissionListRow>();
-  const summary = await env.DB.prepare(
-    `SELECT
-       (SELECT COUNT(*) FROM interest_submissions) AS submissions,
-       (SELECT COUNT(*) FROM people) AS people,
-       (SELECT COUNT(*) FROM interests) AS interests,
-       (SELECT COUNT(*) FROM interests WHERE status = 'new') AS new_interests,
-       (SELECT COUNT(*) FROM submission_replies WHERE delivery_status = 'sent') AS sent_replies`,
-  ).first<Record<string, number>>();
+  const [summary, filterOptions] = await Promise.all([adminSummary(env), adminFilterOptions(env)]);
 
   return adminJson({
     submissions: result.results.map(row => ({
@@ -399,12 +570,211 @@ async function listSubmissions(request: Request, env: AdminEnv): Promise<Respons
       replyCount: Number(row.reply_count ?? 0),
       lastReplyAt: row.last_reply_at,
     })),
-    summary: summary ?? { submissions: 0, people: 0, interests: 0, new_interests: 0, sent_replies: 0 },
+    summary,
+    filterOptions,
     pagination: {
       page,
       pageSize,
       total: Number(countRow?.total ?? 0),
       pages: Math.max(1, Math.ceil(Number(countRow?.total ?? 0) / pageSize)),
+    },
+  });
+}
+
+async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
+  await authenticate(request, env);
+  const url = new URL(request.url);
+  const filters = adminFilters(url);
+  const page = positiveInteger(url.searchParams.get("page"), 1, 10_000);
+  const pageSize = positiveInteger(url.searchParams.get("pageSize"), 25, 50);
+  const { whereSql, bindings } = filterSql(filters, "person");
+  const orderBy: Record<string, string> = {
+    newest: "last_submission_at DESC",
+    oldest: "last_submission_at ASC",
+    name_asc: "p.last_name COLLATE NOCASE ASC, p.first_name COLLATE NOCASE ASC",
+    name_desc: "p.last_name COLLATE NOCASE DESC, p.first_name COLLATE NOCASE DESC",
+  };
+  const selectedOrder = orderBy[filters.sort] ?? orderBy.newest;
+  const countRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS total FROM people p ${whereSql}`,
+  ).bind(...bindings).first<{ total: number }>();
+  const result = await env.DB.prepare(
+    `SELECT
+       p.id, p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study,
+       p.created_at, p.updated_at,
+       (SELECT MIN(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id) AS first_submission_at,
+       (SELECT MAX(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id) AS last_submission_at,
+       (SELECT COUNT(*) FROM interest_submissions s WHERE s.person_id = p.id) AS submission_count,
+       (SELECT COUNT(*) FROM submission_replies r
+        JOIN interest_submissions s ON s.id = r.submission_id WHERE s.person_id = p.id) AS reply_count,
+       COALESCE((
+         SELECT json_group_array(json_object(
+           'id', selected.id,
+           'slug', selected.slug,
+           'title', selected.title,
+           'kind', selected.kind,
+           'location', selected.location,
+           'partner', selected.partner,
+           'duration', selected.duration,
+           'status', selected.status,
+           'createdAt', selected.created_at,
+           'updatedAt', selected.updated_at
+         ))
+         FROM (
+           SELECT i.id, i.status, i.created_at, i.updated_at,
+                  o.slug, o.title, o.kind, o.location, o.partner, o.duration
+           FROM interests i JOIN opportunities o ON o.id = i.opportunity_id
+           WHERE i.person_id = p.id ORDER BY o.kind, o.sort_order
+         ) selected
+       ), '[]') AS interests_json
+     FROM people p
+     ${whereSql}
+     ORDER BY ${selectedOrder}
+     LIMIT ? OFFSET ?`,
+  ).bind(...bindings, pageSize, (page - 1) * pageSize).all<PeopleListRow>();
+  const [summary, filterOptions] = await Promise.all([adminSummary(env), adminFilterOptions(env)]);
+  return adminJson({
+    people: result.results.map(row => ({
+      id: row.id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      email: row.email,
+      phone: row.phone,
+      contactPreference: row.contact_preference,
+      fieldOfStudy: row.field_of_study,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      firstSubmissionAt: row.first_submission_at,
+      lastSubmissionAt: row.last_submission_at,
+      submissionCount: Number(row.submission_count ?? 0),
+      replyCount: Number(row.reply_count ?? 0),
+      interests: parseJsonArray(row.interests_json),
+    })),
+    summary,
+    filterOptions,
+    pagination: {
+      page,
+      pageSize,
+      total: Number(countRow?.total ?? 0),
+      pages: Math.max(1, Math.ceil(Number(countRow?.total ?? 0) / pageSize)),
+    },
+  });
+}
+
+async function personDetail(request: Request, env: AdminEnv, personId: string): Promise<Response> {
+  await authenticate(request, env);
+  const person = await env.DB.prepare(
+    `SELECT id, first_name, last_name, email, phone, contact_preference, field_of_study, created_at, updated_at
+     FROM people WHERE id = ?1 LIMIT 1`,
+  ).bind(personId).first<Record<string, string | null>>();
+  if (!person) throw new AdminError(404, "PERSON_NOT_FOUND", "This person was not found.");
+
+  const [interests, submissions, replies, registrations] = await Promise.all([
+    env.DB.prepare(
+      `SELECT i.id, i.status, i.created_at, i.updated_at, i.submission_id,
+              o.slug, o.title, o.kind, o.location, o.partner, o.duration
+       FROM interests i JOIN opportunities o ON o.id = i.opportunity_id
+       WHERE i.person_id = ?1 ORDER BY o.kind, o.sort_order`,
+    ).bind(personId).all<Record<string, string | null>>(),
+    env.DB.prepare(
+      `SELECT s.id, s.preferred_timing, s.message, s.source_page, s.consent_at, s.created_at,
+              COALESCE((
+                SELECT json_group_array(json_object(
+                  'id', selected.interest_id,
+                  'slug', selected.slug,
+                  'title', selected.title,
+                  'kind', selected.kind,
+                  'location', selected.location,
+                  'partner', selected.partner,
+                  'duration', selected.duration,
+                  'status', selected.status
+                ))
+                FROM (
+                  SELECT i.id AS interest_id, o.slug, o.title, o.kind, o.location, o.partner, o.duration,
+                         COALESCE(i.status, 'new') AS status
+                  FROM json_each(s.selected_opportunities_json) requested
+                  JOIN opportunities o ON o.slug = requested.value
+                  LEFT JOIN interests i ON i.person_id = s.person_id AND i.opportunity_id = o.id
+                  ORDER BY o.sort_order
+                ) selected
+              ), '[]') AS interests_json
+       FROM interest_submissions s WHERE s.person_id = ?1 ORDER BY s.created_at DESC`,
+    ).bind(personId).all<PersonSubmissionRow>(),
+    env.DB.prepare(
+      `SELECT r.id, r.submission_id, s.created_at AS submission_created_at,
+              r.recipient_email, r.subject, r.body, r.delivery_method,
+              r.delivery_status, r.provider_message_id, r.error_message, r.created_at, r.sent_at, r.updated_at
+       FROM submission_replies r
+       JOIN interest_submissions s ON s.id = r.submission_id
+       WHERE s.person_id = ?1 ORDER BY r.created_at DESC`,
+    ).bind(personId).all<Record<string, string | null>>(),
+    env.DB.prepare(
+      `SELECT tr.id, tr.status, tr.started_at, tr.submitted_at, tr.updated_at,
+              o.slug, o.title, o.location
+       FROM trip_registrations tr JOIN opportunities o ON o.id = tr.opportunity_id
+       WHERE tr.person_id = ?1 ORDER BY tr.updated_at DESC`,
+    ).bind(personId).all<Record<string, string | null>>(),
+  ]);
+  const submissionHistory = submissions.results.map(row => ({
+    id: row.id,
+    preferredTiming: row.preferred_timing,
+    message: row.message,
+    sourcePage: row.source_page,
+    consentAt: row.consent_at,
+    createdAt: row.created_at,
+    interests: parseJsonArray(row.interests_json),
+  }));
+  return adminJson({
+    person: {
+      id: person.id,
+      firstName: person.first_name,
+      lastName: person.last_name,
+      email: person.email,
+      phone: person.phone,
+      contactPreference: person.contact_preference,
+      fieldOfStudy: person.field_of_study,
+      createdAt: person.created_at,
+      updatedAt: person.updated_at,
+      latestSubmissionId: submissionHistory[0]?.id ?? null,
+      interests: interests.results.map(row => ({
+        id: row.id,
+        status: row.status,
+        submissionId: row.submission_id,
+        slug: row.slug,
+        title: row.title,
+        kind: row.kind,
+        location: row.location,
+        partner: row.partner,
+        duration: row.duration,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+      submissions: submissionHistory,
+      replies: replies.results.map(row => ({
+        id: row.id,
+        submissionId: row.submission_id,
+        submissionCreatedAt: row.submission_created_at,
+        recipientEmail: row.recipient_email,
+        subject: row.subject,
+        body: row.body,
+        deliveryMethod: row.delivery_method,
+        deliveryStatus: row.delivery_status,
+        providerMessageId: row.provider_message_id,
+        errorMessage: row.error_message,
+        createdAt: row.created_at,
+        sentAt: row.sent_at,
+        updatedAt: row.updated_at,
+      })),
+      registrations: registrations.results.map(row => ({
+        id: row.id,
+        status: row.status,
+        slug: row.slug,
+        title: row.title,
+        location: row.location,
+        startedAt: row.started_at,
+        submittedAt: row.submitted_at,
+        updatedAt: row.updated_at,
+      })),
     },
   });
 }
@@ -548,6 +918,10 @@ export function csvCell(value: unknown): string {
 
 async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
   await authenticate(request, env);
+  const url = new URL(request.url);
+  const filters = adminFilters(url);
+  const scope = url.searchParams.get("view") === "people" ? "person" : "submission";
+  const { whereSql, bindings } = filterSql(filters, scope);
   const rows = await env.DB.prepare(
     `SELECT s.id AS submission_id, s.created_at AS submitted_at,
             p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study,
@@ -558,10 +932,12 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
             (SELECT COALESCE(r.sent_at, r.created_at) FROM submission_replies r WHERE r.submission_id = s.id ORDER BY r.created_at DESC LIMIT 1) AS last_reply_at
      FROM interest_submissions s
      JOIN people p ON p.id = s.person_id
-     JOIN interests i ON i.submission_id = s.id
-     JOIN opportunities o ON o.id = i.opportunity_id
+     JOIN json_each(s.selected_opportunities_json) selected_opportunity
+     JOIN opportunities o ON o.slug = selected_opportunity.value
+     LEFT JOIN interests i ON i.person_id = s.person_id AND i.opportunity_id = o.id
+     ${whereSql}
      ORDER BY s.created_at DESC, o.sort_order`,
-  ).all<Record<string, unknown>>();
+  ).bind(...bindings).all<Record<string, unknown>>();
   const columns = [
     "submission_id", "submitted_at", "first_name", "last_name", "email", "phone", "contact_preference",
     "field_of_study", "preferred_timing", "message", "kind", "opportunity", "location", "partner", "duration",
@@ -580,9 +956,12 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "POST" && path === "/admin/login") return login(request, env);
   if (request.method === "GET" && path === "/admin/session") return sessionInfo(request, env);
   if (request.method === "POST" && path === "/admin/logout") return logout(request, env);
+  if (request.method === "GET" && path === "/admin/people") return listPeople(request, env);
   if (request.method === "GET" && path === "/admin/submissions") return listSubmissions(request, env);
   if (request.method === "GET" && path === "/admin/export.csv") return exportCsv(request, env);
 
+  const personMatch = path.match(/^\/admin\/people\/([0-9a-f-]{36})$/i);
+  if (request.method === "GET" && personMatch) return personDetail(request, env, personMatch[1]);
   const detailMatch = path.match(/^\/admin\/submissions\/([0-9a-f-]{36})$/i);
   if (request.method === "GET" && detailMatch) return submissionDetail(request, env, detailMatch[1]);
   const statusMatch = path.match(/^\/admin\/submissions\/([0-9a-f-]{36})\/status$/i);
