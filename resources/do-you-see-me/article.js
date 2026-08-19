@@ -2,6 +2,10 @@
   const player = document.querySelector("[data-article-soundtrack]");
   const muteButton = document.querySelector("[data-soundtrack-mute]");
   const status = document.querySelector("[data-soundtrack-status]");
+  const soundtrack = player?.closest(".article-soundtrack");
+  const lyricsToggle = document.querySelector("[data-lyrics-toggle]");
+  const lyricsPanel = document.querySelector("[data-lyrics-panel]");
+  const articleRail = document.querySelector("[data-article-rail]");
 
   if (!player || !muteButton || !status) return;
 
@@ -34,6 +38,35 @@
     if (!player.ended) setStatus("Music paused.");
   });
   player.addEventListener("ended", () => setStatus("The companion song has ended."));
+
+  if (soundtrack && lyricsToggle && lyricsPanel && articleRail) {
+    const desktopLayout = window.matchMedia("(min-width: 851px)");
+
+    const syncLyricsPlacement = () => {
+      if (desktopLayout.matches) {
+        if (lyricsPanel.parentElement !== articleRail) articleRail.append(lyricsPanel);
+      } else if (lyricsPanel.previousElementSibling !== soundtrack) {
+        soundtrack.insertAdjacentElement("afterend", lyricsPanel);
+      }
+
+      articleRail.classList.toggle("lyrics-open", !lyricsPanel.hidden && desktopLayout.matches);
+    };
+
+    lyricsToggle.addEventListener("click", () => {
+      const shouldOpen = lyricsPanel.hidden;
+      lyricsPanel.hidden = !shouldOpen;
+      lyricsToggle.textContent = shouldOpen ? "Hide lyrics" : "Show lyrics";
+      lyricsToggle.setAttribute("aria-expanded", String(shouldOpen));
+      syncLyricsPlacement();
+    });
+
+    if (typeof desktopLayout.addEventListener === "function") {
+      desktopLayout.addEventListener("change", syncLyricsPlacement);
+    } else {
+      desktopLayout.addListener(syncLyricsPlacement);
+    }
+    syncLyricsPlacement();
+  }
 
   updateMuteButton();
   const playbackAttempt = player.play();

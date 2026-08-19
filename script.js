@@ -131,6 +131,8 @@ approachCollapse?.addEventListener("click", () => {
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const invitationIntro = document.querySelector("[data-invitation-intro]");
+const introBrandTransition = document.querySelector("[data-intro-brand-transition]");
+const headerBrandLogo = document.querySelector(".site-header .brand-logo");
 const introReplayButton = document.querySelector("[data-intro-replay]");
 const introLastSeenDateKey = invitationIntro?.dataset.introStorageKey || "hope-sojourns-home-intro-last-seen-date";
 const pageHero = document.querySelector(".hero, .page-hero");
@@ -173,6 +175,29 @@ if (!reduceMotion) {
   if (invitationIntro) {
     let invitationPlaying = false;
     let invitationTimer;
+    const positionIntroBrandTransition = () => {
+      if (!introBrandTransition || !headerBrandLogo) return;
+      const introWidth = introBrandTransition.offsetWidth;
+      const introHeight = introBrandTransition.offsetHeight;
+      const headerBox = headerBrandLogo.getBoundingClientRect();
+      if (!introWidth || !introHeight || !headerBox.width || !headerBox.height) return;
+
+      const naturalWidth = headerBrandLogo.naturalWidth || 1308;
+      const naturalHeight = headerBrandLogo.naturalHeight || 733;
+      const containedScale = Math.min(headerBox.width / naturalWidth, headerBox.height / naturalHeight);
+      const targetWidth = naturalWidth * containedScale;
+      const targetHeight = naturalHeight * containedScale;
+      const startX = Math.max(12, (window.innerWidth - introWidth) / 2);
+      const startY = Math.max(18, Math.min(window.innerHeight * .05, 54));
+      const endX = headerBox.left;
+      const endY = headerBox.top + ((headerBox.height - targetHeight) / 2);
+
+      introBrandTransition.style.setProperty("--intro-logo-start-x", `${startX}px`);
+      introBrandTransition.style.setProperty("--intro-logo-start-y", `${startY}px`);
+      introBrandTransition.style.setProperty("--intro-logo-end-x", `${endX}px`);
+      introBrandTransition.style.setProperty("--intro-logo-end-y", `${endY}px`);
+      introBrandTransition.style.setProperty("--intro-logo-end-scale", String(targetWidth / introWidth));
+    };
     const localDateKey = () => {
       const now = new Date();
       const year = now.getFullYear();
@@ -217,6 +242,7 @@ if (!reduceMotion) {
       invitationIntro.hidden = true;
       invitationIntro.classList.remove("is-playing", "is-dismissing");
       document.documentElement.classList.remove("invitation-playing");
+      document.documentElement.classList.remove("intro-brand-transition-playing");
       introReplayButton?.removeAttribute("disabled");
       invitationIntro.removeEventListener("animationend", handleInvitationAnimationEnd);
       document.removeEventListener("pointerdown", dismissInvitation);
@@ -234,9 +260,11 @@ if (!reduceMotion) {
       if (invitationPlaying) return;
       invitationPlaying = true;
       document.documentElement.classList.add("invitation-playing");
+      if (introBrandTransition) document.documentElement.classList.add("intro-brand-transition-playing");
       introReplayButton?.setAttribute("disabled", "");
       invitationIntro.hidden = false;
       invitationIntro.classList.remove("is-playing", "is-dismissing");
+      positionIntroBrandTransition();
       void invitationIntro.offsetWidth;
       invitationIntro.addEventListener("animationend", handleInvitationAnimationEnd);
       document.addEventListener("pointerdown", dismissInvitation, { once: true });
@@ -251,6 +279,12 @@ if (!reduceMotion) {
       playInvitation();
     }
     introReplayButton?.addEventListener("click", playInvitation);
+    headerBrandLogo?.addEventListener("load", () => {
+      if (invitationPlaying) positionIntroBrandTransition();
+    });
+    window.addEventListener("resize", () => {
+      if (invitationPlaying) positionIntroBrandTransition();
+    });
     window.addEventListener("pageshow", () => {
       const currentDate = localDateKey();
       if (readLastSeenDate() === currentDate) return;
