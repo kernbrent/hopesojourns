@@ -13,17 +13,26 @@ const teamsWorkspace = document.querySelector("#teams-workspace");
 const teamsList = document.querySelector("#teams-list");
 const teamCreateForm = document.querySelector("#team-create-form");
 const teamCreateStatus = document.querySelector("#team-create-status");
+const ministriesWorkspace = document.querySelector("#ministries-workspace");
+const ministriesList = document.querySelector("#ministries-list");
+const ministryCreateForm = document.querySelector("#ministry-create-form");
+const ministryCreateStatus = document.querySelector("#ministry-create-status");
+const contactToolbar = document.querySelector("#contact-toolbar");
+const addContactButton = document.querySelector("#add-contact");
 const submissionsEmpty = document.querySelector("#submissions-empty");
 const submissionsStatus = document.querySelector("#submissions-status");
 const filterForm = document.querySelector("#submission-filters");
 const opportunityFilter = document.querySelector("#opportunity-filter");
 const teamFilter = document.querySelector("#team-filter");
+const contactTypeFilter = document.querySelector("#contact-type-filter");
+const contactAreaFilter = document.querySelector("#contact-area-filter");
 const resultsCount = document.querySelector("#results-count");
 const recordsTitle = document.querySelector("#records-title");
 const peopleViewTab = document.querySelector("#people-view-tab");
 const requestsViewTab = document.querySelector("#requests-view-tab");
 const gridViewTab = document.querySelector("#grid-view-tab");
 const teamsViewTab = document.querySelector("#teams-view-tab");
+const ministriesViewTab = document.querySelector("#ministries-view-tab");
 const previousPage = document.querySelector("#previous-page");
 const nextPage = document.querySelector("#next-page");
 const pageLabel = document.querySelector("#page-label");
@@ -41,6 +50,7 @@ const state = {
   pages: 1,
   view: "people",
   currentRecordId: "",
+  filterOptions: {},
 };
 
 function element(tag, className, text) {
@@ -61,6 +71,21 @@ function formatDate(value, includeTime = true) {
 
 function titleCase(value) {
   return String(value || "").replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+const CONTACT_TYPE_LABELS = {
+  prospective_traveler: "Prospective Traveler",
+  traveler: "Traveler",
+  leader: "Leader",
+  donor: "Donor",
+  ministry_contact: "Ministry Contact",
+  staff: "Hope Sojourns Staff",
+  volunteer: "Volunteer",
+  other: "Other",
+};
+
+function contactTypeLabel(value) {
+  return CONTACT_TYPE_LABELS[value] || titleCase(value);
 }
 
 function plural(count, singular, pluralForm = `${singular}s`) {
@@ -158,17 +183,17 @@ function renderPersonCard(person) {
 
   const identity = element("span", "admin-request-person");
   identity.append(element("strong", "", `${person.firstName} ${person.lastName}`));
-  identity.append(element("small", "", `Latest activity ${formatDate(person.lastSubmissionAt)}`));
-  identity.append(element("small", "", person.teams?.length
-    ? `Teams: ${person.teams.map(team => team.name).join(", ")}`
-    : "Not assigned to a team"));
+  identity.append(element("small", "", person.organization || "No organization recorded"));
+  identity.append(element("small", "", `Updated ${formatDate(person.latestActivityAt || person.updatedAt)}`));
 
   const contact = element("span", "admin-request-contact");
-  contact.append(element("span", "", person.email));
-  contact.append(element("small", "", person.phone || `Prefers ${titleCase(person.contactPreference).toLowerCase()}`));
+  contact.append(element("span", "", person.email || "No email address"));
+  contact.append(element("small", "", person.phone || "No cell number"));
 
   const interests = element("span", "admin-request-interests");
-  appendInterests(interests, person.interests);
+  (person.contactTypes || []).slice(0, 3).forEach(type => interests.append(element("span", "admin-interest-pill", contactTypeLabel(type))));
+  if (!(person.contactTypes || []).length) interests.append(element("span", "admin-interest-pill", "Contact"));
+  if (person.languages?.length) interests.append(element("span", "admin-interest-pill", person.languages.join(", ")));
 
   const activity = element("span", "admin-person-activity");
   activity.append(element("strong", "", plural(person.submissionCount, "request")));
@@ -216,7 +241,7 @@ function renderPeopleGrid(people) {
   table.append(element("caption", "", "Filtered people records. Select a person's name to open their complete record."));
   const head = document.createElement("thead");
   const headingRow = document.createElement("tr");
-  ["Name", "Email", "Cell phone", "Contact by", "School or field", "Teams", "Latest activity", "Trips and internships", "Requests", "Replies"].forEach(label => {
+  ["Name", "Organization", "Contact type", "Email", "Cell phone", "Languages", "Hope Sojourns area", "Trips", "Teams", "Latest activity", "Requests"].forEach(label => {
     const heading = element("th", "", label);
     heading.scope = "col";
     headingRow.append(heading);
@@ -233,31 +258,25 @@ function renderPeopleGrid(people) {
     name.addEventListener("click", () => openPerson(person.id));
     nameCell.append(name);
 
+    gridCell(row, person.organization || "—", person.organization ? "" : "admin-grid-muted");
+    gridCell(row, (person.contactTypes || []).map(contactTypeLabel).join(", ") || "—", person.contactTypes?.length ? "" : "admin-grid-muted");
     const emailCell = gridCell(row, "");
-    const email = element("a", "admin-grid-email", person.email);
-    email.href = `mailto:${person.email}`;
-    emailCell.append(email);
+    if (person.email) {
+      const email = element("a", "admin-grid-email", person.email);
+      email.href = `mailto:${person.email}`;
+      emailCell.append(email);
+    } else emailCell.append(element("span", "admin-grid-muted", "—"));
     gridCell(row, person.phone || "—", person.phone ? "" : "admin-grid-muted");
-    gridCell(row, titleCase(person.contactPreference));
-    gridCell(row, person.fieldOfStudy || "—", person.fieldOfStudy ? "" : "admin-grid-muted");
+    gridCell(row, (person.languages || []).join(", ") || "—", person.languages?.length ? "" : "admin-grid-muted");
+    gridCell(row, (person.areas || []).map(titleCase).join(", ") || "—", person.areas?.length ? "" : "admin-grid-muted");
+    gridCell(row, (person.trips || []).map(trip => trip.title).join(", ") || "—", person.trips?.length ? "" : "admin-grid-muted");
     const teamsCell = gridCell(row, "");
     const teamList = element("div", "admin-request-interests");
     if (person.teams?.length) person.teams.forEach(team => teamList.append(teamPill(team)));
     else teamList.append(element("span", "admin-grid-muted", "Unassigned"));
     teamsCell.append(teamList);
-    gridCell(row, formatDate(person.lastSubmissionAt));
-
-    const interestsCell = gridCell(row, "");
-    const interestList = element("div", "admin-grid-opportunities");
-    person.interests.forEach(interest => {
-      const item = element("div", "admin-grid-opportunity");
-      item.append(element("span", "", interest.title), statusPill(interest.status));
-      interestList.append(item);
-    });
-    if (!person.interests.length) interestList.append(element("span", "admin-grid-muted", "None recorded"));
-    interestsCell.append(interestList);
+    gridCell(row, formatDate(person.latestActivityAt || person.updatedAt));
     gridCell(row, String(person.submissionCount), "admin-grid-count");
-    gridCell(row, String(person.replyCount), "admin-grid-count");
     body.append(row);
   });
   table.append(head, body);
@@ -270,12 +289,13 @@ function renderSummary(summary) {
   document.querySelector("#summary-interests").textContent = summary.interests || 0;
   document.querySelector("#summary-new").textContent = summary.new_interests || 0;
   document.querySelector("#summary-replies").textContent = summary.sent_replies || 0;
+  document.querySelector("#summary-ministries").textContent = summary.ministries || 0;
 }
 
 function filterQuery() {
   const formData = new FormData(filterForm);
   const params = new URLSearchParams({ page: String(state.page), pageSize: "25" });
-  for (const key of ["search", "status", "kind", "opportunity", "contactPreference", "replyState", "team", "dateFrom", "dateTo", "sort"]) {
+  for (const key of ["search", "status", "kind", "opportunity", "contactPreference", "replyState", "team", "contactType", "contactArea", "dateFrom", "dateTo", "sort"]) {
     const value = String(formData.get(key) || "").trim();
     if (value) params.set(key, value);
   }
@@ -283,6 +303,7 @@ function filterQuery() {
 }
 
 function populateOpportunityFilter(filterOptions = {}) {
+  state.filterOptions = filterOptions;
   const opportunities = Array.isArray(filterOptions.opportunities) ? filterOptions.opportunities : [];
   const selected = opportunityFilter.value;
   const firstOption = element("option", "", "Every opportunity");
@@ -316,6 +337,28 @@ function populateOpportunityFilter(filterOptions = {}) {
   });
   teamFilter.replaceChildren(everyTeam, unassigned, ...teamOptions);
   if ([...teamFilter.options].some(option => option.value === selectedTeam)) teamFilter.value = selectedTeam;
+
+  const selectedType = contactTypeFilter.value;
+  const everyType = element("option", "", "Every contact type");
+  everyType.value = "";
+  const contactTypes = (Array.isArray(filterOptions.contactTypes) ? filterOptions.contactTypes : []).map(type => {
+    const option = element("option", "", type.label);
+    option.value = type.value;
+    return option;
+  });
+  contactTypeFilter.replaceChildren(everyType, ...contactTypes);
+  if ([...contactTypeFilter.options].some(option => option.value === selectedType)) contactTypeFilter.value = selectedType;
+
+  const selectedArea = contactAreaFilter.value;
+  const everyArea = element("option", "", "Mission, intern, and corporate");
+  everyArea.value = "";
+  const contactAreas = (Array.isArray(filterOptions.contactAreas) ? filterOptions.contactAreas : []).map(area => {
+    const option = element("option", "", area.label);
+    option.value = area.value;
+    return option;
+  });
+  contactAreaFilter.replaceChildren(everyArea, ...contactAreas);
+  if ([...contactAreaFilter.options].some(option => option.value === selectedArea)) contactAreaFilter.value = selectedArea;
 
   const dateFrom = filterForm.elements.dateFrom;
   const dateTo = filterForm.elements.dateTo;
@@ -425,13 +468,50 @@ async function loadTeams() {
   }
 }
 
+function renderMinistryCard(ministry) {
+  const card = element("article", "admin-team-card admin-ministry-card");
+  const header = element("header");
+  header.append(element("h3", "", ministry.name), statusPill(ministry.status));
+  const location = [ministry.city, ministry.region, ministry.country].filter(Boolean).join(", ");
+  const description = element("p", "", ministry.description || "No ministry description has been added yet.");
+  const footer = element("footer");
+  const activity = element("span", "", `${plural(ministry.contactCount, "contact")} · ${plural(ministry.opportunityCount, "trip")} · ${location || "Location not recorded"}`);
+  const open = element("button", "admin-button admin-button-outline", "View ministry");
+  open.type = "button";
+  open.addEventListener("click", () => openMinistry(ministry.id));
+  footer.append(activity, open);
+  card.append(header, description, footer);
+  return card;
+}
+
+async function loadMinistries() {
+  submissionsStatus.textContent = "Loading ministries…";
+  ministriesList.setAttribute("aria-busy", "true");
+  try {
+    const { result } = await api("/ministries");
+    ministriesList.replaceChildren(...result.ministries.map(renderMinistryCard));
+    if (!result.ministries.length) {
+      const empty = element("article", "admin-team-card");
+      empty.append(element("h3", "", "No ministries yet"), element("p", "", "Create the first ministry above, then connect contacts and trips."));
+      ministriesList.append(empty);
+    }
+    resultsCount.textContent = plural(result.ministries.length, "ministry", "ministries");
+    submissionsStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) submissionsStatus.textContent = error.message;
+  } finally {
+    ministriesList.removeAttribute("aria-busy");
+  }
+}
+
 async function loadRecords() {
   previousPage.disabled = true;
   nextPage.disabled = true;
   if (state.view === "people") await loadPeople();
   else if (state.view === "requests") await loadSubmissions();
   else if (state.view === "grid") await loadPeopleGrid();
-  else await loadTeams();
+  else if (state.view === "teams") await loadTeams();
+  else await loadMinistries();
 }
 
 function switchView(view, focusTab = false) {
@@ -441,6 +521,7 @@ function switchView(view, focusTab = false) {
   const showRequests = view === "requests";
   const showGrid = view === "grid";
   const showTeams = view === "teams";
+  const showMinistries = view === "ministries";
   peopleViewTab.classList.toggle("is-active", showPeople);
   peopleViewTab.setAttribute("aria-selected", String(showPeople));
   peopleViewTab.tabIndex = showPeople ? 0 : -1;
@@ -453,16 +534,21 @@ function switchView(view, focusTab = false) {
   teamsViewTab.classList.toggle("is-active", showTeams);
   teamsViewTab.setAttribute("aria-selected", String(showTeams));
   teamsViewTab.tabIndex = showTeams ? 0 : -1;
+  ministriesViewTab.classList.toggle("is-active", showMinistries);
+  ministriesViewTab.setAttribute("aria-selected", String(showMinistries));
+  ministriesViewTab.tabIndex = showMinistries ? 0 : -1;
   peopleList.hidden = !showPeople;
+  contactToolbar.hidden = !showPeople;
   submissionsList.hidden = !showRequests;
   peopleGrid.hidden = !showGrid;
   teamsWorkspace.hidden = !showTeams;
-  filterForm.hidden = showTeams;
-  recordsPagination.hidden = showTeams;
-  exportButton.hidden = showTeams;
+  ministriesWorkspace.hidden = !showMinistries;
+  filterForm.hidden = showTeams || showMinistries;
+  recordsPagination.hidden = showTeams || showMinistries;
+  exportButton.hidden = showTeams || showMinistries;
   submissionsEmpty.hidden = true;
-  recordsTitle.textContent = showPeople ? "All people" : showRequests ? "Individual requests" : showGrid ? "People spreadsheet" : "Teams";
-  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : showGrid ? gridViewTab : teamsViewTab).focus();
+  recordsTitle.textContent = showPeople ? "Master contacts" : showRequests ? "Individual requests" : showGrid ? "Contact spreadsheet" : showTeams ? "Teams" : "Ministries";
+  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : showGrid ? gridViewTab : showTeams ? teamsViewTab : ministriesViewTab).focus();
   loadRecords();
 }
 
@@ -632,9 +718,11 @@ function createContactHero(record, activityLabel, activityValue) {
   const hero = element("section", "admin-detail-hero");
   const heroCopy = element("div");
   heroCopy.append(element("h3", "", `${record.firstName} ${record.lastName}`));
-  const email = element("a", "", record.email);
-  email.href = `mailto:${record.email}`;
-  heroCopy.append(email);
+  if (record.email) {
+    const email = element("a", "", record.email);
+    email.href = `mailto:${record.email}`;
+    heroCopy.append(email);
+  } else heroCopy.append(element("p", "", "No email address recorded"));
   if (record.phone) {
     const phone = element("p");
     const phoneLink = element("a", "", record.phone);
@@ -651,8 +739,9 @@ function createContactHero(record, activityLabel, activityValue) {
 async function refreshAfterDeletion(successMessage) {
   submissionDialog.close();
   state.currentRecordId = "";
-  if (state.view === "teams") {
-    await loadTeams();
+  if (state.view === "teams" || state.view === "ministries") {
+    if (state.view === "teams") await loadTeams();
+    else await loadMinistries();
     try {
       const { result } = await api("/people?page=1&pageSize=1");
       renderSummary(result.summary);
@@ -795,10 +884,167 @@ function renderRegistrations(person) {
       ["Submitted", formatDate(registration.submittedAt)],
       ["Last updated", formatDate(registration.updatedAt)],
     ]));
+    const actions = element("div", "admin-record-actions");
+    const remove = element("button", "admin-button admin-button-danger", "Delete application record");
+    remove.type = "button";
+    remove.addEventListener("click", async () => {
+      const confirmation = window.prompt(`Permanently delete the ${registration.title} application record?\n\nType DELETE to confirm.`);
+      if (confirmation === null) return;
+      if (confirmation !== "DELETE") {
+        detailStatus.textContent = "Nothing was deleted. Enter DELETE exactly to confirm permanent deletion.";
+        return;
+      }
+      setBusy(remove, true, "Deleting…");
+      try {
+        await api(`/registrations/${registration.id}`, { method: "DELETE" });
+        detailStatus.textContent = "The application record was permanently deleted.";
+        await Promise.all([loadPersonDetail(person.id), loadRecords()]);
+      } catch (error) {
+        detailStatus.textContent = error.message;
+        setBusy(remove, false);
+      }
+    });
+    actions.append(remove);
+    record.append(actions);
     list.append(record);
   });
   section.append(list);
   return section;
+}
+
+function editorField(labelText, name, value = "", options = {}) {
+  const label = element("label", options.wide ? "admin-editor-wide" : "");
+  label.append(element("span", "", labelText));
+  const control = options.multiline ? document.createElement("textarea") : document.createElement("input");
+  control.name = name;
+  control.value = value || "";
+  if (!options.multiline) control.type = options.type || "text";
+  if (options.maximum) control.maxLength = options.maximum;
+  if (options.required) control.required = true;
+  if (options.placeholder) control.placeholder = options.placeholder;
+  if (options.multiline) control.rows = options.rows || 4;
+  label.append(control);
+  return label;
+}
+
+function editorSelect(labelText, name, choices, selectedValue) {
+  const label = element("label");
+  label.append(element("span", "", labelText));
+  const select = document.createElement("select");
+  select.name = name;
+  choices.forEach(([value, text]) => {
+    const option = element("option", "", text);
+    option.value = value;
+    option.selected = value === selectedValue;
+    select.append(option);
+  });
+  label.append(select);
+  return label;
+}
+
+function editorCheckboxGroup(title, name, choices, selectedValues = []) {
+  const fieldset = element("fieldset", "admin-editor-options admin-editor-wide");
+  fieldset.append(element("legend", "", title));
+  const choicesShell = element("div", "admin-editor-choice-grid");
+  choices.forEach(choice => {
+    const value = choice.value ?? choice[0];
+    const text = choice.label ?? choice[1];
+    const label = element("label", "admin-team-assignment-choice");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = name;
+    input.value = value;
+    input.checked = selectedValues.includes(value);
+    label.append(input, element("span", "", text));
+    choicesShell.append(label);
+  });
+  fieldset.append(choicesShell);
+  return fieldset;
+}
+
+function contactEditorOptions(person) {
+  if (person?.options) return person.options;
+  const options = state.filterOptions || {};
+  return {
+    contactTypes: options.contactTypes || Object.entries(CONTACT_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+    contactAreas: options.contactAreas || [["mission", "Mission"], ["intern", "Intern"], ["corporate", "Corporate"]].map(([value, label]) => ({ value, label })),
+    trips: (options.opportunities || []).filter(item => item.kind === "trip"),
+  };
+}
+
+function renderContactEditor(person = null) {
+  const options = contactEditorOptions(person);
+  const fragment = document.createDocumentFragment();
+  const intro = element("section", "admin-detail-hero");
+  const copy = element("div");
+  copy.append(element("h3", "", person ? `Edit ${person.firstName} ${person.lastName}` : "Add a contact"));
+  copy.append(element("p", "", "Keep the master list useful by recording at least an email address or cell number. A contact can have more than one type, area, language, and trip."));
+  intro.append(copy);
+  fragment.append(intro);
+
+  const form = element("form", "admin-detail-card admin-detail-card-wide admin-contact-editor");
+  const fields = element("div", "admin-editor-grid");
+  fields.append(
+    editorField("First name", "firstName", person?.firstName, { required: true, maximum: 80 }),
+    editorField("Last name", "lastName", person?.lastName, { required: true, maximum: 80 }),
+    editorField("Preferred name", "preferredName", person?.preferredName, { maximum: 80 }),
+    editorField("Organization", "organization", person?.organization, { maximum: 160 }),
+    editorField("Email address", "email", person?.email, { type: "email", maximum: 254 }),
+    editorField("Cell number", "phone", person?.phone, { type: "tel", maximum: 40 }),
+    editorSelect("Preferred contact", "contactPreference", [["email", "Email"], ["phone", "Phone"]], person?.contactPreference || "email"),
+    editorSelect("Contact status", "contactStatus", [["active", "Active"], ["inactive", "Inactive"]], person?.contactStatus || "active"),
+    editorField("Website", "website", person?.website, { type: "url", maximum: 300, placeholder: "https://" }),
+    editorField("School, field, or specialty", "fieldOfStudy", person?.fieldOfStudy, { maximum: 160 }),
+    editorField("Address line 1", "addressLine1", person?.addressLine1, { maximum: 160 }),
+    editorField("Address line 2", "addressLine2", person?.addressLine2, { maximum: 160 }),
+    editorField("City", "city", person?.city, { maximum: 100 }),
+    editorField("State / province / region", "region", person?.region, { maximum: 100 }),
+    editorField("Postal code", "postalCode", person?.postalCode, { maximum: 30 }),
+    editorField("Country", "country", person?.country, { maximum: 100 }),
+    editorField("Last contacted", "lastContactedAt", person?.lastContactedAt?.slice(0, 10), { type: "date" }),
+    editorField("Languages spoken (separate with commas)", "languages", person?.languages?.join(", "), { maximum: 800, wide: true }),
+    editorCheckboxGroup("Contact types", "contactTypes", options.contactTypes || [], person?.contactTypes || []),
+    editorCheckboxGroup("Hope Sojourns areas", "areas", options.contactAreas || [], person?.areas || []),
+    editorCheckboxGroup("Trips connected to this contact", "tripIds", (options.trips || []).map(trip => ({
+      value: trip.id,
+      label: `${trip.title}${trip.location ? ` — ${trip.location}` : ""}`,
+    })), person?.trips?.map(trip => trip.id) || []),
+    editorField("Notes", "notes", person?.notes, { multiline: true, maximum: 5000, rows: 6, wide: true }),
+  );
+  const actions = element("div", "admin-editor-actions admin-editor-wide");
+  const cancel = element("button", "admin-button admin-button-quiet", "Cancel");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => person ? loadPersonDetail(person.id) : submissionDialog.close());
+  const save = element("button", "admin-button admin-button-primary", person ? "Save contact" : "Create contact");
+  save.type = "submit";
+  actions.append(cancel, save);
+  fields.append(actions);
+  form.append(fields);
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    setBusy(save, true, person ? "Saving…" : "Creating…");
+    detailStatus.textContent = "";
+    const formData = new FormData(form);
+    const body = Object.fromEntries(["firstName", "lastName", "preferredName", "organization", "email", "phone", "contactPreference", "contactStatus", "website", "fieldOfStudy", "addressLine1", "addressLine2", "city", "region", "postalCode", "country", "lastContactedAt", "notes"].map(name => [name, String(formData.get(name) || "")]));
+    body.languages = String(formData.get("languages") || "").split(",").map(item => item.trim()).filter(Boolean);
+    body.contactTypes = formData.getAll("contactTypes");
+    body.areas = formData.getAll("areas");
+    body.tripIds = formData.getAll("tripIds");
+    try {
+      const { result } = await api(person ? `/people/${person.id}` : "/people", {
+        method: person ? "PUT" : "POST",
+        body,
+      });
+      detailStatus.textContent = person ? "Contact saved." : "Contact created.";
+      await loadRecords();
+      await openPerson(result.personId);
+    } catch (error) {
+      detailStatus.textContent = error.message;
+      setBusy(save, false);
+    }
+  });
+  fragment.append(form);
+  submissionDetail.replaceChildren(fragment);
 }
 
 function createTeamAssignments(person) {
@@ -849,35 +1095,81 @@ function createTeamAssignments(person) {
 function renderPersonDetail(person) {
   const fragment = document.createDocumentFragment();
   const hero = createContactHero(person, "Latest activity", formatDate(person.submissions[0]?.createdAt || person.updatedAt));
+  const edit = element("button", "admin-button admin-button-primary", "Edit contact");
+  edit.type = "button";
+  edit.addEventListener("click", () => {
+    detailEyebrow.textContent = "Master contact list";
+    detailTitle.textContent = "Edit contact";
+    renderContactEditor(person);
+  });
+  hero.append(edit);
   hero.append(renderPersonStats(person));
   fragment.append(hero);
 
   const grid = element("div", "admin-detail-grid");
   const profile = element("section", "admin-detail-card");
   profile.append(element("h3", "", "Contact profile"));
+  const address = [person.addressLine1, person.addressLine2, [person.city, person.region, person.postalCode].filter(Boolean).join(", "), person.country].filter(Boolean).join(" · ");
   profile.append(detailList([
+    ["Preferred name", person.preferredName],
+    ["Contact type", person.contactTypes.map(contactTypeLabel).join(", ")],
+    ["Status", titleCase(person.contactStatus)],
     ["Preferred contact", titleCase(person.contactPreference)],
-    ["School or field", person.fieldOfStudy],
+    ["Organization", person.organization],
+    ["Address", address],
+    ["Languages", person.languages.join(", ")],
+    ["Hope Sojourns areas", person.areas.map(titleCase).join(", ")],
+    ["School, field, or specialty", person.fieldOfStudy],
+    ["Last contacted", formatDate(person.lastContactedAt, false)],
+    ["Added from", person.recordSource === "manual" ? "Admin portal" : "Website form"],
     ["First recorded", formatDate(person.createdAt)],
     ["Last updated", formatDate(person.updatedAt)],
   ]));
+  if (person.website) {
+    const website = element("a", "admin-profile-link", person.website);
+    website.href = person.website;
+    website.target = "_blank";
+    website.rel = "noopener noreferrer";
+    profile.append(website);
+  }
+  if (person.notes) profile.append(element("p", "admin-record-notes", person.notes));
+
+  const ministries = element("section", "admin-detail-card");
+  ministries.append(element("h3", "", "Ministry relationships"));
+  if (person.ministries.length) {
+    person.ministries.forEach(ministry => {
+      const row = element("div", "admin-linked-record");
+      const copy = element("div");
+      copy.append(element("strong", "", ministry.name), element("span", "", [ministry.role, ministry.isPrimary ? "Primary contact" : ""].filter(Boolean).join(" · ") || titleCase(ministry.status)));
+      const open = element("button", "admin-button admin-button-outline", "Open ministry");
+      open.type = "button";
+      open.addEventListener("click", () => openMinistry(ministry.id));
+      row.append(copy, open);
+      ministries.append(row);
+    });
+  } else ministries.append(element("p", "admin-reply-help", "This contact is not connected to a ministry."));
 
   const interests = element("section", "admin-detail-card admin-detail-card-wide");
   interests.append(element("h3", "", "All trips and internships"));
+  if (person.trips.length) {
+    const connected = element("div", "admin-request-interests");
+    person.trips.forEach(trip => connected.append(element("span", "admin-interest-pill", `Contact trip · ${trip.title}`)));
+    interests.append(connected);
+  }
   person.interests.forEach(interest => interests.append(createInterestRow(person, interest, "person")));
-  if (!person.interests.length) interests.append(element("p", "admin-reply-help", "No interests are recorded for this person."));
+  if (!person.interests.length && !person.trips.length) interests.append(element("p", "admin-reply-help", "No trips or interests are recorded for this person."));
 
-  grid.append(profile, createTeamAssignments(person), interests, renderSubmissionHistory(person));
+  grid.append(profile, ministries, createTeamAssignments(person), interests, renderSubmissionHistory(person));
   const registrations = renderRegistrations(person);
   if (registrations) grid.append(registrations);
   grid.append(
     createReplyComposer(person, person.latestSubmissionId, "person"),
     createReplyHistory(person, "person"),
     createDeletionPanel({
-      title: "Delete this applicant and all records",
-      description: `Permanently removes the applicant, ${plural(person.submissions.length, "request")}, ${plural(person.interests.length, "interest")}, ${plural(person.replies.length, "saved reply")}, ${plural(person.registrations.length, "registration")}, and every team assignment.`,
-      buttonLabel: "Delete applicant permanently",
-      promptMessage: `Delete ${person.firstName} ${person.lastName} and all information connected to this applicant? This cannot be undone.`,
+      title: "Delete this contact and all records",
+      description: `Permanently removes the contact, ${plural(person.submissions.length, "request")}, ${plural(person.interests.length, "interest")}, ${plural(person.replies.length, "saved reply")}, ${plural(person.registrations.length, "registration")}, and every team or ministry connection.`,
+      buttonLabel: "Delete contact permanently",
+      promptMessage: `Delete ${person.firstName} ${person.lastName} and all information connected to this contact? This cannot be undone.`,
       path: `/people/${person.id}`,
       successMessage: `${person.firstName} ${person.lastName} and all connected records were permanently deleted.`,
     }),
@@ -904,9 +1196,11 @@ function createTeamMemberCard(team, member) {
   identity.append(element("small", "", member.fieldOfStudy || "School or field not provided"));
 
   const contact = element("div", "admin-team-member-contact");
-  const email = element("a", "", member.email);
-  email.href = `mailto:${member.email}`;
-  contact.append(email);
+  if (member.email) {
+    const email = element("a", "", member.email);
+    email.href = `mailto:${member.email}`;
+    contact.append(email);
+  } else contact.append(element("span", "", "Email not provided"));
   if (member.phone) {
     const phone = element("a", "", member.phone);
     phone.href = `tel:${member.phone.replace(/[^0-9+]/g, "")}`;
@@ -1025,6 +1319,241 @@ function renderTeamDetail(team) {
   submissionDetail.replaceChildren(fragment);
 }
 
+function renderMinistryEditor(ministry) {
+  const options = ministry.options || { trips: [] };
+  const fragment = document.createDocumentFragment();
+  const intro = element("section", "admin-detail-hero");
+  const copy = element("div");
+  copy.append(element("h3", "", `Edit ${ministry.name}`));
+  copy.append(element("p", "", "Maintain the ministry’s contact information and connect the trips you share."));
+  intro.append(copy);
+  fragment.append(intro);
+
+  const form = element("form", "admin-detail-card admin-detail-card-wide admin-contact-editor");
+  const fields = element("div", "admin-editor-grid");
+  fields.append(
+    editorField("Ministry name", "name", ministry.name, { required: true, maximum: 160 }),
+    editorSelect("Status", "status", [["active", "Active"], ["inactive", "Inactive"]], ministry.status),
+    editorField("Email address", "email", ministry.email, { type: "email", maximum: 254 }),
+    editorField("Phone number", "phone", ministry.phone, { type: "tel", maximum: 40 }),
+    editorField("Website", "website", ministry.website, { type: "url", maximum: 300, placeholder: "https://" }),
+    editorField("Address line 1", "addressLine1", ministry.addressLine1, { maximum: 160 }),
+    editorField("Address line 2", "addressLine2", ministry.addressLine2, { maximum: 160 }),
+    editorField("City", "city", ministry.city, { maximum: 100 }),
+    editorField("State / province / region", "region", ministry.region, { maximum: 100 }),
+    editorField("Postal code", "postalCode", ministry.postalCode, { maximum: 30 }),
+    editorField("Country", "country", ministry.country, { maximum: 100 }),
+    editorField("Description", "description", ministry.description, { multiline: true, maximum: 2000, rows: 4, wide: true }),
+    editorCheckboxGroup("Trips with this ministry", "tripIds", (options.trips || []).map(trip => ({
+      value: trip.id,
+      label: `${trip.title}${trip.location ? ` — ${trip.location}` : ""}`,
+    })), ministry.trips?.map(trip => trip.id) || []),
+    editorField("Internal notes", "notes", ministry.notes, { multiline: true, maximum: 5000, rows: 6, wide: true }),
+  );
+  const actions = element("div", "admin-editor-actions admin-editor-wide");
+  const cancel = element("button", "admin-button admin-button-quiet", "Cancel");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => loadMinistryDetail(ministry.id));
+  const save = element("button", "admin-button admin-button-primary", "Save ministry");
+  save.type = "submit";
+  actions.append(cancel, save);
+  fields.append(actions);
+  form.append(fields);
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    setBusy(save, true, "Saving…");
+    detailStatus.textContent = "";
+    const formData = new FormData(form);
+    const body = Object.fromEntries(["name", "status", "email", "phone", "website", "addressLine1", "addressLine2", "city", "region", "postalCode", "country", "description", "notes"].map(name => [name, String(formData.get(name) || "")]));
+    body.tripIds = formData.getAll("tripIds");
+    try {
+      await api(`/ministries/${ministry.id}`, { method: "PUT", body });
+      detailStatus.textContent = "Ministry saved.";
+      await Promise.all([loadMinistryDetail(ministry.id), state.view === "ministries" ? loadMinistries() : Promise.resolve()]);
+    } catch (error) {
+      detailStatus.textContent = error.message;
+      setBusy(save, false);
+    }
+  });
+  fragment.append(form);
+  submissionDetail.replaceChildren(fragment);
+}
+
+function createMinistryContactCard(ministry, contact) {
+  const card = element("article", "admin-team-member");
+  const identity = element("div");
+  identity.append(element("h4", "", `${contact.firstName} ${contact.lastName}`));
+  identity.append(element("small", "", [contact.role, contact.isPrimary ? "Primary contact" : ""].filter(Boolean).join(" · ") || "Ministry contact"));
+  identity.append(element("small", "", contact.organization || "No organization recorded"));
+  const contactInfo = element("div", "admin-team-member-contact");
+  if (contact.email) {
+    const email = element("a", "", contact.email);
+    email.href = `mailto:${contact.email}`;
+    contactInfo.append(email);
+  } else contactInfo.append(element("span", "", "No email address"));
+  if (contact.phone) {
+    const phone = element("a", "", contact.phone);
+    phone.href = `tel:${contact.phone.replace(/[^0-9+]/g, "")}`;
+    contactInfo.append(phone);
+  } else contactInfo.append(element("span", "", "No cell number"));
+  const actions = element("div", "admin-team-member-actions");
+  const view = element("button", "admin-button admin-button-outline", "Full contact");
+  view.type = "button";
+  view.addEventListener("click", () => openPerson(contact.id));
+  const remove = element("button", "admin-button admin-button-quiet", "Remove link");
+  remove.type = "button";
+  remove.addEventListener("click", async () => {
+    if (!window.confirm(`Remove ${contact.firstName} ${contact.lastName} from ${ministry.name}? The contact record will remain.`)) return;
+    setBusy(remove, true, "Removing…");
+    try {
+      await api(`/ministries/${ministry.id}/contacts/remove`, { method: "POST", body: { personId: contact.id } });
+      detailStatus.textContent = "The ministry connection was removed. The contact record was kept.";
+      await loadMinistryDetail(ministry.id);
+    } catch (error) {
+      detailStatus.textContent = error.message;
+      setBusy(remove, false);
+    }
+  });
+  actions.append(view, remove);
+  card.append(identity, contactInfo, actions);
+  return card;
+}
+
+function renderMinistryDetail(ministry) {
+  const fragment = document.createDocumentFragment();
+  const hero = element("section", "admin-detail-hero");
+  const copy = element("div");
+  copy.append(element("h3", "", ministry.name), element("p", "", ministry.description || "No ministry description has been added yet."));
+  const action = element("div", "admin-team-detail-actions");
+  action.append(statusPill(ministry.status));
+  const edit = element("button", "admin-button admin-button-primary", "Edit ministry");
+  edit.type = "button";
+  edit.addEventListener("click", () => {
+    detailEyebrow.textContent = "Partner ministries";
+    detailTitle.textContent = "Edit ministry";
+    renderMinistryEditor(ministry);
+  });
+  action.append(edit);
+  hero.append(copy, action);
+  fragment.append(hero);
+
+  const grid = element("div", "admin-detail-grid");
+  const profile = element("section", "admin-detail-card");
+  profile.append(element("h3", "", "Ministry profile"));
+  const address = [ministry.addressLine1, ministry.addressLine2, [ministry.city, ministry.region, ministry.postalCode].filter(Boolean).join(", "), ministry.country].filter(Boolean).join(" · ");
+  profile.append(detailList([
+    ["Address", address],
+    ["Email", ministry.email],
+    ["Phone", ministry.phone],
+    ["Created", formatDate(ministry.createdAt)],
+    ["Last updated", formatDate(ministry.updatedAt)],
+  ]));
+  if (ministry.website) {
+    const website = element("a", "admin-profile-link", ministry.website);
+    website.href = ministry.website;
+    website.target = "_blank";
+    website.rel = "noopener noreferrer";
+    profile.append(website);
+  }
+  if (ministry.notes) profile.append(element("p", "admin-record-notes", ministry.notes));
+
+  const trips = element("section", "admin-detail-card");
+  trips.append(element("h3", "", "Connected trips"));
+  const tripList = element("div", "admin-request-interests");
+  ministry.trips.forEach(trip => tripList.append(element("span", "admin-interest-pill", `${trip.title}${trip.location ? ` · ${trip.location}` : ""}`)));
+  if (!ministry.trips.length) tripList.append(element("p", "admin-reply-help", "No trips are connected yet. Use Edit ministry to add them."));
+  trips.append(tripList);
+
+  const add = element("section", "admin-detail-card admin-detail-card-wide");
+  add.append(element("h3", "", "Add a ministry contact"));
+  if (ministry.availableContacts.length) {
+    const form = element("form", "admin-team-add-form admin-ministry-contact-form");
+    const contactLabel = element("label");
+    contactLabel.append(element("span", "", "Contact"));
+    const select = document.createElement("select");
+    select.name = "personId";
+    select.required = true;
+    ministry.availableContacts.forEach(contact => {
+      const option = element("option", "", `${contact.lastName}, ${contact.firstName} — ${contact.organization || contact.email || contact.phone || "Contact record"}`);
+      option.value = contact.id;
+      select.append(option);
+    });
+    contactLabel.append(select);
+    const role = editorField("Role with ministry", "role", "", { maximum: 120, placeholder: "Director, coordinator, pastor…" });
+    const primaryLabel = element("label", "admin-inline-check");
+    const primary = document.createElement("input");
+    primary.type = "checkbox";
+    primary.name = "isPrimary";
+    primaryLabel.append(primary, element("span", "", "Primary contact"));
+    const addButton = element("button", "admin-button admin-button-primary", "Connect contact");
+    addButton.type = "submit";
+    form.append(contactLabel, role, primaryLabel, addButton);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      setBusy(addButton, true, "Connecting…");
+      detailStatus.textContent = "";
+      const formData = new FormData(form);
+      try {
+        await api(`/ministries/${ministry.id}/contacts`, {
+          method: "POST",
+          body: { personId: select.value, role: String(formData.get("role") || ""), isPrimary: primary.checked },
+        });
+        detailStatus.textContent = "Contact connected to the ministry.";
+        await loadMinistryDetail(ministry.id);
+      } catch (error) {
+        detailStatus.textContent = error.message;
+        setBusy(addButton, false);
+      }
+    });
+    add.append(form);
+  } else add.append(element("p", "admin-reply-help", "Every active contact is already linked. Add another contact from the Contacts tab if needed."));
+
+  const contacts = element("section", "admin-detail-card admin-detail-card-wide");
+  contacts.append(element("h3", "", "Ministry contacts"));
+  const contactList = element("div", "admin-team-member-list");
+  if (ministry.contacts.length) ministry.contacts.forEach(contact => contactList.append(createMinistryContactCard(ministry, contact)));
+  else contactList.append(element("p", "admin-reply-help", "No people are connected to this ministry yet."));
+  contacts.append(contactList);
+
+  grid.append(
+    profile,
+    trips,
+    add,
+    contacts,
+    createDeletionPanel({
+      title: "Delete this ministry",
+      description: `Permanently removes the ministry and its ${plural(ministry.contacts.length, "contact link")} and ${plural(ministry.trips.length, "trip link")}. Contact and trip records remain.`,
+      buttonLabel: "Delete ministry permanently",
+      promptMessage: `Delete ${ministry.name}? Linked contacts and trips will remain in the portal, but the ministry record cannot be recovered.`,
+      path: `/ministries/${ministry.id}`,
+      successMessage: `${ministry.name} was permanently deleted. Linked contacts and trips were kept.`,
+    }),
+  );
+  fragment.append(grid);
+  submissionDetail.replaceChildren(fragment);
+}
+
+async function loadMinistryDetail(ministryId) {
+  detailStatus.textContent = "Loading ministry…";
+  try {
+    const { result } = await api(`/ministries/${ministryId}`);
+    renderMinistryDetail(result.ministry);
+    detailTitle.textContent = result.ministry.name;
+    detailStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) detailStatus.textContent = error.message;
+  }
+}
+
+async function openMinistry(ministryId) {
+  state.currentRecordId = ministryId;
+  submissionDetail.replaceChildren();
+  detailEyebrow.textContent = "Partner ministry";
+  detailTitle.textContent = "Ministry details";
+  if (!submissionDialog.open) submissionDialog.showModal();
+  await loadMinistryDetail(ministryId);
+}
+
 async function loadTeamDetail(teamId) {
   detailStatus.textContent = "Loading team…";
   try {
@@ -1117,13 +1646,23 @@ peopleViewTab.addEventListener("click", () => switchView("people"));
 requestsViewTab.addEventListener("click", () => switchView("requests"));
 gridViewTab.addEventListener("click", () => switchView("grid"));
 teamsViewTab.addEventListener("click", () => switchView("teams"));
+ministriesViewTab.addEventListener("click", () => switchView("ministries"));
 document.querySelector(".admin-view-tabs").addEventListener("keydown", event => {
   if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
   event.preventDefault();
-  const views = ["people", "requests", "grid", "teams"];
+  const views = ["people", "requests", "grid", "teams", "ministries"];
   const direction = event.key === "ArrowRight" ? 1 : -1;
   const nextIndex = (views.indexOf(state.view) + direction + views.length) % views.length;
   switchView(views[nextIndex], true);
+});
+
+addContactButton.addEventListener("click", () => {
+  state.currentRecordId = "";
+  detailEyebrow.textContent = "Master contact list";
+  detailTitle.textContent = "Add contact";
+  detailStatus.textContent = "";
+  renderContactEditor();
+  if (!submissionDialog.open) submissionDialog.showModal();
 });
 
 teamCreateForm.addEventListener("submit", async event => {
@@ -1145,6 +1684,31 @@ teamCreateForm.addEventListener("submit", async event => {
     await loadTeams();
   } catch (error) {
     teamCreateStatus.textContent = error.message;
+  } finally {
+    setBusy(submit, false);
+  }
+});
+
+ministryCreateForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = ministryCreateForm.querySelector("button[type='submit']");
+  const formData = new FormData(ministryCreateForm);
+  setBusy(submit, true, "Creating…");
+  ministryCreateStatus.textContent = "";
+  try {
+    const { result } = await api("/ministries", {
+      method: "POST",
+      body: {
+        name: String(formData.get("name") || ""),
+        description: String(formData.get("description") || ""),
+      },
+    });
+    ministryCreateForm.reset();
+    ministryCreateStatus.textContent = "Ministry created. Add its details and contacts next.";
+    await loadMinistries();
+    await openMinistry(result.ministryId);
+  } catch (error) {
+    ministryCreateStatus.textContent = error.message;
   } finally {
     setBusy(submit, false);
   }

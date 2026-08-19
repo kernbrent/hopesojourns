@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=23">
-  <link rel="stylesheet" href="/admin/admin.css?v=7">
+  <link rel="stylesheet" href="/admin/admin.css?v=8">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -53,8 +53,8 @@
       <div class="admin-dashboard-heading">
         <div>
           <p class="eyebrow">Hope Sojourns response center</p>
-          <h1 id="dashboard-title">People ready to explore.</h1>
-          <p>Connect each person’s submitted interests to the right serving team without creating duplicate records.</p>
+          <h1 id="dashboard-title">People and partnerships.</h1>
+          <p>Manage the Hope Sojourns master contact list, submitted forms, teams, and ministry relationships in one place.</p>
         </div>
         <div class="admin-dashboard-actions">
           <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh</button>
@@ -69,26 +69,28 @@
         <article class="admin-summary-card"><span>Interests</span><strong id="summary-interests">0</strong><small>Trips and internships</small></article>
         <article class="admin-summary-card admin-summary-card-accent"><span>New</span><strong id="summary-new">0</strong><small>Awaiting follow-up</small></article>
         <article class="admin-summary-card"><span>Replies sent</span><strong id="summary-replies">0</strong><small>Marked complete</small></article>
+        <article class="admin-summary-card"><span>Ministries</span><strong id="summary-ministries">0</strong><small>Partner organizations</small></article>
       </section>
 
       <section class="admin-workspace" aria-labelledby="records-title">
         <div class="admin-workspace-heading">
           <div>
             <p class="eyebrow">Response records</p>
-            <h2 id="records-title">All people</h2>
+            <h2 id="records-title">Master contacts</h2>
           </div>
           <p id="results-count" aria-live="polite"></p>
         </div>
         <div class="admin-view-tabs" role="tablist" aria-label="Choose a record view">
-          <button class="admin-view-tab is-active" id="people-view-tab" type="button" role="tab" aria-selected="true" aria-controls="people-list">All people</button>
+          <button class="admin-view-tab is-active" id="people-view-tab" type="button" role="tab" aria-selected="true" aria-controls="people-list">Contacts</button>
           <button class="admin-view-tab" id="requests-view-tab" type="button" role="tab" aria-selected="false" aria-controls="submissions-list">Individual requests</button>
           <button class="admin-view-tab" id="grid-view-tab" type="button" role="tab" aria-selected="false" aria-controls="people-grid">Spreadsheet view</button>
           <button class="admin-view-tab" id="teams-view-tab" type="button" role="tab" aria-selected="false" aria-controls="teams-workspace">Teams</button>
+          <button class="admin-view-tab" id="ministries-view-tab" type="button" role="tab" aria-selected="false" aria-controls="ministries-workspace">Ministries</button>
         </div>
         <form class="admin-filters" id="submission-filters" role="search">
           <label class="admin-search-field">
             <span>Search people</span>
-            <input name="search" type="search" placeholder="Name, email, phone, school, or field">
+            <input name="search" type="search" placeholder="Name, email, phone, organization, language, or location">
           </label>
           <label>
             <span>Follow-up status</span>
@@ -139,6 +141,18 @@
             </select>
           </label>
           <label>
+            <span>Contact type</span>
+            <select name="contactType" id="contact-type-filter">
+              <option value="">Every contact type</option>
+            </select>
+          </label>
+          <label>
+            <span>Hope Sojourns area</span>
+            <select name="contactArea" id="contact-area-filter">
+              <option value="">Mission, intern, and corporate</option>
+            </select>
+          </label>
+          <label>
             <span>Received from</span>
             <input name="dateFrom" type="date">
           </label>
@@ -159,6 +173,10 @@
           <button class="admin-filter-reset" id="reset-filters" type="button">Clear</button>
         </form>
 
+        <div class="admin-contact-toolbar" id="contact-toolbar">
+          <div><strong>Master contact list</strong><span>Form submissions are added automatically. You can also add and maintain contacts here.</span></div>
+          <button class="admin-button admin-button-primary" id="add-contact" type="button">Add contact</button>
+        </div>
         <div class="admin-request-list admin-people-list" id="people-list" role="tabpanel" aria-labelledby="people-view-tab" aria-live="polite"></div>
         <div class="admin-request-list" id="submissions-list" role="tabpanel" aria-labelledby="requests-view-tab" aria-live="polite" hidden></div>
         <div class="admin-grid-shell" id="people-grid" role="tabpanel" aria-labelledby="grid-view-tab" aria-live="polite" hidden></div>
@@ -177,6 +195,22 @@
             </form>
           </div>
           <div class="admin-team-list" id="teams-list" aria-live="polite"></div>
+        </section>
+        <section class="admin-teams-workspace" id="ministries-workspace" role="tabpanel" aria-labelledby="ministries-view-tab" hidden>
+          <div class="admin-team-create-shell">
+            <div>
+              <p class="eyebrow">Partner relationships</p>
+              <h3>Create a ministry</h3>
+              <p>Add an organization, then connect its contacts and the trips you share.</p>
+            </div>
+            <form class="admin-team-create-form" id="ministry-create-form">
+              <label><span>Ministry name</span><input name="name" type="text" maxlength="160" required placeholder="For example: New Start Ministries"></label>
+              <label><span>Description <small>Optional</small></span><textarea name="description" maxlength="2000" rows="3" placeholder="What they do and how Hope Sojourns works with them"></textarea></label>
+              <button class="admin-button admin-button-primary" type="submit">Create ministry</button>
+              <p class="admin-form-status" id="ministry-create-status" role="status" aria-live="polite"></p>
+            </form>
+          </div>
+          <div class="admin-team-list" id="ministries-list" aria-live="polite"></div>
         </section>
         <div class="admin-empty" id="submissions-empty" hidden>
           <img src="/assets/hope-sojourns-icon.png" alt="" width="72" height="72">
@@ -210,6 +244,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=11" defer></script>
+  <script src="/admin/admin.js?v=12" defer></script>
 </body>
 </html>

@@ -3,6 +3,23 @@ const SESSION_HOURS = 8;
 const LOGIN_WINDOW_MINUTES = 15;
 const LOGIN_FAILURE_LIMIT = 5;
 const ALLOWED_STATUSES = new Set(["new", "contacted", "exploring", "closed"]);
+const CONTACT_TYPE_OPTIONS = [
+  ["prospective_traveler", "Prospective Traveler"],
+  ["traveler", "Traveler"],
+  ["leader", "Leader"],
+  ["donor", "Donor"],
+  ["ministry_contact", "Ministry Contact"],
+  ["staff", "Hope Sojourns Staff"],
+  ["volunteer", "Volunteer"],
+  ["other", "Other"],
+] as const;
+const CONTACT_AREA_OPTIONS = [
+  ["mission", "Mission"],
+  ["intern", "Intern"],
+  ["corporate", "Corporate"],
+] as const;
+const ALLOWED_CONTACT_TYPES = new Set<string>(CONTACT_TYPE_OPTIONS.map(([value]) => value));
+const ALLOWED_CONTACT_AREAS = new Set<string>(CONTACT_AREA_OPTIONS.map(([value]) => value));
 
 type AdminEnv = Env & {
   ADMIN_PASSWORD?: string;
@@ -45,14 +62,22 @@ type PeopleListRow = {
   phone: string | null;
   contact_preference: string;
   field_of_study: string | null;
+  organization: string | null;
+  contact_status: string;
+  record_source: string;
   created_at: string;
   updated_at: string;
-  first_submission_at: string;
-  last_submission_at: string;
+  first_submission_at: string | null;
+  last_submission_at: string | null;
+  latest_activity_at: string;
   submission_count: number;
   reply_count: number;
   interests_json: string;
   teams_json: string;
+  contact_types_json: string;
+  languages_json: string;
+  areas_json: string;
+  trips_json: string;
 };
 
 type TeamListRow = {
@@ -64,6 +89,23 @@ type TeamListRow = {
   updated_at: string;
   member_count: number;
   latest_assignment_at: string | null;
+};
+
+type MinistryListRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  contact_count: number;
+  opportunity_count: number;
 };
 
 type PersonSubmissionRow = {
@@ -84,6 +126,8 @@ type AdminFilters = {
   contactPreference: string;
   replyState: string;
   team: string;
+  contactType: string;
+  contactArea: string;
   dateFrom: string | null;
   dateToExclusive: string | null;
   sort: string;
@@ -160,12 +204,196 @@ function cleanOptionalMessage(value: unknown, maximum: number): string | null {
   return cleanMessage(value, maximum);
 }
 
+function cleanOptionalLine(value: unknown, maximum: number): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  return cleanLine(value, maximum);
+}
+
 function normalizeTeamName(value: string): string {
   return value.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/g, " ").trim();
 }
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function cleanEmail(value: unknown, required = false): string | null {
+  const email = cleanOptionalLine(value, 254);
+  if (!email) {
+    if (required) throw new AdminError(422, "INVALID_CONTACT", "Enter a valid email address.");
+    return null;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new AdminError(422, "INVALID_CONTACT", "Enter a valid email address.");
+  }
+  return email;
+}
+
+function cleanPhone(value: unknown, required = false): string | null {
+  const phone = cleanOptionalLine(value, 40);
+  if (!phone) {
+    if (required) throw new AdminError(422, "INVALID_CONTACT", "Enter a valid phone number.");
+    return null;
+  }
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 18) {
+    throw new AdminError(422, "INVALID_CONTACT", "Enter a phone number with 7 to 18 digits.");
+  }
+  return phone;
+}
+
+function cleanWebsite(value: unknown): string | null {
+  const website = cleanOptionalLine(value, 300);
+  if (!website) return null;
+  try {
+    const url = new URL(website);
+    if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Unsupported protocol");
+    return url.toString();
+  } catch {
+    throw new AdminError(422, "INVALID_CONTACT", "Enter a complete website address beginning with http:// or https://.");
+  }
+}
+
+function cleanChoiceArray(value: unknown, allowed: Set<string>, maximum: number, message: string): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > maximum || value.some(item => typeof item !== "string" || !allowed.has(item))) {
+    throw new AdminError(422, "INVALID_SELECTION", message);
+  }
+  return [...new Set(value as string[])];
+}
+
+function cleanLanguages(value: unknown): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 20) {
+    throw new AdminError(422, "INVALID_LANGUAGES", "Add no more than 20 languages.");
+  }
+  const languages = value.map(item => cleanLine(item, 60));
+  if (languages.some(item => !item)) {
+    throw new AdminError(422, "INVALID_LANGUAGES", "Use 60 characters or fewer for each language.");
+  }
+  const unique = new Map<string, string>();
+  for (const language of languages as string[]) unique.set(normalizeTeamName(language), language);
+  return [...unique.values()];
+}
+
+function cleanTripIds(value: unknown): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 100 || value.some(item => typeof item !== "string" || !/^[a-z0-9-]{3,80}$/.test(item))) {
+    throw new AdminError(422, "INVALID_TRIPS", "Choose valid trips for this contact.");
+  }
+  return [...new Set(value as string[])];
+}
+
+function cleanOptionalDate(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new AdminError(422, "INVALID_DATE", "Choose a valid last-contacted date.");
+  }
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    throw new AdminError(422, "INVALID_DATE", "Choose a valid last-contacted date.");
+  }
+  return date.toISOString();
+}
+
+type ContactInput = {
+  firstName: string;
+  lastName: string;
+  preferredName: string | null;
+  email: string;
+  phone: string | null;
+  contactPreference: "email" | "phone";
+  fieldOfStudy: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+  country: string | null;
+  organization: string | null;
+  website: string | null;
+  notes: string | null;
+  contactStatus: "active" | "inactive";
+  lastContactedAt: string | null;
+  contactTypes: string[];
+  areas: string[];
+  languages: string[];
+  tripIds: string[];
+};
+
+type MinistryInput = {
+  name: string;
+  description: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+  country: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  notes: string | null;
+  status: "active" | "inactive";
+  tripIds: string[];
+};
+
+function contactInput(body: Record<string, unknown>): ContactInput {
+  const firstName = cleanLine(body.firstName, 80);
+  const lastName = cleanLine(body.lastName, 80);
+  if (!firstName || !lastName) throw new AdminError(422, "INVALID_CONTACT", "Enter the contact’s first and last name.");
+  const email = cleanEmail(body.email) ?? "";
+  const phone = cleanPhone(body.phone);
+  if (!email && !phone) throw new AdminError(422, "INVALID_CONTACT", "Enter at least an email address or phone number.");
+  const requestedPreference = body.contactPreference === "phone" ? "phone" : "email";
+  const contactPreference = requestedPreference === "phone" && !phone ? "email" : requestedPreference === "email" && !email ? "phone" : requestedPreference;
+  const contactStatus = body.contactStatus === "inactive" ? "inactive" : "active";
+  const contactTypes = cleanChoiceArray(body.contactTypes, ALLOWED_CONTACT_TYPES, 8, "Choose valid contact types.");
+  return {
+    firstName,
+    lastName,
+    preferredName: cleanOptionalLine(body.preferredName, 80),
+    email,
+    phone,
+    contactPreference,
+    fieldOfStudy: cleanOptionalLine(body.fieldOfStudy, 160),
+    addressLine1: cleanOptionalLine(body.addressLine1, 160),
+    addressLine2: cleanOptionalLine(body.addressLine2, 160),
+    city: cleanOptionalLine(body.city, 100),
+    region: cleanOptionalLine(body.region, 100),
+    postalCode: cleanOptionalLine(body.postalCode, 30),
+    country: cleanOptionalLine(body.country, 100),
+    organization: cleanOptionalLine(body.organization, 160),
+    website: cleanWebsite(body.website),
+    notes: cleanOptionalMessage(body.notes, 5000),
+    contactStatus,
+    lastContactedAt: cleanOptionalDate(body.lastContactedAt),
+    contactTypes: contactTypes.length ? contactTypes : ["other"],
+    areas: cleanChoiceArray(body.areas, ALLOWED_CONTACT_AREAS, 3, "Choose valid Hope Sojourns areas."),
+    languages: cleanLanguages(body.languages),
+    tripIds: cleanTripIds(body.tripIds),
+  };
+}
+
+function ministryInput(body: Record<string, unknown>): MinistryInput {
+  const name = cleanLine(body.name, 160);
+  if (!name) throw new AdminError(422, "INVALID_MINISTRY", "Enter a ministry name using 160 characters or fewer.");
+  return {
+    name,
+    description: cleanOptionalMessage(body.description, 2000),
+    addressLine1: cleanOptionalLine(body.addressLine1, 160),
+    addressLine2: cleanOptionalLine(body.addressLine2, 160),
+    city: cleanOptionalLine(body.city, 100),
+    region: cleanOptionalLine(body.region, 100),
+    postalCode: cleanOptionalLine(body.postalCode, 30),
+    country: cleanOptionalLine(body.country, 100),
+    email: cleanEmail(body.email),
+    phone: cleanPhone(body.phone),
+    website: cleanWebsite(body.website),
+    notes: cleanOptionalMessage(body.notes, 5000),
+    status: body.status === "inactive" ? "inactive" : "active",
+    tripIds: cleanTripIds(body.tripIds),
+  };
 }
 
 function base64Url(bytes: Uint8Array): string {
@@ -391,6 +619,8 @@ function adminFilters(url: URL): AdminFilters {
   const contactPreference = url.searchParams.get("contactPreference") ?? "";
   const replyState = url.searchParams.get("replyState") ?? "";
   const team = url.searchParams.get("team") ?? "";
+  const contactType = url.searchParams.get("contactType") ?? "";
+  const contactArea = url.searchParams.get("contactArea") ?? "";
   const sort = url.searchParams.get("sort") ?? "newest";
   if (status && !ALLOWED_STATUSES.has(status)) throw new AdminError(400, "INVALID_FILTER", "Choose a valid status filter.");
   if (kind && kind !== "trip" && kind !== "internship") throw new AdminError(400, "INVALID_FILTER", "Choose a valid opportunity type.");
@@ -403,6 +633,12 @@ function adminFilters(url: URL): AdminFilters {
   }
   if (team && team !== "unassigned" && !isUuid(team)) {
     throw new AdminError(400, "INVALID_FILTER", "Choose a valid team.");
+  }
+  if (contactType && !ALLOWED_CONTACT_TYPES.has(contactType)) {
+    throw new AdminError(400, "INVALID_FILTER", "Choose a valid contact type.");
+  }
+  if (contactArea && !ALLOWED_CONTACT_AREAS.has(contactArea)) {
+    throw new AdminError(400, "INVALID_FILTER", "Choose a valid Hope Sojourns area.");
   }
   if (!["newest", "oldest", "name_asc", "name_desc"].includes(sort)) {
     throw new AdminError(400, "INVALID_FILTER", "Choose a valid sort order.");
@@ -420,6 +656,8 @@ function adminFilters(url: URL): AdminFilters {
     contactPreference,
     replyState,
     team,
+    contactType,
+    contactArea,
     dateFrom,
     dateToExclusive,
     sort,
@@ -435,9 +673,13 @@ function filterSql(filters: AdminFilters, scope: "person" | "submission"): { whe
       p.first_name LIKE ? ESCAPE '\\' OR p.last_name LIKE ? ESCAPE '\\' OR
       (p.first_name || ' ' || p.last_name) LIKE ? ESCAPE '\\' OR
       p.email LIKE ? ESCAPE '\\' OR COALESCE(p.phone, '') LIKE ? ESCAPE '\\' OR
-      COALESCE(p.field_of_study, '') LIKE ? ESCAPE '\\'
+      COALESCE(p.field_of_study, '') LIKE ? ESCAPE '\\' OR
+      COALESCE(p.organization, '') LIKE ? ESCAPE '\\' OR COALESCE(p.city, '') LIKE ? ESCAPE '\\' OR
+      COALESCE(p.region, '') LIKE ? ESCAPE '\\' OR COALESCE(p.country, '') LIKE ? ESCAPE '\\' OR
+      EXISTS (SELECT 1 FROM contact_languages searched_language
+              WHERE searched_language.person_id = p.id AND searched_language.language LIKE ? ESCAPE '\\')
     )`);
-    bindings.push(like, like, like, like, like, like);
+    bindings.push(like, like, like, like, like, like, like, like, like, like, like);
   }
   if (filters.status || filters.kind || filters.opportunity) {
     const interestWhere = scope === "submission" ? [] : ["filtered_interest.person_id = p.id"];
@@ -518,6 +760,14 @@ function filterSql(filters: AdminFilters, scope: "person" | "submission"): { whe
     where.push("EXISTS (SELECT 1 FROM team_members filtered_team_member WHERE filtered_team_member.person_id = p.id AND filtered_team_member.team_id = ?)");
     bindings.push(filters.team);
   }
+  if (filters.contactType) {
+    where.push("EXISTS (SELECT 1 FROM contact_types filtered_contact_type WHERE filtered_contact_type.person_id = p.id AND filtered_contact_type.contact_type = ?)");
+    bindings.push(filters.contactType);
+  }
+  if (filters.contactArea) {
+    where.push("EXISTS (SELECT 1 FROM contact_areas filtered_contact_area WHERE filtered_contact_area.person_id = p.id AND filtered_contact_area.area = ?)");
+    bindings.push(filters.contactArea);
+  }
   return { whereSql: where.length ? `WHERE ${where.join(" AND ")}` : "", bindings };
 }
 
@@ -528,14 +778,15 @@ async function adminSummary(env: AdminEnv): Promise<Record<string, number>> {
        (SELECT COUNT(*) FROM people) AS people,
        (SELECT COUNT(*) FROM interests) AS interests,
        (SELECT COUNT(*) FROM interests WHERE status = 'new') AS new_interests,
-       (SELECT COUNT(*) FROM submission_replies WHERE delivery_status = 'sent') AS sent_replies`,
-  ).first<Record<string, number>>() ?? { submissions: 0, people: 0, interests: 0, new_interests: 0, sent_replies: 0 };
+       (SELECT COUNT(*) FROM submission_replies WHERE delivery_status = 'sent') AS sent_replies,
+       (SELECT COUNT(*) FROM ministries) AS ministries`,
+  ).first<Record<string, number>>() ?? { submissions: 0, people: 0, interests: 0, new_interests: 0, sent_replies: 0, ministries: 0 };
 }
 
 async function adminFilterOptions(env: AdminEnv): Promise<Record<string, unknown>> {
   const [opportunities, dates, teams] = await Promise.all([
     env.DB.prepare(
-      "SELECT slug, kind, title, location FROM opportunities WHERE active = 1 ORDER BY CASE kind WHEN 'trip' THEN 0 ELSE 1 END, sort_order",
+      "SELECT id, slug, kind, title, location FROM opportunities WHERE active = 1 ORDER BY CASE kind WHEN 'trip' THEN 0 ELSE 1 END, sort_order",
     ).all<Record<string, string>>(),
     env.DB.prepare(
       "SELECT MIN(created_at) AS earliest, MAX(created_at) AS latest FROM interest_submissions",
@@ -547,6 +798,8 @@ async function adminFilterOptions(env: AdminEnv): Promise<Record<string, unknown
   return {
     opportunities: opportunities.results,
     teams: teams.results,
+    contactTypes: CONTACT_TYPE_OPTIONS.map(([value, label]) => ({ value, label })),
+    contactAreas: CONTACT_AREA_OPTIONS.map(([value, label]) => ({ value, label })),
     earliestDate: dates?.earliest ?? null,
     latestDate: dates?.latest ?? null,
   };
@@ -638,8 +891,8 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
   const pageSize = positiveInteger(url.searchParams.get("pageSize"), 25, 50);
   const { whereSql, bindings } = filterSql(filters, "person");
   const orderBy: Record<string, string> = {
-    newest: "last_submission_at DESC",
-    oldest: "last_submission_at ASC",
+    newest: "latest_activity_at DESC",
+    oldest: "latest_activity_at ASC",
     name_asc: "p.last_name COLLATE NOCASE ASC, p.first_name COLLATE NOCASE ASC",
     name_desc: "p.last_name COLLATE NOCASE DESC, p.first_name COLLATE NOCASE DESC",
   };
@@ -650,9 +903,10 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
   const result = await env.DB.prepare(
     `SELECT
        p.id, p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study,
-       p.created_at, p.updated_at,
+       p.organization, p.contact_status, p.record_source, p.created_at, p.updated_at,
        (SELECT MIN(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id) AS first_submission_at,
        (SELECT MAX(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id) AS last_submission_at,
+       COALESCE((SELECT MAX(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id), p.updated_at) AS latest_activity_at,
        (SELECT COUNT(*) FROM interest_submissions s WHERE s.person_id = p.id) AS submission_count,
        (SELECT COUNT(*) FROM submission_replies r
         JOIN interest_submissions s ON s.id = r.submission_id WHERE s.person_id = p.id) AS reply_count,
@@ -688,7 +942,30 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
            FROM team_members tm JOIN teams t ON t.id = tm.team_id
            WHERE tm.person_id = p.id ORDER BY t.name_normalized
          ) selected_team
-       ), '[]') AS teams_json
+       ), '[]') AS teams_json,
+       COALESCE((
+         SELECT json_group_array(selected_type.contact_type)
+         FROM (SELECT ct.contact_type FROM contact_types ct WHERE ct.person_id = p.id ORDER BY ct.contact_type) selected_type
+       ), '[]') AS contact_types_json,
+       COALESCE((
+         SELECT json_group_array(selected_language.language)
+         FROM (SELECT cl.language FROM contact_languages cl WHERE cl.person_id = p.id ORDER BY cl.language_normalized) selected_language
+       ), '[]') AS languages_json,
+       COALESCE((
+         SELECT json_group_array(selected_area.area)
+         FROM (SELECT ca.area FROM contact_areas ca WHERE ca.person_id = p.id ORDER BY ca.area) selected_area
+       ), '[]') AS areas_json,
+       COALESCE((
+         SELECT json_group_array(json_object(
+           'id', selected_trip.id, 'slug', selected_trip.slug, 'title', selected_trip.title,
+           'location', selected_trip.location, 'partner', selected_trip.partner
+         ))
+         FROM (
+           SELECT o.id, o.slug, o.title, o.location, o.partner
+           FROM contact_trips ct JOIN opportunities o ON o.id = ct.opportunity_id
+           WHERE ct.person_id = p.id ORDER BY o.sort_order
+         ) selected_trip
+       ), '[]') AS trips_json
      FROM people p
      ${whereSql}
      ORDER BY ${selectedOrder}
@@ -704,14 +981,22 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
       phone: row.phone,
       contactPreference: row.contact_preference,
       fieldOfStudy: row.field_of_study,
+      organization: row.organization,
+      contactStatus: row.contact_status,
+      recordSource: row.record_source,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       firstSubmissionAt: row.first_submission_at,
       lastSubmissionAt: row.last_submission_at,
+      latestActivityAt: row.latest_activity_at,
       submissionCount: Number(row.submission_count ?? 0),
       replyCount: Number(row.reply_count ?? 0),
       interests: parseJsonArray(row.interests_json),
       teams: parseJsonArray(row.teams_json),
+      contactTypes: parseJsonArray(row.contact_types_json),
+      languages: parseJsonArray(row.languages_json),
+      areas: parseJsonArray(row.areas_json),
+      trips: parseJsonArray(row.trips_json),
     })),
     summary,
     filterOptions,
@@ -724,15 +1009,131 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
   });
 }
 
+async function validateContactTrips(env: AdminEnv, tripIds: string[]): Promise<void> {
+  if (!tripIds.length) return;
+  const placeholders = tripIds.map((_, index) => `?${index + 1}`).join(", ");
+  const found = await env.DB.prepare(
+    `SELECT COUNT(*) AS total FROM opportunities WHERE kind = 'trip' AND id IN (${placeholders})`,
+  ).bind(...tripIds).first<{ total: number }>();
+  if (Number(found?.total ?? 0) !== tripIds.length) {
+    throw new AdminError(422, "INVALID_TRIPS", "One of the selected trips no longer exists.");
+  }
+}
+
+function contactRelationStatements(env: AdminEnv, personId: string, input: ContactInput, now: string): D1PreparedStatement[] {
+  return [
+    ...input.contactTypes.map(contactType => env.DB.prepare(
+      "INSERT INTO contact_types (person_id, contact_type, created_at) VALUES (?1, ?2, ?3)",
+    ).bind(personId, contactType, now)),
+    ...input.languages.map(language => env.DB.prepare(
+      `INSERT INTO contact_languages (person_id, language, language_normalized, created_at)
+       VALUES (?1, ?2, ?3, ?4)`,
+    ).bind(personId, language, normalizeTeamName(language), now)),
+    ...input.areas.map(area => env.DB.prepare(
+      "INSERT INTO contact_areas (person_id, area, created_at) VALUES (?1, ?2, ?3)",
+    ).bind(personId, area, now)),
+    ...input.tripIds.map(tripId => env.DB.prepare(
+      "INSERT INTO contact_trips (person_id, opportunity_id, created_at) VALUES (?1, ?2, ?3)",
+    ).bind(personId, tripId, now)),
+  ];
+}
+
+async function createContact(request: Request, env: AdminEnv): Promise<Response> {
+  await authenticate(request, env, true);
+  const input = contactInput(await readAdminJson(request));
+  await validateContactTrips(env, input.tripIds);
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const emailNormalized = input.email.toLocaleLowerCase("en-US");
+  const phoneNormalized = input.phone?.replace(/\D/g, "") ?? null;
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO people (
+           id, first_name, last_name, first_name_normalized, last_name_normalized,
+           email, email_normalized, phone, phone_normalized, contact_preference, field_of_study,
+           preferred_name, address_line_1, address_line_2, city, region, postal_code, country,
+           organization, website, notes, record_source, contact_status, last_contacted_at,
+           created_at, updated_at
+         ) VALUES (
+           ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
+           ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, 'manual', ?22, ?23, ?24, ?25
+         )`,
+      ).bind(
+        id, input.firstName, input.lastName, normalizeTeamName(input.firstName), normalizeTeamName(input.lastName),
+        input.email, emailNormalized, input.phone, phoneNormalized, input.contactPreference, input.fieldOfStudy,
+        input.preferredName, input.addressLine1, input.addressLine2, input.city, input.region, input.postalCode,
+        input.country, input.organization, input.website, input.notes, input.contactStatus, input.lastContactedAt,
+        now, now,
+      ),
+      ...contactRelationStatements(env, id, input, now),
+      auditStatement(env, "person", id, "contact_created", { recordSource: "manual" }),
+    ]);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+      throw new AdminError(409, "CONTACT_EXISTS", "A contact with this name and email already exists.");
+    }
+    throw error;
+  }
+  return adminJson({ success: true, personId: id }, 201);
+}
+
+async function updateContact(request: Request, env: AdminEnv, personId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const input = contactInput(await readAdminJson(request));
+  await validateContactTrips(env, input.tripIds);
+  const existing = await env.DB.prepare("SELECT id FROM people WHERE id = ?1 LIMIT 1")
+    .bind(personId).first<{ id: string }>();
+  if (!existing) throw new AdminError(404, "PERSON_NOT_FOUND", "This contact was not found.");
+  const now = new Date().toISOString();
+  const emailNormalized = input.email.toLocaleLowerCase("en-US");
+  const phoneNormalized = input.phone?.replace(/\D/g, "") ?? null;
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE people SET
+           first_name = ?1, last_name = ?2, first_name_normalized = ?3, last_name_normalized = ?4,
+           email = ?5, email_normalized = ?6, phone = ?7, phone_normalized = ?8,
+           contact_preference = ?9, field_of_study = ?10, preferred_name = ?11,
+           address_line_1 = ?12, address_line_2 = ?13, city = ?14, region = ?15,
+           postal_code = ?16, country = ?17, organization = ?18, website = ?19, notes = ?20,
+           contact_status = ?21, last_contacted_at = ?22, updated_at = ?23
+         WHERE id = ?24`,
+      ).bind(
+        input.firstName, input.lastName, normalizeTeamName(input.firstName), normalizeTeamName(input.lastName),
+        input.email, emailNormalized, input.phone, phoneNormalized, input.contactPreference, input.fieldOfStudy,
+        input.preferredName, input.addressLine1, input.addressLine2, input.city, input.region, input.postalCode,
+        input.country, input.organization, input.website, input.notes, input.contactStatus, input.lastContactedAt,
+        now, personId,
+      ),
+      env.DB.prepare("DELETE FROM contact_types WHERE person_id = ?1").bind(personId),
+      env.DB.prepare("DELETE FROM contact_languages WHERE person_id = ?1").bind(personId),
+      env.DB.prepare("DELETE FROM contact_areas WHERE person_id = ?1").bind(personId),
+      env.DB.prepare("DELETE FROM contact_trips WHERE person_id = ?1").bind(personId),
+      ...contactRelationStatements(env, personId, input, now),
+      auditStatement(env, "person", personId, "contact_updated"),
+    ]);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+      throw new AdminError(409, "CONTACT_EXISTS", "A contact with this name and email already exists.");
+    }
+    throw error;
+  }
+  return adminJson({ success: true, personId, updatedAt: now });
+}
+
 async function personDetail(request: Request, env: AdminEnv, personId: string): Promise<Response> {
   await authenticate(request, env);
   const person = await env.DB.prepare(
-    `SELECT id, first_name, last_name, email, phone, contact_preference, field_of_study, created_at, updated_at
+    `SELECT id, first_name, last_name, preferred_name, email, phone, contact_preference, field_of_study,
+            address_line_1, address_line_2, city, region, postal_code, country,
+            organization, website, notes, record_source, contact_status, last_contacted_at,
+            created_at, updated_at
      FROM people WHERE id = ?1 LIMIT 1`,
   ).bind(personId).first<Record<string, string | null>>();
   if (!person) throw new AdminError(404, "PERSON_NOT_FOUND", "This person was not found.");
 
-  const [interests, submissions, replies, registrations, teams] = await Promise.all([
+  const [interests, submissions, replies, registrations, teams, contactTypes, languages, areas, trips, ministries, tripOptions] = await Promise.all([
     env.DB.prepare(
       `SELECT i.id, i.status, i.created_at, i.updated_at, i.submission_id,
               o.slug, o.title, o.kind, o.location, o.partner, o.duration
@@ -785,6 +1186,29 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
        WHERE t.status = 'active' OR tm.person_id IS NOT NULL
        ORDER BY t.name_normalized`,
     ).bind(personId).all<Record<string, string | number | null>>(),
+    env.DB.prepare(
+      "SELECT contact_type FROM contact_types WHERE person_id = ?1 ORDER BY contact_type",
+    ).bind(personId).all<{ contact_type: string }>(),
+    env.DB.prepare(
+      "SELECT language FROM contact_languages WHERE person_id = ?1 ORDER BY language_normalized",
+    ).bind(personId).all<{ language: string }>(),
+    env.DB.prepare(
+      "SELECT area FROM contact_areas WHERE person_id = ?1 ORDER BY area",
+    ).bind(personId).all<{ area: string }>(),
+    env.DB.prepare(
+      `SELECT o.id, o.slug, o.title, o.location, o.partner
+       FROM contact_trips ct JOIN opportunities o ON o.id = ct.opportunity_id
+       WHERE ct.person_id = ?1 ORDER BY o.sort_order`,
+    ).bind(personId).all<Record<string, string | null>>(),
+    env.DB.prepare(
+      `SELECT m.id, m.name, m.status, mc.role, mc.is_primary
+       FROM ministry_contacts mc JOIN ministries m ON m.id = mc.ministry_id
+       WHERE mc.person_id = ?1 ORDER BY m.name_normalized`,
+    ).bind(personId).all<Record<string, string | number | null>>(),
+    env.DB.prepare(
+      `SELECT id, slug, title, location, partner
+       FROM opportunities WHERE kind = 'trip' AND active = 1 ORDER BY sort_order`,
+    ).all<Record<string, string | null>>(),
   ]);
   const submissionHistory = submissions.results.map(row => ({
     id: row.id,
@@ -800,10 +1224,23 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
       id: person.id,
       firstName: person.first_name,
       lastName: person.last_name,
+      preferredName: person.preferred_name,
       email: person.email,
       phone: person.phone,
       contactPreference: person.contact_preference,
       fieldOfStudy: person.field_of_study,
+      addressLine1: person.address_line_1,
+      addressLine2: person.address_line_2,
+      city: person.city,
+      region: person.region,
+      postalCode: person.postal_code,
+      country: person.country,
+      organization: person.organization,
+      website: person.website,
+      notes: person.notes,
+      recordSource: person.record_source,
+      contactStatus: person.contact_status,
+      lastContactedAt: person.last_contacted_at,
       createdAt: person.created_at,
       updatedAt: person.updated_at,
       latestSubmissionId: submissionHistory[0]?.id ?? null,
@@ -846,6 +1283,28 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
         submittedAt: row.submitted_at,
         updatedAt: row.updated_at,
       })),
+      contactTypes: contactTypes.results.map(row => row.contact_type),
+      languages: languages.results.map(row => row.language),
+      areas: areas.results.map(row => row.area),
+      trips: trips.results.map(row => ({
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        location: row.location,
+        partner: row.partner,
+      })),
+      ministries: ministries.results.map(row => ({
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        role: row.role,
+        isPrimary: Boolean(row.is_primary),
+      })),
+      options: {
+        contactTypes: CONTACT_TYPE_OPTIONS.map(([value, label]) => ({ value, label })),
+        contactAreas: CONTACT_AREA_OPTIONS.map(([value, label]) => ({ value, label })),
+        trips: tripOptions.results,
+      },
       teams: teams.results.map(row => ({
         id: row.id,
         name: row.name,
@@ -856,6 +1315,253 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
       })),
     },
   });
+}
+
+function ministryTripStatements(env: AdminEnv, ministryId: string, tripIds: string[], now: string): D1PreparedStatement[] {
+  return tripIds.map(tripId => env.DB.prepare(
+    "INSERT INTO ministry_opportunities (ministry_id, opportunity_id, created_at) VALUES (?1, ?2, ?3)",
+  ).bind(ministryId, tripId, now));
+}
+
+async function listMinistries(request: Request, env: AdminEnv): Promise<Response> {
+  await authenticate(request, env);
+  const result = await env.DB.prepare(
+    `SELECT m.id, m.name, m.description, m.city, m.region, m.country, m.email, m.phone, m.website,
+            m.status, m.created_at, m.updated_at,
+            (SELECT COUNT(*) FROM ministry_contacts mc WHERE mc.ministry_id = m.id) AS contact_count,
+            (SELECT COUNT(*) FROM ministry_opportunities mo WHERE mo.ministry_id = m.id) AS opportunity_count
+     FROM ministries m
+     ORDER BY CASE m.status WHEN 'active' THEN 0 ELSE 1 END, m.name_normalized`,
+  ).all<MinistryListRow>();
+  return adminJson({
+    ministries: result.results.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      city: row.city,
+      region: row.region,
+      country: row.country,
+      email: row.email,
+      phone: row.phone,
+      website: row.website,
+      status: row.status,
+      contactCount: Number(row.contact_count ?? 0),
+      opportunityCount: Number(row.opportunity_count ?? 0),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })),
+  });
+}
+
+async function createMinistry(request: Request, env: AdminEnv): Promise<Response> {
+  await authenticate(request, env, true);
+  const input = ministryInput(await readAdminJson(request));
+  await validateContactTrips(env, input.tripIds);
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO ministries (
+           id, name, name_normalized, description, address_line_1, address_line_2, city, region,
+           postal_code, country, email, phone, website, notes, status, created_at, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)`,
+      ).bind(
+        id, input.name, normalizeTeamName(input.name), input.description, input.addressLine1, input.addressLine2,
+        input.city, input.region, input.postalCode, input.country, input.email, input.phone, input.website,
+        input.notes, input.status, now, now,
+      ),
+      ...ministryTripStatements(env, id, input.tripIds, now),
+      auditStatement(env, "ministry", id, "created", { name: input.name }),
+    ]);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+      throw new AdminError(409, "MINISTRY_EXISTS", "A ministry with that name already exists.");
+    }
+    throw error;
+  }
+  return adminJson({ success: true, ministryId: id }, 201);
+}
+
+async function ministryDetail(request: Request, env: AdminEnv, ministryId: string): Promise<Response> {
+  await authenticate(request, env);
+  const ministry = await env.DB.prepare(
+    `SELECT id, name, description, address_line_1, address_line_2, city, region, postal_code, country,
+            email, phone, website, notes, status, created_at, updated_at
+     FROM ministries WHERE id = ?1 LIMIT 1`,
+  ).bind(ministryId).first<Record<string, string | null>>();
+  if (!ministry) throw new AdminError(404, "MINISTRY_NOT_FOUND", "This ministry was not found.");
+
+  const [contacts, availableContacts, trips, tripOptions] = await Promise.all([
+    env.DB.prepare(
+      `SELECT p.id, p.first_name, p.last_name, p.email, p.phone, p.organization,
+              mc.role, mc.is_primary, mc.created_at, mc.updated_at
+       FROM ministry_contacts mc JOIN people p ON p.id = mc.person_id
+       WHERE mc.ministry_id = ?1
+       ORDER BY mc.is_primary DESC, p.last_name_normalized, p.first_name_normalized`,
+    ).bind(ministryId).all<Record<string, string | number | null>>(),
+    env.DB.prepare(
+      `SELECT p.id, p.first_name, p.last_name, p.email, p.phone, p.organization
+       FROM people p
+       WHERE p.contact_status = 'active'
+         AND NOT EXISTS (
+           SELECT 1 FROM ministry_contacts mc WHERE mc.ministry_id = ?1 AND mc.person_id = p.id
+         )
+       ORDER BY p.last_name_normalized, p.first_name_normalized LIMIT 500`,
+    ).bind(ministryId).all<Record<string, string | null>>(),
+    env.DB.prepare(
+      `SELECT o.id, o.slug, o.title, o.location, o.partner
+       FROM ministry_opportunities mo JOIN opportunities o ON o.id = mo.opportunity_id
+       WHERE mo.ministry_id = ?1 ORDER BY o.sort_order`,
+    ).bind(ministryId).all<Record<string, string | null>>(),
+    env.DB.prepare(
+      "SELECT id, slug, title, location, partner FROM opportunities WHERE kind = 'trip' AND active = 1 ORDER BY sort_order",
+    ).all<Record<string, string | null>>(),
+  ]);
+  return adminJson({
+    ministry: {
+      id: ministry.id,
+      name: ministry.name,
+      description: ministry.description,
+      addressLine1: ministry.address_line_1,
+      addressLine2: ministry.address_line_2,
+      city: ministry.city,
+      region: ministry.region,
+      postalCode: ministry.postal_code,
+      country: ministry.country,
+      email: ministry.email,
+      phone: ministry.phone,
+      website: ministry.website,
+      notes: ministry.notes,
+      status: ministry.status,
+      createdAt: ministry.created_at,
+      updatedAt: ministry.updated_at,
+      contacts: contacts.results.map(row => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        organization: row.organization,
+        role: row.role,
+        isPrimary: Boolean(row.is_primary),
+        linkedAt: row.created_at,
+      })),
+      availableContacts: availableContacts.results.map(row => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        organization: row.organization,
+      })),
+      trips: trips.results,
+      options: { trips: tripOptions.results },
+    },
+  });
+}
+
+async function updateMinistry(request: Request, env: AdminEnv, ministryId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const input = ministryInput(await readAdminJson(request));
+  await validateContactTrips(env, input.tripIds);
+  const existing = await env.DB.prepare("SELECT id FROM ministries WHERE id = ?1 LIMIT 1")
+    .bind(ministryId).first<{ id: string }>();
+  if (!existing) throw new AdminError(404, "MINISTRY_NOT_FOUND", "This ministry was not found.");
+  const now = new Date().toISOString();
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE ministries SET
+           name = ?1, name_normalized = ?2, description = ?3, address_line_1 = ?4, address_line_2 = ?5,
+           city = ?6, region = ?7, postal_code = ?8, country = ?9, email = ?10, phone = ?11,
+           website = ?12, notes = ?13, status = ?14, updated_at = ?15
+         WHERE id = ?16`,
+      ).bind(
+        input.name, normalizeTeamName(input.name), input.description, input.addressLine1, input.addressLine2,
+        input.city, input.region, input.postalCode, input.country, input.email, input.phone, input.website,
+        input.notes, input.status, now, ministryId,
+      ),
+      env.DB.prepare("DELETE FROM ministry_opportunities WHERE ministry_id = ?1").bind(ministryId),
+      ...ministryTripStatements(env, ministryId, input.tripIds, now),
+      auditStatement(env, "ministry", ministryId, "updated"),
+    ]);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+      throw new AdminError(409, "MINISTRY_EXISTS", "A ministry with that name already exists.");
+    }
+    throw error;
+  }
+  return adminJson({ success: true, ministryId, updatedAt: now });
+}
+
+async function addMinistryContact(request: Request, env: AdminEnv, ministryId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const body = await readAdminJson(request);
+  const personId = typeof body.personId === "string" ? body.personId : "";
+  if (!isUuid(personId)) throw new AdminError(422, "INVALID_PERSON", "Choose a valid contact.");
+  const role = cleanOptionalLine(body.role, 120);
+  const isPrimary = body.isPrimary === true ? 1 : 0;
+  const now = new Date().toISOString();
+  const result = await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO ministry_contacts (ministry_id, person_id, role, is_primary, created_at, updated_at)
+       SELECT m.id, p.id, ?1, ?2, ?3, ?4 FROM ministries m, people p
+       WHERE m.id = ?5 AND p.id = ?6
+       ON CONFLICT (ministry_id, person_id) DO UPDATE SET
+         role = excluded.role, is_primary = excluded.is_primary, updated_at = excluded.updated_at`,
+    ).bind(role, isPrimary, now, now, ministryId, personId),
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO contact_types (person_id, contact_type, created_at)
+       SELECT id, 'ministry_contact', ?1 FROM people WHERE id = ?2`,
+    ).bind(now, personId),
+    auditStatement(env, "ministry", ministryId, "contact_linked", { personId, role, isPrimary: Boolean(isPrimary) }),
+  ]);
+  if (Number(result[0]?.meta.changes ?? 0) !== 1) {
+    throw new AdminError(404, "MINISTRY_OR_PERSON_NOT_FOUND", "The ministry or contact was not found.");
+  }
+  return adminJson({ success: true, ministryId, personId }, 201);
+}
+
+async function removeMinistryContact(request: Request, env: AdminEnv, ministryId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const body = await readAdminJson(request);
+  const personId = typeof body.personId === "string" ? body.personId : "";
+  if (!isUuid(personId)) throw new AdminError(422, "INVALID_PERSON", "Choose a valid contact.");
+  const result = await env.DB.batch([
+    env.DB.prepare("DELETE FROM ministry_contacts WHERE ministry_id = ?1 AND person_id = ?2").bind(ministryId, personId),
+    env.DB.prepare(
+      `DELETE FROM contact_types WHERE person_id = ?1 AND contact_type = 'ministry_contact'
+       AND NOT EXISTS (SELECT 1 FROM ministry_contacts WHERE person_id = ?1)`,
+    ).bind(personId),
+    auditStatement(env, "ministry", ministryId, "contact_unlinked", { personId }),
+  ]);
+  if (Number(result[0]?.meta.changes ?? 0) !== 1) {
+    throw new AdminError(404, "MINISTRY_CONTACT_NOT_FOUND", "This contact is not linked to the ministry.");
+  }
+  return adminJson({ success: true, ministryId, personId });
+}
+
+async function deleteMinistry(request: Request, env: AdminEnv, ministryId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const ministry = await env.DB.prepare(
+    `SELECT id, name,
+            (SELECT COUNT(*) FROM ministry_contacts mc WHERE mc.ministry_id = ministries.id) AS contact_count,
+            (SELECT COUNT(*) FROM ministry_opportunities mo WHERE mo.ministry_id = ministries.id) AS opportunity_count
+     FROM ministries WHERE id = ?1 LIMIT 1`,
+  ).bind(ministryId).first<{ id: string; name: string; contact_count: number; opportunity_count: number }>();
+  if (!ministry) throw new AdminError(404, "MINISTRY_NOT_FOUND", "This ministry was not found.");
+  const deleted = {
+    contacts: Number(ministry.contact_count ?? 0),
+    trips: Number(ministry.opportunity_count ?? 0),
+  };
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM ministry_contacts WHERE ministry_id = ?1").bind(ministryId),
+    env.DB.prepare("DELETE FROM ministry_opportunities WHERE ministry_id = ?1").bind(ministryId),
+    env.DB.prepare("DELETE FROM ministries WHERE id = ?1").bind(ministryId),
+    auditStatement(env, "ministry", ministryId, "deleted", { ...deleted, name: ministry.name }),
+  ]);
+  return adminJson({ success: true, ministryId, deleted });
 }
 
 async function listTeams(request: Request, env: AdminEnv): Promise<Response> {
@@ -1127,6 +1833,23 @@ async function deleteSubmission(request: Request, env: AdminEnv, submissionId: s
   });
 }
 
+async function deleteRegistration(request: Request, env: AdminEnv, registrationId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const registration = await env.DB.prepare(
+    "SELECT id, person_id, opportunity_id, status FROM trip_registrations WHERE id = ?1 LIMIT 1",
+  ).bind(registrationId).first<{ id: string; person_id: string; opportunity_id: string; status: string }>();
+  if (!registration) throw new AdminError(404, "REGISTRATION_NOT_FOUND", "This application record was not found.");
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM trip_registrations WHERE id = ?1").bind(registrationId),
+    auditStatement(env, "trip_registration", registrationId, "deleted", {
+      personId: registration.person_id,
+      opportunityId: registration.opportunity_id,
+      status: registration.status,
+    }),
+  ]);
+  return adminJson({ success: true, registrationId, personId: registration.person_id });
+}
+
 async function deletePerson(request: Request, env: AdminEnv, personId: string): Promise<Response> {
   await authenticate(request, env, true);
   const person = await env.DB.prepare(
@@ -1157,6 +1880,11 @@ async function deletePerson(request: Request, env: AdminEnv, personId: string): 
   };
   await env.DB.batch([
     env.DB.prepare("DELETE FROM team_members WHERE person_id = ?1").bind(personId),
+    env.DB.prepare("DELETE FROM ministry_contacts WHERE person_id = ?1").bind(personId),
+    env.DB.prepare("DELETE FROM contact_trips WHERE person_id = ?1").bind(personId),
+    env.DB.prepare("DELETE FROM contact_areas WHERE person_id = ?1").bind(personId),
+    env.DB.prepare("DELETE FROM contact_languages WHERE person_id = ?1").bind(personId),
+    env.DB.prepare("DELETE FROM contact_types WHERE person_id = ?1").bind(personId),
     env.DB.prepare(
       "DELETE FROM submission_replies WHERE submission_id IN (SELECT id FROM interest_submissions WHERE person_id = ?1)",
     ).bind(personId),
@@ -1312,6 +2040,50 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
   const filters = adminFilters(url);
   const scope = url.searchParams.get("view") === "people" ? "person" : "submission";
   const { whereSql, bindings } = filterSql(filters, scope);
+  if (scope === "person") {
+    const rows = await env.DB.prepare(
+      `SELECT p.id AS contact_id, p.first_name, p.preferred_name, p.last_name, p.email, p.phone,
+              p.contact_preference, p.organization, p.website, p.field_of_study,
+              p.address_line_1, p.address_line_2, p.city, p.region, p.postal_code, p.country,
+              p.contact_status, p.record_source, p.last_contacted_at, p.notes,
+              COALESCE((SELECT group_concat(selected.contact_type, '; ') FROM (
+                SELECT ct.contact_type FROM contact_types ct WHERE ct.person_id = p.id ORDER BY ct.contact_type
+              ) selected), '') AS contact_types,
+              COALESCE((SELECT group_concat(selected.language, '; ') FROM (
+                SELECT cl.language FROM contact_languages cl WHERE cl.person_id = p.id ORDER BY cl.language_normalized
+              ) selected), '') AS languages,
+              COALESCE((SELECT group_concat(selected.area, '; ') FROM (
+                SELECT ca.area FROM contact_areas ca WHERE ca.person_id = p.id ORDER BY ca.area
+              ) selected), '') AS hope_sojourns_areas,
+              COALESCE((SELECT group_concat(selected.title, '; ') FROM (
+                SELECT o.title FROM contact_trips ct JOIN opportunities o ON o.id = ct.opportunity_id
+                WHERE ct.person_id = p.id ORDER BY o.sort_order
+              ) selected), '') AS trips,
+              COALESCE((SELECT group_concat(selected.name, '; ') FROM (
+                SELECT t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id
+                WHERE tm.person_id = p.id ORDER BY t.name_normalized
+              ) selected), '') AS teams,
+              COALESCE((SELECT group_concat(selected.name, '; ') FROM (
+                SELECT m.name FROM ministry_contacts mc JOIN ministries m ON m.id = mc.ministry_id
+                WHERE mc.person_id = p.id ORDER BY m.name_normalized
+              ) selected), '') AS ministries,
+              p.created_at, p.updated_at
+       FROM people p ${whereSql}
+       ORDER BY p.last_name_normalized, p.first_name_normalized`,
+    ).bind(...bindings).all<Record<string, unknown>>();
+    const columns = [
+      "contact_id", "first_name", "preferred_name", "last_name", "email", "phone", "contact_preference",
+      "organization", "website", "field_of_study", "address_line_1", "address_line_2", "city", "region",
+      "postal_code", "country", "contact_status", "record_source", "last_contacted_at", "contact_types",
+      "languages", "hope_sojourns_areas", "trips", "teams", "ministries", "notes", "created_at", "updated_at",
+    ];
+    const csv = [columns.map(csvCell).join(","), ...rows.results.map(row => columns.map(column => csvCell(row[column])).join(","))].join("\r\n");
+    await audit(env, "person", "all", "csv_exported", { rowCount: rows.results.length });
+    const headers = securityHeaders();
+    headers.set("Content-Type", "text/csv; charset=utf-8");
+    headers.set("Content-Disposition", `attachment; filename="hope-sojourns-contacts-${new Date().toISOString().slice(0, 10)}.csv"`);
+    return new Response(`\uFEFF${csv}`, { status: 200, headers });
+  }
   const rows = await env.DB.prepare(
     `SELECT s.id AS submission_id, s.created_at AS submitted_at,
             p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study,
@@ -1356,6 +2128,9 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "GET" && path === "/admin/teams") return listTeams(request, env);
   if (request.method === "POST" && path === "/admin/teams") return createTeam(request, env);
   if (request.method === "GET" && path === "/admin/people") return listPeople(request, env);
+  if (request.method === "POST" && path === "/admin/people") return createContact(request, env);
+  if (request.method === "GET" && path === "/admin/ministries") return listMinistries(request, env);
+  if (request.method === "POST" && path === "/admin/ministries") return createMinistry(request, env);
   if (request.method === "GET" && path === "/admin/submissions") return listSubmissions(request, env);
   if (request.method === "GET" && path === "/admin/export.csv") return exportCsv(request, env);
 
@@ -1363,7 +2138,16 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "POST" && personTeamsMatch) return setPersonTeams(request, env, personTeamsMatch[1]);
   const personMatch = path.match(/^\/admin\/people\/([0-9a-f-]{36})$/i);
   if (request.method === "GET" && personMatch) return personDetail(request, env, personMatch[1]);
+  if (request.method === "PUT" && personMatch) return updateContact(request, env, personMatch[1]);
   if (request.method === "DELETE" && personMatch) return deletePerson(request, env, personMatch[1]);
+  const ministryContactMatch = path.match(/^\/admin\/ministries\/([0-9a-f-]{36})\/contacts$/i);
+  if (request.method === "POST" && ministryContactMatch) return addMinistryContact(request, env, ministryContactMatch[1]);
+  const ministryContactRemoveMatch = path.match(/^\/admin\/ministries\/([0-9a-f-]{36})\/contacts\/remove$/i);
+  if (request.method === "POST" && ministryContactRemoveMatch) return removeMinistryContact(request, env, ministryContactRemoveMatch[1]);
+  const ministryMatch = path.match(/^\/admin\/ministries\/([0-9a-f-]{36})$/i);
+  if (request.method === "GET" && ministryMatch) return ministryDetail(request, env, ministryMatch[1]);
+  if (request.method === "PUT" && ministryMatch) return updateMinistry(request, env, ministryMatch[1]);
+  if (request.method === "DELETE" && ministryMatch) return deleteMinistry(request, env, ministryMatch[1]);
   const teamMemberMatch = path.match(/^\/admin\/teams\/([0-9a-f-]{36})\/members$/i);
   if (request.method === "POST" && teamMemberMatch) return addTeamMember(request, env, teamMemberMatch[1]);
   const teamMemberRemoveMatch = path.match(/^\/admin\/teams\/([0-9a-f-]{36})\/members\/remove$/i);
@@ -1380,6 +2164,8 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "POST" && replyMatch) return createReply(request, env, replyMatch[1]);
   const sentMatch = path.match(/^\/admin\/replies\/([0-9a-f-]{36})\/sent$/i);
   if (request.method === "POST" && sentMatch) return markReplySent(request, env, sentMatch[1]);
+  const registrationMatch = path.match(/^\/admin\/registrations\/([0-9a-f-]{36})$/i);
+  if (request.method === "DELETE" && registrationMatch) return deleteRegistration(request, env, registrationMatch[1]);
   throw new AdminError(404, "NOT_FOUND", "Not found.");
 }
 

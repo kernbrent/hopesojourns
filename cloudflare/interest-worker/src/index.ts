@@ -420,6 +420,13 @@ async function submitInterest(request: Request, env: Env): Promise<Response> {
     crypto.randomUUID(), submissionId, now, now, opportunity.slug,
     input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized,
   ));
+  const tagProspectiveTraveler = env.DB.prepare(
+    `INSERT OR IGNORE INTO contact_types (person_id, contact_type, created_at)
+     SELECT people.id, 'prospective_traveler', ?1 FROM people
+     WHERE people.email_normalized = ?2
+       AND people.first_name_normalized = ?3
+       AND people.last_name_normalized = ?4`,
+  ).bind(now, input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized);
   const insertAudit = env.DB.prepare(
     `INSERT INTO audit_events (id, entity_type, entity_id, event_type, metadata_json, created_at)
      VALUES (?1, 'interest_submission', ?2, 'created', ?3, ?4)`,
@@ -427,7 +434,7 @@ async function submitInterest(request: Request, env: Env): Promise<Response> {
 
   let results: D1Result[];
   try {
-    results = await env.DB.batch([insertPerson, insertSubmission, ...interestStatements, insertAudit]);
+    results = await env.DB.batch([insertPerson, insertSubmission, ...interestStatements, tagProspectiveTraveler, insertAudit]);
   } catch (error) {
     if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
       const racedExisting = await findExistingSubmission(env, input.idempotencyKey, fingerprint);
