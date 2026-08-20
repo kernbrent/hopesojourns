@@ -19,6 +19,22 @@ const ministryCreateForm = document.querySelector("#ministry-create-form");
 const ministryCreateStatus = document.querySelector("#ministry-create-status");
 const contactToolbar = document.querySelector("#contact-toolbar");
 const addContactButton = document.querySelector("#add-contact");
+const importContactsButton = document.querySelector("#import-contacts");
+const contactImportDialog = document.querySelector("#contact-import-dialog");
+const closeContactImportDialog = document.querySelector("#close-contact-import-dialog");
+const contactImportForm = document.querySelector("#contact-import-form");
+const contactImportFile = document.querySelector("#contact-import-file");
+const previewContactImportButton = document.querySelector("#preview-contact-import");
+const contactImportStatus = document.querySelector("#contact-import-status");
+const contactImportPreview = document.querySelector("#contact-import-preview");
+const contactImportFileName = document.querySelector("#contact-import-file-name");
+const contactImportCreates = document.querySelector("#contact-import-creates");
+const contactImportUpdates = document.querySelector("#contact-import-updates");
+const contactImportErrors = document.querySelector("#contact-import-errors");
+const contactImportHelp = document.querySelector("#contact-import-help");
+const contactImportTableShell = document.querySelector("#contact-import-table-shell");
+const chooseAnotherImportButton = document.querySelector("#choose-another-import");
+const commitContactImportButton = document.querySelector("#commit-contact-import");
 const submissionsEmpty = document.querySelector("#submissions-empty");
 const submissionsStatus = document.querySelector("#submissions-status");
 const filterForm = document.querySelector("#submission-filters");
@@ -51,6 +67,7 @@ const state = {
   view: "people",
   currentRecordId: "",
   filterOptions: {},
+  contactImportFile: null,
 };
 
 function element(tag, className, text) {
@@ -109,14 +126,15 @@ function setBusy(button, busy, busyText) {
 async function api(path, options = {}) {
   const method = options.method || "GET";
   const headers = new Headers(options.headers || {});
+  const isFormData = options.body instanceof FormData;
   headers.set("Accept", "application/json");
-  if (options.body !== undefined) headers.set("Content-Type", "application/json");
+  if (options.body !== undefined && !isFormData) headers.set("Content-Type", "application/json");
   if (method !== "GET" && path !== "/login" && state.csrfToken) headers.set("X-CSRF-Token", state.csrfToken);
   const response = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     credentials: "same-origin",
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body: options.body === undefined ? undefined : isFormData ? options.body : JSON.stringify(options.body),
   });
   let result = {};
   const contentType = response.headers.get("content-type") || "";
@@ -140,6 +158,7 @@ function showLogin(message = "") {
   loginStatus.textContent = message;
   loginForm.reset();
   if (submissionDialog.open) submissionDialog.close();
+  if (contactImportDialog.open) contactImportDialog.close();
   passwordInput.focus();
 }
 
@@ -1616,6 +1635,154 @@ async function openPerson(personId) {
   if (!submissionDialog.open) submissionDialog.showModal();
   await loadPersonDetail(personId);
 }
+
+function contactImportFormData(file) {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  return formData;
+}
+
+function resetContactImport(focusFile = false) {
+  contactImportForm.reset();
+  state.contactImportFile = null;
+  contactImportPreview.hidden = true;
+  contactImportTableShell.replaceChildren();
+  contactImportStatus.textContent = "";
+  contactImportStatus.classList.remove("is-success");
+  commitContactImportButton.disabled = false;
+  commitContactImportButton.textContent = "Import valid rows";
+  if (focusFile) contactImportFile.focus();
+}
+
+function renderContactImportRows(rows, committed) {
+  const table = element("table", "admin-import-table");
+  table.append(element("caption", "", committed ? "Contact spreadsheet import results" : "Contact spreadsheet import preview"));
+  const head = document.createElement("thead");
+  const headingRow = document.createElement("tr");
+  for (const label of ["Row", "Action", "Contact", "Review details"]) headingRow.append(element("th", "", label));
+  head.append(headingRow);
+  const body = document.createElement("tbody");
+  for (const item of rows) {
+    const row = document.createElement("tr");
+    if (item.action === "error") row.classList.add("admin-import-row-error");
+    row.append(element("td", "", String(item.rowNumber)));
+
+    const actionCell = document.createElement("td");
+    const actionLabel = item.action === "error"
+      ? "Needs correction"
+      : committed
+        ? item.action === "create" ? "Created" : "Updated"
+        : item.action === "create" ? "Create" : "Update";
+    actionCell.append(element("span", `admin-import-action admin-import-action-${item.action}`, actionLabel));
+    row.append(actionCell);
+
+    const contactCell = element("td", "admin-import-contact");
+    contactCell.append(element("strong", "", item.name || "Unnamed row"));
+    if (item.email) contactCell.append(element("span", "", item.email));
+    if (item.phone) contactCell.append(element("span", "", item.phone));
+    row.append(contactCell);
+
+    const detailsCell = document.createElement("td");
+    const messages = element("ul", "admin-import-messages");
+    if (item.matchedBy) messages.append(element("li", "", `Matched by ${item.matchedBy}.`));
+    for (const warning of item.warnings || []) messages.append(element("li", "admin-import-message-warning", warning));
+    for (const error of item.errors || []) messages.append(element("li", "admin-import-message-error", error));
+    if (!messages.children.length) messages.append(element("li", "", item.action === "create" ? "Ready to add as a new contact." : "Ready to merge with the existing contact."));
+    detailsCell.append(messages);
+    row.append(detailsCell);
+    body.append(row);
+  }
+  table.append(head, body);
+  return table;
+}
+
+function renderContactImportResult(result, committed = false) {
+  contactImportFileName.textContent = result.fileName;
+  contactImportCreates.textContent = String(result.creates || 0);
+  contactImportUpdates.textContent = String(result.updates || 0);
+  contactImportErrors.textContent = String(result.errors || 0);
+  contactImportHelp.textContent = committed
+    ? `${plural(result.created || 0, "new contact")} added and ${plural(result.updated || 0, "contact")} updated. Rows needing correction were not saved.`
+    : "Rows needing correction are skipped. Blank cells do not erase existing contact details, and list values are merged.";
+  contactImportTableShell.replaceChildren(renderContactImportRows(result.rows || [], committed));
+  contactImportPreview.hidden = false;
+  commitContactImportButton.disabled = committed || !result.canImport;
+  commitContactImportButton.textContent = committed ? "Import complete" : "Import valid rows";
+  contactImportPreview.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function selectedContactImportFile() {
+  const file = contactImportFile.files?.[0];
+  if (!file) throw new Error("Choose the completed Excel or CSV spreadsheet.");
+  if (file.size > 2 * 1024 * 1024) throw new Error("Choose a spreadsheet smaller than 2 MB.");
+  if (!/\.(xlsx|csv)$/i.test(file.name)) throw new Error("Choose an Excel .xlsx file or a CSV version of the template.");
+  return file;
+}
+
+importContactsButton.addEventListener("click", () => {
+  resetContactImport();
+  if (!contactImportDialog.open) contactImportDialog.showModal();
+  contactImportFile.focus();
+});
+
+closeContactImportDialog.addEventListener("click", () => contactImportDialog.close());
+contactImportDialog.addEventListener("close", () => resetContactImport());
+contactImportFile.addEventListener("change", () => {
+  state.contactImportFile = null;
+  contactImportPreview.hidden = true;
+  contactImportStatus.textContent = "";
+  contactImportStatus.classList.remove("is-success");
+});
+chooseAnotherImportButton.addEventListener("click", () => resetContactImport(true));
+
+contactImportForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  contactImportStatus.classList.remove("is-success");
+  contactImportStatus.textContent = "Checking every spreadsheet row…";
+  setBusy(previewContactImportButton, true, "Reviewing…");
+  try {
+    const file = selectedContactImportFile();
+    const { result } = await api("/contact-imports/preview", {
+      method: "POST",
+      body: contactImportFormData(file),
+    });
+    state.contactImportFile = file;
+    renderContactImportResult(result.preview);
+    contactImportStatus.textContent = result.preview.canImport
+      ? "Review the actions below, then import the valid rows when ready."
+      : "No rows are ready to import. Correct the listed items in Excel and review the file again.";
+  } catch (error) {
+    state.contactImportFile = null;
+    contactImportPreview.hidden = true;
+    contactImportStatus.textContent = error.message;
+  } finally {
+    setBusy(previewContactImportButton, false);
+  }
+});
+
+commitContactImportButton.addEventListener("click", async () => {
+  if (!state.contactImportFile) {
+    contactImportStatus.textContent = "Review the spreadsheet again before importing it.";
+    return;
+  }
+  contactImportStatus.classList.remove("is-success");
+  contactImportStatus.textContent = "Saving valid contacts…";
+  setBusy(commitContactImportButton, true, "Importing…");
+  try {
+    const { result } = await api("/contact-imports", {
+      method: "POST",
+      body: contactImportFormData(state.contactImportFile),
+    });
+    setBusy(commitContactImportButton, false);
+    renderContactImportResult(result.import, true);
+    contactImportStatus.classList.add("is-success");
+    contactImportStatus.textContent = `Import complete: ${plural(result.import.created, "new contact")} and ${plural(result.import.updated, "updated contact")}.`;
+    await loadPeople();
+  } catch (error) {
+    contactImportStatus.textContent = error.message;
+    setBusy(commitContactImportButton, false);
+  }
+});
 
 loginForm.addEventListener("submit", async event => {
   event.preventDefault();

@@ -1,4 +1,17 @@
+import {
+  CONTACT_IMPORT_MAX_FILE_BYTES,
+  ContactImportFileError,
+  type ContactImportInput,
+  type ContactImportOpportunity,
+  normalizeImportEmail,
+  normalizeImportName,
+  normalizeImportPhone,
+  parseContactImportFile,
+  validateContactImportRow,
+} from "./contact-import";
+
 const ADMIN_BODY_LIMIT = 48 * 1024;
+const CONTACT_IMPORT_REQUEST_LIMIT = CONTACT_IMPORT_MAX_FILE_BYTES + 128 * 1024;
 const SESSION_HOURS = 8;
 const LOGIN_WINDOW_MINUTES = 15;
 const LOGIN_FAILURE_LIMIT = 5;
@@ -131,6 +144,46 @@ type AdminFilters = {
   dateFrom: string | null;
   dateToExclusive: string | null;
   sort: string;
+};
+
+type ImportPersonRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  first_name_normalized: string;
+  last_name_normalized: string;
+  preferred_name: string | null;
+  email: string;
+  email_normalized: string;
+  phone: string | null;
+  phone_normalized: string | null;
+  contact_preference: "email" | "phone";
+  field_of_study: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
+  city: string | null;
+  region: string | null;
+  postal_code: string | null;
+  country: string | null;
+  organization: string | null;
+  website: string | null;
+  notes: string | null;
+  contact_status: "active" | "inactive";
+  last_contacted_at: string | null;
+};
+
+type ImportRowAnalysis = {
+  rowNumber: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  action: "create" | "update" | "error";
+  existingPersonId: string | null;
+  matchedBy: string | null;
+  errors: string[];
+  warnings: string[];
+  input: ContactImportInput | null;
+  existing: ImportPersonRow | null;
 };
 
 class AdminError extends Error {
@@ -2028,6 +2081,421 @@ async function markReplySent(request: Request, env: AdminEnv, replyId: string): 
   return adminJson({ success: true, replyId, deliveryStatus: "sent", sentAt: now });
 }
 
+async function readContactImportUpload(request: Request): Promise<{ fileName: string; fileSize: number; bytes: Uint8Array }> {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLocaleLowerCase("en-US").startsWith("multipart/form-data;")) {
+    throw new AdminError(415, "UNSUPPORTED_MEDIA_TYPE", "Upload the spreadsheet from the import form.");
+  }
+  const declaredLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > CONTACT_IMPORT_REQUEST_LIMIT) {
+    throw new AdminError(413, "REQUEST_TOO_LARGE", "Choose a spreadsheet smaller than 2 MB.");
+  }
+
+  const reader = request.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  if (reader) {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      total += next.value.byteLength;
+      if (total > CONTACT_IMPORT_REQUEST_LIMIT) {
+        await reader.cancel();
+        throw new AdminError(413, "REQUEST_TOO_LARGE", "Choose a spreadsheet smaller than 2 MB.");
+      }
+      chunks.push(next.value);
+    }
+  }
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  let formData: FormData;
+  try {
+    formData = await new Response(body, { headers: { "Content-Type": contentType } }).formData();
+  } catch {
+    throw new AdminError(400, "INVALID_UPLOAD", "The spreadsheet upload could not be read.");
+  }
+  const uploaded = formData.get("file");
+  if (!(uploaded instanceof File)) throw new AdminError(422, "FILE_REQUIRED", "Choose an Excel or CSV spreadsheet to import.");
+  if (uploaded.size > CONTACT_IMPORT_MAX_FILE_BYTES) throw new AdminError(413, "REQUEST_TOO_LARGE", "Choose a spreadsheet smaller than 2 MB.");
+  const fileName = uploaded.name.normalize("NFKC").replace(/[\\/]+/g, "-").replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 180);
+  if (!fileName) throw new AdminError(422, "INVALID_FILE_NAME", "Choose a spreadsheet with a valid file name.");
+  return { fileName, fileSize: uploaded.size, bytes: new Uint8Array(await uploaded.arrayBuffer()) };
+}
+
+function chunkValues<T>(values: T[], size = 50): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) chunks.push(values.slice(index, index + size));
+  return chunks;
+}
+
+const IMPORT_PERSON_COLUMNS = `
+  id, first_name, last_name, first_name_normalized, last_name_normalized,
+  preferred_name, email, email_normalized, phone, phone_normalized, contact_preference,
+  field_of_study, address_line_1, address_line_2, city, region, postal_code, country,
+  organization, website, notes, contact_status, last_contacted_at`;
+
+async function findImportPeople(env: AdminEnv, inputs: ContactImportInput[]): Promise<ImportPersonRow[]> {
+  const ids = [...new Set(inputs.map(input => input.contactId).filter((value): value is string => Boolean(value)))];
+  const emails = [...new Set(inputs.map(input => input.email ? normalizeImportEmail(input.email) : "").filter(Boolean))];
+  const phones = [...new Set(inputs.map(input => normalizeImportPhone(input.phone)).filter((value): value is string => Boolean(value)))];
+  const queries: Promise<D1Result<ImportPersonRow>>[] = [];
+  for (const values of chunkValues(ids)) {
+    queries.push(env.DB.prepare(`SELECT ${IMPORT_PERSON_COLUMNS} FROM people WHERE id IN (${values.map(() => "?").join(", ")})`).bind(...values).all<ImportPersonRow>());
+  }
+  for (const values of chunkValues(emails)) {
+    queries.push(env.DB.prepare(`SELECT ${IMPORT_PERSON_COLUMNS} FROM people WHERE email_normalized IN (${values.map(() => "?").join(", ")})`).bind(...values).all<ImportPersonRow>());
+  }
+  for (const values of chunkValues(phones)) {
+    queries.push(env.DB.prepare(`SELECT ${IMPORT_PERSON_COLUMNS} FROM people WHERE phone_normalized IN (${values.map(() => "?").join(", ")})`).bind(...values).all<ImportPersonRow>());
+  }
+  const unique = new Map<string, ImportPersonRow>();
+  for (const result of await Promise.all(queries)) {
+    for (const person of result.results) unique.set(person.id, person);
+  }
+  return [...unique.values()];
+}
+
+function importEmailKey(input: Pick<ContactImportInput, "email" | "firstName" | "lastName">): string | null {
+  return input.email
+    ? `${normalizeImportEmail(input.email)}\u0000${normalizeImportName(input.firstName)}\u0000${normalizeImportName(input.lastName)}`
+    : null;
+}
+
+function importPhoneKey(input: Pick<ContactImportInput, "phone" | "firstName" | "lastName">): string | null {
+  const phone = normalizeImportPhone(input.phone);
+  return phone ? `${phone}\u0000${normalizeImportName(input.firstName)}\u0000${normalizeImportName(input.lastName)}` : null;
+}
+
+function personEmailKey(person: ImportPersonRow): string | null {
+  return person.email_normalized
+    ? `${person.email_normalized}\u0000${person.first_name_normalized}\u0000${person.last_name_normalized}`
+    : null;
+}
+
+function personPhoneKey(person: ImportPersonRow): string | null {
+  return person.phone_normalized
+    ? `${person.phone_normalized}\u0000${person.first_name_normalized}\u0000${person.last_name_normalized}`
+    : null;
+}
+
+function indexImportPeople(people: ImportPersonRow[], key: (person: ImportPersonRow) => string | null): Map<string, ImportPersonRow | null> {
+  const result = new Map<string, ImportPersonRow | null>();
+  for (const person of people) {
+    const value = key(person);
+    if (!value) continue;
+    const existing = result.get(value);
+    result.set(value, existing && existing.id !== person.id ? null : person);
+  }
+  return result;
+}
+
+async function analyzeContactImport(env: AdminEnv, parsedRows: ReturnType<typeof parseContactImportFile>["rows"]): Promise<ImportRowAnalysis[]> {
+  const opportunitiesResult = await env.DB.prepare(
+    "SELECT id, slug, title, location FROM opportunities WHERE kind = 'trip' AND active = 1 ORDER BY sort_order",
+  ).all<ContactImportOpportunity>();
+  const validated = parsedRows.map(row => validateContactImportRow(row, opportunitiesResult.results));
+  const inputs = validated.map(row => row.input).filter((input): input is ContactImportInput => Boolean(input));
+  const people = await findImportPeople(env, inputs);
+  const byId = new Map(people.map(person => [person.id, person]));
+  const byEmail = indexImportPeople(people, personEmailKey);
+  const byPhone = indexImportPeople(people, personPhoneKey);
+  const seenUploadKeys = new Set<string>();
+  const seenExistingIds = new Set<string>();
+
+  return validated.map((row, index) => {
+    const errors = [...row.errors];
+    const warnings = [...row.warnings];
+    const input = row.input;
+    let existing: ImportPersonRow | null = null;
+    let matchedBy: string | null = null;
+    if (input) {
+      const emailKey = importEmailKey(input);
+      const phoneKey = importPhoneKey(input);
+      const uploadKeys = [input.contactId ? `id:${input.contactId}` : null, emailKey ? `email:${emailKey}` : null, phoneKey ? `phone:${phoneKey}` : null].filter((value): value is string => Boolean(value));
+      if (uploadKeys.some(key => seenUploadKeys.has(key))) errors.push("This person appears more than once in the uploaded spreadsheet.");
+      uploadKeys.forEach(key => seenUploadKeys.add(key));
+
+      const idMatch = input.contactId ? byId.get(input.contactId) : undefined;
+      const emailMatch = emailKey ? byEmail.get(emailKey) : undefined;
+      const phoneMatch = phoneKey ? byPhone.get(phoneKey) : undefined;
+      if (input.contactId && !idMatch) errors.push("Contact ID was not found. Clear it if this should be a new contact.");
+      if (emailKey && emailMatch === null) errors.push("More than one existing contact matches this email and name.");
+      if (phoneKey && phoneMatch === null) errors.push("More than one existing contact matches this phone number and name.");
+      const matches = [idMatch, emailMatch, phoneMatch].filter((person): person is ImportPersonRow => Boolean(person));
+      if (new Set(matches.map(person => person.id)).size > 1) errors.push("The Contact ID, email, and phone point to different existing contacts.");
+      existing = matches[0] ?? null;
+      if (existing) {
+        matchedBy = idMatch ? "Contact ID" : emailMatch ? "email and name" : "phone and name";
+        if (seenExistingIds.has(existing.id)) errors.push("This existing contact is matched by more than one spreadsheet row.");
+        seenExistingIds.add(existing.id);
+      }
+    }
+    const source = parsedRows[index];
+    const displayName = input
+      ? `${input.firstName} ${input.lastName}`.trim()
+      : `${source.values.firstName} ${source.values.lastName}`.trim() || "Row needs correction";
+    return {
+      rowNumber: row.rowNumber,
+      name: displayName,
+      email: input?.email ?? source.values.email,
+      phone: input?.phone ?? (source.values.phone || null),
+      action: errors.length ? "error" : existing ? "update" : "create",
+      existingPersonId: existing?.id ?? null,
+      matchedBy,
+      errors: [...new Set(errors)],
+      warnings: [...new Set(warnings)],
+      input: errors.length ? null : input,
+      existing,
+    };
+  });
+}
+
+function publicImportResult(
+  file: { fileName: string; fileSize: number },
+  parsed: ReturnType<typeof parseContactImportFile>,
+  rows: ImportRowAnalysis[],
+): Record<string, unknown> {
+  const creates = rows.filter(row => row.action === "create").length;
+  const updates = rows.filter(row => row.action === "update").length;
+  const errors = rows.filter(row => row.action === "error").length;
+  return {
+    fileName: file.fileName,
+    fileSize: file.fileSize,
+    fileType: parsed.fileType,
+    sheetName: parsed.sheetName,
+    headerRowNumber: parsed.headerRowNumber,
+    totalRows: rows.length,
+    creates,
+    updates,
+    errors,
+    canImport: creates + updates > 0,
+    rows: rows.map(({ input: _input, existing: _existing, ...row }) => row),
+  };
+}
+
+async function prepareContactImport(request: Request, env: AdminEnv): Promise<{
+  file: { fileName: string; fileSize: number; bytes: Uint8Array };
+  parsed: ReturnType<typeof parseContactImportFile>;
+  rows: ImportRowAnalysis[];
+}> {
+  await authenticate(request, env, true);
+  const file = await readContactImportUpload(request);
+  const parsed = parseContactImportFile(file.fileName, file.bytes);
+  if (!parsed.rows.length) throw new AdminError(422, "NO_CONTACT_ROWS", "No contact rows were found below the spreadsheet headers.");
+  const rows = await analyzeContactImport(env, parsed.rows);
+  return { file, parsed, rows };
+}
+
+async function previewContactImport(request: Request, env: AdminEnv): Promise<Response> {
+  const { file, parsed, rows } = await prepareContactImport(request, env);
+  return adminJson({ preview: publicImportResult(file, parsed, rows) });
+}
+
+function mergedImportNotes(existing: string | null, incoming: string | null, now: string): string | null {
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+  if (existing.includes(incoming)) return existing;
+  return `${existing}\n\nImported ${now.slice(0, 10)}: ${incoming}`;
+}
+
+function mergeContactImportInput(input: ContactImportInput, existing: ImportPersonRow | null, now: string): ContactInput {
+  const email = input.email || existing?.email || "";
+  const phone = input.phone || existing?.phone || null;
+  let contactPreference = input.contactPreference ?? existing?.contact_preference ?? (email ? "email" : "phone");
+  if (contactPreference === "email" && !email) contactPreference = "phone";
+  if (contactPreference === "phone" && !phone) contactPreference = "email";
+  return {
+    firstName: input.firstName,
+    lastName: input.lastName,
+    preferredName: input.preferredName ?? existing?.preferred_name ?? null,
+    email,
+    phone,
+    contactPreference,
+    fieldOfStudy: input.fieldOfStudy ?? existing?.field_of_study ?? null,
+    addressLine1: input.addressLine1 ?? existing?.address_line_1 ?? null,
+    addressLine2: input.addressLine2 ?? existing?.address_line_2 ?? null,
+    city: input.city ?? existing?.city ?? null,
+    region: input.region ?? existing?.region ?? null,
+    postalCode: input.postalCode ?? existing?.postal_code ?? null,
+    country: input.country ?? existing?.country ?? null,
+    organization: input.organization ?? existing?.organization ?? null,
+    website: input.website ?? existing?.website ?? null,
+    notes: mergedImportNotes(existing?.notes ?? null, input.notes, now),
+    contactStatus: input.contactStatus ?? existing?.contact_status ?? "active",
+    lastContactedAt: input.lastContactedAt ?? existing?.last_contacted_at ?? null,
+    contactTypes: input.contactTypes.length ? input.contactTypes : existing ? [] : ["other"],
+    areas: input.areas,
+    languages: input.languages,
+    tripIds: input.tripIds,
+  };
+}
+
+function importRelationStatements(env: AdminEnv, personId: string, input: ContactInput, now: string): D1PreparedStatement[] {
+  return [
+    ...input.contactTypes.map(contactType => env.DB.prepare(
+      "INSERT OR IGNORE INTO contact_types (person_id, contact_type, created_at) VALUES (?1, ?2, ?3)",
+    ).bind(personId, contactType, now)),
+    ...input.languages.map(language => env.DB.prepare(
+      `INSERT OR IGNORE INTO contact_languages (person_id, language, language_normalized, created_at)
+       VALUES (?1, ?2, ?3, ?4)`,
+    ).bind(personId, language, normalizeTeamName(language), now)),
+    ...input.areas.map(area => env.DB.prepare(
+      "INSERT OR IGNORE INTO contact_areas (person_id, area, created_at) VALUES (?1, ?2, ?3)",
+    ).bind(personId, area, now)),
+    ...input.tripIds.map(tripId => env.DB.prepare(
+      "INSERT OR IGNORE INTO contact_trips (person_id, opportunity_id, created_at) VALUES (?1, ?2, ?3)",
+    ).bind(personId, tripId, now)),
+  ];
+}
+
+function contactImportWrite(
+  env: AdminEnv,
+  row: ImportRowAnalysis,
+  importId: string,
+  fileName: string,
+  now: string,
+): { row: ImportRowAnalysis; personId: string; statements: D1PreparedStatement[] } {
+  if (!row.input || row.action === "error") throw new Error("Cannot write an invalid import row");
+  const personId = row.existing?.id ?? crypto.randomUUID();
+  const input = mergeContactImportInput(row.input, row.existing, now);
+  const emailNormalized = normalizeImportEmail(input.email);
+  const phoneNormalized = normalizeImportPhone(input.phone);
+  const core = row.action === "create"
+    ? env.DB.prepare(
+      `INSERT INTO people (
+         id, first_name, last_name, first_name_normalized, last_name_normalized,
+         email, email_normalized, phone, phone_normalized, contact_preference, field_of_study,
+         preferred_name, address_line_1, address_line_2, city, region, postal_code, country,
+         organization, website, notes, record_source, contact_status, last_contacted_at,
+         created_at, updated_at
+       ) VALUES (
+         ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
+         ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, 'manual', ?22, ?23, ?24, ?25
+       )`,
+    ).bind(
+      personId, input.firstName, input.lastName, normalizeImportName(input.firstName), normalizeImportName(input.lastName),
+      input.email, emailNormalized, input.phone, phoneNormalized, input.contactPreference, input.fieldOfStudy,
+      input.preferredName, input.addressLine1, input.addressLine2, input.city, input.region, input.postalCode,
+      input.country, input.organization, input.website, input.notes, input.contactStatus, input.lastContactedAt,
+      now, now,
+    )
+    : env.DB.prepare(
+      `UPDATE people SET
+         first_name = ?1, last_name = ?2, first_name_normalized = ?3, last_name_normalized = ?4,
+         email = ?5, email_normalized = ?6, phone = ?7, phone_normalized = ?8,
+         contact_preference = ?9, field_of_study = ?10, preferred_name = ?11,
+         address_line_1 = ?12, address_line_2 = ?13, city = ?14, region = ?15,
+         postal_code = ?16, country = ?17, organization = ?18, website = ?19, notes = ?20,
+         contact_status = ?21, last_contacted_at = ?22, updated_at = ?23
+       WHERE id = ?24`,
+    ).bind(
+      input.firstName, input.lastName, normalizeImportName(input.firstName), normalizeImportName(input.lastName),
+      input.email, emailNormalized, input.phone, phoneNormalized, input.contactPreference, input.fieldOfStudy,
+      input.preferredName, input.addressLine1, input.addressLine2, input.city, input.region, input.postalCode,
+      input.country, input.organization, input.website, input.notes, input.contactStatus, input.lastContactedAt,
+      now, personId,
+    );
+  return {
+    row,
+    personId,
+    statements: [
+      core,
+      ...importRelationStatements(env, personId, input, now),
+      auditStatement(env, "person", personId, row.action === "create" ? "contact_import_created" : "contact_import_updated", {
+        importId,
+        fileName,
+        rowNumber: row.rowNumber,
+      }),
+    ],
+  };
+}
+
+function groupImportWrites<T extends { statements: D1PreparedStatement[] }>(writes: T[], statementLimit = 80): T[][] {
+  const batches: T[][] = [];
+  let batch: T[] = [];
+  let count = 0;
+  for (const write of writes) {
+    if (batch.length && count + write.statements.length > statementLimit) {
+      batches.push(batch);
+      batch = [];
+      count = 0;
+    }
+    batch.push(write);
+    count += write.statements.length;
+  }
+  if (batch.length) batches.push(batch);
+  return batches;
+}
+
+async function commitContactImport(request: Request, env: AdminEnv): Promise<Response> {
+  const { file, parsed, rows } = await prepareContactImport(request, env);
+  const importId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const writes = rows.filter(row => row.action !== "error").map(row => contactImportWrite(env, row, importId, file.fileName, now));
+  if (!writes.length) throw new AdminError(422, "NO_VALID_ROWS", "Correct at least one spreadsheet row before importing.");
+
+  const succeeded = new Set<number>();
+  const failed = new Map<number, string>();
+  for (const batch of groupImportWrites(writes)) {
+    try {
+      await env.DB.batch(batch.flatMap(write => write.statements));
+      batch.forEach(write => succeeded.add(write.row.rowNumber));
+    } catch (batchError) {
+      console.warn(JSON.stringify({ event: "contact_import_batch_retry", importId, rows: batch.length }));
+      for (const write of batch) {
+        try {
+          await env.DB.batch(write.statements);
+          succeeded.add(write.row.rowNumber);
+        } catch (rowError) {
+          console.error(JSON.stringify({
+            event: "contact_import_row_failed",
+            importId,
+            rowNumber: write.row.rowNumber,
+            message: rowError instanceof Error ? rowError.message : "Unknown error",
+          }));
+          failed.set(write.row.rowNumber, "The database could not import this row. Check for a conflicting existing contact.");
+        }
+      }
+    }
+  }
+
+  const completedRows = rows.map(row => failed.has(row.rowNumber)
+    ? { ...row, action: "error" as const, errors: [...row.errors, failed.get(row.rowNumber) as string], input: null }
+    : row);
+  const createdCount = completedRows.filter(row => row.action === "create" && succeeded.has(row.rowNumber)).length;
+  const updatedCount = completedRows.filter(row => row.action === "update" && succeeded.has(row.rowNumber)).length;
+  const errorCount = completedRows.filter(row => row.action === "error").length;
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO contact_imports (
+         id, file_name, file_size, file_type, total_rows, created_count, updated_count, error_count, imported_at
+       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+    ).bind(importId, file.fileName, file.fileSize, parsed.fileType, rows.length, createdCount, updatedCount, errorCount, now),
+    auditStatement(env, "contact_import", importId, "completed", {
+      fileName: file.fileName,
+      totalRows: rows.length,
+      createdCount,
+      updatedCount,
+      errorCount,
+    }),
+  ]);
+
+  return adminJson({
+    import: {
+      ...publicImportResult(file, parsed, completedRows),
+      importId,
+      importedAt: now,
+      created: createdCount,
+      updated: updatedCount,
+      errors: errorCount,
+    },
+  }, 201);
+}
+
 export function csvCell(value: unknown): string {
   let text = value === null || value === undefined ? "" : String(value);
   if (/^[\u0009\u0020]*[=+\-@]/.test(text)) text = `'${text}`;
@@ -2129,6 +2597,8 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "POST" && path === "/admin/teams") return createTeam(request, env);
   if (request.method === "GET" && path === "/admin/people") return listPeople(request, env);
   if (request.method === "POST" && path === "/admin/people") return createContact(request, env);
+  if (request.method === "POST" && path === "/admin/contact-imports/preview") return previewContactImport(request, env);
+  if (request.method === "POST" && path === "/admin/contact-imports") return commitContactImport(request, env);
   if (request.method === "GET" && path === "/admin/ministries") return listMinistries(request, env);
   if (request.method === "POST" && path === "/admin/ministries") return createMinistry(request, env);
   if (request.method === "GET" && path === "/admin/submissions") return listSubmissions(request, env);
@@ -2173,6 +2643,9 @@ export async function handleAdminRequest(request: Request, env: AdminEnv, path: 
   try {
     return await routeAdmin(request, env, path);
   } catch (error) {
+    if (error instanceof ContactImportFileError) {
+      return adminJson({ error: error.message, code: error.code }, error.status);
+    }
     if (error instanceof AdminError) {
       if (error.status >= 500) console.error(JSON.stringify({ event: "admin_request_failed", code: error.code, status: error.status }));
       return adminJson({ error: error.message, code: error.code }, error.status, error.headers);

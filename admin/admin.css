@@ -103,6 +103,7 @@
 .admin-contact-toolbar strong, .admin-contact-toolbar span { display: block; }
 .admin-contact-toolbar strong { color: var(--forest-dark); }
 .admin-contact-toolbar span { margin-top: .15rem; color: var(--muted); font-size: .76rem; }
+.admin-contact-toolbar-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: .55rem; }
 
 .admin-request-list { display: grid; gap: .7rem; }
 .admin-request-card { display: grid; width: 100%; padding: 1.05rem; grid-template-columns: minmax(180px, 1fr) minmax(230px, 1.25fr) minmax(260px, 1.6fr) auto; align-items: center; gap: 1rem; border: 1px solid rgba(25, 50, 43, .12); border-radius: 16px; background: white; color: inherit; text-align: left; cursor: pointer; transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease; }
@@ -188,11 +189,55 @@
 
 .admin-detail-dialog { width: min(calc(100% - 24px), 980px); max-height: min(92vh, 980px); padding: 0; overflow: hidden; border: 0; border-radius: 24px; background: #fffdf8; box-shadow: 0 30px 90px rgba(8, 29, 24, .35); }
 .admin-detail-dialog::backdrop { background: rgba(8, 29, 24, .7); backdrop-filter: blur(5px); }
+.admin-import-dialog { width: min(calc(100% - 24px), 1160px); }
 .admin-detail-shell { display: flex; max-height: min(92vh, 980px); flex-direction: column; }
 .admin-detail-header { display: flex; padding: 1.25rem 1.5rem; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid rgba(25, 50, 43, .12); background: #f2f5ef; }
 .admin-detail-header h2 { margin: .1rem 0 0; color: var(--forest-dark); font-size: clamp(1.8rem, 4vw, 2.8rem); }
 .admin-dialog-close { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid rgba(25, 50, 43, .18); border-radius: 50%; background: white; color: var(--forest-dark); font-size: 1.8rem; line-height: 1; cursor: pointer; }
 .admin-detail-content { padding: 1.5rem; overflow-y: auto; }
+.admin-import-content { display: grid; gap: 1rem; }
+.admin-import-intro { display: flex; padding: 1.1rem; align-items: center; justify-content: space-between; gap: 1.5rem; border: 1px solid rgba(25, 50, 43, .12); border-radius: 16px; background: #fff6e7; }
+.admin-import-intro h3, .admin-import-preview h3 { margin: 0 0 .25rem; color: var(--forest-dark); font-size: 1.45rem; }
+.admin-import-intro p { max-width: 68ch; margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.55; }
+.admin-import-intro .admin-button { flex: 0 0 auto; }
+.admin-import-form { display: grid; padding: 1rem; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .85rem; border: 1px solid rgba(25, 50, 43, .12); border-radius: 16px; background: #eef4ef; }
+.admin-import-form label { display: grid; gap: .35rem; }
+.admin-import-form label > span { color: var(--forest-dark); font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.admin-import-form label > small { color: var(--muted); font-size: .72rem; }
+.admin-import-form input[type="file"] { width: 100%; min-height: 50px; padding: .4rem; border: 1px solid rgba(25, 50, 43, .24); border-radius: 10px; background: #fffdf8; color: var(--muted); }
+.admin-import-form input[type="file"]::file-selector-button { min-height: 38px; margin-right: .75rem; padding: .45rem .85rem; border: 1px solid var(--forest); border-radius: 999px; background: white; color: var(--forest-dark); font-weight: 850; cursor: pointer; }
+.admin-import-form input[type="file"]:focus { border-color: var(--gold); outline: 3px solid rgba(217, 155, 66, .2); }
+.admin-import-status { margin: 0; }
+.admin-import-status.is-success { color: #1f6849; }
+.admin-import-preview { padding-top: 1rem; border-top: 1px solid rgba(25, 50, 43, .12); }
+.admin-import-preview-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+.admin-import-preview-heading > p { margin: 0 0 .3rem; color: var(--muted); font-size: .75rem; font-weight: 750; overflow-wrap: anywhere; }
+.admin-import-summary { display: grid; margin: .9rem 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.admin-import-summary article { padding: .8rem 1rem; border: 1px solid rgba(25, 50, 43, .12); border-radius: 13px; background: #edf5f0; }
+.admin-import-summary span, .admin-import-summary strong { display: block; }
+.admin-import-summary span { color: var(--muted); font-size: .68rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.admin-import-summary strong { margin-top: .15rem; color: var(--forest-dark); font-family: Georgia, serif; font-size: 1.85rem; line-height: 1; }
+.admin-import-summary .admin-import-summary-error { background: #fff2ef; }
+.admin-import-summary-error strong { color: #8f3030; }
+.admin-import-help { margin: 0 0 .75rem; color: var(--muted); font-size: .78rem; line-height: 1.5; }
+.admin-import-table-shell { max-height: 350px; overflow: auto; border: 1px solid rgba(25, 50, 43, .14); border-radius: 14px; background: white; }
+.admin-import-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .78rem; }
+.admin-import-table caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.admin-import-table th { position: sticky; z-index: 1; top: 0; padding: .65rem .7rem; border-bottom: 1px solid rgba(25, 50, 43, .16); background: #eef4ef; color: var(--forest-dark); font-size: .66rem; letter-spacing: .07em; text-align: left; text-transform: uppercase; }
+.admin-import-table td { padding: .7rem; vertical-align: top; border-bottom: 1px solid rgba(25, 50, 43, .09); color: var(--muted); }
+.admin-import-table tbody tr:last-child td { border-bottom: 0; }
+.admin-import-table tbody tr.admin-import-row-error { background: #fff8f5; }
+.admin-import-contact strong, .admin-import-contact span { display: block; }
+.admin-import-contact strong { color: var(--forest-dark); font-size: .84rem; }
+.admin-import-contact span { margin-top: .12rem; font-size: .72rem; overflow-wrap: anywhere; }
+.admin-import-action { display: inline-flex; padding: .32rem .52rem; border-radius: 999px; font-size: .66rem; font-weight: 900; white-space: nowrap; }
+.admin-import-action-create { background: #e2f1e8; color: #1f6849; }
+.admin-import-action-update { background: #e5eef9; color: #285b8f; }
+.admin-import-action-error { background: #fae2df; color: #8f3030; }
+.admin-import-messages { display: grid; margin: 0; padding: 0; gap: .2rem; list-style: none; }
+.admin-import-message-error { color: #8f3030; font-weight: 750; }
+.admin-import-message-warning { color: #7b4f09; }
+.admin-import-actions { display: flex; margin-top: .9rem; justify-content: flex-end; gap: .6rem; }
 .admin-detail-hero { display: flex; margin-bottom: 1rem; padding: 1.25rem; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; border-radius: 18px; background: var(--forest-dark); color: white; }
 .admin-detail-hero h3 { margin: 0 0 .3rem; color: white; font-size: 1.8rem; }
 .admin-detail-hero p { margin: .1rem 0; color: rgba(255, 255, 255, .76); font-size: .87rem; }
@@ -293,6 +338,8 @@
   .admin-team-member { grid-template-columns: 1fr 1fr; }
   .admin-team-member-actions { flex-direction: row; }
   .admin-ministry-contact-form { grid-template-columns: 1fr 1fr; }
+  .admin-import-intro { align-items: flex-start; flex-direction: column; }
+  .admin-import-form { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 800px) {
@@ -342,6 +389,10 @@
   .admin-contact-toolbar { align-items: stretch; flex-direction: column; }
   .admin-editor-grid, .admin-editor-choice-grid, .admin-ministry-contact-form { grid-template-columns: 1fr; }
   .admin-editor-wide { grid-column: auto; }
+  .admin-contact-toolbar-actions, .admin-import-actions { justify-content: stretch; }
+  .admin-contact-toolbar-actions .admin-button, .admin-import-actions .admin-button, .admin-import-intro .admin-button { width: 100%; }
+  .admin-import-summary { grid-template-columns: 1fr; }
+  .admin-import-preview-heading { align-items: flex-start; flex-direction: column; }
   .admin-footer { width: calc(100% - 20px); flex-direction: column; text-align: center; }
 }
 

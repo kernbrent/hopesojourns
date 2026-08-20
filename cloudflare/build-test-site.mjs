@@ -24,6 +24,7 @@ const publicEntries = [
   "internships",
   "letters",
   "logo-explorations",
+  "outputs/contact-import-template",
   "past-trips",
   "resources",
   "schedule",
