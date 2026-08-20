@@ -4,7 +4,7 @@ This Cloudflare Worker stores trip and internship interest in a D1 database. It 
 
 The trip-registration table is intentionally separate from public interest submissions. A later registration workflow can add sensitive application fields without mixing them into the low-friction interest form.
 
-The same Worker protects the hidden response portal. Administrator passwords are Cloudflare secrets, sessions use secure HTTP-only cookies, state-changing requests require a CSRF token, failed logins are rate limited, and every reply, status change, team, relationship, or permanent deletion is recorded.
+The same Worker protects the hidden response portal. The initial administrator password is a Cloudflare secret. After an administrator changes it in the portal, a uniquely salted PBKDF2-SHA256 hash in D1 takes precedence; the password itself is never stored. Sessions use secure HTTP-only cookies, an optional “Remember me” login lasts 30 days, state-changing requests require a CSRF token, failed logins are rate limited, and every reply, status change, team, relationship, password change, or permanent deletion is recorded.
 
 The `people` table is the master Hope Sojourns contact list. Public interest forms automatically reuse or create a person and classify that person as a prospective traveler. Administrators can also create and edit contacts with multiple roles, Hope Sojourns areas, languages, trips, addresses, organizations, notes, and active/inactive status. The portal includes card and spreadsheet views, contact filters, and a contact-oriented CSV export.
 
@@ -25,6 +25,6 @@ The migrations seed the current trip and internship opportunities and add the ma
 
 ## Test deployment
 
-The test environment uses the `hope-sojourns-forms-test` D1 database, the `hope-sojourns-interest-test` Worker, and the `test.hopesojourns.com/api/interest/*` route. Apply pending D1 migrations before deploying Worker code that depends on them. The required `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` values must be stored with Wrangler secrets and must never be committed.
+The test environment uses the `hope-sojourns-forms-test` D1 database, the `hope-sojourns-interest-test` Worker, and the `test.hopesojourns.com/api/interest/*` route. Apply pending D1 migrations before deploying Worker code that depends on them. The required `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` values must be stored with Wrangler secrets and must never be committed. If the D1-backed password is ever forgotten, an authorized operator can remove the `primary` row from `admin_credentials` to restore login with the Cloudflare `ADMIN_PASSWORD` secret, then immediately set a new portal password.
 
 Outbound email stays on the free tier: the response portal stores the prepared reply, opens it in the administrator's normal email application, and records when the administrator marks it sent.

@@ -6,6 +6,10 @@ const dashboardPanel = document.querySelector("#dashboard-panel");
 const loginForm = document.querySelector("#admin-login-form");
 const passwordInput = document.querySelector("#admin-password");
 const loginStatus = document.querySelector("#login-status");
+const changePasswordDialog = document.querySelector("#change-password-dialog");
+const changePasswordForm = document.querySelector("#change-password-form");
+const changePasswordStatus = document.querySelector("#change-password-status");
+const currentPasswordInput = document.querySelector("#current-admin-password");
 const peopleList = document.querySelector("#people-list");
 const submissionsList = document.querySelector("#submissions-list");
 const peopleGrid = document.querySelector("#people-grid");
@@ -123,6 +127,16 @@ function setBusy(button, busy, busyText) {
   }
 }
 
+function resetPasswordVisibility(container) {
+  container.querySelectorAll("[data-password-toggle]").forEach(button => {
+    const input = document.querySelector(`#${button.getAttribute("aria-controls")}`);
+    if (!input) return;
+    input.type = "password";
+    button.setAttribute("aria-pressed", "false");
+    button.setAttribute("aria-label", button.getAttribute("aria-label").replace(/^Hide /, "Show "));
+  });
+}
+
 async function api(path, options = {}) {
   const method = options.method || "GET";
   const headers = new Headers(options.headers || {});
@@ -159,6 +173,8 @@ function showLogin(message = "") {
   loginForm.reset();
   if (submissionDialog.open) submissionDialog.close();
   if (contactImportDialog.open) contactImportDialog.close();
+  if (changePasswordDialog.open) changePasswordDialog.close();
+  resetPasswordVisibility(loginForm);
   passwordInput.focus();
 }
 
@@ -1790,7 +1806,13 @@ loginForm.addEventListener("submit", async event => {
   setBusy(submit, true, "Checking…");
   loginStatus.textContent = "Checking your password…";
   try {
-    const { result } = await api("/login", { method: "POST", body: { password: passwordInput.value } });
+    const { result } = await api("/login", {
+      method: "POST",
+      body: {
+        password: passwordInput.value,
+        rememberMe: loginForm.elements.rememberMe.checked,
+      },
+    });
     loginForm.reset();
     showDashboard(result);
   } catch (error) {
@@ -1807,6 +1829,55 @@ document.querySelector("#admin-signout").addEventListener("click", async event =
   try { await api("/logout", { method: "POST", body: {} }); } catch { /* The local session is cleared regardless. */ }
   showLogin("You have signed out.");
   setBusy(event.currentTarget, false);
+});
+
+document.querySelectorAll("[data-password-toggle]").forEach(button => {
+  button.addEventListener("click", () => {
+    const input = document.querySelector(`#${button.getAttribute("aria-controls")}`);
+    if (!input) return;
+    const revealing = input.type === "password";
+    input.type = revealing ? "text" : "password";
+    button.setAttribute("aria-pressed", String(revealing));
+    button.setAttribute("aria-label", `${revealing ? "Hide" : "Show"} ${input.name === "password" ? "administrator" : input.name === "currentPassword" ? "current" : input.name === "newPassword" ? "new" : "confirmed"} password`);
+    input.focus();
+  });
+});
+
+document.querySelector("#open-change-password").addEventListener("click", () => {
+  changePasswordForm.reset();
+  resetPasswordVisibility(changePasswordForm);
+  changePasswordStatus.classList.remove("is-success");
+  changePasswordStatus.textContent = "";
+  if (!changePasswordDialog.open) changePasswordDialog.showModal();
+  currentPasswordInput.focus();
+});
+
+changePasswordForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = changePasswordForm.querySelector("button[type='submit']");
+  const formData = new FormData(changePasswordForm);
+  changePasswordStatus.classList.remove("is-success");
+  changePasswordStatus.textContent = "Updating the portal password…";
+  setBusy(submit, true, "Updating…");
+  try {
+    await api("/password", {
+      method: "POST",
+      body: {
+        currentPassword: String(formData.get("currentPassword") || ""),
+        newPassword: String(formData.get("newPassword") || ""),
+        confirmPassword: String(formData.get("confirmPassword") || ""),
+      },
+    });
+    changePasswordStatus.classList.add("is-success");
+    changePasswordStatus.textContent = "Password updated. Other signed-in devices have been logged out.";
+    changePasswordForm.reset();
+    resetPasswordVisibility(changePasswordForm);
+  } catch (error) {
+    changePasswordStatus.textContent = error.message;
+    currentPasswordInput.focus();
+  } finally {
+    setBusy(submit, false);
+  }
 });
 
 peopleViewTab.addEventListener("click", () => switchView("people"));
@@ -1934,6 +2005,10 @@ exportButton.addEventListener("click", async event => {
 document.querySelector("#close-submission-dialog").addEventListener("click", () => submissionDialog.close());
 submissionDialog.addEventListener("click", event => {
   if (event.target === submissionDialog) submissionDialog.close();
+});
+document.querySelector("#close-change-password-dialog").addEventListener("click", () => changePasswordDialog.close());
+changePasswordDialog.addEventListener("click", event => {
+  if (event.target === changePasswordDialog) changePasswordDialog.close();
 });
 document.querySelector("#year").textContent = new Date().getFullYear();
 

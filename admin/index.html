@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=23">
-  <link rel="stylesheet" href="/admin/admin.css?v=9">
+  <link rel="stylesheet" href="/admin/admin.css?v=11">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -40,12 +40,20 @@
         <p class="eyebrow">Authorized access</p>
         <h2>Open the portal</h2>
         <form id="admin-login-form">
+          <input class="admin-credential-username" name="username" type="text" value="admin" autocomplete="username" tabindex="-1" aria-hidden="true">
           <label for="admin-password">Administrator password</label>
-          <input id="admin-password" name="password" type="password" autocomplete="current-password" required autofocus>
+          <div class="admin-password-field">
+            <input id="admin-password" name="password" type="password" autocomplete="current-password" required autofocus>
+            <button class="admin-password-toggle" type="button" data-password-toggle aria-controls="admin-password" aria-label="Show administrator password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button>
+          </div>
+          <label class="admin-remember-choice" for="admin-remember-me">
+            <input id="admin-remember-me" name="rememberMe" type="checkbox">
+            <span><strong>Remember me on this device</strong><small>Keep this portal signed in for 30 days.</small></span>
+          </label>
           <button class="admin-button admin-button-primary" type="submit">Sign in securely</button>
           <p class="admin-form-status" id="login-status" role="status" aria-live="polite"></p>
         </form>
-        <p class="admin-security-note">Sessions close automatically after eight hours. Repeated incorrect attempts are temporarily blocked.</p>
+        <p class="admin-security-note">Without “Remember me,” the login closes with the browser or after eight hours. Your browser may also offer to save the password securely.</p>
       </section>
     </section>
 
@@ -59,6 +67,7 @@
         <div class="admin-dashboard-actions">
           <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh</button>
           <button class="admin-button admin-button-outline" id="export-submissions" type="button">Export CSV</button>
+          <button class="admin-button admin-button-outline" id="open-change-password" type="button">Change password</button>
           <button class="admin-button admin-button-dark" id="admin-signout" type="button">Sign out</button>
         </div>
       </div>
@@ -241,6 +250,38 @@
     </div>
   </dialog>
 
+  <dialog class="admin-detail-dialog admin-password-dialog" id="change-password-dialog" aria-labelledby="change-password-title">
+    <div class="admin-detail-shell">
+      <header class="admin-detail-header">
+        <div><p class="eyebrow">Portal security</p><h2 id="change-password-title">Change password</h2></div>
+        <button class="admin-dialog-close" id="close-change-password-dialog" type="button" aria-label="Close change password form">&times;</button>
+      </header>
+      <div class="admin-detail-content">
+        <form class="admin-password-form" id="change-password-form">
+          <input class="admin-credential-username" name="username" type="text" value="admin" autocomplete="username" tabindex="-1" aria-hidden="true">
+          <label for="current-admin-password"><span>Current password</span></label>
+          <div class="admin-password-field">
+            <input id="current-admin-password" name="currentPassword" type="password" autocomplete="current-password" required>
+            <button class="admin-password-toggle" type="button" data-password-toggle aria-controls="current-admin-password" aria-label="Show current password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button>
+          </div>
+          <label for="new-admin-password"><span>New password</span></label>
+          <div class="admin-password-field">
+            <input id="new-admin-password" name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+            <button class="admin-password-toggle" type="button" data-password-toggle aria-controls="new-admin-password" aria-label="Show new password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button>
+          </div>
+          <label for="confirm-admin-password"><span>Confirm new password</span></label>
+          <div class="admin-password-field">
+            <input id="confirm-admin-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+            <button class="admin-password-toggle" type="button" data-password-toggle aria-controls="confirm-admin-password" aria-label="Show confirmed password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button>
+          </div>
+          <p class="admin-password-requirements">Use 12 or more characters and at least three of these: uppercase letters, lowercase letters, numbers, and symbols.</p>
+          <button class="admin-button admin-button-primary" type="submit">Update password</button>
+          <p class="admin-form-status" id="change-password-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
   <dialog class="admin-detail-dialog admin-import-dialog" id="contact-import-dialog" aria-labelledby="contact-import-title">
     <div class="admin-detail-shell">
       <header class="admin-detail-header">
@@ -291,6 +332,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=13" defer></script>
+  <script src="/admin/admin.js?v=14" defer></script>
 </body>
 </html>

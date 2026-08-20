@@ -13,8 +13,11 @@ import {
 const ADMIN_BODY_LIMIT = 48 * 1024;
 const CONTACT_IMPORT_REQUEST_LIMIT = CONTACT_IMPORT_MAX_FILE_BYTES + 128 * 1024;
 const SESSION_HOURS = 8;
+const REMEMBER_SESSION_DAYS = 30;
 const LOGIN_WINDOW_MINUTES = 15;
 const LOGIN_FAILURE_LIMIT = 5;
+const PASSWORD_HASH_ITERATIONS = 600_000;
+const PASSWORD_SALT_BYTES = 16;
 const ALLOWED_STATUSES = new Set(["new", "contacted", "exploring", "closed"]);
 const CONTACT_TYPE_OPTIONS = [
   ["prospective_traveler", "Prospective Traveler"],
@@ -49,6 +52,17 @@ type LoginAttemptRow = {
   failure_count: number;
   window_started_at: string;
   blocked_until: string | null;
+};
+
+type AdminCredentialRow = {
+  algorithm: string;
+  password_salt: string;
+  password_hash: string;
+  iterations: number;
+};
+
+type CloudflareSubtleCrypto = SubtleCrypto & {
+  timingSafeEqual?(a: ArrayBuffer | ArrayBufferView, b: ArrayBuffer | ArrayBufferView): boolean;
 };
 
 type SubmissionListRow = {
@@ -467,19 +481,106 @@ async function hashText(value: string): Promise<string> {
 }
 
 export async function secureEqual(left: string, right: string): Promise<boolean> {
-  const [leftHash, rightHash] = await Promise.all([hashText(left), hashText(right)]);
+  const encoder = new TextEncoder();
+  const [leftHash, rightHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(left)),
+    crypto.subtle.digest("SHA-256", encoder.encode(right)),
+  ]);
+  const subtle = crypto.subtle as CloudflareSubtleCrypto;
+  if (subtle.timingSafeEqual) return subtle.timingSafeEqual(leftHash, rightHash);
+  const leftBytes = new Uint8Array(leftHash);
+  const rightBytes = new Uint8Array(rightHash);
   let difference = 0;
-  for (let index = 0; index < leftHash.length; index += 1) {
-    difference |= leftHash.charCodeAt(index) ^ rightHash.charCodeAt(index);
-  }
+  for (let index = 0; index < leftBytes.length; index += 1) difference |= leftBytes[index] ^ rightBytes[index];
   return difference === 0;
 }
 
-function requireSecrets(env: AdminEnv): { password: string; sessionSecret: string } {
-  if (!env.ADMIN_PASSWORD || !env.ADMIN_SESSION_SECRET) {
+function requireSessionSecret(env: AdminEnv): string {
+  if (!env.ADMIN_SESSION_SECRET) {
     throw new AdminError(503, "ADMIN_NOT_CONFIGURED", "The Admin Portal is not configured yet.");
   }
-  return { password: env.ADMIN_PASSWORD, sessionSecret: env.ADMIN_SESSION_SECRET };
+  return env.ADMIN_SESSION_SECRET;
+}
+
+function base64UrlBytes(value: string): Uint8Array<ArrayBuffer> | null {
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(value)) return null;
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  try {
+    const binary = atob(padded);
+    return Uint8Array.from(binary, character => character.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+export async function deriveAdminPasswordHash(
+  password: string,
+  salt: Uint8Array<ArrayBuffer>,
+  iterations = PASSWORD_HASH_ITERATIONS,
+): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits({
+    name: "PBKDF2",
+    hash: "SHA-256",
+    salt,
+    iterations,
+  }, key, 256);
+  return base64Url(new Uint8Array(bits));
+}
+
+export function adminPasswordPolicyError(password: unknown): string | null {
+  if (typeof password !== "string" || password.length < 12) {
+    return "Use at least 12 characters for the new password.";
+  }
+  if (password.length > 128) return "Use no more than 128 characters for the new password.";
+  if (/[\u0000-\u001F\u007F]/.test(password)) return "The new password cannot contain control characters.";
+  const categories = [
+    /\p{Lu}/u.test(password),
+    /\p{Ll}/u.test(password),
+    /\p{N}/u.test(password),
+    /[^\p{L}\p{N}\s]/u.test(password),
+  ].filter(Boolean).length;
+  if (categories < 3) {
+    return "Use at least three of these: uppercase letters, lowercase letters, numbers, and symbols.";
+  }
+  return null;
+}
+
+async function storedAdminCredential(env: AdminEnv): Promise<AdminCredentialRow | null> {
+  return env.DB.prepare(
+    "SELECT algorithm, password_salt, password_hash, iterations FROM admin_credentials WHERE id = 'primary' LIMIT 1",
+  ).first<AdminCredentialRow>();
+}
+
+async function verifyAdminPassword(env: AdminEnv, password: string): Promise<boolean> {
+  const credential = await storedAdminCredential(env);
+  if (!credential) {
+    if (!env.ADMIN_PASSWORD) {
+      throw new AdminError(503, "ADMIN_NOT_CONFIGURED", "The Admin Portal is not configured yet.");
+    }
+    return secureEqual(password, env.ADMIN_PASSWORD);
+  }
+  const salt = base64UrlBytes(credential.password_salt);
+  if (
+    credential.algorithm !== "PBKDF2-SHA256"
+    || !salt
+    || salt.byteLength !== PASSWORD_SALT_BYTES
+    || credential.iterations < 100_000
+    || credential.iterations > 1_000_000
+    || !/^[A-Za-z0-9_-]{40,60}$/.test(credential.password_hash)
+  ) {
+    console.error(JSON.stringify({ event: "admin_credential_invalid" }));
+    throw new AdminError(503, "ADMIN_NOT_CONFIGURED", "The Admin Portal is not configured yet.");
+  }
+  const derived = await deriveAdminPasswordHash(password, salt, credential.iterations);
+  return secureEqual(derived, credential.password_hash);
 }
 
 function cookieValue(request: Request, name: string): string | null {
@@ -493,8 +594,9 @@ function cookieValue(request: Request, name: string): string | null {
   return null;
 }
 
-function sessionCookie(token: string, maxAgeSeconds: number): string {
-  return `hs_admin_session=${token}; Path=/api/interest/admin; Max-Age=${maxAgeSeconds}; HttpOnly; Secure; SameSite=Strict`;
+function sessionCookie(token: string, maxAgeSeconds: number | null): string {
+  const persistence = maxAgeSeconds === null ? "" : `; Max-Age=${maxAgeSeconds}`;
+  return `hs_admin_session=${token}; Path=/api/interest/admin${persistence}; HttpOnly; Secure; SameSite=Strict`;
 }
 
 async function authenticate(request: Request, env: AdminEnv, requireCsrf = false): Promise<AdminSessionRow> {
@@ -581,19 +683,23 @@ async function recordLoginFailure(env: AdminEnv, keyHash: string, current: Login
 }
 
 async function login(request: Request, env: AdminEnv): Promise<Response> {
-  const { password: expectedPassword, sessionSecret } = requireSecrets(env);
+  const sessionSecret = requireSessionSecret(env);
   const body = await readAdminJson(request);
   const submittedPassword = typeof body.password === "string" ? body.password : "";
+  const rememberMe = body.rememberMe === true;
   const keyHash = await loginKey(request, sessionSecret);
   const currentAttempt = await checkLoginBlock(env, keyHash);
-  if (!submittedPassword || !(await secureEqual(submittedPassword, expectedPassword))) {
+  if (!submittedPassword || submittedPassword.length > 256 || !(await verifyAdminPassword(env, submittedPassword))) {
     await recordLoginFailure(env, keyHash, currentAttempt);
     console.warn(JSON.stringify({ event: "admin_login_failed" }));
     throw new AdminError(401, "INVALID_CREDENTIALS", "The password is incorrect.");
   }
 
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + SESSION_HOURS * 60 * 60_000);
+  const sessionLifetimeSeconds = rememberMe
+    ? REMEMBER_SESSION_DAYS * 24 * 60 * 60
+    : SESSION_HOURS * 60 * 60;
+  const expiresAt = new Date(now.getTime() + sessionLifetimeSeconds * 1000);
   const token = randomToken();
   const csrfToken = randomToken(24);
   const userAgent = request.headers.get("user-agent") ?? "";
@@ -608,18 +714,18 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
       crypto.randomUUID(), await hashText(token), csrfToken, now.toISOString(), expiresAt.toISOString(), now.toISOString(), userAgentHash,
     ),
   ]);
-  await audit(env, "admin_session", "portal", "login");
+  await audit(env, "admin_session", "portal", "login", { remembered: rememberMe });
   console.log(JSON.stringify({ event: "admin_login_succeeded" }));
   return adminJson({
     authenticated: true,
     csrfToken,
     expiresAt: expiresAt.toISOString(),
     replyDelivery: "email_client",
-  }, 200, { "Set-Cookie": sessionCookie(token, SESSION_HOURS * 60 * 60) });
+  }, 200, { "Set-Cookie": sessionCookie(token, rememberMe ? sessionLifetimeSeconds : null) });
 }
 
 async function sessionInfo(request: Request, env: AdminEnv): Promise<Response> {
-  requireSecrets(env);
+  requireSessionSecret(env);
   const session = await authenticate(request, env);
   return adminJson({
     authenticated: true,
@@ -634,6 +740,46 @@ async function logout(request: Request, env: AdminEnv): Promise<Response> {
   await env.DB.prepare("DELETE FROM admin_sessions WHERE id = ?1").bind(session.id).run();
   await audit(env, "admin_session", session.id, "logout");
   return adminJson({ success: true }, 200, { "Set-Cookie": sessionCookie("", 0) });
+}
+
+async function changePassword(request: Request, env: AdminEnv): Promise<Response> {
+  const session = await authenticate(request, env, true);
+  const body = await readAdminJson(request);
+  const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
+  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+  const confirmPassword = typeof body.confirmPassword === "string" ? body.confirmPassword : "";
+  if (!currentPassword || currentPassword.length > 256 || !(await verifyAdminPassword(env, currentPassword))) {
+    throw new AdminError(422, "INVALID_CURRENT_PASSWORD", "The current password is incorrect.");
+  }
+  const policyError = adminPasswordPolicyError(newPassword);
+  if (policyError) throw new AdminError(422, "INVALID_NEW_PASSWORD", policyError);
+  if (!(await secureEqual(newPassword, confirmPassword))) {
+    throw new AdminError(422, "PASSWORDS_DO_NOT_MATCH", "The new passwords do not match.");
+  }
+  if (await secureEqual(currentPassword, newPassword)) {
+    throw new AdminError(422, "PASSWORD_UNCHANGED", "Choose a new password that is different from the current password.");
+  }
+
+  const salt = new Uint8Array(PASSWORD_SALT_BYTES);
+  crypto.getRandomValues(salt);
+  const passwordHash = await deriveAdminPasswordHash(newPassword, salt);
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO admin_credentials (id, algorithm, password_salt, password_hash, iterations, created_at, updated_at)
+       VALUES ('primary', 'PBKDF2-SHA256', ?1, ?2, ?3, ?4, ?5)
+       ON CONFLICT (id) DO UPDATE SET
+         algorithm = excluded.algorithm,
+         password_salt = excluded.password_salt,
+         password_hash = excluded.password_hash,
+         iterations = excluded.iterations,
+         updated_at = excluded.updated_at`,
+    ).bind(base64Url(salt), passwordHash, PASSWORD_HASH_ITERATIONS, now, now),
+    env.DB.prepare("DELETE FROM admin_sessions WHERE id <> ?1").bind(session.id),
+    auditStatement(env, "admin_credential", "primary", "password_changed"),
+  ]);
+  console.log(JSON.stringify({ event: "admin_password_changed" }));
+  return adminJson({ success: true, otherSessionsEnded: true });
 }
 
 function parseJsonArray(value: string): unknown[] {
@@ -2593,6 +2739,7 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "POST" && path === "/admin/login") return login(request, env);
   if (request.method === "GET" && path === "/admin/session") return sessionInfo(request, env);
   if (request.method === "POST" && path === "/admin/logout") return logout(request, env);
+  if (request.method === "POST" && path === "/admin/password") return changePassword(request, env);
   if (request.method === "GET" && path === "/admin/teams") return listTeams(request, env);
   if (request.method === "POST" && path === "/admin/teams") return createTeam(request, env);
   if (request.method === "GET" && path === "/admin/people") return listPeople(request, env);

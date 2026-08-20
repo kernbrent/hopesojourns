@@ -6,7 +6,13 @@ import {
   routePath,
   validateSubmissionPayload,
 } from "../src/index";
-import { csvCell, dateFilterBound, secureEqual } from "../src/admin";
+import {
+  adminPasswordPolicyError,
+  csvCell,
+  dateFilterBound,
+  deriveAdminPasswordHash,
+  secureEqual,
+} from "../src/admin";
 
 const validPayload = {
   firstName: "  María ",
@@ -75,6 +81,22 @@ describe("admin security helpers", () => {
     await expect(secureEqual("Missions", "Missions")).resolves.toBe(true);
     await expect(secureEqual("Missions", "missions")).resolves.toBe(false);
     await expect(secureEqual("short", "a much longer value")).resolves.toBe(false);
+  });
+
+  it("enforces a strong but practical administrator password policy", () => {
+    expect(adminPasswordPolicyError("short1!A")).toContain("12 characters");
+    expect(adminPasswordPolicyError("alllowercase1234")).toContain("three of these");
+    expect(adminPasswordPolicyError("HopeSojourns2026!")).toBeNull();
+  });
+
+  it("derives stable salted password hashes", async () => {
+    const firstSalt = Uint8Array.from({ length: 16 }, (_, index) => index);
+    const secondSalt = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
+    const first = await deriveAdminPasswordHash("HopeSojourns2026!", firstSalt, 10);
+    const same = await deriveAdminPasswordHash("HopeSojourns2026!", firstSalt, 10);
+    const differentSalt = await deriveAdminPasswordHash("HopeSojourns2026!", secondSalt, 10);
+    expect(first).toBe(same);
+    expect(first).not.toBe(differentSalt);
   });
 
   it("neutralizes spreadsheet formulas in CSV exports", () => {

@@ -50,6 +50,16 @@
 .admin-login-card h2 { margin: .15rem 0 1.4rem; color: var(--forest-dark); font-size: clamp(2rem, 4vw, 3.2rem); }
 .admin-login-card form { display: grid; gap: .7rem; }
 .admin-login-card label, .admin-filters label > span, .admin-reply-form label > span { color: var(--forest-dark); font-size: .72rem; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.admin-credential-username { position: absolute !important; width: 1px !important; height: 1px !important; min-height: 0 !important; padding: 0 !important; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0 !important; }
+.admin-password-field { position: relative; }
+.admin-password-field > input { padding-right: 3.4rem !important; }
+.admin-password-toggle { position: absolute; top: 50%; right: .42rem; display: grid; width: 40px; height: 40px; padding: 0; place-items: center; transform: translateY(-50%); border: 0; border-radius: 50%; background: transparent; color: var(--forest-dark); font-size: 1.15rem; cursor: pointer; }
+.admin-password-toggle:hover { background: rgba(39, 93, 77, .09); }
+.admin-password-toggle:focus-visible { outline: 3px solid var(--gold); outline-offset: 1px; }
+.admin-remember-choice { display: flex; width: fit-content; max-width: 100%; padding: .25rem 0; align-items: flex-start; gap: .55rem; border: 0; background: transparent; letter-spacing: 0 !important; text-transform: none !important; cursor: pointer; }
+.admin-remember-choice span, .admin-remember-choice strong, .admin-remember-choice small { display: block; }
+.admin-remember-choice strong { color: var(--forest-dark); font-size: .82rem; letter-spacing: 0; text-transform: none; }
+.admin-remember-choice small { margin-top: .15rem; color: var(--muted); font-size: .72rem; font-weight: 600; letter-spacing: 0; line-height: 1.35; text-transform: none; }
 .admin-login-card input, .admin-filters input, .admin-filters select, .admin-reply-form input, .admin-reply-form textarea, .admin-interest-status select {
   width: 100%;
   min-height: 48px;
@@ -60,6 +70,8 @@
   color: var(--ink);
 }
 .admin-login-card input:focus, .admin-filters input:focus, .admin-filters select:focus, .admin-reply-form input:focus, .admin-reply-form textarea:focus, .admin-interest-status select:focus { border-color: var(--gold); outline: 3px solid rgba(217, 155, 66, .2); }
+.admin-login-card .admin-remember-choice input[type="checkbox"] { appearance: auto; flex: 0 0 18px; width: 18px; height: 18px; min-height: 18px; margin: .08rem 0 0; padding: 0; border: initial; border-radius: initial; background: initial; accent-color: var(--forest); }
+.admin-login-card .admin-remember-choice input[type="checkbox"]:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .admin-security-note { margin: 1.15rem 0 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
 .admin-form-status { min-height: 1.5rem; margin: .15rem 0 0; color: #9f3131; font-size: .88rem; font-weight: 750; }
 
@@ -190,11 +202,18 @@
 .admin-detail-dialog { width: min(calc(100% - 24px), 980px); max-height: min(92vh, 980px); padding: 0; overflow: hidden; border: 0; border-radius: 24px; background: #fffdf8; box-shadow: 0 30px 90px rgba(8, 29, 24, .35); }
 .admin-detail-dialog::backdrop { background: rgba(8, 29, 24, .7); backdrop-filter: blur(5px); }
 .admin-import-dialog { width: min(calc(100% - 24px), 1160px); }
+.admin-password-dialog { width: min(calc(100% - 24px), 620px); }
 .admin-detail-shell { display: flex; max-height: min(92vh, 980px); flex-direction: column; }
 .admin-detail-header { display: flex; padding: 1.25rem 1.5rem; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid rgba(25, 50, 43, .12); background: #f2f5ef; }
 .admin-detail-header h2 { margin: .1rem 0 0; color: var(--forest-dark); font-size: clamp(1.8rem, 4vw, 2.8rem); }
 .admin-dialog-close { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid rgba(25, 50, 43, .18); border-radius: 50%; background: white; color: var(--forest-dark); font-size: 1.8rem; line-height: 1; cursor: pointer; }
 .admin-detail-content { padding: 1.5rem; overflow-y: auto; }
+.admin-password-form { display: grid; gap: .7rem; }
+.admin-password-form > label > span { color: var(--forest-dark); font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.admin-password-form input { width: 100%; min-height: 48px; padding: .7rem .85rem; border: 1px solid rgba(25, 50, 43, .24); border-radius: 10px; background: #fffdf8; color: var(--ink); }
+.admin-password-form input:focus { border-color: var(--gold); outline: 3px solid rgba(217, 155, 66, .2); }
+.admin-password-requirements { margin: .2rem 0 .4rem; padding: .75rem; border-left: 4px solid var(--gold); border-radius: 8px; background: #fff6e7; color: var(--muted); font-size: .78rem; line-height: 1.5; }
+.admin-password-form .admin-form-status.is-success { color: #1f6849; }
 .admin-import-content { display: grid; gap: 1rem; }
 .admin-import-intro { display: flex; padding: 1.1rem; align-items: center; justify-content: space-between; gap: 1.5rem; border: 1px solid rgba(25, 50, 43, .12); border-radius: 16px; background: #fff6e7; }
 .admin-import-intro h3, .admin-import-preview h3 { margin: 0 0 .25rem; color: var(--forest-dark); font-size: 1.45rem; }
