@@ -16,7 +16,11 @@ const SESSION_HOURS = 8;
 const REMEMBER_SESSION_DAYS = 30;
 const LOGIN_WINDOW_MINUTES = 15;
 const LOGIN_FAILURE_LIMIT = 5;
-const PASSWORD_HASH_ITERATIONS = 600_000;
+// Cloudflare Workers currently caps PBKDF2 at 100,000 iterations. Keep the
+// stored work factor at that ceiling so password changes behave the same in
+// local tests and in the deployed Worker.
+const PASSWORD_HASH_ITERATIONS = 100_000;
+const WORKERS_PBKDF2_MAX_ITERATIONS = 100_000;
 const PASSWORD_SALT_BYTES = 16;
 const ALLOWED_STATUSES = new Set(["new", "contacted", "exploring", "closed"]);
 const CONTACT_TYPE_OPTIONS = [
@@ -519,6 +523,9 @@ export async function deriveAdminPasswordHash(
   salt: Uint8Array<ArrayBuffer>,
   iterations = PASSWORD_HASH_ITERATIONS,
 ): Promise<string> {
+  if (!Number.isInteger(iterations) || iterations < 1 || iterations > WORKERS_PBKDF2_MAX_ITERATIONS) {
+    throw new Error(`PBKDF2 iterations must be between 1 and ${WORKERS_PBKDF2_MAX_ITERATIONS}.`);
+  }
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
@@ -573,7 +580,7 @@ async function verifyAdminPassword(env: AdminEnv, password: string): Promise<boo
     || !salt
     || salt.byteLength !== PASSWORD_SALT_BYTES
     || credential.iterations < 100_000
-    || credential.iterations > 1_000_000
+    || credential.iterations > WORKERS_PBKDF2_MAX_ITERATIONS
     || !/^[A-Za-z0-9_-]{40,60}$/.test(credential.password_hash)
   ) {
     console.error(JSON.stringify({ event: "admin_credential_invalid" }));

@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=23">
-  <link rel="stylesheet" href="/admin/admin.css?v=11">
+  <link rel="stylesheet" href="/admin/admin.css?v=12">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -26,19 +26,20 @@
   <main id="main" class="admin-main">
     <section class="admin-login-shell" id="login-panel" aria-labelledby="login-title">
       <div class="admin-login-intro">
-        <p class="eyebrow">Private response center</p>
-        <h1 id="login-title">Welcome back.</h1>
-        <p>Review trip and internship interest, keep follow-up organized, and prepare personal replies.</p>
+        <p class="eyebrow">Hope Sojourns administration</p>
+        <h1 id="login-title">Your response center.</h1>
+        <p>Review interest, organize teams, maintain contacts, and keep ministry relationships moving forward.</p>
         <ul class="admin-login-features" aria-label="Portal features">
-          <li><span aria-hidden="true">01</span> Complete history for every person</li>
-          <li><span aria-hidden="true">02</span> Card, spreadsheet, and team views</li>
-          <li><span aria-hidden="true">03</span> Filtered, exportable, duplicate-protected records</li>
+          <li><span aria-hidden="true">01</span> See each person’s complete history</li>
+          <li><span aria-hidden="true">02</span> Build teams from submitted forms</li>
+          <li><span aria-hidden="true">03</span> Keep contacts and ministries organized</li>
         </ul>
       </div>
       <section class="admin-login-card" aria-label="Administrator sign in">
-        <img src="/assets/hope-sojourns-icon.png" alt="" width="72" height="72">
-        <p class="eyebrow">Authorized access</p>
-        <h2>Open the portal</h2>
+        <img src="/assets/hope-sojourns-icon.png" alt="" width="56" height="56">
+        <p class="eyebrow">Private team access</p>
+        <h2>Sign in</h2>
+        <p class="admin-login-help">Use the Hope Sojourns administrator password.</p>
         <form id="admin-login-form">
           <input class="admin-credential-username" name="username" type="text" value="admin" autocomplete="username" tabindex="-1" aria-hidden="true">
           <label for="admin-password">Administrator password</label>
@@ -50,7 +51,7 @@
             <input id="admin-remember-me" name="rememberMe" type="checkbox">
             <span><strong>Remember me on this device</strong><small>Keep this portal signed in for 30 days.</small></span>
           </label>
-          <button class="admin-button admin-button-primary" type="submit">Sign in securely</button>
+          <button class="admin-button admin-button-primary" type="submit">Open response center</button>
           <p class="admin-form-status" id="login-status" role="status" aria-live="polite"></p>
         </form>
         <p class="admin-security-note">Without “Remember me,” the login closes with the browser or after eight hours. Your browser may also offer to save the password securely.</p>
@@ -60,15 +61,20 @@
     <section class="admin-dashboard" id="dashboard-panel" aria-labelledby="dashboard-title" hidden>
       <div class="admin-dashboard-heading">
         <div>
-          <p class="eyebrow">Hope Sojourns response center</p>
-          <h1 id="dashboard-title">People and partnerships.</h1>
-          <p>Manage the Hope Sojourns master contact list, submitted forms, teams, and ministry relationships in one place.</p>
+          <p class="eyebrow">Hope Sojourns administration</p>
+          <h1 id="dashboard-title">Response center</h1>
+          <p>Contacts, requests, serving teams, and ministry partners—all in one organized workspace.</p>
         </div>
         <div class="admin-dashboard-actions">
           <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh</button>
           <button class="admin-button admin-button-outline" id="export-submissions" type="button">Export CSV</button>
-          <button class="admin-button admin-button-outline" id="open-change-password" type="button">Change password</button>
-          <button class="admin-button admin-button-dark" id="admin-signout" type="button">Sign out</button>
+          <details class="admin-account-menu" id="admin-account-menu">
+            <summary>Account</summary>
+            <div class="admin-account-menu-panel">
+              <button class="admin-account-action" id="open-change-password" type="button">Change password<span>Update portal security</span></button>
+              <button class="admin-account-action admin-account-signout" id="admin-signout" type="button">Sign out<span>End this session</span></button>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -82,104 +88,87 @@
       </section>
 
       <section class="admin-workspace" aria-labelledby="records-title">
+        <div class="admin-view-tabs" role="tablist" aria-label="Choose an area of the response center">
+          <button class="admin-view-tab is-active" id="people-view-tab" type="button" role="tab" aria-selected="true" aria-controls="people-list"><strong>Contacts</strong><span>Master people list</span></button>
+          <button class="admin-view-tab" id="requests-view-tab" type="button" role="tab" aria-selected="false" aria-controls="submissions-list"><strong>Requests</strong><span>Submitted forms</span></button>
+          <button class="admin-view-tab" id="grid-view-tab" type="button" role="tab" aria-selected="false" aria-controls="people-grid"><strong>Spreadsheet</strong><span>Grid view</span></button>
+          <button class="admin-view-tab" id="teams-view-tab" type="button" role="tab" aria-selected="false" aria-controls="teams-workspace"><strong>Teams</strong><span>People assignments</span></button>
+          <button class="admin-view-tab" id="ministries-view-tab" type="button" role="tab" aria-selected="false" aria-controls="ministries-workspace"><strong>Ministries</strong><span>Partner directory</span></button>
+        </div>
         <div class="admin-workspace-heading">
           <div>
-            <p class="eyebrow">Response records</p>
+            <p class="eyebrow">Current workspace</p>
             <h2 id="records-title">Master contacts</h2>
           </div>
           <p id="results-count" aria-live="polite"></p>
         </div>
-        <div class="admin-view-tabs" role="tablist" aria-label="Choose a record view">
-          <button class="admin-view-tab is-active" id="people-view-tab" type="button" role="tab" aria-selected="true" aria-controls="people-list">Contacts</button>
-          <button class="admin-view-tab" id="requests-view-tab" type="button" role="tab" aria-selected="false" aria-controls="submissions-list">Individual requests</button>
-          <button class="admin-view-tab" id="grid-view-tab" type="button" role="tab" aria-selected="false" aria-controls="people-grid">Spreadsheet view</button>
-          <button class="admin-view-tab" id="teams-view-tab" type="button" role="tab" aria-selected="false" aria-controls="teams-workspace">Teams</button>
-          <button class="admin-view-tab" id="ministries-view-tab" type="button" role="tab" aria-selected="false" aria-controls="ministries-workspace">Ministries</button>
-        </div>
         <form class="admin-filters" id="submission-filters" role="search">
-          <label class="admin-search-field">
-            <span>Search people</span>
-            <input name="search" type="search" placeholder="Name, email, phone, organization, language, or location">
-          </label>
-          <label>
-            <span>Follow-up status</span>
-            <select name="status">
-              <option value="">All statuses</option>
-              <option value="new">New</option>
-              <option value="contacted">Contacted</option>
-              <option value="exploring">Exploring</option>
-              <option value="closed">Closed</option>
-            </select>
-          </label>
-          <label>
-            <span>Opportunity type</span>
-            <select name="kind">
-              <option value="">Trips and internships</option>
-              <option value="trip">Trips</option>
-              <option value="internship">Internships</option>
-            </select>
-          </label>
-          <label>
-            <span>Specific opportunity</span>
-            <select name="opportunity" id="opportunity-filter">
-              <option value="">Every opportunity</option>
-            </select>
-          </label>
-          <label>
-            <span>Contact preference</span>
-            <select name="contactPreference">
-              <option value="">Email and phone</option>
-              <option value="email">Email</option>
-              <option value="phone">Phone call</option>
-            </select>
-          </label>
-          <label>
-            <span>Reply state</span>
-            <select name="replyState">
-              <option value="">Any reply state</option>
-              <option value="unreplied">No reply prepared</option>
-              <option value="draft">Draft saved</option>
-              <option value="sent">Marked sent</option>
-            </select>
-          </label>
-          <label>
-            <span>Team</span>
-            <select name="team" id="team-filter">
-              <option value="">Every team</option>
-              <option value="unassigned">Not assigned to a team</option>
-            </select>
-          </label>
-          <label>
-            <span>Contact type</span>
-            <select name="contactType" id="contact-type-filter">
-              <option value="">Every contact type</option>
-            </select>
-          </label>
-          <label>
-            <span>Hope Sojourns area</span>
-            <select name="contactArea" id="contact-area-filter">
-              <option value="">Mission, intern, and corporate</option>
-            </select>
-          </label>
-          <label>
-            <span>Received from</span>
-            <input name="dateFrom" type="date">
-          </label>
-          <label>
-            <span>Received through</span>
-            <input name="dateTo" type="date">
-          </label>
-          <label>
-            <span>Sort by</span>
-            <select name="sort">
-              <option value="newest">Newest activity</option>
-              <option value="oldest">Oldest activity</option>
-              <option value="name_asc">Name A–Z</option>
-              <option value="name_desc">Name Z–A</option>
-            </select>
-          </label>
-          <button class="admin-button admin-button-primary" type="submit">Apply filters</button>
-          <button class="admin-filter-reset" id="reset-filters" type="button">Clear</button>
+          <div class="admin-filter-primary">
+            <label class="admin-search-field">
+              <span>Search</span>
+              <input name="search" type="search" placeholder="Name, email, phone, organization, language, or location">
+            </label>
+            <label>
+              <span>Status</span>
+              <select name="status">
+                <option value="">All statuses</option>
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="exploring">Exploring</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <label>
+              <span>Sort by</span>
+              <select name="sort">
+                <option value="newest">Newest activity</option>
+                <option value="oldest">Oldest activity</option>
+                <option value="name_asc">Name A–Z</option>
+                <option value="name_desc">Name Z–A</option>
+              </select>
+            </label>
+            <button class="admin-button admin-button-primary" type="submit">Apply</button>
+          </div>
+          <details class="admin-filter-more">
+            <summary>More filters</summary>
+            <div class="admin-filter-more-grid">
+              <label>
+                <span>Opportunity type</span>
+                <select name="kind">
+                  <option value="">Trips and internships</option>
+                  <option value="trip">Trips</option>
+                  <option value="internship">Internships</option>
+                </select>
+              </label>
+              <label>
+                <span>Specific opportunity</span>
+                <select name="opportunity" id="opportunity-filter"><option value="">Every opportunity</option></select>
+              </label>
+              <label>
+                <span>Contact preference</span>
+                <select name="contactPreference"><option value="">Email and phone</option><option value="email">Email</option><option value="phone">Phone call</option></select>
+              </label>
+              <label>
+                <span>Reply state</span>
+                <select name="replyState"><option value="">Any reply state</option><option value="unreplied">No reply prepared</option><option value="draft">Draft saved</option><option value="sent">Marked sent</option></select>
+              </label>
+              <label>
+                <span>Team</span>
+                <select name="team" id="team-filter"><option value="">Every team</option><option value="unassigned">Not assigned to a team</option></select>
+              </label>
+              <label>
+                <span>Contact type</span>
+                <select name="contactType" id="contact-type-filter"><option value="">Every contact type</option></select>
+              </label>
+              <label>
+                <span>Hope Sojourns area</span>
+                <select name="contactArea" id="contact-area-filter"><option value="">Mission, intern, and corporate</option></select>
+              </label>
+              <label><span>Received from</span><input name="dateFrom" type="date"></label>
+              <label><span>Received through</span><input name="dateTo" type="date"></label>
+            </div>
+          </details>
+          <button class="admin-filter-reset" id="reset-filters" type="button">Clear all filters</button>
         </form>
 
         <div class="admin-contact-toolbar" id="contact-toolbar">
@@ -332,6 +321,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=14" defer></script>
+  <script src="/admin/admin.js?v=15" defer></script>
 </body>
 </html>

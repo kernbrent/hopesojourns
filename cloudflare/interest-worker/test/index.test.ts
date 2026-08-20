@@ -99,6 +99,13 @@ describe("admin security helpers", () => {
     expect(first).not.toBe(differentSalt);
   });
 
+  it("stays within the Cloudflare Workers PBKDF2 limit", async () => {
+    const salt = Uint8Array.from({ length: 16 }, (_, index) => index);
+    await expect(deriveAdminPasswordHash("HopeSojourns2026!", salt)).resolves.toMatch(/^[A-Za-z0-9_-]{40,60}$/);
+    await expect(deriveAdminPasswordHash("HopeSojourns2026!", salt, 100_001))
+      .rejects.toThrow("between 1 and 100000");
+  });
+
   it("neutralizes spreadsheet formulas in CSV exports", () => {
     expect(csvCell("=HYPERLINK(\"https://example.org\")")).toBe("\"'=HYPERLINK(\"\"https://example.org\"\")\"");
     expect(csvCell("ordinary text")).toBe("\"ordinary text\"");

@@ -6,6 +6,7 @@ const dashboardPanel = document.querySelector("#dashboard-panel");
 const loginForm = document.querySelector("#admin-login-form");
 const passwordInput = document.querySelector("#admin-password");
 const loginStatus = document.querySelector("#login-status");
+const accountMenu = document.querySelector("#admin-account-menu");
 const changePasswordDialog = document.querySelector("#change-password-dialog");
 const changePasswordForm = document.querySelector("#change-password-form");
 const changePasswordStatus = document.querySelector("#change-password-status");
@@ -174,6 +175,7 @@ function showLogin(message = "") {
   if (submissionDialog.open) submissionDialog.close();
   if (contactImportDialog.open) contactImportDialog.close();
   if (changePasswordDialog.open) changePasswordDialog.close();
+  accountMenu.open = false;
   resetPasswordVisibility(loginForm);
   passwordInput.focus();
 }
@@ -1825,6 +1827,7 @@ loginForm.addEventListener("submit", async event => {
 });
 
 document.querySelector("#admin-signout").addEventListener("click", async event => {
+  accountMenu.open = false;
   setBusy(event.currentTarget, true, "Signing out…");
   try { await api("/logout", { method: "POST", body: {} }); } catch { /* The local session is cleared regardless. */ }
   showLogin("You have signed out.");
@@ -1844,12 +1847,17 @@ document.querySelectorAll("[data-password-toggle]").forEach(button => {
 });
 
 document.querySelector("#open-change-password").addEventListener("click", () => {
+  accountMenu.open = false;
   changePasswordForm.reset();
   resetPasswordVisibility(changePasswordForm);
   changePasswordStatus.classList.remove("is-success");
   changePasswordStatus.textContent = "";
   if (!changePasswordDialog.open) changePasswordDialog.showModal();
   currentPasswordInput.focus();
+});
+
+document.addEventListener("click", event => {
+  if (accountMenu.open && !accountMenu.contains(event.target)) accountMenu.open = false;
 });
 
 changePasswordForm.addEventListener("submit", async event => {
