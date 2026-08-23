@@ -37,12 +37,17 @@ assert(productionDatabase.database_name === "hope-sojourns-forms-production", "t
 assert(testDatabase.database_id !== productionDatabase.database_id, "test and production database IDs must differ");
 
 assert(
-  JSON.stringify(routePatterns(testEnvironment)) === JSON.stringify(["test.hopesojourns.com/api/interest/*"]),
+  JSON.stringify(routePatterns(testEnvironment)) === JSON.stringify([
+    "test.hopesojourns.com/api/interest",
+    "test.hopesojourns.com/api/interest/*",
+  ]),
   "test routes must target only test.hopesojourns.com",
 );
 assert(
   JSON.stringify(routePatterns(productionEnvironment)) === JSON.stringify([
+    "hopesojourns.com/api/interest",
     "hopesojourns.com/api/interest/*",
+    "www.hopesojourns.com/api/interest",
     "www.hopesojourns.com/api/interest/*",
   ]),
   "production routes must target only the apex and www production hosts",

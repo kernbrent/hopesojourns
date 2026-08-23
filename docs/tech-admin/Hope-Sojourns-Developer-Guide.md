@@ -181,10 +181,10 @@ Public submissions include opportunity choices, contact details, optional backgr
 
 | Environment | Worker | Route | D1 database |
 |---|---|---|---|
-| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` |
-| Production | `hope-sojourns-interest-production` | `hopesojourns.com/api/interest/*` and `www.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-production` |
+| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest` and `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` |
+| Production | `hope-sojourns-interest-production` | `/api/interest` and `/api/interest/*` on `hopesojourns.com` and `www.hopesojourns.com` | `hope-sojourns-forms-production` |
 
-`/cloudflare/interest-worker/scripts/verify-environment-isolation.mjs` fails when routes, allowed origins, environment names, or database IDs cross those boundaries. Never copy a test D1 export, backup, credential row, or user-data row into production. Production is initialized only by applying the numbered migrations to its empty database; the migrations seed the legitimate opportunity catalog but no contacts, submissions, teams, ministries, sessions, or administrator credentials.
+`/cloudflare/interest-worker/scripts/verify-environment-isolation.mjs` fails when routes, allowed origins, environment names, or database IDs cross those boundaries. Both the exact `/api/interest` path and its `/api/interest/*` descendants must be routed so the public submission endpoint and admin endpoints reach the same environment-specific Worker. Never copy a test D1 export, backup, credential row, or user-data row into production. Production is initialized only by applying the numbered migrations to its empty database; the migrations seed the legitimate opportunity catalog but no contacts, submissions, teams, ministries, sessions, or administrator credentials.
 
 Current migrations:
 

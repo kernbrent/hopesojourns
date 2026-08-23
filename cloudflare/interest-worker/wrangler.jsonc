@@ -20,6 +20,10 @@
       },
       "routes": [
         {
+          "pattern": "test.hopesojourns.com/api/interest",
+          "zone_name": "hopesojourns.com"
+        },
+        {
           "pattern": "test.hopesojourns.com/api/interest/*",
           "zone_name": "hopesojourns.com"
         }
@@ -45,7 +49,15 @@
       },
       "routes": [
         {
+          "pattern": "hopesojourns.com/api/interest",
+          "zone_name": "hopesojourns.com"
+        },
+        {
           "pattern": "hopesojourns.com/api/interest/*",
+          "zone_name": "hopesojourns.com"
+        },
+        {
+          "pattern": "www.hopesojourns.com/api/interest",
           "zone_name": "hopesojourns.com"
         },
         {

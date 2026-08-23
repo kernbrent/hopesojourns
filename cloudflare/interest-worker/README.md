@@ -29,8 +29,8 @@ The Wrangler configuration defines explicit `test` and `production` environments
 
 | Environment | Worker | Route | D1 database |
 |---|---|---|---|
-| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` |
-| Production | `hope-sojourns-interest-production` | `hopesojourns.com/api/interest/*` and `www.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-production` |
+| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest` and `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` |
+| Production | `hope-sojourns-interest-production` | `/api/interest` and `/api/interest/*` on `hopesojourns.com` and `www.hopesojourns.com` | `hope-sojourns-forms-production` |
 
 The two environments use different D1 database IDs and environment-specific secrets. Test exports, backups, rows, and credentials must never be imported into the production database. Production setup applies the numbered migrations to the empty production database; those migrations create the schema and the legitimate opportunity catalog but do not seed contacts, submissions, teams, ministries, sessions, or administrator credentials.
 
