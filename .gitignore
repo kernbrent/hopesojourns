@@ -1,3 +1,11 @@
 /tmp/
 /.tmp/
 /site-dist/
+/brochure/.brochure-sync-state.json
+/brochure/brochure-sync.log
+/.document-sync-state.json
+/document-sync.log
+/DoYouSeeMeMusicVideo/
+/media-inventory-hashes.json
+**/__pycache__/
+*.py[cod]

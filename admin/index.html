@@ -8,8 +8,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'">
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
-  <link rel="stylesheet" href="/styles.css?v=23">
-  <link rel="stylesheet" href="/admin/admin.css?v=12">
+  <link rel="stylesheet" href="/styles.css?v=25">
+  <link rel="stylesheet" href="/admin/admin.css?v=13">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -94,6 +94,7 @@
           <button class="admin-view-tab" id="grid-view-tab" type="button" role="tab" aria-selected="false" aria-controls="people-grid"><strong>Spreadsheet</strong><span>Grid view</span></button>
           <button class="admin-view-tab" id="teams-view-tab" type="button" role="tab" aria-selected="false" aria-controls="teams-workspace"><strong>Teams</strong><span>People assignments</span></button>
           <button class="admin-view-tab" id="ministries-view-tab" type="button" role="tab" aria-selected="false" aria-controls="ministries-workspace"><strong>Ministries</strong><span>Partner directory</span></button>
+          <button class="admin-view-tab" id="internship-toolkit-view-tab" type="button" role="tab" aria-selected="false" aria-controls="internship-toolkit-workspace"><strong>Internship toolkit</strong><span>Policies &amp; templates</span></button>
         </div>
         <div class="admin-workspace-heading">
           <div>
@@ -212,6 +213,53 @@
             </form>
           </div>
           <div class="admin-team-list" id="ministries-list" aria-live="polite"></div>
+        </section>
+        <section class="admin-toolkit-workspace" id="internship-toolkit-workspace" role="tabpanel" aria-labelledby="internship-toolkit-view-tab" hidden>
+          <div class="admin-toolkit-hero">
+            <div>
+              <p class="eyebrow">Internship program operations</p>
+              <h3>Build each placement from the same trusted foundation.</h3>
+              <p>Download a working document, customize the highlighted placeholders, and route agreements and policies for legal, insurance, university, or board review before adoption.</p>
+            </div>
+            <a class="admin-button admin-button-primary" href="/admin/internship-program/Hope-Sojourns-Internship-Program-Business-Model.docx" download>Download business model</a>
+          </div>
+
+          <div class="admin-toolkit-notice" role="note">
+            <strong>These are carefully developed working drafts.</strong>
+            <span>Agreements, policy decisions, refund terms, retention periods, and insurance limits should be approved by qualified counsel and the appropriate insurance professionals before use.</span>
+          </div>
+
+          <div class="admin-toolkit-groups">
+            <section class="admin-toolkit-group" aria-labelledby="toolkit-agreements-title">
+              <div class="admin-toolkit-group-heading"><p class="eyebrow">01</p><h4 id="toolkit-agreements-title">Agreements and learning</h4></div>
+              <div class="admin-toolkit-grid">
+                <article class="admin-toolkit-card"><span>Agreement</span><h5>University placement agreement</h5><p>Defines academic ownership, referrals, communication, privacy, safety, insurance, and placement responsibilities.</p><a href="/admin/internship-program/University-Placement-Agreement-Template.docx" download>Download Word template</a></article>
+                <article class="admin-toolkit-card"><span>Agreement</span><h5>Host ministry agreement</h5><p>Documents supervision, meaningful duties, safeguarding, support provided, evaluations, and local responsibilities.</p><a href="/admin/internship-program/Host-Ministry-Agreement-Template.docx" download>Download Word template</a></article>
+                <article class="admin-toolkit-card"><span>Agreement</span><h5>Student participation and financial agreement</h5><p>Sets participation expectations, student-paid expenses, program support, travel responsibilities, and acknowledgments.</p><a href="/admin/internship-program/Student-Participation-and-Financial-Agreement-Template.docx" download>Download Word template</a></article>
+                <article class="admin-toolkit-card"><span>Learning plan</span><h5>Internship learning agreement</h5><p>Aligns goals, duties, supervision, university requirements, evaluation, and final deliverables.</p><a href="/admin/internship-program/Internship-Learning-Agreement-Template.docx" download>Download Word template</a></article>
+              </div>
+            </section>
+
+            <section class="admin-toolkit-group" aria-labelledby="toolkit-safety-title">
+              <div class="admin-toolkit-group-heading"><p class="eyebrow">02</p><h4 id="toolkit-safety-title">Safety, conduct, and care</h4></div>
+              <div class="admin-toolkit-grid">
+                <article class="admin-toolkit-card"><span>Policy</span><h5>Internship code of conduct</h5><p>Establishes expectations for dignity, boundaries, professionalism, confidentiality, media, travel, and reporting.</p><a href="/admin/internship-program/Internship-Code-of-Conduct.docx" download>Download Word policy</a></article>
+                <article class="admin-toolkit-card"><span>Policy</span><h5>Safeguarding and misconduct reporting</h5><p>Provides prevention standards, reporting contacts, response steps, confidentiality, and non-retaliation protections.</p><a href="/admin/internship-program/Safeguarding-and-Misconduct-Reporting-Policy.docx" download>Download Word policy</a></article>
+                <article class="admin-toolkit-card"><span>Policy</span><h5>Background check policy</h5><p>Defines who is screened, required checks, individualized review, timing, fair process, and secure records.</p><a href="/admin/internship-program/Background-Check-Policy.docx" download>Download Word policy</a></article>
+                <article class="admin-toolkit-card"><span>Safety plan</span><h5>Emergency response plan</h5><p>Combines master response priorities, incident levels, scenario checklists, contacts, and trip-specific readiness.</p><a href="/admin/internship-program/Emergency-Response-Plan-Template.docx" download>Download Word template</a></article>
+                <article class="admin-toolkit-card"><span>Authorization</span><h5>Parent and emergency contact authorization</h5><p>Lets an adult student direct routine family communication while preserving a clear emergency-contact path.</p><a href="/admin/internship-program/Parent-and-Emergency-Contact-Authorization.docx" download>Download Word form</a></article>
+              </div>
+            </section>
+
+            <section class="admin-toolkit-group" aria-labelledby="toolkit-governance-title">
+              <div class="admin-toolkit-group-heading"><p class="eyebrow">03</p><h4 id="toolkit-governance-title">Financial and information governance</h4></div>
+              <div class="admin-toolkit-grid">
+                <article class="admin-toolkit-card"><span>Policy</span><h5>Cancellation and refund policy</h5><p>Offers draft timing, refund percentages, third-party cost treatment, dismissal terms, and a written request process.</p><a href="/admin/internship-program/Cancellation-and-Refund-Policy.docx" download>Download Word policy</a></article>
+                <article class="admin-toolkit-card"><span>Policy</span><h5>Data privacy and record retention</h5><p>Covers collection, use, access, FERPA coordination, security, breach response, and a proposed retention schedule.</p><a href="/admin/internship-program/Data-Privacy-and-Record-Retention-Policy.docx" download>Download Word policy</a></article>
+                <article class="admin-toolkit-card"><span>Checklist</span><h5>Insurance requirements and coverage</h5><p>Provides planning targets and verification steps for organizational, host ministry, and student travel coverage.</p><a href="/admin/internship-program/Insurance-Requirements-and-Coverage-Checklist.docx" download>Download Word checklist</a></article>
+              </div>
+            </section>
+          </div>
         </section>
         <div class="admin-empty" id="submissions-empty" hidden>
           <img src="/assets/hope-sojourns-icon.png" alt="" width="72" height="72">

@@ -54,6 +54,8 @@ const requestsViewTab = document.querySelector("#requests-view-tab");
 const gridViewTab = document.querySelector("#grid-view-tab");
 const teamsViewTab = document.querySelector("#teams-view-tab");
 const ministriesViewTab = document.querySelector("#ministries-view-tab");
+const internshipToolkitViewTab = document.querySelector("#internship-toolkit-view-tab");
+const internshipToolkitWorkspace = document.querySelector("#internship-toolkit-workspace");
 const previousPage = document.querySelector("#previous-page");
 const nextPage = document.querySelector("#next-page");
 const pageLabel = document.querySelector("#page-label");
@@ -548,7 +550,11 @@ async function loadRecords() {
   else if (state.view === "requests") await loadSubmissions();
   else if (state.view === "grid") await loadPeopleGrid();
   else if (state.view === "teams") await loadTeams();
-  else await loadMinistries();
+  else if (state.view === "ministries") await loadMinistries();
+  else {
+    resultsCount.textContent = "13 working documents";
+    submissionsStatus.textContent = "";
+  }
 }
 
 function switchView(view, focusTab = false) {
@@ -559,6 +565,7 @@ function switchView(view, focusTab = false) {
   const showGrid = view === "grid";
   const showTeams = view === "teams";
   const showMinistries = view === "ministries";
+  const showInternshipToolkit = view === "internship-toolkit";
   peopleViewTab.classList.toggle("is-active", showPeople);
   peopleViewTab.setAttribute("aria-selected", String(showPeople));
   peopleViewTab.tabIndex = showPeople ? 0 : -1;
@@ -574,18 +581,22 @@ function switchView(view, focusTab = false) {
   ministriesViewTab.classList.toggle("is-active", showMinistries);
   ministriesViewTab.setAttribute("aria-selected", String(showMinistries));
   ministriesViewTab.tabIndex = showMinistries ? 0 : -1;
+  internshipToolkitViewTab.classList.toggle("is-active", showInternshipToolkit);
+  internshipToolkitViewTab.setAttribute("aria-selected", String(showInternshipToolkit));
+  internshipToolkitViewTab.tabIndex = showInternshipToolkit ? 0 : -1;
   peopleList.hidden = !showPeople;
   contactToolbar.hidden = !showPeople;
   submissionsList.hidden = !showRequests;
   peopleGrid.hidden = !showGrid;
   teamsWorkspace.hidden = !showTeams;
   ministriesWorkspace.hidden = !showMinistries;
-  filterForm.hidden = showTeams || showMinistries;
-  recordsPagination.hidden = showTeams || showMinistries;
-  exportButton.hidden = showTeams || showMinistries;
+  internshipToolkitWorkspace.hidden = !showInternshipToolkit;
+  filterForm.hidden = showTeams || showMinistries || showInternshipToolkit;
+  recordsPagination.hidden = showTeams || showMinistries || showInternshipToolkit;
+  exportButton.hidden = showTeams || showMinistries || showInternshipToolkit;
   submissionsEmpty.hidden = true;
-  recordsTitle.textContent = showPeople ? "Master contacts" : showRequests ? "Individual requests" : showGrid ? "Contact spreadsheet" : showTeams ? "Teams" : "Ministries";
-  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : showGrid ? gridViewTab : showTeams ? teamsViewTab : ministriesViewTab).focus();
+  recordsTitle.textContent = showPeople ? "Master contacts" : showRequests ? "Individual requests" : showGrid ? "Contact spreadsheet" : showTeams ? "Teams" : showMinistries ? "Ministries" : "Internship toolkit";
+  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : showGrid ? gridViewTab : showTeams ? teamsViewTab : showMinistries ? ministriesViewTab : internshipToolkitViewTab).focus();
   loadRecords();
 }
 
@@ -778,7 +789,11 @@ async function refreshAfterDeletion(successMessage) {
   state.currentRecordId = "";
   if (state.view === "teams" || state.view === "ministries") {
     if (state.view === "teams") await loadTeams();
-    else await loadMinistries();
+  else if (state.view === "ministries") await loadMinistries();
+  else {
+    resultsCount.textContent = "13 working documents";
+    submissionsStatus.textContent = "";
+  }
     try {
       const { result } = await api("/people?page=1&pageSize=1");
       renderSummary(result.summary);
@@ -1893,10 +1908,11 @@ requestsViewTab.addEventListener("click", () => switchView("requests"));
 gridViewTab.addEventListener("click", () => switchView("grid"));
 teamsViewTab.addEventListener("click", () => switchView("teams"));
 ministriesViewTab.addEventListener("click", () => switchView("ministries"));
+internshipToolkitViewTab.addEventListener("click", () => switchView("internship-toolkit"));
 document.querySelector(".admin-view-tabs").addEventListener("keydown", event => {
   if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
   event.preventDefault();
-  const views = ["people", "requests", "grid", "teams", "ministries"];
+  const views = ["people", "requests", "grid", "teams", "ministries", "internship-toolkit"];
   const direction = event.key === "ArrowRight" ? 1 : -1;
   const nextIndex = (views.indexOf(state.view) + direction + views.length) % views.length;
   switchView(views[nextIndex], true);
