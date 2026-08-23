@@ -733,6 +733,16 @@ def add_note_paragraph(doc: Document, text: str) -> None:
     add_inline_text(paragraph, text, base_size=10.5, base_color=COLORS["forest_dark"])
 
 
+def preserve_list_boundaries(paragraph, lines: list[str], index: int, pattern: str) -> None:
+    """Avoid leaving the first or final list item isolated across a page break."""
+    previous_is_list = index > 0 and re.match(pattern, lines[index - 1]) is not None
+    next_is_list = index + 1 < len(lines) and re.match(pattern, lines[index + 1]) is not None
+    following_is_list = index + 2 < len(lines) and re.match(pattern, lines[index + 2]) is not None
+    paragraph.paragraph_format.keep_together = True
+    if next_is_list and (not previous_is_list or not following_is_list):
+        paragraph.paragraph_format.keep_with_next = True
+
+
 def render_markdown(doc: Document, lines: list[str], numbering_ids: dict[str, int]) -> None:
     index = 0
     in_code = False
@@ -793,6 +803,7 @@ def render_markdown(doc: Document, lines: list[str], numbering_ids: dict[str, in
             level = min(len(checkbox.group(1)) // 2, 2)
             paragraph = doc.add_paragraph()
             apply_numbering(paragraph, numbering_ids["checkbox"], level)
+            preserve_list_boundaries(paragraph, lines, index, r"^(\s*)-\s+\[([ xX])\]\s+(.+)$")
             add_inline_text(paragraph, checkbox.group(3))
             index += 1
             continue
@@ -803,6 +814,7 @@ def render_markdown(doc: Document, lines: list[str], numbering_ids: dict[str, in
             level = min(len(bullet.group(1)) // 2, 2)
             paragraph = doc.add_paragraph()
             apply_numbering(paragraph, numbering_ids["bullet"], level)
+            preserve_list_boundaries(paragraph, lines, index, r"^(\s*)[-*]\s+(.+)$")
             add_inline_text(paragraph, bullet.group(2))
             index += 1
             continue
@@ -814,6 +826,7 @@ def render_markdown(doc: Document, lines: list[str], numbering_ids: dict[str, in
             level = min(len(numbered.group(1)) // 2, 2)
             paragraph = doc.add_paragraph()
             apply_numbering(paragraph, active_number_id, level)
+            preserve_list_boundaries(paragraph, lines, index, r"^(\s*)\d+\.\s+(.+)$")
             add_inline_text(paragraph, numbered.group(2))
             index += 1
             continue

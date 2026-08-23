@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=25">
-  <link rel="stylesheet" href="/admin/admin.css?v=13">
+  <link rel="stylesheet" href="/admin/admin.css?v=14">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -18,8 +18,8 @@
       <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with Hope. Serve with Faith.">
     </a>
     <div class="admin-header-actions">
-      <span class="admin-environment">Test portal</span>
-      <a class="admin-return" href="/">Return to test site</a>
+      <span class="admin-environment" data-admin-environment>Private portal</span>
+      <a class="admin-return" href="/" data-admin-return>Return to Hope Sojourns</a>
     </div>
   </header>
 
@@ -221,7 +221,10 @@
               <h3>Build each placement from the same trusted foundation.</h3>
               <p>Download a working document, customize the highlighted placeholders, and route agreements and policies for legal, insurance, university, or board review before adoption.</p>
             </div>
-            <a class="admin-button admin-button-primary" href="/admin/internship-program/Hope-Sojourns-Internship-Program-Business-Model.docx" download>Download business model</a>
+            <div class="admin-toolkit-actions">
+              <a class="admin-button admin-button-primary" href="/admin/internship-program/Hope-Sojourns-Internship-Program-Documents.zip" download>Download all documents (.zip)</a>
+              <a class="admin-button admin-button-outline" href="/admin/internship-program/Hope-Sojourns-Internship-Program-Business-Model.docx" download>Download business model</a>
+            </div>
           </div>
 
           <div class="admin-toolkit-notice" role="note">
@@ -365,10 +368,10 @@
 
   <footer class="admin-footer">
     <p>&copy; <span id="year"></span> Hope Sojourns</p>
-    <p>Private test environment &middot; Go with Hope. Serve with Faith.</p>
+    <p data-admin-environment-note>Private response portal &middot; Go with Hope. Serve with Faith.</p>
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=15" defer></script>
+  <script src="/admin/admin.js?v=17" defer></script>
 </body>
 </html>

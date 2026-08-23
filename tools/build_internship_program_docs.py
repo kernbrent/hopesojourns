@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import date
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from docx import Document
 from docx.enum.section import WD_SECTION
@@ -30,6 +31,7 @@ RED = "9B2F2F"
 BODY_FONT = "Calibri"
 TITLE_FONT = "Georgia"
 TODAY_LABEL = "August 2026"
+ARCHIVE_NAME = "Hope-Sojourns-Internship-Program-Documents.zip"
 
 
 def rgb(hex_color):
@@ -1343,8 +1345,13 @@ def build_all():
         build_privacy_policy(),
         build_insurance_checklist(),
     ]
+    archive_path = OUTPUT_DIR / ARCHIVE_NAME
+    with ZipFile(archive_path, "w", compression=ZIP_DEFLATED, compresslevel=9) as archive:
+        for output in outputs:
+            archive.write(output, arcname=output.name)
     for output in outputs:
         print(output)
+    print(archive_path)
 
 
 if __name__ == "__main__":

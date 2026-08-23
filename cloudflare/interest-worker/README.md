@@ -1,4 +1,4 @@
-# Hope Sojourns test forms and admin Worker
+# Hope Sojourns forms and admin Worker
 
 This Cloudflare Worker stores trip and internship interest in a D1 database. It keeps personal information out of the static website, requires and validates both an email address and cell phone number, accepts several opportunities for one person, and prevents duplicate person/opportunity rows and exact repeat submissions.
 
@@ -23,8 +23,19 @@ npm run deploy:dry
 
 The migrations seed the current trip and internship opportunities and add the master-contact and ministry relationship tables. Local migrations and tests do not create or modify a production database.
 
-## Test deployment
+## Environment isolation
 
-The test environment uses the `hope-sojourns-forms-test` D1 database, the `hope-sojourns-interest-test` Worker, and the `test.hopesojourns.com/api/interest/*` route. Apply pending D1 migrations before deploying Worker code that depends on them. The required `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` values must be stored with Wrangler secrets and must never be committed. If the D1-backed password is ever forgotten, an authorized operator can remove the `primary` row from `admin_credentials` to restore login with the Cloudflare `ADMIN_PASSWORD` secret, then immediately set a new portal password.
+The Wrangler configuration defines explicit `test` and `production` environments. Never deploy this Worker without `--env test` or `--env production`.
+
+| Environment | Worker | Route | D1 database |
+|---|---|---|---|
+| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` |
+| Production | `hope-sojourns-interest-production` | `hopesojourns.com/api/interest/*` and `www.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-production` |
+
+The two environments use different D1 database IDs and environment-specific secrets. Test exports, backups, rows, and credentials must never be imported into the production database. Production setup applies the numbered migrations to the empty production database; those migrations create the schema and the legitimate opportunity catalog but do not seed contacts, submissions, teams, ministries, sessions, or administrator credentials.
+
+Run `npm run validate:environments` before migrations or deployment. Apply migrations with `npm run db:migrate:test` or `npm run db:migrate:production`, and deploy with `npm run deploy:test` or `npm run deploy:production`. The required `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` values must be stored separately for each Wrangler environment and must never be committed.
+
+If the D1-backed password is ever forgotten, an authorized operator can remove the `primary` row from `admin_credentials` in the affected environment to restore login with that environment's Cloudflare `ADMIN_PASSWORD` secret, then immediately set a new portal password.
 
 Outbound email stays on the free tier: the response portal stores the prepared reply, opens it in the administrator's normal email application, and records when the administrator marks it sent.

@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 1.2
+Version 1.4
 
 Last reviewed: August 23, 2026
 
@@ -157,7 +157,7 @@ Use stable IDs, valid types, accurate metadata, descriptive action labels, and v
 
 ### Internship program documents
 
-`/tools/build_internship_program_docs.py` generates Word documents into `/admin/internship-program/`. Treat the script as the maintainable source for bulk document formatting and repeated text. After changing its design constants or templates, regenerate and visually inspect the affected documents before replacing approved copies.
+`/tools/build_internship_program_docs.py` generates Word documents into `/admin/internship-program/` and then packages the generated set as `/admin/internship-program/Hope-Sojourns-Internship-Program-Documents.zip`. Treat the script as the maintainable source for bulk document formatting, repeated text, and the download-all archive. The Internship toolkit keeps individual Word links available beside the ZIP bundle. After changing document design constants or templates, regenerate and visually inspect the affected documents before replacing approved copies; confirm the ZIP contains every current Word document before handoff.
 
 ### Website document synchronization
 
@@ -173,11 +173,18 @@ The Windows scheduled task `Hope Sojourns Brochure Sync` retains its historical 
 
 `/interest/index.html` declares `data-interest-api-base="/api/interest"`. On localhost, `/interest/interest.js` uses `http://127.0.0.1:8787`; otherwise it uses the configured relative API path.
 
-The browser validates and submits interest selections, name, email, cell phone, contact preference, optional notes, and consent. The static site must never store submitted personal information.
+Public submissions include opportunity choices, contact details, optional background or experience, timing, notes, and consent. The user-facing label for legacy `fieldOfStudy` is “Background, skills, or areas of experience”; retain the key absent a coordinated migration. Never store submissions in the static site.
 
 ### Worker
 
-`/cloudflare/interest-worker/src/index.ts` handles public submissions and admin APIs. The Worker uses the D1 binding `DB` and the test database `hope-sojourns-forms-test`.
+`/cloudflare/interest-worker/src/index.ts` handles public submissions and admin APIs. The Wrangler configuration requires an explicit environment and binds `DB` to a different D1 database in each environment:
+
+| Environment | Worker | Route | D1 database |
+|---|---|---|---|
+| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` |
+| Production | `hope-sojourns-interest-production` | `hopesojourns.com/api/interest/*` and `www.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-production` |
+
+`/cloudflare/interest-worker/scripts/verify-environment-isolation.mjs` fails when routes, allowed origins, environment names, or database IDs cross those boundaries. Never copy a test D1 export, backup, credential row, or user-data row into production. Production is initialized only by applying the numbered migrations to its empty database; the migrations seed the legitimate opportunity catalog but no contacts, submissions, teams, ministries, sessions, or administrator credentials.
 
 Current migrations:
 
@@ -201,7 +208,7 @@ The response portal uses secure HTTP-only sessions, CSRF protection for state-ch
 
 Never store those values in source, documentation, test snapshots, or browser-accessible JavaScript.
 
-The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. CSV output must continue to neutralize spreadsheet formulas.
+The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. The Internship toolkit exposes a download-all ZIP while preserving every individual document download. CSV output must continue to neutralize spreadsheet formulas.
 
 ### Admin headers and indexing
 
@@ -251,6 +258,7 @@ Use an available local server if Python is not installed. Do not add a permanent
 Set-Location cloudflare\interest-worker
 npm install
 npm run types
+npm run validate:environments
 npm run check
 npm test
 npm run db:migrate:local
@@ -398,7 +406,7 @@ Before an authorized deployment:
 - confirm the admin security headers and noindex behavior; and
 - have a rollback or recovery plan.
 
-The current Interest Worker configuration targets the test environment and the route `test.hopesojourns.com/api/interest/*`. The PayPal Worker configuration uses production PayPal endpoints. Treat those differences as important operational context.
+The Interest Worker has isolated test and production environments. Always name the intended environment in migration, secret, and deployment commands. Production launch order is: validate isolation, create or verify the production D1 database, apply production migrations, set production-only secrets, dry-run the production Worker, deploy it, publish the production Pages build, and verify both production hostnames. Test data must remain bound only to the test Worker and database.
 
 ## 15. Documentation maintenance
 
@@ -445,6 +453,8 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
-| 2026-08-23 | 1.2 | Added the generated Microsoft Word editions and their build, visual-review, and synchronization workflow. |
-| 2026-08-23 | 1.1 | Added comprehensive, conflict-safe synchronization for all published website documents and documented the daily 2:30 a.m. scheduled task. |
-| 2026-08-23 | 1.0 | Established the living developer guide from the current static site, response portal, Workers, validation rules, and maintenance workflows. |
+| 2026-08-23 | 1.4 | Added the production launch architecture, environment guard, isolated Workers and D1 databases, and deployment order. |
+| 2026-08-23 | 1.3 | Added inclusive form and portal wording, the internship ZIP workflow, and safer Word list pagination. |
+| 2026-08-23 | 1.2 | Added Word editions and their build, visual-review, and synchronization workflow. |
+| 2026-08-23 | 1.1 | Added conflict-safe document synchronization and the daily 2:30 a.m. task. |
+| 2026-08-23 | 1.0 | Established the guide from the current site, portal, Workers, and validation rules. |

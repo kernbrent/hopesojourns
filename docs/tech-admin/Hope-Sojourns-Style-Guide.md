@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 1.0
+Version 1.2
 
 Last reviewed: August 23, 2026
 
@@ -222,6 +222,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Use one visually dominant action per local decision area.
 - Link text must describe its destination or action; avoid “click here.”
 - Keep visible keyboard focus and do not remove outlines without an equally clear replacement.
+- When a document set is offered, provide one clearly labeled bundle download as well as descriptive links for each individual file.
 
 ### Sections, cards, and callouts
 
@@ -236,6 +237,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Every input requires a visible label.
 - Group related choices with `fieldset` and `legend`.
 - Explain optional fields without weakening required-field clarity.
+- Use inclusive labels and examples that welcome adults in different seasons of life. Do not assume school enrollment, employment, marital status, or another life circumstance unless the workflow truly requires it.
 - Use visible working, notice, success, and error messages; do not rely on color alone.
 - Preserve entered data when validation fails.
 - Error text uses `--error`; error surfaces use `--coral-wash`.
@@ -246,6 +248,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Always pair status color with readable status text.
 - Scheduled uses sunlit gold, confirmed uses soft forest, and planning uses a restrained translucent treatment on dark surfaces.
 - Admin success, information, warning, and error states use the functional palette only.
+- Admin environment copy must be derived from the current hostname. Production must say “Production portal” or use neutral private-portal language and must never display a test-environment label; static HTML uses neutral wording to prevent an incorrect label before JavaScript runs.
 
 ### Dialogs and lightboxes
 
@@ -359,4 +362,6 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-23 | 1.2 | Added hostname-aware response-portal environment labeling for the production launch. |
+| 2026-08-23 | 1.1 | Added inclusive form-language and document-bundle standards for the public interest form and response portal. |
 | 2026-08-23 | 1.0 | Established the living site-wide style guide from the implemented Hope Sojourns design system. |

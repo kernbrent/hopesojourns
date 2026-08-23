@@ -700,6 +700,7 @@
 .admin-toolkit-hero h3 { margin: .12rem 0 .3rem; color: var(--forest-dark); font-size: 1.38rem; }
 .admin-toolkit-hero p:last-child { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.55; }
 .admin-toolkit-hero .admin-button { flex: 0 0 auto; }
+.admin-toolkit-hero > .admin-toolkit-actions { display: flex; max-width: none; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: .6rem; }
 .admin-toolkit-notice {
   display: grid;
   margin-top: .75rem;
@@ -782,6 +783,7 @@
   .admin-filter-primary .admin-button { grid-column: 1 / -1; }
   .admin-team-create-form { grid-template-columns: 1fr; }
   .admin-toolkit-hero { align-items: flex-start; flex-direction: column; }
+  .admin-toolkit-actions { width: 100%; justify-content: flex-start; }
 }
 
 @media (max-width: 560px) {

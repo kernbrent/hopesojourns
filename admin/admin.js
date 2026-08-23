@@ -1,6 +1,27 @@
 "use strict";
 
 const API_BASE = "/api/interest/admin";
+const adminEnvironmentBadge = document.querySelector("[data-admin-environment]");
+const adminReturnLink = document.querySelector("[data-admin-return]");
+const adminEnvironmentNote = document.querySelector("[data-admin-environment-note]");
+const adminHostname = window.location.hostname.toLowerCase();
+const isTestAdminHost = adminHostname === "test.hopesojourns.com"
+  || adminHostname === "hopesojourns-test.pages.dev"
+  || adminHostname.endsWith(".hopesojourns-test.pages.dev");
+const isProductionAdminHost = ["hopesojourns.com", "www.hopesojourns.com", "hopesojourns.pages.dev"].includes(adminHostname);
+
+if (adminEnvironmentBadge) {
+  adminEnvironmentBadge.textContent = isTestAdminHost ? "Test portal" : isProductionAdminHost ? "Production portal" : "Preview portal";
+}
+if (adminReturnLink) {
+  adminReturnLink.textContent = isTestAdminHost ? "Return to test site" : "Return to Hope Sojourns";
+}
+if (adminEnvironmentNote) {
+  adminEnvironmentNote.textContent = isTestAdminHost
+    ? "Private test environment · Go with Hope. Serve with Faith."
+    : "Private response portal · Go with Hope. Serve with Faith.";
+}
+
 const loginPanel = document.querySelector("#login-panel");
 const dashboardPanel = document.querySelector("#dashboard-panel");
 const loginForm = document.querySelector("#admin-login-form");
@@ -843,7 +864,7 @@ function renderSubmissionDetail(submission) {
   profile.append(element("h3", "", "Contact profile"));
   profile.append(detailList([
     ["Preferred contact", titleCase(submission.contactPreference)],
-    ["School or field", submission.fieldOfStudy],
+    ["Background or experience", submission.fieldOfStudy],
     ["Preferred timing", submission.preferredTiming],
     ["Consent recorded", formatDate(submission.consentAt)],
     ["Source page", submission.sourcePage],
@@ -1046,7 +1067,7 @@ function renderContactEditor(person = null) {
     editorSelect("Preferred contact", "contactPreference", [["email", "Email"], ["phone", "Phone"]], person?.contactPreference || "email"),
     editorSelect("Contact status", "contactStatus", [["active", "Active"], ["inactive", "Inactive"]], person?.contactStatus || "active"),
     editorField("Website", "website", person?.website, { type: "url", maximum: 300, placeholder: "https://" }),
-    editorField("School, field, or specialty", "fieldOfStudy", person?.fieldOfStudy, { maximum: 160 }),
+    editorField("Background, skills, or areas of experience", "fieldOfStudy", person?.fieldOfStudy, { maximum: 160 }),
     editorField("Address line 1", "addressLine1", person?.addressLine1, { maximum: 160 }),
     editorField("Address line 2", "addressLine2", person?.addressLine2, { maximum: 160 }),
     editorField("City", "city", person?.city, { maximum: 100 }),
@@ -1171,7 +1192,7 @@ function renderPersonDetail(person) {
     ["Address", address],
     ["Languages", person.languages.join(", ")],
     ["Hope Sojourns areas", person.areas.map(titleCase).join(", ")],
-    ["School, field, or specialty", person.fieldOfStudy],
+    ["Background or experience", person.fieldOfStudy],
     ["Last contacted", formatDate(person.lastContactedAt, false)],
     ["Added from", person.recordSource === "manual" ? "Admin portal" : "Website form"],
     ["First recorded", formatDate(person.createdAt)],
@@ -1245,7 +1266,7 @@ function createTeamMemberCard(team, member) {
   const identity = element("div");
   identity.append(element("h4", "", `${member.firstName} ${member.lastName}`));
   identity.append(element("small", "", `Assigned ${formatDate(member.assignedAt, false)}`));
-  identity.append(element("small", "", member.fieldOfStudy || "School or field not provided"));
+  identity.append(element("small", "", member.fieldOfStudy || "Background or experience not provided"));
 
   const contact = element("div", "admin-team-member-contact");
   if (member.email) {

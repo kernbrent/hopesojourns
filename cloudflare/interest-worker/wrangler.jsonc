@@ -1,32 +1,70 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "hope-sojourns-interest-test",
+  "name": "hope-sojourns-interest",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-19",
+  "compatibility_date": "2026-08-23",
   "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": true,
-  "preview_urls": true,
-  "routes": [
-    {
-      "pattern": "test.hopesojourns.com/api/interest/*",
-      "zone_name": "hopesojourns.com"
-    }
-  ],
+  "workers_dev": false,
+  "preview_urls": false,
   "observability": {
     "enabled": true,
     "logs": { "head_sampling_rate": 1 },
     "traces": { "enabled": true, "head_sampling_rate": 0.05 }
   },
-  "vars": {
-    "ENVIRONMENT": "test",
-    "ALLOWED_ORIGINS": "https://test.hopesojourns.com,https://hopesojourns-test.pages.dev,http://localhost:*,http://127.0.0.1:*"
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "hope-sojourns-forms-test",
-      "database_id": "3b9a972b-6295-4736-80eb-4c0169ec31bb",
-      "migrations_dir": "migrations"
+  "env": {
+    "test": {
+      "workers_dev": true,
+      "preview_urls": true,
+      "secrets": {
+        "required": ["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET"]
+      },
+      "routes": [
+        {
+          "pattern": "test.hopesojourns.com/api/interest/*",
+          "zone_name": "hopesojourns.com"
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "test",
+        "ALLOWED_ORIGINS": "https://test.hopesojourns.com,https://hopesojourns-test.pages.dev,http://localhost:*,http://127.0.0.1:*"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "hope-sojourns-forms-test",
+          "database_id": "3b9a972b-6295-4736-80eb-4c0169ec31bb",
+          "migrations_dir": "migrations"
+        }
+      ]
+    },
+    "production": {
+      "workers_dev": false,
+      "preview_urls": false,
+      "secrets": {
+        "required": ["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET"]
+      },
+      "routes": [
+        {
+          "pattern": "hopesojourns.com/api/interest/*",
+          "zone_name": "hopesojourns.com"
+        },
+        {
+          "pattern": "www.hopesojourns.com/api/interest/*",
+          "zone_name": "hopesojourns.com"
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "ALLOWED_ORIGINS": "https://hopesojourns.com,https://www.hopesojourns.com,https://hopesojourns.pages.dev"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "hope-sojourns-forms-production",
+          "database_id": "d277a0d4-a471-43c6-8bcf-81524d08cd12",
+          "migrations_dir": "migrations"
+        }
+      ]
     }
-  ]
+  }
 }
