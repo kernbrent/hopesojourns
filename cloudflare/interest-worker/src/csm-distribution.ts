@@ -11,6 +11,10 @@ type InboxRow = {
   recipient_record_id: string | null; callback_status: string; decision_reason: string | null;
 };
 type PersonRow = { id: string; first_name: string; last_name: string; email: string };
+type GivingSummaryRow = {
+  gross_received: number | null; net_received: number | null; sent: number | null;
+  donations: number | null; givers: number | null;
+};
 
 const cleanLine = (value: unknown, maximum: number): string | null => {
   if (typeof value !== "string") return null;
@@ -53,6 +57,27 @@ async function matchDonor(env: CsmEnv, message: CsmDistributionMessage): Promise
   return candidates.results.length === 1
     ? { personId: candidates.results[0]!.id, method: "email", status: "pending" }
     : { personId: null, method: null, status: "needs_match" };
+}
+
+export async function currentGivingSummary(env: CsmEnv, at = new Date()): Promise<{
+  year: number; grossReceived: number; netReceived: number; sent: number; donations: number; givers: number;
+}> {
+  const year = at.getUTCFullYear();
+  const start = `${year}-01-01T00:00:00.000Z`;
+  const end = `${year + 1}-01-01T00:00:00.000Z`;
+  const row = await env.DB.prepare(
+    `SELECT
+       COALESCE(SUM(CASE WHEN direction = 'received' THEN gross ELSE 0 END), 0) AS gross_received,
+       COALESCE(SUM(CASE WHEN direction = 'received' THEN net ELSE 0 END), 0) AS net_received,
+       COALESCE(SUM(CASE WHEN direction = 'sent' THEN ABS(gross) ELSE 0 END), 0) AS sent,
+       COALESCE(SUM(CASE WHEN direction = 'received' THEN 1 ELSE 0 END), 0) AS donations,
+       COUNT(DISTINCT CASE WHEN direction = 'received' THEN person_id END) AS givers
+     FROM financial_transactions WHERE transaction_date >= ?1 AND transaction_date < ?2`,
+  ).bind(start, end).first<GivingSummaryRow>();
+  return {
+    year, grossReceived: Number(row?.gross_received ?? 0), netReceived: Number(row?.net_received ?? 0),
+    sent: Number(row?.sent ?? 0), donations: Number(row?.donations ?? 0), givers: Number(row?.givers ?? 0),
+  };
 }
 
 async function receive(request: Request, env: CsmEnv): Promise<Response> {
@@ -123,6 +148,7 @@ async function listInbox(request: Request, env: CsmEnv): Promise<Response> {
   ).bind(...(status === "open" || status === "all" ? [] : [status])).all<Record<string, unknown>>();
   const grouped = await env.DB.prepare("SELECT status, COUNT(*) AS count FROM csm_distribution_inbox GROUP BY status")
     .all<{ status: string; count: number }>();
+  const givingSummary = await currentGivingSummary(env);
   const messages = await Promise.all(result.results.map(async row => {
     const message = parseDistributionMessage(JSON.parse(String(row.payload_json)));
     return {
@@ -140,7 +166,7 @@ async function listInbox(request: Request, env: CsmEnv): Promise<Response> {
       candidates: await candidates(env, message),
     };
   }));
-  return adminJson({ messages, counts: Object.fromEntries(grouped.results.map(row => [row.status, Number(row.count)])) });
+  return adminJson({ messages, counts: Object.fromEntries(grouped.results.map(row => [row.status, Number(row.count)])), givingSummary });
 }
 
 async function inboxRecord(env: CsmEnv, id: string): Promise<{ row: InboxRow; message: CsmDistributionMessage }> {
@@ -204,11 +230,12 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
   let matchMethod: string | null = null;
   if (message.transaction.direction === "received") {
     const requested = cleanLine(body.personId, 64);
-    personId = requested || row.matched_person_id;
+    const refreshedMatch = !requested && !row.matched_person_id ? await matchDonor(env, message) : null;
+    personId = requested || row.matched_person_id || refreshedMatch?.personId || null;
     if (personId) {
       const exists = await env.DB.prepare("SELECT id FROM people WHERE id = ?1").bind(personId).first<{ id: string }>();
       if (!exists) throw new AdminError(422, "PERSON_NOT_FOUND", "Choose an existing donor or create a new one.");
-      matchMethod = requested ? "manual" : row.match_method;
+      matchMethod = requested ? "manual" : row.match_method || refreshedMatch?.method || null;
     } else {
       const input = newDonor(body, message);
       personId = crypto.randomUUID();
@@ -261,7 +288,8 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
   );
   await env.DB.batch(statements);
   const callbackStatus = await notifyCsm(env, { ...row, recipient_record_id: recordId }, "approved", null);
-  return adminJson({ success: true, status: "approved", recordId, personId, callbackStatus });
+  return adminJson({ success: true, status: "approved", recordId, personId, matchMethod,
+    createdPerson: matchMethod === "new_donor", callbackStatus });
 }
 
 async function deny(request: Request, env: CsmEnv, id: string): Promise<Response> {

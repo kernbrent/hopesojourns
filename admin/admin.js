@@ -39,6 +39,14 @@ const csmInboxWorkspace = document.querySelector("#csm-inbox-workspace");
 const csmInboxList = document.querySelector("#csm-inbox-list");
 const csmInboxFilter = document.querySelector("#csm-inbox-filter");
 const csmInboxBadge = document.querySelector("#csm-inbox-badge");
+const approveAllCsmInboxButton = document.querySelector("#approve-all-csm-inbox");
+const viewCsmDonorsButton = document.querySelector("#view-csm-donors");
+const csmGivingYear = document.querySelector("#csm-giving-year");
+const csmGrossReceived = document.querySelector("#csm-gross-received");
+const csmNetReceived = document.querySelector("#csm-net-received");
+const csmDonationCount = document.querySelector("#csm-donation-count");
+const csmGiverCount = document.querySelector("#csm-giver-count");
+const csmSentTotal = document.querySelector("#csm-sent-total");
 const peopleGrid = document.querySelector("#people-grid");
 const teamsWorkspace = document.querySelector("#teams-workspace");
 const teamsList = document.querySelector("#teams-list");
@@ -481,6 +489,30 @@ function csmNameParts(displayName) {
   return { firstName: parts.shift() || "", lastName: parts.join(" ") };
 }
 
+function csmApprovalBody(message) {
+  if (message.direction !== "received") return {};
+  if (message.matchedPerson?.id) return { personId: message.matchedPerson.id };
+  const names = csmNameParts(message.displayName);
+  return {
+    donor: {
+      firstName: names.firstName,
+      lastName: names.lastName,
+      email: message.party.email,
+      phone: message.party.phone,
+    },
+  };
+}
+
+function renderCsmGivingSummary(summary = {}) {
+  const year = Number(summary.year) || new Date().getFullYear();
+  csmGivingYear.textContent = `${year} gross received`;
+  csmGrossReceived.textContent = csmMoney(summary.grossReceived);
+  csmNetReceived.textContent = csmMoney(summary.netReceived);
+  csmDonationCount.textContent = String(Number(summary.donations || 0));
+  csmGiverCount.textContent = String(Number(summary.givers || 0));
+  csmSentTotal.textContent = csmMoney(summary.sent);
+}
+
 function renderCsmCard(message) {
   const card = element("article", "admin-csm-card");
   const header = element("header");
@@ -547,9 +579,9 @@ function renderCsmCard(message) {
             email: formData.get("email"), phone: formData.get("phone"),
           },
         } : {};
-        await api(`/csm-inbox/${message.id}/approve`, { method: "POST", body });
-        submissionsStatus.textContent = `${message.displayName} was approved.`;
+        const { result } = await api(`/csm-inbox/${message.id}/approve`, { method: "POST", body });
         await loadCsmInbox();
+        submissionsStatus.textContent = `${message.displayName} was approved.${result.createdPerson ? " A new donor was added to People." : ""}`;
       } catch (error) {
         submissionsStatus.textContent = error.message;
       } finally {
@@ -607,6 +639,9 @@ function renderCsmCard(message) {
 function updateCsmBadge(counts = {}) {
   const open = Number(counts.pending || 0) + Number(counts.needs_match || 0) + Number(counts.failed || 0);
   csmInboxBadge.textContent = String(open);
+  approveAllCsmInboxButton.disabled = open === 0;
+  approveAllCsmInboxButton.textContent = open
+    ? `Approve all awaiting (${open})` : "All transactions reviewed";
   return open;
 }
 
@@ -615,6 +650,7 @@ async function loadCsmInbox() {
   csmInboxList.setAttribute("aria-busy", "true");
   try {
     const { result } = await api(`/csm-inbox?status=${encodeURIComponent(csmInboxFilter.value)}`);
+    renderCsmGivingSummary(result.givingSummary);
     const cards = result.messages.map(renderCsmCard);
     if (!cards.length) {
       const empty = element("article", "admin-csm-card");
@@ -632,11 +668,88 @@ async function loadCsmInbox() {
   }
 }
 
+async function approveAllCsmInbox() {
+  if (approveAllCsmInboxButton.disabled) return;
+  const originalText = approveAllCsmInboxButton.textContent;
+  let latestCounts = null;
+  let reloaded = false;
+  approveAllCsmInboxButton.disabled = true;
+  approveAllCsmInboxButton.setAttribute("aria-busy", "true");
+  try {
+    let { result: page } = await api("/csm-inbox?status=open");
+    latestCounts = page.counts;
+    const total = Number(page.counts?.pending || 0)
+      + Number(page.counts?.needs_match || 0) + Number(page.counts?.failed || 0);
+    if (!total) {
+      await loadCsmInbox();
+      reloaded = true;
+      return;
+    }
+    const confirmed = window.confirm(
+      `Approve all ${total} awaiting Hope Sojourns transactions? Received gifts will be linked to an existing Person or create a new donor in People. Sent payments will not create People.`,
+    );
+    if (!confirmed) return;
+
+    const processed = new Set();
+    const failures = [];
+    let approved = 0;
+    let createdPeople = 0;
+    while (processed.size < 5000) {
+      const messages = page.messages.filter(message => !processed.has(message.id));
+      if (!messages.length) break;
+      for (const message of messages) {
+        processed.add(message.id);
+        approveAllCsmInboxButton.textContent = `Approving ${Math.min(processed.size, total)} of ${total}…`;
+        try {
+          const { result } = await api(`/csm-inbox/${message.id}/approve`, {
+            method: "POST",
+            body: csmApprovalBody(message),
+          });
+          approved += 1;
+          if (result.createdPerson) createdPeople += 1;
+        } catch (error) {
+          failures.push({ name: message.displayName, error: error.message || "Approval failed" });
+        }
+      }
+      ({ result: page } = await api("/csm-inbox?status=open"));
+      latestCounts = page.counts;
+    }
+
+    await loadCsmInbox();
+    reloaded = true;
+    const remaining = Number(csmInboxBadge.textContent || 0);
+    submissionsStatus.textContent = [
+      `${approved} transaction${approved === 1 ? "" : "s"} approved.`,
+      createdPeople ? `${createdPeople} new donor${createdPeople === 1 ? "" : "s"} added to People.` : "",
+      remaining ? `${remaining} transaction${remaining === 1 ? "" : "s"} still need attention.` : "The queue is clear.",
+    ].filter(Boolean).join(" ");
+  } catch (error) {
+    submissionsStatus.textContent = error.message || "The awaiting transactions could not be approved.";
+  } finally {
+    approveAllCsmInboxButton.removeAttribute("aria-busy");
+    if (!reloaded && latestCounts) updateCsmBadge(latestCounts);
+    else if (!reloaded) approveAllCsmInboxButton.textContent = originalText;
+    approveAllCsmInboxButton.disabled = Number(csmInboxBadge.textContent || 0) === 0;
+  }
+}
+
 async function refreshCsmBadge() {
   try {
     const { result } = await api("/csm-inbox?status=open");
     updateCsmBadge(result.counts);
   } catch { /* The current workspace still remains usable. */ }
+}
+
+function viewCsmDonors() {
+  filterForm.reset();
+  if (![...contactTypeFilter.options].some(option => option.value === "donor")) {
+    const option = element("option", "", "Donor");
+    option.value = "donor";
+    contactTypeFilter.append(option);
+  }
+  contactTypeFilter.value = "donor";
+  filterForm.elements.sort.value = "newest";
+  switchView("people", true);
 }
 
 async function loadPeople() {
@@ -2196,6 +2309,8 @@ ministryCreateForm.addEventListener("submit", async event => {
 });
 
 csmInboxFilter.addEventListener("change", loadCsmInbox);
+approveAllCsmInboxButton.addEventListener("click", approveAllCsmInbox);
+viewCsmDonorsButton.addEventListener("click", viewCsmDonors);
 
 filterForm.addEventListener("submit", event => {
   event.preventDefault();

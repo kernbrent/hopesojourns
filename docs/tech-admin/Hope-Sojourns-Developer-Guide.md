@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 1.4
+Version 1.5
 
-Last reviewed: August 23, 2026
+Last reviewed: August 24, 2026
 
 ## 1. Purpose and operating rules
 
@@ -209,6 +209,16 @@ The response portal uses secure HTTP-only sessions, CSRF protection for state-ch
 Never store those values in source, documentation, test snapshots, or browser-accessible JavaScript.
 
 The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. The Internship toolkit exposes a download-all ZIP while preserving every individual document download. CSV output must continue to neutralize spreadsheet formulas.
+
+### CSM distribution inbox and giving ledger
+
+`/cloudflare/interest-worker/src/csm-distribution.ts` receives the Christian Steps Ministries distribution feed, lists transactions for review, records approvals or denials, writes approved transactions to the Hope Sojourns financial ledger, and reports the decision back to CSM. The feed accepts received gifts and sent payments; holds and releases are not part of this workflow.
+
+The inbox response includes a current-year `givingSummary` computed from approved `financial_transactions` using UTC calendar-year boundaries. The large value is gross received donations. The supporting values are net received after fees, the count of received donations, distinct linked givers, and the absolute value of sent payments. Sent payments are reported separately and never reduce gross received.
+
+The portal's **Approve all awaiting** action processes the open queue in repeated batches, up to the safety limit of 5,000 transactions. It calls the existing per-transaction approval endpoint for every item so audit records, ledger writes, callbacks, and failure reporting remain identical to individual approval. Received gifts link to an existing Person or create a donor; sent payments do not create People.
+
+Immediately before creating a new donor, the Worker repeats its exact normalized-email match when no person was selected or stored. This final check prevents a duplicate Person when an earlier approval in the same bulk run already created the donor. Approval responses include `createdPerson`, allowing the portal to report how many new donors were added. **View donors in People** resets the People filters, selects Donor, sorts newest first, and opens the People view so approved donors are immediately visible.
 
 ### Admin headers and indexing
 
@@ -453,6 +463,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-24 | 1.5 | Documented the CSM giving dashboard, approve-all queue processing, final donor rematch, and People donor shortcut. |
 | 2026-08-23 | 1.4 | Added the production launch architecture, environment guard, isolated Workers and D1 databases, and deployment order. |
 | 2026-08-23 | 1.3 | Added inclusive form and portal wording, the internship ZIP workflow, and safer Word list pagination. |
 | 2026-08-23 | 1.2 | Added Word editions and their build, visual-review, and synchronization workflow. |

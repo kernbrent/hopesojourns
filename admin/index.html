@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=25">
-  <link rel="stylesheet" href="/admin/admin.css?v=14">
+  <link rel="stylesheet" href="/admin/admin.css?v=15">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -185,7 +185,21 @@
         <section class="admin-csm-workspace" id="csm-inbox-workspace" role="tabpanel" aria-labelledby="csm-inbox-view-tab" hidden>
           <div class="admin-csm-toolbar">
             <div><strong>Christian Steps transactions</strong><span>Approve received gifts and sent payments before they enter the Hope Sojourns ledger.</span></div>
-            <label><span>Show</span><select id="csm-inbox-filter"><option value="open">Awaiting review</option><option value="all">All transactions</option><option value="approved">Approved</option><option value="denied">Denied</option><option value="needs_match">Needs donor match</option></select></label>
+            <div class="admin-csm-toolbar-actions">
+              <label><span>Show</span><select id="csm-inbox-filter"><option value="open">Awaiting review</option><option value="all">All transactions</option><option value="approved">Approved</option><option value="denied">Denied</option><option value="needs_match">Needs donor match</option></select></label>
+              <button class="admin-button admin-button-primary" id="approve-all-csm-inbox" type="button" disabled>Approve all awaiting</button>
+              <button class="admin-button admin-button-outline" id="view-csm-donors" type="button">View donors in People</button>
+            </div>
+          </div>
+          <div class="admin-csm-summary" id="csm-giving-summary" aria-label="Current-year giving statistics">
+            <article class="admin-csm-summary-primary">
+              <span id="csm-giving-year">Current year gross received</span>
+              <strong id="csm-gross-received">$0.00</strong>
+              <small><span id="csm-net-received">$0.00</span> after PayPal fees</small>
+            </article>
+            <article><span>Donations</span><strong id="csm-donation-count">0</strong><small>approved gifts</small></article>
+            <article><span>Givers</span><strong id="csm-giver-count">0</strong><small>unique donor records</small></article>
+            <article><span>Sent</span><strong id="csm-sent-total">$0.00</strong><small>approved payments</small></article>
           </div>
           <div class="admin-csm-list" id="csm-inbox-list" aria-live="polite"></div>
         </section>
@@ -380,6 +394,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=17" defer></script>
+  <script src="/admin/admin.js?v=18" defer></script>
 </body>
 </html>

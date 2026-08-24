@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 1.2
+Version 1.3
 
-Last reviewed: August 23, 2026
+Last reviewed: August 24, 2026
 
 ## 1. Purpose
 
@@ -250,6 +250,15 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Admin success, information, warning, and error states use the functional palette only.
 - Admin environment copy must be derived from the current hostname. Production must say “Production portal” or use neutral private-portal language and must never display a test-environment label; static HTML uses neutral wording to prevent an incorrect label before JavaScript runs.
 
+### Admin giving workspace
+
+- Lead with a compact current-year summary: gross received is the largest figure, with net after fees directly beneath it; donations, givers, and sent payments use smaller companion cards.
+- Keep sent payments visually separate from received giving so they cannot be mistaken for a deduction from the gross donation total.
+- Queue toolbars may combine the review filter, approve-all action, and a shortcut to the related People view. Actions must wrap before their labels or controls become cramped.
+- Transaction cards use compact supporting type, a two-column review form, and full-width donor matching. Names, item titles, and email addresses must wrap inside their fields rather than overflow.
+- At medium widths, the giving summary and transaction metadata reduce to two columns. At narrow widths, the toolbar, summary, metadata, and review fields stack into one column.
+- Bulk actions require clear confirmation, visible progress, a completion summary, and per-item failure reporting. Do not replace the existing individual approval and denial controls.
+
 ### Dialogs and lightboxes
 
 - Use semantic `<dialog>` where practical and provide an obvious close action.
@@ -362,6 +371,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-24 | 1.3 | Added the compact, responsive admin giving dashboard and transaction-review layout standard. |
 | 2026-08-23 | 1.2 | Added hostname-aware response-portal environment labeling for the production launch. |
 | 2026-08-23 | 1.1 | Added inclusive form-language and document-bundle standards for the public interest form and response portal. |
 | 2026-08-23 | 1.0 | Established the living site-wide style guide from the implemented Hope Sojourns design system. |
