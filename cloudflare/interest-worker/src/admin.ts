@@ -41,7 +41,7 @@ const CONTACT_AREA_OPTIONS = [
 const ALLOWED_CONTACT_TYPES = new Set<string>(CONTACT_TYPE_OPTIONS.map(([value]) => value));
 const ALLOWED_CONTACT_AREAS = new Set<string>(CONTACT_AREA_OPTIONS.map(([value]) => value));
 
-type AdminEnv = Env & {
+export type AdminEnv = Env & {
   ADMIN_PASSWORD?: string;
   ADMIN_SESSION_SECRET?: string;
 };
@@ -204,7 +204,7 @@ type ImportRowAnalysis = {
   existing: ImportPersonRow | null;
 };
 
-class AdminError extends Error {
+export class AdminError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
@@ -226,7 +226,7 @@ function securityHeaders(): Headers {
   });
 }
 
-function adminJson(body: unknown, status = 200, extraHeaders?: HeadersInit): Response {
+export function adminJson(body: unknown, status = 200, extraHeaders?: HeadersInit): Response {
   const headers = securityHeaders();
   headers.set("Content-Type", "application/json; charset=utf-8");
   if (extraHeaders) new Headers(extraHeaders).forEach((value, key) => headers.append(key, value));
@@ -237,7 +237,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function readAdminJson(request: Request): Promise<Record<string, unknown>> {
+export async function readAdminJson(request: Request): Promise<Record<string, unknown>> {
   if (request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() !== "application/json") {
     throw new AdminError(415, "UNSUPPORTED_MEDIA_TYPE", "Send this request as JSON.");
   }
@@ -606,7 +606,7 @@ function sessionCookie(token: string, maxAgeSeconds: number | null): string {
   return `hs_admin_session=${token}; Path=/api/interest/admin${persistence}; HttpOnly; Secure; SameSite=Strict`;
 }
 
-async function authenticate(request: Request, env: AdminEnv, requireCsrf = false): Promise<AdminSessionRow> {
+export async function authenticate(request: Request, env: AdminEnv, requireCsrf = false): Promise<AdminSessionRow> {
   const token = cookieValue(request, "hs_admin_session");
   if (!token || !/^[A-Za-z0-9_-]{40,100}$/.test(token)) {
     throw new AdminError(401, "AUTH_REQUIRED", "Sign in to continue.");
@@ -633,7 +633,7 @@ async function authenticate(request: Request, env: AdminEnv, requireCsrf = false
   return session;
 }
 
-function auditStatement(env: AdminEnv, entityType: string, entityId: string, eventType: string, metadata?: unknown): D1PreparedStatement {
+export function auditStatement(env: AdminEnv, entityType: string, entityId: string, eventType: string, metadata?: unknown): D1PreparedStatement {
   return env.DB.prepare(
     `INSERT INTO audit_events (id, entity_type, entity_id, event_type, metadata_json, created_at)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,

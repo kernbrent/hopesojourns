@@ -34,6 +34,11 @@ const changePasswordStatus = document.querySelector("#change-password-status");
 const currentPasswordInput = document.querySelector("#current-admin-password");
 const peopleList = document.querySelector("#people-list");
 const submissionsList = document.querySelector("#submissions-list");
+const csmInboxViewTab = document.querySelector("#csm-inbox-view-tab");
+const csmInboxWorkspace = document.querySelector("#csm-inbox-workspace");
+const csmInboxList = document.querySelector("#csm-inbox-list");
+const csmInboxFilter = document.querySelector("#csm-inbox-filter");
+const csmInboxBadge = document.querySelector("#csm-inbox-badge");
 const peopleGrid = document.querySelector("#people-grid");
 const teamsWorkspace = document.querySelector("#teams-workspace");
 const teamsList = document.querySelector("#teams-list");
@@ -450,6 +455,190 @@ function applyListResult(result, records, renderCard, unit, pluralUnit) {
   applyResultMeta(result, records.length, unit, pluralUnit);
 }
 
+function csmMoney(value) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
+}
+
+function csmMeta(label, value) {
+  const item = element("div");
+  item.append(element("span", "", label), element("strong", "", value || "Not provided"));
+  return item;
+}
+
+function csmInput(labelText, name, value, required = false) {
+  const label = element("label");
+  label.append(element("span", "", labelText));
+  const input = document.createElement("input");
+  input.name = name;
+  input.value = value || "";
+  input.required = required;
+  label.append(input);
+  return label;
+}
+
+function csmNameParts(displayName) {
+  const parts = String(displayName || "").trim().split(/\s+/).filter(Boolean);
+  return { firstName: parts.shift() || "", lastName: parts.join(" ") };
+}
+
+function renderCsmCard(message) {
+  const card = element("article", "admin-csm-card");
+  const header = element("header");
+  const heading = element("div");
+  heading.append(element("h3", "", message.displayName));
+  heading.append(element("span", "", `${titleCase(message.direction)} · received by Hope ${formatDate(message.receivedAt)}`));
+  const status = statusPill(message.status);
+  header.append(heading, status, element("span", "admin-csm-amount", csmMoney(message.transaction.gross)));
+
+  const meta = element("div", "admin-csm-meta");
+  meta.append(
+    csmMeta("Display Name", message.displayName),
+    csmMeta("PayPal date", formatDate(message.transaction.eventDate)),
+    csmMeta("Item", message.transaction.itemName || message.transaction.itemId || "No item supplied"),
+    csmMeta("Email", message.party.email || "Not supplied"),
+  );
+  card.append(header, meta);
+
+  if (["pending", "needs_match", "failed"].includes(message.status)) {
+    const form = element("form", "admin-csm-review");
+    let personSelect = null;
+    if (message.direction === "received") {
+      const people = new Map();
+      if (message.matchedPerson) people.set(message.matchedPerson.id, message.matchedPerson);
+      (message.candidates || []).forEach(person => people.set(person.id, {
+        id: person.id, firstName: person.first_name, lastName: person.last_name, email: person.email,
+      }));
+      if (people.size) {
+        const label = element("label", "admin-csm-person-select");
+        label.append(element("span", "", "Existing donor match"));
+        personSelect = document.createElement("select");
+        const create = element("option", "", "Create a new donor instead");
+        create.value = "";
+        personSelect.append(create);
+        for (const person of people.values()) {
+          const option = element("option", "", `${person.firstName} ${person.lastName} · ${person.email}`);
+          option.value = person.id;
+          option.selected = person.id === message.matchedPerson?.id;
+          personSelect.append(option);
+        }
+        label.append(personSelect);
+        form.append(label);
+      }
+      const names = csmNameParts(message.displayName);
+      form.append(
+        csmInput("First name", "firstName", names.firstName),
+        csmInput("Last name", "lastName", names.lastName),
+        csmInput("Email", "email", message.party.email),
+        csmInput("Phone", "phone", message.party.phone),
+      );
+    }
+    const approve = element("button", "admin-button admin-button-primary", message.direction === "received" ? "Approve gift" : "Approve sent payment");
+    approve.type = "submit";
+    form.append(approve);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      setBusy(approve, true, "Approving…");
+      try {
+        const formData = new FormData(form);
+        const personId = personSelect?.value || "";
+        const body = personId ? { personId } : message.direction === "received" ? {
+          donor: {
+            firstName: formData.get("firstName"), lastName: formData.get("lastName"),
+            email: formData.get("email"), phone: formData.get("phone"),
+          },
+        } : {};
+        await api(`/csm-inbox/${message.id}/approve`, { method: "POST", body });
+        submissionsStatus.textContent = `${message.displayName} was approved.`;
+        await loadCsmInbox();
+      } catch (error) {
+        submissionsStatus.textContent = error.message;
+      } finally {
+        setBusy(approve, false);
+      }
+    });
+    card.append(form);
+
+    const actions = element("div", "admin-csm-actions");
+    const note = message.matchedPerson
+      ? `Matched to ${message.matchedPerson.firstName} ${message.matchedPerson.lastName} by ${titleCase(message.matchMethod)}.`
+      : message.direction === "received" ? "Confirm an existing donor or complete the new donor fields." : "Sent payments do not create donor records.";
+    actions.append(element("span", message.status === "needs_match" ? "admin-csm-warning" : "", note));
+    const deny = element("button", "admin-button admin-button-outline", "Deny");
+    deny.type = "button";
+    deny.addEventListener("click", async () => {
+      const reason = window.prompt("Why should this transaction be denied?");
+      if (!reason?.trim()) return;
+      setBusy(deny, true, "Denying…");
+      try {
+        await api(`/csm-inbox/${message.id}/deny`, { method: "POST", body: { reason } });
+        submissionsStatus.textContent = `${message.displayName} was denied.`;
+        await loadCsmInbox();
+      } catch (error) {
+        submissionsStatus.textContent = error.message;
+      } finally {
+        setBusy(deny, false);
+      }
+    });
+    actions.append(deny);
+    card.append(actions);
+  } else {
+    card.append(element("p", "", message.status === "approved"
+      ? `Approved into the Hope Sojourns ledger${message.matchedPerson ? ` for ${message.matchedPerson.firstName} ${message.matchedPerson.lastName}` : ""}.`
+      : `Denied: ${message.decisionReason || "No reason recorded"}`));
+  }
+
+  if (message.callbackStatus === "failed") {
+    const callback = element("div", "admin-csm-actions");
+    callback.append(element("span", "admin-csm-warning", `CSM status update needs retry: ${message.callbackError || "Unknown error"}`));
+    const retry = element("button", "admin-button admin-button-outline", "Retry CSM update");
+    retry.type = "button";
+    retry.addEventListener("click", async () => {
+      setBusy(retry, true, "Retrying…");
+      try { await api(`/csm-inbox/${message.id}/notify`, { method: "POST", body: {} }); await loadCsmInbox(); }
+      catch (error) { submissionsStatus.textContent = error.message; }
+      finally { setBusy(retry, false); }
+    });
+    callback.append(retry);
+    card.append(callback);
+  }
+  return card;
+}
+
+function updateCsmBadge(counts = {}) {
+  const open = Number(counts.pending || 0) + Number(counts.needs_match || 0) + Number(counts.failed || 0);
+  csmInboxBadge.textContent = String(open);
+  return open;
+}
+
+async function loadCsmInbox() {
+  submissionsStatus.textContent = "Loading CSM transactions…";
+  csmInboxList.setAttribute("aria-busy", "true");
+  try {
+    const { result } = await api(`/csm-inbox?status=${encodeURIComponent(csmInboxFilter.value)}`);
+    const cards = result.messages.map(renderCsmCard);
+    if (!cards.length) {
+      const empty = element("article", "admin-csm-card");
+      empty.append(element("h3", "", "No transactions in this view"), element("p", "", "New CSM transactions will appear here for review."));
+      cards.push(empty);
+    }
+    csmInboxList.replaceChildren(...cards);
+    const open = updateCsmBadge(result.counts);
+    resultsCount.textContent = plural(result.messages.length, "transaction");
+    submissionsStatus.textContent = open ? `${plural(open, "transaction")} awaiting review.` : "The CSM inbox is clear.";
+  } catch (error) {
+    if (error.status !== 401) submissionsStatus.textContent = error.message;
+  } finally {
+    csmInboxList.removeAttribute("aria-busy");
+  }
+}
+
+async function refreshCsmBadge() {
+  try {
+    const { result } = await api("/csm-inbox?status=open");
+    updateCsmBadge(result.counts);
+  } catch { /* The current workspace still remains usable. */ }
+}
+
 async function loadPeople() {
   submissionsStatus.textContent = "Loading people…";
   peopleList.setAttribute("aria-busy", "true");
@@ -570,12 +759,14 @@ async function loadRecords() {
   if (state.view === "people") await loadPeople();
   else if (state.view === "requests") await loadSubmissions();
   else if (state.view === "grid") await loadPeopleGrid();
+  else if (state.view === "csm-inbox") await loadCsmInbox();
   else if (state.view === "teams") await loadTeams();
   else if (state.view === "ministries") await loadMinistries();
   else {
     resultsCount.textContent = "13 working documents";
     submissionsStatus.textContent = "";
   }
+  if (state.view !== "csm-inbox") await refreshCsmBadge();
 }
 
 function switchView(view, focusTab = false) {
@@ -584,6 +775,7 @@ function switchView(view, focusTab = false) {
   const showPeople = view === "people";
   const showRequests = view === "requests";
   const showGrid = view === "grid";
+  const showCsmInbox = view === "csm-inbox";
   const showTeams = view === "teams";
   const showMinistries = view === "ministries";
   const showInternshipToolkit = view === "internship-toolkit";
@@ -596,6 +788,9 @@ function switchView(view, focusTab = false) {
   gridViewTab.classList.toggle("is-active", showGrid);
   gridViewTab.setAttribute("aria-selected", String(showGrid));
   gridViewTab.tabIndex = showGrid ? 0 : -1;
+  csmInboxViewTab.classList.toggle("is-active", showCsmInbox);
+  csmInboxViewTab.setAttribute("aria-selected", String(showCsmInbox));
+  csmInboxViewTab.tabIndex = showCsmInbox ? 0 : -1;
   teamsViewTab.classList.toggle("is-active", showTeams);
   teamsViewTab.setAttribute("aria-selected", String(showTeams));
   teamsViewTab.tabIndex = showTeams ? 0 : -1;
@@ -609,15 +804,16 @@ function switchView(view, focusTab = false) {
   contactToolbar.hidden = !showPeople;
   submissionsList.hidden = !showRequests;
   peopleGrid.hidden = !showGrid;
+  csmInboxWorkspace.hidden = !showCsmInbox;
   teamsWorkspace.hidden = !showTeams;
   ministriesWorkspace.hidden = !showMinistries;
   internshipToolkitWorkspace.hidden = !showInternshipToolkit;
-  filterForm.hidden = showTeams || showMinistries || showInternshipToolkit;
-  recordsPagination.hidden = showTeams || showMinistries || showInternshipToolkit;
-  exportButton.hidden = showTeams || showMinistries || showInternshipToolkit;
+  filterForm.hidden = showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
+  recordsPagination.hidden = showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
+  exportButton.hidden = showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
   submissionsEmpty.hidden = true;
-  recordsTitle.textContent = showPeople ? "Master contacts" : showRequests ? "Individual requests" : showGrid ? "Contact spreadsheet" : showTeams ? "Teams" : showMinistries ? "Ministries" : "Internship toolkit";
-  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : showGrid ? gridViewTab : showTeams ? teamsViewTab : showMinistries ? ministriesViewTab : internshipToolkitViewTab).focus();
+  recordsTitle.textContent = showPeople ? "Master contacts" : showRequests ? "Individual requests" : showGrid ? "Contact spreadsheet" : showCsmInbox ? "CSM transaction inbox" : showTeams ? "Teams" : showMinistries ? "Ministries" : "Internship toolkit";
+  if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : showGrid ? gridViewTab : showCsmInbox ? csmInboxViewTab : showTeams ? teamsViewTab : showMinistries ? ministriesViewTab : internshipToolkitViewTab).focus();
   loadRecords();
 }
 
@@ -811,6 +1007,7 @@ async function refreshAfterDeletion(successMessage) {
   if (state.view === "teams" || state.view === "ministries") {
     if (state.view === "teams") await loadTeams();
   else if (state.view === "ministries") await loadMinistries();
+  if (state.view !== "csm-inbox") await refreshCsmBadge();
   else {
     resultsCount.textContent = "13 working documents";
     submissionsStatus.textContent = "";
@@ -1927,13 +2124,14 @@ changePasswordForm.addEventListener("submit", async event => {
 peopleViewTab.addEventListener("click", () => switchView("people"));
 requestsViewTab.addEventListener("click", () => switchView("requests"));
 gridViewTab.addEventListener("click", () => switchView("grid"));
+csmInboxViewTab.addEventListener("click", () => switchView("csm-inbox"));
 teamsViewTab.addEventListener("click", () => switchView("teams"));
 ministriesViewTab.addEventListener("click", () => switchView("ministries"));
 internshipToolkitViewTab.addEventListener("click", () => switchView("internship-toolkit"));
 document.querySelector(".admin-view-tabs").addEventListener("keydown", event => {
   if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
   event.preventDefault();
-  const views = ["people", "requests", "grid", "teams", "ministries", "internship-toolkit"];
+  const views = ["people", "requests", "grid", "csm-inbox", "teams", "ministries", "internship-toolkit"];
   const direction = event.key === "ArrowRight" ? 1 : -1;
   const nextIndex = (views.indexOf(state.view) + direction + views.length) % views.length;
   switchView(views[nextIndex], true);
@@ -1996,6 +2194,8 @@ ministryCreateForm.addEventListener("submit", async event => {
     setBusy(submit, false);
   }
 });
+
+csmInboxFilter.addEventListener("change", loadCsmInbox);
 
 filterForm.addEventListener("submit", event => {
   event.preventDefault();

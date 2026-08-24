@@ -30,8 +30,8 @@ const productionDatabase = database(productionEnvironment);
 
 assert(testEnvironment.vars?.ENVIRONMENT === "test", "test ENVIRONMENT must be test");
 assert(productionEnvironment.vars?.ENVIRONMENT === "production", "production ENVIRONMENT must be production");
-assert(JSON.stringify(testEnvironment.secrets?.required?.sort()) === JSON.stringify(["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET"].sort()), "test secret declarations are incomplete");
-assert(JSON.stringify(productionEnvironment.secrets?.required?.sort()) === JSON.stringify(["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET"].sort()), "production secret declarations are incomplete");
+assert(JSON.stringify(testEnvironment.secrets?.required?.sort()) === JSON.stringify(["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET", "CSM_DISTRIBUTION_SECRET"].sort()), "test secret declarations are incomplete");
+assert(JSON.stringify(productionEnvironment.secrets?.required?.sort()) === JSON.stringify(["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET", "CSM_DISTRIBUTION_SECRET"].sort()), "production secret declarations are incomplete");
 assert(testDatabase.database_name === "hope-sojourns-forms-test", "the test database name changed unexpectedly");
 assert(productionDatabase.database_name === "hope-sojourns-forms-production", "the production database name changed unexpectedly");
 assert(testDatabase.database_id !== productionDatabase.database_id, "test and production database IDs must differ");

@@ -168,6 +168,23 @@
 .admin-team-create-form textarea { min-height: 78px; resize: vertical; }
 .admin-team-create-form .admin-form-status { grid-column: 1 / -1; margin: 0; color: var(--coral-wash); }
 .admin-team-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: .8rem; }
+.admin-csm-workspace { display: grid; gap: 1rem; }
+.admin-csm-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: 1rem; border-radius: 16px; background: var(--forest-wash); }
+.admin-csm-toolbar > div { display: grid; gap: .25rem; }
+.admin-csm-toolbar > div span { color: var(--muted); }
+.admin-csm-toolbar label { display: grid; min-width: 210px; gap: .3rem; font-weight: 700; }
+.admin-csm-list { display: grid; gap: .8rem; }
+.admin-csm-card { display: grid; gap: .9rem; padding: 1.1rem; border: 1px solid rgba(var(--ink-rgb), .12); border-radius: 16px; background: var(--white); }
+.admin-csm-card header, .admin-csm-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .65rem; }
+.admin-csm-card h3 { margin: 0; }
+.admin-csm-amount { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-csm-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; }
+.admin-csm-meta div { display: grid; gap: .2rem; padding: .7rem; border-radius: 10px; background: var(--cream); }
+.admin-csm-meta span { color: var(--muted); font-size: .78rem; }
+.admin-csm-review { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)) auto; align-items: end; gap: .6rem; }
+.admin-csm-review label { display: grid; gap: .25rem; font-size: .82rem; font-weight: 700; }
+.admin-csm-review .admin-csm-person-select { grid-column: span 2; }
+.admin-csm-warning { color: var(--rust-dark); font-weight: 700; }
 .admin-team-card { display: grid; min-height: 190px; padding: 1.2rem; border: 1px solid rgba(var(--ink-rgb), .14); border-top: 5px solid var(--gold); border-radius: 16px; background: var(--white); box-shadow: 0 8px 22px rgba(var(--forest-dark-rgb), .06); }
 .admin-team-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: .8rem; }
 .admin-team-card h3 { margin: 0; color: var(--forest-dark); font-size: 1.4rem; }
@@ -810,4 +827,11 @@
   .admin-toolkit-notice { grid-template-columns: 1fr; }
   .admin-toolkit-grid { grid-template-columns: 1fr; }
   .admin-toolkit-hero .admin-button { width: 100%; }
+}
+
+@media (max-width: 900px) {
+  .admin-csm-toolbar { align-items: stretch; flex-direction: column; }
+  .admin-csm-meta { grid-template-columns: 1fr 1fr; }
+  .admin-csm-review { grid-template-columns: 1fr 1fr; }
+  .admin-csm-review .admin-button { width: 100%; }
 }

@@ -1,4 +1,5 @@
 import { handleAdminRequest } from "./admin";
+import { handleCsmAdminRequest, handleCsmDelivery } from "./csm-distribution";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_OPPORTUNITIES = 12;
@@ -480,6 +481,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     await env.DB.prepare("SELECT 1").first();
     return json(request, env, { status: "ok", service: "hope-sojourns-interest", environment: env.ENVIRONMENT });
   }
+  if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
+  if (path.startsWith("/admin/csm-inbox")) return handleCsmAdminRequest(request, env, path);
   if (path.startsWith("/admin/")) return handleAdminRequest(request, env, path);
   if (request.method === "GET" && path === "/opportunities") return listOpportunities(request, env);
   if (request.method === "POST" && path === "/submissions") return submitInterest(request, env);
