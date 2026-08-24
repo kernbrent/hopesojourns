@@ -292,13 +292,26 @@ async function retryNotification(request: Request, env: CsmEnv, id: string): Pro
   const callbackStatus = await notifyCsm(env, row, row.status, row.status === "denied" ? row.decision_reason : null);
   return adminJson({ success: callbackStatus === "sent", callbackStatus });
 }
+function recognizedAdminError(error: unknown): AdminError | null {
+  if (error instanceof AdminError) return error;
+  if (
+    error instanceof Error
+    && typeof (error as { status?: unknown }).status === "number"
+    && typeof (error as { code?: unknown }).code === "string"
+  ) {
+    return error as AdminError;
+  }
+  return null;
+}
+
 
 export async function handleCsmDelivery(request: Request, env: CsmEnv): Promise<Response> {
   try {
     if (request.method !== "POST") throw new AdminError(405, "METHOD_NOT_ALLOWED", "Method not allowed.");
     return await receive(request, env);
   } catch (error) {
-    if (error instanceof AdminError) return adminJson({ error: error.message, code: error.code }, error.status);
+    const recognized = recognizedAdminError(error);
+    if (recognized) return adminJson({ error: recognized.message, code: recognized.code }, recognized.status, recognized.headers);
     console.error(JSON.stringify({ event: "csm_delivery_failed", message: error instanceof Error ? error.message : "Unknown error" }));
     return adminJson({ error: "The CSM transaction could not be received.", code: "SERVER_ERROR" }, 500);
   }
@@ -306,16 +319,17 @@ export async function handleCsmDelivery(request: Request, env: CsmEnv): Promise<
 
 export async function handleCsmAdminRequest(request: Request, env: CsmEnv, path: string): Promise<Response> {
   try {
-    if (request.method === "GET" && path === "/admin/csm-inbox") return listInbox(request, env);
+    if (request.method === "GET" && path === "/admin/csm-inbox") return await listInbox(request, env);
     const approveMatch = path.match(/^\/admin\/csm-inbox\/([0-9a-f-]{36})\/approve$/i);
-    if (request.method === "POST" && approveMatch) return approve(request, env, approveMatch[1]!);
+    if (request.method === "POST" && approveMatch) return await approve(request, env, approveMatch[1]!);
     const denyMatch = path.match(/^\/admin\/csm-inbox\/([0-9a-f-]{36})\/deny$/i);
-    if (request.method === "POST" && denyMatch) return deny(request, env, denyMatch[1]!);
+    if (request.method === "POST" && denyMatch) return await deny(request, env, denyMatch[1]!);
     const notifyMatch = path.match(/^\/admin\/csm-inbox\/([0-9a-f-]{36})\/notify$/i);
-    if (request.method === "POST" && notifyMatch) return retryNotification(request, env, notifyMatch[1]!);
+    if (request.method === "POST" && notifyMatch) return await retryNotification(request, env, notifyMatch[1]!);
     throw new AdminError(404, "NOT_FOUND", "Not found.");
   } catch (error) {
-    if (error instanceof AdminError) return adminJson({ error: error.message, code: error.code }, error.status, error.headers);
+    const recognized = recognizedAdminError(error);
+    if (recognized) return adminJson({ error: recognized.message, code: recognized.code }, recognized.status, recognized.headers);
     console.error(JSON.stringify({ event: "csm_admin_failed", message: error instanceof Error ? error.message : "Unknown error" }));
     return adminJson({ error: "The CSM inbox encountered an unexpected error.", code: "SERVER_ERROR" }, 500);
   }

@@ -4,6 +4,7 @@ import {
   parseDistributionMessage,
   type CsmDistributionMessage,
 } from "../src/csm-distribution-contract";
+import { handleCsmAdminRequest } from "../src/csm-distribution";
 
 const receivedMessage = (): CsmDistributionMessage => ({
   schemaVersion: 1,
@@ -85,8 +86,17 @@ describe("CSM distribution contract", () => {
         net: -25,
       },
     };
+
     expect(parseDistributionMessage(sent).masterDonorId).toBeNull();
     sent.masterDonorId = "not-allowed";
     expect(() => parseDistributionMessage(sent)).toThrow("Sent payments cannot have masterDonorId");
+  });
+
+  it("returns an authentication response for the protected inbox", async () => {
+    const request = new Request("https://hopesojourns.com/api/interest/admin/csm-inbox");
+    const response = await handleCsmAdminRequest(request, {} as never, "/admin/csm-inbox");
+    expect(response.status).toBe(401);
+    const body = await response.json() as { code: string };
+    expect(body.code).toBe("AUTH_REQUIRED");
   });
 });
