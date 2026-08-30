@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 1.3
+Version 1.4
 
-Last reviewed: August 24, 2026
+Last reviewed: August 29, 2026
 
 ## 1. Purpose
 
@@ -285,6 +285,13 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Gallery images and captions belong in `/past-trips/gallery/gallery-data.json`.
 - Large video-production sources under `/DoYouSeeMeMusicVideo` are production materials, not normal website assets.
 
+### Embedded video and companion audio
+
+- Use YouTube's privacy-enhanced `youtube-nocookie.com` host for embedded players.
+- Keep embedded video responsive at a 16:9 aspect ratio, provide a descriptive iframe title, allow full-screen playback, and include an external YouTube link as a fallback.
+- Introduce each video or audio item with a concise description that explains how it relates to the surrounding resource.
+- Use native audio controls with `preload="metadata"` and include a direct audio link in the fallback text.
+- Do not autoplay companion audio on a page that contains another playable media item. Let the visitor decide which experience to begin.
 ## 10. Voice and content standards
 
 ### Voice qualities
@@ -371,6 +378,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-29 | 1.4 | Added the responsive embedded-video and companion-audio standard for resource articles. |
 | 2026-08-24 | 1.3 | Added the compact, responsive admin giving dashboard and transaction-review layout standard. |
 | 2026-08-23 | 1.2 | Added hostname-aware response-portal environment labeling for the production launch. |
 | 2026-08-23 | 1.1 | Added inclusive form-language and document-bundle standards for the public interest form and response portal. |

@@ -67,12 +67,6 @@
     }
     syncLyricsPlacement();
   }
-
   updateMuteButton();
-  const playbackAttempt = player.play();
-  if (playbackAttempt && typeof playbackAttempt.then === "function") {
-    playbackAttempt
-      .then(() => setStatus(player.muted ? "The song is playing silently." : "Now playing the companion song."))
-      .catch(() => setStatus("Your browser paused automatic playback. Select Play to begin the song."));
-  }
+  setStatus("Select Play to begin the companion song.");
 })();

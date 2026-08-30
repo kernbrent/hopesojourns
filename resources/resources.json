@@ -1,6 +1,6 @@
 {
-  "version": 5,
-  "updated": "2026-08-18",
+  "version": 6,
+  "updated": "2026-08-29",
   "items": [
     {
       "id": "hope-sojourns-brochure",
@@ -57,6 +57,7 @@
       ],
       "relatedIds": [
         "do-you-see-me-song",
+        "do-you-see-me-video",
         "do-you-see-me-sermon"
       ]
     },
@@ -80,6 +81,30 @@
       ],
       "relatedIds": [
         "do-you-see-me",
+        "do-you-see-me-video",
+        "do-you-see-me-sermon"
+      ]
+    },
+    {
+      "id": "do-you-see-me-video",
+      "type": "Video",
+      "title": "Do You See Me? — Official Music Video",
+      "description": "Set to Eric Clanton's reflective song, this official music video invites viewers to look beyond labels, notice the person before them, and learn to see with the compassion of Jesus.",
+      "author": "Brent Kern",
+      "url": "https://www.youtube.com/watch?v=i2I7wFjWrDE",
+      "actionLabel": "Watch the video",
+      "featured": false,
+      "collection": "Seeing People",
+      "tags": [
+        "dignity",
+        "compassion",
+        "reflection",
+        "music video",
+        "seeing people"
+      ],
+      "relatedIds": [
+        "do-you-see-me",
+        "do-you-see-me-song",
         "do-you-see-me-sermon"
       ]
     },
@@ -87,7 +112,7 @@
       "id": "do-you-see-me-sermon",
       "type": "Sermon",
       "title": "Do You See Me? \u2014 Sermon",
-      "description": "A companion message to the article, exploring how Jesus sees people and calls His followers to stop, listen, and respond with compassion.",
+      "description": "In this companion message, Brent Kern expands on the article through Scripture and mission experiences, asking what changes when followers of Jesus stop, listen, draw near, and recognize the God-given dignity of people who are often overlooked.",
       "author": "Brent D Kern",
       "date": "2026-08-15",
       "duration": "44:37",
@@ -103,7 +128,8 @@
       ],
       "relatedIds": [
         "do-you-see-me",
-        "do-you-see-me-song"
+        "do-you-see-me-song",
+        "do-you-see-me-video"
       ]
     },
     {
