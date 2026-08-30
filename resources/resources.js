@@ -12,10 +12,28 @@
   const date = value => value ? new Intl.DateTimeFormat("en-US", {year:"numeric",month:"short",day:"numeric"}).format(new Date(`${value}T12:00:00`)) : "";
   const isAudio = item => Boolean(item.url && /\.(mp3|m4a|aac|wav|ogg)(?:[?#].*)?$/i.test(item.url));
   const related = item => (item.relatedIds || []).map(id => items.find(x => x.id === id)).filter(Boolean);
+  const externalAttributes = url => /^https?:/.test(url) ? ' target="_blank" rel="noopener"' : '';
+  const bundledAction = action => {
+    const details = [action.author, action.duration].filter(Boolean).map(esc).join(" | ");
+    const description = action.description ? `<p>${esc(action.description)}</p>` : "";
+    const detailLine = details ? `<div><small>${details}</small></div>` : "";
+    let control = "";
+    if (action.media === "audio" || isAudio(action)) {
+      control = `<audio class="resource-audio" controls preload="metadata" src="${esc(action.url)}" aria-label="${esc(action.label || `Play ${action.type || "audio"}`)}">Your browser does not support audio playback. <a href="${esc(action.url)}">Open the audio file</a>.</audio>`;
+    } else if (action.url) {
+      const primary = `<a class="text-link" href="${esc(action.url)}"${externalAttributes(action.url)}>${esc(action.label || `Open ${action.type || "resource"}`)} &rarr;</a>`;
+      const secondary = action.secondaryUrl ? `<a class="text-link" href="${esc(action.secondaryUrl)}"${action.downloadName ? ` download="${esc(action.downloadName)}"` : ""}>${esc(action.secondaryLabel || "Download")} <span aria-hidden="true">&darr;</span></a>` : "";
+      control = secondary ? `<div class="resource-download-actions">${primary}${secondary}</div>` : primary;
+    }
+    return `<div class="resource-action"><strong>${esc(action.type || "Resource")}</strong>${description}${detailLine}${control}</div>`;
+  };
   const card = (item, isFeatured = false) => {
     const connected = related(item);
+    const bundled = item.actions || [];
     const meta = [item.type, item.author, item.format, item.pageCount, item.fileSize, item.duration, date(item.date), item.status].filter(Boolean).map(esc).join(" · ");
-    const action = isAudio(item)
+    const action = bundled.length
+      ? `<div class="resource-related"><strong>Explore this collection</strong>${bundled.map(bundledAction).join("")}</div>`
+      : isAudio(item)
       ? `<audio class="resource-audio" controls preload="metadata" src="${esc(item.url)}" aria-label="Play ${esc(item.title)}">Your browser does not support audio playback. <a href="${esc(item.url)}">Open the audio file</a>.</audio>`
       : item.url && item.downloadUrl
       ? `<div class="resource-download-actions"><a class="text-link" href="${esc(item.url)}"${/^https?:/.test(item.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(item.actionLabel || "Explore")} &rarr;</a><a class="button compact secondary on-light" href="${esc(item.downloadUrl)}" download="${esc(item.downloadName || "")}" aria-label="${esc(item.downloadLabel || "Download PDF")} version of ${esc(item.title)}">${esc(item.downloadLabel || "Download PDF")} <span aria-hidden="true">&darr;</span></a></div>`
@@ -30,19 +48,20 @@
   const render = () => {
     const q = search.value.trim().toLowerCase();
     const visible = items.filter(item => {
-      const haystack = [item.title,item.subtitle,item.description,item.author,item.collection,item.type,...(item.tags || [])].join(" ").toLowerCase();
-      return (activeType === "All" || item.type === activeType) && (!q || haystack.includes(q));
+      const haystack = [item.title,item.subtitle,item.description,item.author,item.collection,item.type,...(item.tags || []),...(item.actions || []).flatMap(action => [action.type,action.label,action.description,action.author])].join(" ").toLowerCase();
+      return (activeType === "All" || item.type === activeType || (item.actions || []).some(action => action.type === activeType)) && (!q || haystack.includes(q));
     });
     const featuredItems = visible.filter(x => x.featured);
     const featuredIds = new Set(featuredItems.map(x => x.id));
-    featured.innerHTML = featuredItems.length ? `<p class="eyebrow">Featured</p><div class="featured-resource-grid">${featuredItems.map(x => card(x, true)).join("")}</div>` : "";
+    const featuredLayout = featuredItems.some(item => item.fullWidth) ? ' style="grid-template-columns:1fr"' : "";
+    featured.innerHTML = featuredItems.length ? `<p class="eyebrow">Featured</p><div class="featured-resource-grid"${featuredLayout}>${featuredItems.map(x => card(x, true)).join("")}</div>` : "";
     grid.innerHTML = visible.filter(x => !featuredIds.has(x.id)).map(x => card(x)).join("");
     count.textContent = `${visible.length} ${visible.length === 1 ? "resource" : "resources"}`;
     empty.hidden = visible.length !== 0;
   };
   fetch("/resources/resources.json", {cache:"no-store"}).then(r => { if (!r.ok) throw new Error("Resources unavailable"); return r.json(); }).then(data => {
     items = data.items || [];
-    const types = ["All", ...new Set(items.map(x => x.type).filter(Boolean))];
+    const types = ["All", ...new Set(items.flatMap(item => [item.type, ...(item.actions || []).map(action => action.type)]).filter(Boolean))];
     filters.innerHTML = types.map(type => `<button class="resource-filter" type="button" aria-pressed="${type === "All"}" data-type="${esc(type)}">${esc(type)}</button>`).join("");
     filters.addEventListener("click", event => { const button = event.target.closest("button[data-type]"); if (!button) return; activeType = button.dataset.type; filters.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === button))); render(); });
     search.addEventListener("input", render);

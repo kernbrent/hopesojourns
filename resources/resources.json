@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "updated": "2026-08-29",
   "items": [
     {
@@ -35,102 +35,66 @@
     },
     {
       "id": "do-you-see-me",
-      "type": "Article",
+      "type": "Collection",
       "title": "Do You See Me?",
       "subtitle": "Learning to See People the Way Jesus Does",
-      "description": "A reflection on seeing beyond labels, honoring the dignity and stories of overlooked people, and learning to see with the compassion of Jesus.",
-      "author": "Brent D Kern",
-      "date": "2026-08-09",
-      "url": "/resources/do-you-see-me/",
-      "actionLabel": "Read the article",
-      "downloadUrl": "/resources/do-you-see-me/Do%20You%20See%20Me%20-%20Learning%20to%20See%20People%20the%20Way%20Jesus%20Does.pdf",
-      "downloadLabel": "Download PDF",
-      "downloadName": "Do You See Me - Learning to See People the Way Jesus Does.pdf",
+      "description": "Explore the article, reflective song, official music video, and companion sermon together in one collection about seeing people with the compassion of Jesus.",
+      "author": "Brent D Kern and Eric Clanton",
+      "date": "2026-08-15",
       "featured": true,
+      "fullWidth": true,
       "collection": "Seeing People",
+      "actions": [
+        {
+          "type": "Article",
+          "label": "Read the article",
+          "description": "A reflection on seeing beyond labels, honoring the dignity and stories of overlooked people, and learning to see with the compassion of Jesus.",
+          "url": "/resources/do-you-see-me/",
+          "secondaryLabel": "Download the article PDF",
+          "secondaryUrl": "/resources/do-you-see-me/Do%20You%20See%20Me%20-%20Learning%20to%20See%20People%20the%20Way%20Jesus%20Does.pdf",
+          "downloadName": "Do You See Me - Learning to See People the Way Jesus Does.pdf"
+        },
+        {
+          "type": "Song",
+          "label": "Listen to the companion song",
+          "description": "A reflective piano song written to accompany the article and sermon.",
+          "author": "Eric Clanton",
+          "duration": "4:16",
+          "url": "/resources/do-you-see-me/DoYouSeeMe_Song.mp3",
+          "media": "audio"
+        },
+        {
+          "type": "Video",
+          "label": "Watch the official music video",
+          "description": "Set to Eric Clanton's reflective song, the video invites viewers to look beyond labels and notice the person before them.",
+          "author": "Brent Kern",
+          "url": "https://www.youtube.com/watch?v=i2I7wFjWrDE"
+        },
+        {
+          "type": "Sermon",
+          "label": "Listen to the companion sermon",
+          "description": "Brent Kern expands on the article through Scripture and mission experiences, emphasizing the God-given dignity of people who are often overlooked.",
+          "author": "Brent D Kern",
+          "duration": "44:37",
+          "url": "/resources/do-you-see-me/DoYouSeeMe_Sermon_08152026.mp3",
+          "media": "audio"
+        }
+      ],
       "tags": [
+        "article",
+        "song",
+        "video",
+        "sermon",
         "dignity",
         "compassion",
         "homelessness",
         "missions",
-        "listening"
-      ],
-      "relatedIds": [
-        "do-you-see-me-song",
-        "do-you-see-me-video",
-        "do-you-see-me-sermon"
-      ]
-    },
-    {
-      "id": "do-you-see-me-song",
-      "type": "Song",
-      "title": "Do You See Me? \u2014 Song",
-      "description": "A reflective piano song by Eric Clanton, written to accompany the Do You See Me? article and sermon.",
-      "author": "Eric Clanton",
-      "duration": "4:16",
-      "url": "/resources/do-you-see-me/DoYouSeeMe_Song.mp3",
-      "actionLabel": "Listen to the song",
-      "featured": false,
-      "collection": "Seeing People",
-      "tags": [
-        "dignity",
-        "compassion",
+        "listening",
         "reflection",
-        "piano",
-        "music"
-      ],
-      "relatedIds": [
-        "do-you-see-me",
-        "do-you-see-me-video",
-        "do-you-see-me-sermon"
-      ]
-    },
-    {
-      "id": "do-you-see-me-video",
-      "type": "Video",
-      "title": "Do You See Me? — Official Music Video",
-      "description": "Set to Eric Clanton's reflective song, this official music video invites viewers to look beyond labels, notice the person before them, and learn to see with the compassion of Jesus.",
-      "author": "Brent Kern",
-      "url": "https://www.youtube.com/watch?v=i2I7wFjWrDE",
-      "actionLabel": "Watch the video",
-      "featured": false,
-      "collection": "Seeing People",
-      "tags": [
-        "dignity",
-        "compassion",
-        "reflection",
-        "music video",
-        "seeing people"
-      ],
-      "relatedIds": [
-        "do-you-see-me",
-        "do-you-see-me-song",
-        "do-you-see-me-sermon"
-      ]
-    },
-    {
-      "id": "do-you-see-me-sermon",
-      "type": "Sermon",
-      "title": "Do You See Me? \u2014 Sermon",
-      "description": "In this companion message, Brent Kern expands on the article through Scripture and mission experiences, asking what changes when followers of Jesus stop, listen, draw near, and recognize the God-given dignity of people who are often overlooked.",
-      "author": "Brent D Kern",
-      "date": "2026-08-15",
-      "duration": "44:37",
-      "url": "/resources/do-you-see-me/DoYouSeeMe_Sermon_08152026.mp3",
-      "actionLabel": "Listen to the sermon",
-      "featured": false,
-      "collection": "Seeing People",
-      "tags": [
-        "dignity",
-        "compassion",
-        "seeing people",
+        "music",
         "Jesus"
       ],
-      "relatedIds": [
-        "do-you-see-me",
-        "do-you-see-me-song",
-        "do-you-see-me-video"
-      ]
+      "relatedIds": []
     },
     {
       "id": "have-you-ever-fed-jesus",
@@ -178,7 +142,7 @@
     {
       "id": "have-you-ever-fed-jesus-devotional",
       "type": "Devotional",
-      "title": "Have You Ever Fed Jesus? \u2014 Devotional",
+      "title": "Have You Ever Fed Jesus? — Devotional",
       "description": "A brief devotional on seeing Jesus in the overlooked and letting compassion replace contempt.",
       "author": "Brent D Kern",
       "date": "2025-10-13",

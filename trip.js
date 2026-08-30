@@ -72,7 +72,7 @@ const tripData = {
     eyebrow: "A joint journey of practical care",
     image: "/assets/mexico-city.jpg",
     alt: "Palacio de Bellas Artes and the Mexico City skyline",
-    intro: "In 2027, Hope Sojourns is developing a joint trip with Metro Relief of Dallas to support a sister ministry serving people experiencing homelessness in Mexico City.",
+    intro: "Hope Sojourns is preparing for a January 10–16, 2027 joint trip with Metro Relief of Dallas to support a sister ministry serving people experiencing homelessness in Mexico City.",
     partners: [
       ["Metro Relief of Dallas", "Helping coordinate the joint team and connect Hope Sojourns with a sister ministry in Mexico City."],
       ["Sister ministry in Mexico City", "Serving neighbors experiencing homelessness through trusted, ongoing local relationships."]
@@ -81,7 +81,9 @@ const tripData = {
     focus: "Homeless ministry",
     setting: "Urban ministry",
     teamSize: "10–15 people",
-    note: "Dates, costs, host-ministry details, travel requirements, and final team roles will be confirmed before registration opens.",
+    dates: "January 10–16, 2027",
+    status: "Scheduled · Interest conversations open",
+    note: "Costs, host-ministry details, travel requirements, and final team roles will be confirmed before registration opens.",
     credit: "<a href=\"https://commons.wikimedia.org/wiki/File:Mexico_City_Palacio_de_bellas_artes.jpg\" target=\"_blank\" rel=\"noopener noreferrer\">Photo by Jeses via Wikimedia Commons</a>, used under <a href=\"https://creativecommons.org/licenses/by-sa/2.5/\" target=\"_blank\" rel=\"noopener noreferrer\">CC BY-SA 2.5</a>; cropped for display."
   },
   others: {
@@ -124,7 +126,7 @@ if (trip) {
       <aside>
         <div class="info-card">
           <h3>Journey at a glance</h3>
-          <dl><dt>Primary focus</dt><dd>${trip.focus}</dd><dt>Setting</dt><dd>${trip.setting}</dd>${trip.teamSize ? `<dt>Target team</dt><dd>${trip.teamSize}</dd>` : ""}<dt>Status</dt><dd>Interest conversations open</dd></dl>
+          <dl><dt>Primary focus</dt><dd>${trip.focus}</dd><dt>Setting</dt><dd>${trip.setting}</dd>${trip.dates ? `<dt>Dates</dt><dd>${trip.dates}</dd>` : ""}${trip.teamSize ? `<dt>Target team</dt><dd>${trip.teamSize}</dd>` : ""}<dt>Status</dt><dd>${trip.status || "Interest conversations open"}</dd></dl>
           <div class="info-card-actions">
             <a class="button" href="/interest/?type=trip&amp;opportunity=${interestOpportunity}">I&rsquo;m interested in this trip</a>
             <a class="text-link" href="/schedule/">Talk about this trip &rarr;</a>

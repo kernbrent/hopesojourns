@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 1.5
+Version 1.6
 
-Last reviewed: August 24, 2026
+Last reviewed: August 29, 2026
 
 ## 1. Purpose and operating rules
 
@@ -147,9 +147,11 @@ HTML references use query values such as `/styles.css?v=25` and `/script.js?v=15
 
 ### Resources
 
-`/resources/resources.json` is the library data source. `/resources/resources.js` fetches it without long-term caching and renders filters, featured cards, related items, and search results.
+`/resources/resources.json` is the library data source. `/resources/resources.js` fetches it without long-term caching and renders filters, featured cards, related items, collection actions, and search results.
 
 Use stable IDs, valid types, accurate metadata, descriptive action labels, and valid `relatedIds`. If a resource needs a full local article, create its route and keep the JSON entry linked to that route.
+
+A top-level resource may use an `actions` array when an article, song, video, sermon, or other media item should appear inside one collection tile. Each action requires `type`, `label`, and `url`; it may also include `description`, `author`, `duration`, `media`, `secondaryLabel`, `secondaryUrl`, and `downloadName`. Set `media` to `audio` for an inline audio player. Action types and copy are included in search and type filtering, but the matching collection renders only once. Use `fullWidth: true` when a featured collection needs a one-column layout to keep the bundled controls readable. Do not create separate top-level records for items that are intentionally presented as one collection tile.
 
 ### Gallery
 
@@ -463,6 +465,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-29 | 1.6 | Documented grouped resource actions, collection filtering, and full-width featured collection cards. |
 | 2026-08-24 | 1.5 | Documented the CSM giving dashboard, approve-all queue processing, final donor rematch, and People donor shortcut. |
 | 2026-08-23 | 1.4 | Added the production launch architecture, environment guard, isolated Workers and D1 databases, and deployment order. |
 | 2026-08-23 | 1.3 | Added inclusive form and portal wording, the internship ZIP workflow, and safer Word list pagination. |

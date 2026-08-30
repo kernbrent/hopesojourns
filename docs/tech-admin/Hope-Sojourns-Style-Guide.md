@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 1.4
+Version 1.5
 
 Last reviewed: August 29, 2026
 
@@ -232,6 +232,13 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Gold-left-border callouts are appropriate for scripture, commitments, facts, and important contextual notes.
 - Dark green bands are reserved for high-emphasis invitations, next steps, and narrative transitions.
 
+### Resource collection cards
+
+- When an article, song, video, sermon, or other media item shares one title and one central theme, prefer a single collection card over several sibling tiles.
+- Give each item inside the collection a clear type label, a short description, and a descriptive action. Audio items may use labeled native controls inside the card.
+- Use a full-width featured layout when the bundled actions would make paired cards uneven or cramped.
+- Search and type filters should recognize the items inside the collection while returning the collection card only once.
+- On narrow screens, keep the collection as one stacked card with controls and links contained within its width.
 ### Forms
 
 - Every input requires a visible label.
@@ -378,6 +385,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-29 | 1.5 | Added the single-card resource collection standard for related articles, songs, videos, and sermons. |
 | 2026-08-29 | 1.4 | Added the responsive embedded-video and companion-audio standard for resource articles. |
 | 2026-08-24 | 1.3 | Added the compact, responsive admin giving dashboard and transaction-review layout standard. |
 | 2026-08-23 | 1.2 | Added hostname-aware response-portal environment labeling for the production launch. |
