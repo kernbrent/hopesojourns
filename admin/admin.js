@@ -47,6 +47,45 @@ const csmNetReceived = document.querySelector("#csm-net-received");
 const csmDonationCount = document.querySelector("#csm-donation-count");
 const csmGiverCount = document.querySelector("#csm-giver-count");
 const csmSentTotal = document.querySelector("#csm-sent-total");
+const ledgerViewTab = document.querySelector("#ledger-view-tab");
+const ledgerWorkspace = document.querySelector("#ledger-workspace");
+const ledgerFilters = document.querySelector("#ledger-filters");
+const ledgerTableShell = document.querySelector("#ledger-table-shell");
+const ledgerStatus = document.querySelector("#ledger-status");
+const ledgerIncome = document.querySelector("#ledger-income");
+const ledgerExpense = document.querySelector("#ledger-expense");
+const ledgerBalance = document.querySelector("#ledger-balance");
+const ledgerCount = document.querySelector("#ledger-count");
+const ledgerPageLabel = document.querySelector("#ledger-page-label");
+const previousLedgerPage = document.querySelector("#previous-ledger-page");
+const nextLedgerPage = document.querySelector("#next-ledger-page");
+const addLedgerEntryButton = document.querySelector("#add-ledger-entry");
+const importLedgerButton = document.querySelector("#import-ledger");
+const exportLedgerButton = document.querySelector("#export-ledger");
+const ledgerEntryDialog = document.querySelector("#ledger-entry-dialog");
+const closeLedgerEntryDialog = document.querySelector("#close-ledger-entry-dialog");
+const ledgerEntryForm = document.querySelector("#ledger-entry-form");
+const ledgerEntryStatus = document.querySelector("#ledger-entry-status");
+const ledgerPersonSelect = document.querySelector("#ledger-person-select");
+const ledgerPaymentTypes = document.querySelector("#ledger-payment-types");
+const ledgerExpenseCategories = document.querySelector("#ledger-expense-categories");
+const ledgerBudgetCategories = document.querySelector("#ledger-budget-categories");
+const ledgerImportDialog = document.querySelector("#ledger-import-dialog");
+const closeLedgerImportDialog = document.querySelector("#close-ledger-import-dialog");
+const ledgerImportForm = document.querySelector("#ledger-import-form");
+const ledgerImportFile = document.querySelector("#ledger-import-file");
+const previewLedgerImportButton = document.querySelector("#preview-ledger-import");
+const ledgerImportStatus = document.querySelector("#ledger-import-status");
+const ledgerImportPreview = document.querySelector("#ledger-import-preview");
+const ledgerImportFileName = document.querySelector("#ledger-import-file-name");
+const ledgerImportNew = document.querySelector("#ledger-import-new");
+const ledgerImportLoaded = document.querySelector("#ledger-import-loaded");
+const ledgerImportConflicts = document.querySelector("#ledger-import-conflicts");
+const ledgerImportErrors = document.querySelector("#ledger-import-errors");
+const ledgerImportHelp = document.querySelector("#ledger-import-help");
+const ledgerImportTableShell = document.querySelector("#ledger-import-table-shell");
+const chooseAnotherLedgerImportButton = document.querySelector("#choose-another-ledger-import");
+const commitLedgerImportButton = document.querySelector("#commit-ledger-import");
 const peopleGrid = document.querySelector("#people-grid");
 const teamsWorkspace = document.querySelector("#teams-workspace");
 const teamsList = document.querySelector("#teams-list");
@@ -109,6 +148,11 @@ const state = {
   currentRecordId: "",
   filterOptions: {},
   contactImportFile: null,
+  ledgerPage: 1,
+  ledgerPages: 1,
+  ledgerImportFile: null,
+  ledgerCategories: { paymentTypes: [], expenseCategories: [], budgetCategories: [] },
+  selectedPersonIds: new Set(),
 };
 
 function element(tag, className, text) {
@@ -202,6 +246,46 @@ async function api(path, options = {}) {
   return { result, response };
 }
 
+async function apiDownload(path, options = {}) {
+  const method = options.method || "GET";
+  const headers = new Headers(options.headers || {});
+  const isFormData = options.body instanceof FormData;
+  headers.set("Accept", "application/octet-stream, application/zip, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json");
+  if (method !== "GET" && state.csrfToken) headers.set("X-CSRF-Token", state.csrfToken);
+  const response = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers,
+    credentials: "same-origin",
+    body: options.body === undefined ? undefined : isFormData ? options.body : JSON.stringify(options.body),
+  });
+  if (!response.ok) {
+    let result = {};
+    try { result = await response.json(); } catch { result = {}; }
+    if (response.status === 401) showLogin("Your session ended. Sign in again.");
+    const error = new Error(result.error || "The portal could not prepare that download.");
+    error.status = response.status;
+    error.code = result.code;
+    throw error;
+  }
+  const disposition = response.headers.get("content-disposition") || "";
+  const fileName = disposition.match(/filename="([^"]+)"/i)?.[1] || options.fileName || "Hope-Sojourns-Download";
+  return { blob: await response.blob(), fileName };
+}
+
+function saveDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
+}
 function showLogin(message = "") {
   state.csrfToken = "";
   dashboardPanel.hidden = true;
@@ -211,6 +295,8 @@ function showLogin(message = "") {
   if (submissionDialog.open) submissionDialog.close();
   if (contactImportDialog.open) contactImportDialog.close();
   if (changePasswordDialog.open) changePasswordDialog.close();
+  if (ledgerEntryDialog.open) ledgerEntryDialog.close();
+  if (ledgerImportDialog.open) ledgerImportDialog.close();
   accountMenu.open = false;
   resetPasswordVisibility(loginForm);
   passwordInput.focus();
@@ -309,7 +395,7 @@ function gridCell(row, value, className = "") {
   return cell;
 }
 
-function renderPeopleGrid(people) {
+function renderPeopleGridLegacy(people) {
   const table = element("table", "admin-data-grid");
   table.append(element("caption", "", "Filtered people records. Select a person's name to open their complete record."));
   const head = document.createElement("thead");
@@ -356,6 +442,234 @@ function renderPeopleGrid(people) {
   return table;
 }
 
+function selectedContactIds() {
+  return [...state.selectedPersonIds];
+}
+
+function updateGridSelectionState() {
+  const count = state.selectedPersonIds.size;
+  document.querySelectorAll("[data-selected-contact-count]").forEach(node => {
+    node.textContent = plural(count, "contact");
+  });
+  document.querySelectorAll("[data-requires-contact-selection]").forEach(button => {
+    button.disabled = count === 0;
+  });
+  const rowBoxes = [...peopleGrid.querySelectorAll("[data-contact-select]")];
+  const selectAll = peopleGrid.querySelector("[data-select-visible-contacts]");
+  if (selectAll) {
+    const checked = rowBoxes.filter(box => box.checked).length;
+    selectAll.checked = rowBoxes.length > 0 && checked === rowBoxes.length;
+    selectAll.indeterminate = checked > 0 && checked < rowBoxes.length;
+  }
+}
+
+async function generateSelectedContactDocuments(kind, templateFile, taxYear, status, button) {
+  const personIds = selectedContactIds();
+  if (!personIds.length) throw new Error("Select at least one contact.");
+  if (!(templateFile instanceof File)) throw new Error("Choose a Word .docx template.");
+  const formData = new FormData();
+  formData.set("file", templateFile);
+  formData.set("personIds", JSON.stringify(personIds));
+  formData.set("kind", kind);
+  formData.set("taxYear", String(taxYear));
+  setBusy(button, true, kind === "giving_statement" ? "Creating statements…" : "Creating letters…");
+  status.textContent = "Preparing personalized Word documents…";
+  try {
+    const download = await apiDownload("/contacts/documents", { method: "POST", body: formData });
+    saveDownload(download.blob, download.fileName);
+    status.textContent = `${plural(personIds.length, "document")} created and downloaded in one ZIP file.`;
+  } finally {
+    setBusy(button, false);
+    updateGridSelectionState();
+  }
+}
+
+function renderContactGridToolbar(people) {
+  const toolbar = element("section", "admin-grid-bulk-tools");
+  const heading = element("div", "admin-grid-bulk-heading");
+  const copy = element("div");
+  copy.append(element("strong", "", "Selected contacts"), element("span", "", "Use the checkboxes below, then update activity or create personalized letters."));
+  const count = element("span", "admin-selection-count");
+  count.dataset.selectedContactCount = "";
+  const clear = element("button", "admin-button admin-button-quiet", "Clear selection");
+  clear.type = "button";
+  clear.addEventListener("click", () => {
+    state.selectedPersonIds.clear();
+    peopleGrid.querySelectorAll("[data-contact-select]").forEach(box => { box.checked = false; });
+    updateGridSelectionState();
+  });
+  heading.append(copy, count, clear);
+
+  const activity = element("div", "admin-grid-bulk-group");
+  activity.append(element("strong", "", "Update latest activity"));
+  const dateLabel = element("label");
+  dateLabel.append(element("span", "", "Activity date"));
+  const date = document.createElement("input");
+  date.type = "date";
+  date.value = new Date().toISOString().slice(0, 10);
+  dateLabel.append(date);
+  const noteLabel = element("label", "admin-grid-note-field");
+  noteLabel.append(element("span", "", "Last contacted notes"));
+  const note = document.createElement("input");
+  note.type = "text";
+  note.maxLength = 50;
+  note.placeholder = "Brief follow-up note";
+  noteLabel.append(note);
+  const update = element("button", "admin-button admin-button-primary", "Update selected");
+  update.type = "button";
+  update.dataset.requiresContactSelection = "";
+  const status = element("p", "admin-form-status admin-grid-bulk-status");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  update.addEventListener("click", async () => {
+    if (!date.value) { status.textContent = "Choose an activity date."; return; }
+    setBusy(update, true, "Updating…");
+    status.textContent = "";
+    try {
+      const { result } = await api("/contacts/bulk-activity", {
+        method: "POST",
+        body: { personIds: selectedContactIds(), lastContactedAt: date.value, lastContactedNote: note.value },
+      });
+      status.textContent = `${plural(result.updated, "contact")} updated.`;
+      await loadPeopleGrid();
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      setBusy(update, false);
+      updateGridSelectionState();
+    }
+  });
+  activity.append(dateLabel, noteLabel, update);
+
+  const documents = element("div", "admin-grid-bulk-group admin-grid-document-group");
+  documents.append(element("strong", "", "Create personalized documents"));
+  const yearLabel = element("label");
+  yearLabel.append(element("span", "", "Giving year"));
+  const year = document.createElement("input");
+  year.type = "number";
+  year.min = "2000";
+  year.max = "2200";
+  year.value = String(new Date().getFullYear());
+  yearLabel.append(year);
+  const statement = element("button", "admin-button admin-button-primary", "Create giving statements");
+  statement.type = "button";
+  statement.dataset.requiresContactSelection = "";
+  const templateLabel = element("label", "admin-grid-template-field");
+  templateLabel.append(element("span", "", "Different Word template"));
+  const template = document.createElement("input");
+  template.type = "file";
+  template.accept = ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  templateLabel.append(template, element("small", "", "Use fields such as [[GREETING_NAME]], [[FULL_NAME]], [[ADDRESS_LINE_1]], and [[LETTER_DATE]]."));
+  const merge = element("button", "admin-button admin-button-outline", "Create from uploaded template");
+  merge.type = "button";
+  merge.dataset.requiresContactSelection = "";
+  documents.append(yearLabel, statement, templateLabel, merge);
+
+  statement.addEventListener("click", async () => {
+    try {
+      const response = await fetch("/admin/supplemental-documents/Hope-Sojourns-Giving-Statement-Template.docx", { credentials: "same-origin" });
+      if (!response.ok) throw new Error("The Hope Sojourns giving-statement template could not be opened.");
+      const file = new File([await response.blob()], "Hope-Sojourns-Giving-Statement-Template.docx", {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+      await generateSelectedContactDocuments("giving_statement", file, Number(year.value), status, statement);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  merge.addEventListener("click", async () => {
+    try {
+      await generateSelectedContactDocuments("mail_merge", template.files?.[0], Number(year.value), status, merge);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+
+  toolbar.append(heading, activity, documents, status);
+  return toolbar;
+}
+
+function renderPeopleGrid(people) {
+  const shell = element("div", "admin-grid-content");
+  shell.append(renderContactGridToolbar(people));
+  const table = element("table", "admin-data-grid");
+  table.append(element("caption", "", "Filtered people records. Select contacts for bulk actions or select a person's name to open their complete record."));
+  const head = document.createElement("thead");
+  const headingRow = document.createElement("tr");
+  const selectionHeading = element("th", "admin-grid-select-cell");
+  selectionHeading.scope = "col";
+  const selectAll = document.createElement("input");
+  selectAll.type = "checkbox";
+  selectAll.dataset.selectVisibleContacts = "";
+  selectAll.setAttribute("aria-label", "Select all contacts visible on this page");
+  selectAll.addEventListener("change", () => {
+    people.forEach(person => {
+      if (selectAll.checked) state.selectedPersonIds.add(person.id);
+      else state.selectedPersonIds.delete(person.id);
+    });
+    table.querySelectorAll("[data-contact-select]").forEach(box => { box.checked = selectAll.checked; });
+    updateGridSelectionState();
+  });
+  selectionHeading.append(selectAll);
+  headingRow.append(selectionHeading);
+  ["Name", "Organization", "Contact type", "Email", "Cell phone", "Languages", "Hope Sojourns area", "Trips", "Teams", "Latest activity", "Requests"].forEach(label => {
+    const heading = element("th", "", label);
+    heading.scope = "col";
+    headingRow.append(heading);
+  });
+  head.append(headingRow);
+
+  const body = document.createElement("tbody");
+  people.forEach(person => {
+    const row = document.createElement("tr");
+    const selectionCell = gridCell(row, "", "admin-grid-select-cell");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = state.selectedPersonIds.has(person.id);
+    checkbox.dataset.contactSelect = person.id;
+    checkbox.setAttribute("aria-label", `Select ${person.firstName} ${person.lastName}`);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) state.selectedPersonIds.add(person.id);
+      else state.selectedPersonIds.delete(person.id);
+      updateGridSelectionState();
+    });
+    selectionCell.append(checkbox);
+
+    const nameCell = gridCell(row, "");
+    const name = element("button", "admin-grid-name", `${person.firstName} ${person.lastName}`);
+    name.type = "button";
+    name.setAttribute("aria-label", `Open complete record for ${person.firstName} ${person.lastName}`);
+    name.addEventListener("click", () => openPerson(person.id));
+    nameCell.append(name);
+
+    gridCell(row, person.organization || "—", person.organization ? "" : "admin-grid-muted");
+    gridCell(row, (person.contactTypes || []).map(contactTypeLabel).join(", ") || "—", person.contactTypes?.length ? "" : "admin-grid-muted");
+    const emailCell = gridCell(row, "");
+    if (person.email) {
+      const email = element("a", "admin-grid-email", person.email);
+      email.href = `mailto:${person.email}`;
+      emailCell.append(email);
+    } else emailCell.append(element("span", "admin-grid-muted", "—"));
+    gridCell(row, person.phone || "—", person.phone ? "" : "admin-grid-muted");
+    gridCell(row, (person.languages || []).join(", ") || "—", person.languages?.length ? "" : "admin-grid-muted");
+    gridCell(row, (person.areas || []).map(titleCase).join(", ") || "—", person.areas?.length ? "" : "admin-grid-muted");
+    gridCell(row, (person.trips || []).map(trip => trip.title).join(", ") || "—", person.trips?.length ? "" : "admin-grid-muted");
+    const teamsCell = gridCell(row, "");
+    const teamList = element("div", "admin-request-interests");
+    if (person.teams?.length) person.teams.forEach(team => teamList.append(teamPill(team)));
+    else teamList.append(element("span", "admin-grid-muted", "Unassigned"));
+    teamsCell.append(teamList);
+    const activityCell = gridCell(row, "");
+    activityCell.append(element("span", "", person.lastContactedAt ? formatDate(person.lastContactedAt, false) : formatDate(person.latestActivityAt || person.updatedAt)));
+    if (person.lastContactedNote) activityCell.append(element("small", "admin-grid-activity-note", person.lastContactedNote));
+    gridCell(row, String(person.submissionCount), "admin-grid-count");
+    body.append(row);
+  });
+  table.append(head, body);
+  shell.append(table);
+  queueMicrotask(updateGridSelectionState);
+  return shell;
+}
 function renderSummary(summary) {
   document.querySelector("#summary-submissions").textContent = summary.submissions || 0;
   document.querySelector("#summary-people").textContent = summary.people || 0;
@@ -866,7 +1180,214 @@ async function loadMinistries() {
   }
 }
 
-async function loadRecords() {
+function ledgerFilterQuery() {
+  const formData = new FormData(ledgerFilters);
+  const params = new URLSearchParams({ page: String(state.ledgerPage), pageSize: "50" });
+  for (const key of ["search", "year", "entryType", "sourceType"]) {
+    const value = String(formData.get(key) || "").trim();
+    if (value) params.set(key, value);
+  }
+  return params;
+}
+
+function populateDatalist(list, values) {
+  list.replaceChildren(...(values || []).map(value => {
+    const option = document.createElement("option");
+    option.value = value;
+    return option;
+  }));
+}
+
+function applyLedgerCategories(categories = {}) {
+  state.ledgerCategories = categories;
+  populateDatalist(ledgerPaymentTypes, categories.paymentTypes);
+  populateDatalist(ledgerExpenseCategories, categories.expenseCategories);
+  populateDatalist(ledgerBudgetCategories, categories.budgetCategories);
+}
+
+function ledgerSourceLabel(value) {
+  return value === "csm" ? "ChristianSteps / PayPal" : value === "import" ? "Spreadsheet" : "Manual";
+}
+
+function renderLedgerTable(entries) {
+  if (!entries.length) {
+    const empty = element("article", "admin-empty-state");
+    empty.append(element("h3", "", "No ledger entries match these filters"), element("p", "", "Clear the filters, import a spreadsheet, or add the first manual entry."));
+    return empty;
+  }
+  const table = element("table", "admin-data-grid admin-ledger-table");
+  table.append(element("caption", "", "Filtered Hope Sojourns income and expense ledger."));
+  const head = document.createElement("thead");
+  const heading = document.createElement("tr");
+  ["Date", "Type", "Amount", "Name", "Payment", "Expense category", "Budget category", "Source", "Note"].forEach(label => {
+    const cell = element("th", "", label);
+    cell.scope = "col";
+    heading.append(cell);
+  });
+  head.append(heading);
+  const body = document.createElement("tbody");
+  entries.forEach(entry => {
+    const row = document.createElement("tr");
+    gridCell(row, formatDate(entry.transactionDate, false));
+    const type = gridCell(row, titleCase(entry.entryType), `admin-ledger-type admin-ledger-type-${entry.entryType}`);
+    type.dataset.label = entry.entryType;
+    gridCell(row, formatMoney(entry.amount), "admin-ledger-amount");
+    gridCell(row, entry.name || "—", entry.name ? "" : "admin-grid-muted");
+    gridCell(row, entry.paymentType);
+    gridCell(row, entry.expenseCategory || "—", entry.expenseCategory ? "" : "admin-grid-muted");
+    gridCell(row, entry.budgetCategory);
+    const source = gridCell(row, ledgerSourceLabel(entry.sourceType));
+    if (entry.sourceFileName) source.append(element("small", "", `${entry.sourceFileName}${entry.sourceRowNumber ? ` · row ${entry.sourceRowNumber}` : ""}`));
+    gridCell(row, entry.note || "—", entry.note ? "" : "admin-grid-muted");
+    body.append(row);
+  });
+  table.append(head, body);
+  return table;
+}
+
+function ensureLedgerYears() {
+  const select = document.querySelector("#ledger-year-filter");
+  if (select.options.length > 1) return;
+  const current = new Date().getFullYear();
+  for (let year = current; year >= 2020; year -= 1) {
+    const option = element("option", "", String(year));
+    option.value = String(year);
+    select.append(option);
+  }
+}
+
+async function loadLedger() {
+  ensureLedgerYears();
+  ledgerStatus.textContent = "Loading ledger…";
+  ledgerTableShell.setAttribute("aria-busy", "true");
+  try {
+    const { result } = await api(`/ledger?${ledgerFilterQuery()}`);
+    ledgerTableShell.replaceChildren(renderLedgerTable(result.entries || []));
+    ledgerIncome.textContent = formatMoney(result.summary?.income);
+    ledgerExpense.textContent = formatMoney(result.summary?.expense);
+    ledgerBalance.textContent = formatMoney(result.summary?.balance);
+    ledgerCount.textContent = String(result.summary?.count || 0);
+    ledgerBalance.closest("article").classList.toggle("is-negative", Number(result.summary?.balance || 0) < 0);
+    state.ledgerPage = result.page || 1;
+    state.ledgerPages = result.pages || 1;
+    ledgerPageLabel.textContent = `Page ${state.ledgerPage} of ${state.ledgerPages}`;
+    previousLedgerPage.disabled = state.ledgerPage <= 1;
+    nextLedgerPage.disabled = state.ledgerPage >= state.ledgerPages;
+    applyLedgerCategories(result.categories || {});
+    resultsCount.textContent = plural(result.total || 0, "ledger entry", "ledger entries");
+    ledgerStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) ledgerStatus.textContent = error.message;
+  } finally {
+    ledgerTableShell.removeAttribute("aria-busy");
+  }
+}
+
+async function loadLedgerDonors() {
+  const selected = ledgerPersonSelect.value;
+  try {
+    const { result } = await api("/people?page=1&pageSize=50&contactType=donor&sort=name_asc");
+    const options = [element("option", "", "No contact link")];
+    options[0].value = "";
+    for (const person of result.people || []) {
+      const option = element("option", "", `${person.firstName} ${person.lastName}${person.email ? ` · ${person.email}` : ""}`);
+      option.value = person.id;
+      options.push(option);
+    }
+    ledgerPersonSelect.replaceChildren(...options);
+    if ([...ledgerPersonSelect.options].some(option => option.value === selected)) ledgerPersonSelect.value = selected;
+  } catch (error) {
+    ledgerEntryStatus.textContent = error.message;
+  }
+}
+
+function openLedgerEntryDialog() {
+  ledgerEntryForm.reset();
+  ledgerEntryForm.elements.transactionDate.value = new Date().toISOString().slice(0, 10);
+  ledgerEntryForm.elements.entryType.value = "income";
+  ledgerEntryForm.elements.paymentType.value = "Check";
+  ledgerEntryForm.elements.budgetCategory.value = "General";
+  ledgerEntryStatus.textContent = "";
+  loadLedgerDonors();
+  if (!ledgerEntryDialog.open) ledgerEntryDialog.showModal();
+  ledgerEntryForm.elements.transactionDate.focus();
+}
+
+function ledgerImportFormData(file) {
+  const formData = new FormData();
+  formData.set("file", file, file.name);
+  return formData;
+}
+
+function resetLedgerImport(focusFile = false) {
+  ledgerImportForm.reset();
+  state.ledgerImportFile = null;
+  ledgerImportPreview.hidden = true;
+  ledgerImportStatus.textContent = "";
+  ledgerImportStatus.classList.remove("is-success");
+  ledgerImportTableShell.replaceChildren();
+  commitLedgerImportButton.disabled = true;
+  commitLedgerImportButton.textContent = "Import new rows";
+  if (focusFile) ledgerImportFile.focus();
+}
+
+function renderLedgerImportRows(rows, committed) {
+  const table = element("table", "admin-import-table");
+  table.append(element("caption", "", committed ? "Ledger spreadsheet import results" : "Ledger spreadsheet import preview"));
+  const head = document.createElement("thead");
+  const heading = document.createElement("tr");
+  ["Row", "Status", "Date", "Type", "Amount", "Name", "Review details"].forEach(label => heading.append(element("th", "", label)));
+  head.append(heading);
+  const body = document.createElement("tbody");
+  for (const item of rows || []) {
+    const row = document.createElement("tr");
+    if (["error", "conflict"].includes(item.action)) row.classList.add("admin-import-row-error");
+    row.append(element("td", "", String(item.rowNumber)));
+    const action = committed && item.action === "new" ? "Imported" : item.action === "new" ? "New" : item.action === "already_loaded" ? "Already loaded" : item.action === "conflict" ? "Changed Seq #" : "Needs correction";
+    row.append(element("td", "", action));
+    row.append(element("td", "", item.transactionDate ? formatDate(item.transactionDate, false) : "—"));
+    row.append(element("td", "", item.entryType ? titleCase(item.entryType) : "—"));
+    row.append(element("td", "", item.amount ? formatMoney(item.amount) : "—"));
+    row.append(element("td", "", item.name || "—"));
+    const details = document.createElement("td");
+    const messages = element("ul", "admin-import-messages");
+    for (const error of item.errors || []) messages.append(element("li", "admin-import-message-error", error));
+    if (!messages.children.length) {
+      const message = item.action === "already_loaded" ? "This exact entry is already in the ledger and will be ignored." : "Ready to import.";
+      messages.append(element("li", "", message));
+    }
+    details.append(messages);
+    row.append(details);
+    body.append(row);
+  }
+  table.append(head, body);
+  return table;
+}
+
+function renderLedgerImportResult(result, committed = false) {
+  ledgerImportFileName.textContent = result.fileName;
+  ledgerImportNew.textContent = String(result.newRows || 0);
+  ledgerImportLoaded.textContent = String(result.alreadyLoaded || 0);
+  ledgerImportConflicts.textContent = String(result.conflicts || 0);
+  ledgerImportErrors.textContent = String(result.errors || 0);
+  ledgerImportHelp.textContent = committed
+    ? `${plural(result.imported || 0, "new entry", "new entries")} imported. Previously loaded, changed, and invalid rows were not added twice.`
+    : "Only rows marked New will be saved. Already loaded rows are safely ignored.";
+  ledgerImportTableShell.replaceChildren(renderLedgerImportRows(result.rows || [], committed));
+  ledgerImportPreview.hidden = false;
+  commitLedgerImportButton.disabled = committed || !result.canImport;
+  commitLedgerImportButton.textContent = committed ? "Import complete" : "Import new rows";
+  ledgerImportPreview.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function selectedLedgerImportFile() {
+  const file = ledgerImportFile.files?.[0];
+  if (!file) throw new Error("Choose the income and expense spreadsheet.");
+  if (file.size > 2 * 1024 * 1024) throw new Error("Choose a spreadsheet smaller than 2 MB.");
+  if (!/\.(xlsx|csv)$/i.test(file.name)) throw new Error("Choose an Excel .xlsx file or CSV.");
+  return file;
+}
+async function loadRecordsLegacy() {
   previousPage.disabled = true;
   nextPage.disabled = true;
   if (state.view === "people") await loadPeople();
@@ -882,7 +1403,7 @@ async function loadRecords() {
   if (state.view !== "csm-inbox") await refreshCsmBadge();
 }
 
-function switchView(view, focusTab = false) {
+function switchViewLegacy(view, focusTab = false) {
   state.view = view;
   state.page = 1;
   const showPeople = view === "people";
@@ -930,6 +1451,81 @@ function switchView(view, focusTab = false) {
   loadRecords();
 }
 
+async function loadRecords() {
+  previousPage.disabled = true;
+  nextPage.disabled = true;
+  if (state.view === "people") await loadPeople();
+  else if (state.view === "requests") await loadSubmissions();
+  else if (state.view === "grid") await loadPeopleGrid();
+  else if (state.view === "csm-inbox") await loadCsmInbox();
+  else if (state.view === "ledger") await loadLedger();
+  else if (state.view === "teams") await loadTeams();
+  else if (state.view === "ministries") await loadMinistries();
+  else {
+    resultsCount.textContent = "13 working documents";
+    submissionsStatus.textContent = "";
+  }
+  if (state.view !== "csm-inbox") await refreshCsmBadge();
+}
+
+function switchView(view, focusTab = false) {
+  state.view = view;
+  state.page = 1;
+  if (view === "ledger") state.ledgerPage = 1;
+  const visibility = {
+    people: view === "people",
+    requests: view === "requests",
+    grid: view === "grid",
+    "csm-inbox": view === "csm-inbox",
+    ledger: view === "ledger",
+    teams: view === "teams",
+    ministries: view === "ministries",
+    "internship-toolkit": view === "internship-toolkit",
+  };
+  const tabs = {
+    people: peopleViewTab,
+    requests: requestsViewTab,
+    grid: gridViewTab,
+    "csm-inbox": csmInboxViewTab,
+    ledger: ledgerViewTab,
+    teams: teamsViewTab,
+    ministries: ministriesViewTab,
+    "internship-toolkit": internshipToolkitViewTab,
+  };
+  Object.entries(tabs).forEach(([name, tab]) => {
+    const active = visibility[name];
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
+  peopleList.hidden = !visibility.people;
+  contactToolbar.hidden = !visibility.people;
+  submissionsList.hidden = !visibility.requests;
+  peopleGrid.hidden = !visibility.grid;
+  csmInboxWorkspace.hidden = !visibility["csm-inbox"];
+  ledgerWorkspace.hidden = !visibility.ledger;
+  teamsWorkspace.hidden = !visibility.teams;
+  ministriesWorkspace.hidden = !visibility.ministries;
+  internshipToolkitWorkspace.hidden = !visibility["internship-toolkit"];
+  const standalone = visibility["csm-inbox"] || visibility.ledger || visibility.teams || visibility.ministries || visibility["internship-toolkit"];
+  filterForm.hidden = standalone;
+  recordsPagination.hidden = standalone;
+  exportButton.hidden = standalone;
+  submissionsEmpty.hidden = true;
+  const titles = {
+    people: "Master contacts",
+    requests: "Individual requests",
+    grid: "Contact spreadsheet",
+    "csm-inbox": "CSM transaction inbox",
+    ledger: "Income and expense ledger",
+    teams: "Teams",
+    ministries: "Ministries",
+    "internship-toolkit": "Internship toolkit",
+  };
+  recordsTitle.textContent = titles[view];
+  if (focusTab) tabs[view].focus();
+  loadRecords();
+}
 function detailList(items) {
   const list = element("ul", "admin-detail-list");
   items.forEach(([label, value]) => {
@@ -1385,6 +1981,7 @@ function renderContactEditor(person = null) {
     editorField("Postal code", "postalCode", person?.postalCode, { maximum: 30 }),
     editorField("Country", "country", person?.country, { maximum: 100 }),
     editorField("Last contacted", "lastContactedAt", person?.lastContactedAt?.slice(0, 10), { type: "date" }),
+    editorField("Last contacted notes", "lastContactedNote", person?.lastContactedNote, { maximum: 50, placeholder: "Brief follow-up note" }),
     editorField("Languages spoken (separate with commas)", "languages", person?.languages?.join(", "), { maximum: 800, wide: true }),
     editorCheckboxGroup("Contact types", "contactTypes", options.contactTypes || [], person?.contactTypes || []),
     editorCheckboxGroup("Hope Sojourns areas", "areas", options.contactAreas || [], person?.areas || []),
@@ -1408,7 +2005,7 @@ function renderContactEditor(person = null) {
     setBusy(save, true, person ? "Saving…" : "Creating…");
     detailStatus.textContent = "";
     const formData = new FormData(form);
-    const body = Object.fromEntries(["firstName", "lastName", "preferredName", "organization", "email", "phone", "contactPreference", "contactStatus", "website", "fieldOfStudy", "addressLine1", "addressLine2", "city", "region", "postalCode", "country", "lastContactedAt", "notes"].map(name => [name, String(formData.get(name) || "")]));
+    const body = Object.fromEntries(["firstName", "lastName", "preferredName", "organization", "email", "phone", "contactPreference", "contactStatus", "website", "fieldOfStudy", "addressLine1", "addressLine2", "city", "region", "postalCode", "country", "lastContactedAt", "lastContactedNote", "notes"].map(name => [name, String(formData.get(name) || "")]));
     body.languages = String(formData.get("languages") || "").split(",").map(item => item.trim()).filter(Boolean);
     body.contactTypes = formData.getAll("contactTypes");
     body.areas = formData.getAll("areas");
@@ -1504,6 +2101,7 @@ function renderPersonDetail(person) {
     ["Hope Sojourns areas", person.areas.map(titleCase).join(", ")],
     ["Background or experience", person.fieldOfStudy],
     ["Last contacted", formatDate(person.lastContactedAt, false)],
+    ["Last contacted notes", person.lastContactedNote],
     ["Added from", person.recordSource === "manual" ? "Admin portal" : "Website form"],
     ["First recorded", formatDate(person.createdAt)],
     ["Last updated", formatDate(person.updatedAt)],
@@ -2234,17 +2832,145 @@ changePasswordForm.addEventListener("submit", async event => {
   }
 });
 
+ledgerFilters.addEventListener("submit", event => {
+  event.preventDefault();
+  state.ledgerPage = 1;
+  loadLedger();
+});
+
+document.querySelector("#reset-ledger-filters").addEventListener("click", () => {
+  ledgerFilters.reset();
+  state.ledgerPage = 1;
+  loadLedger();
+});
+
+previousLedgerPage.addEventListener("click", () => {
+  if (state.ledgerPage > 1) { state.ledgerPage -= 1; loadLedger(); }
+});
+
+nextLedgerPage.addEventListener("click", () => {
+  if (state.ledgerPage < state.ledgerPages) { state.ledgerPage += 1; loadLedger(); }
+});
+
+addLedgerEntryButton.addEventListener("click", openLedgerEntryDialog);
+closeLedgerEntryDialog.addEventListener("click", () => ledgerEntryDialog.close());
+
+ledgerEntryForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = ledgerEntryForm.querySelector("button[type='submit']");
+  const formData = new FormData(ledgerEntryForm);
+  setBusy(submit, true, "Saving…");
+  ledgerEntryStatus.textContent = "";
+  try {
+    await api("/ledger/entries", {
+      method: "POST",
+      body: {
+        transactionDate: String(formData.get("transactionDate") || ""),
+        entryType: String(formData.get("entryType") || ""),
+        paymentType: String(formData.get("paymentType") || ""),
+        expenseCategory: String(formData.get("expenseCategory") || ""),
+        amount: Number(formData.get("amount")),
+        budgetCategory: String(formData.get("budgetCategory") || ""),
+        name: String(formData.get("name") || ""),
+        personId: String(formData.get("personId") || ""),
+        note: String(formData.get("note") || ""),
+      },
+    });
+    ledgerEntryStatus.classList.add("is-success");
+    ledgerEntryStatus.textContent = "Ledger entry saved.";
+    await loadLedger();
+    setTimeout(() => ledgerEntryDialog.close(), 450);
+  } catch (error) {
+    ledgerEntryStatus.classList.remove("is-success");
+    ledgerEntryStatus.textContent = error.message;
+  } finally {
+    setBusy(submit, false);
+  }
+});
+
+exportLedgerButton.addEventListener("click", async () => {
+  setBusy(exportLedgerButton, true, "Exporting…");
+  ledgerStatus.textContent = "Preparing the complete Excel ledger…";
+  try {
+    const download = await apiDownload("/ledger/export.xlsx");
+    saveDownload(download.blob, download.fileName);
+    ledgerStatus.textContent = "The complete ledger workbook was downloaded.";
+  } catch (error) {
+    ledgerStatus.textContent = error.message;
+  } finally {
+    setBusy(exportLedgerButton, false);
+  }
+});
+
+importLedgerButton.addEventListener("click", () => {
+  resetLedgerImport();
+  if (!ledgerImportDialog.open) ledgerImportDialog.showModal();
+  ledgerImportFile.focus();
+});
+closeLedgerImportDialog.addEventListener("click", () => ledgerImportDialog.close());
+ledgerImportDialog.addEventListener("close", () => resetLedgerImport());
+ledgerImportFile.addEventListener("change", () => {
+  state.ledgerImportFile = null;
+  ledgerImportPreview.hidden = true;
+  ledgerImportStatus.textContent = "";
+  ledgerImportStatus.classList.remove("is-success");
+});
+chooseAnotherLedgerImportButton.addEventListener("click", () => resetLedgerImport(true));
+
+ledgerImportForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  ledgerImportStatus.classList.remove("is-success");
+  ledgerImportStatus.textContent = "Checking every populated ledger row…";
+  setBusy(previewLedgerImportButton, true, "Reviewing…");
+  try {
+    const file = selectedLedgerImportFile();
+    const { result } = await api("/ledger/imports/preview", { method: "POST", body: ledgerImportFormData(file) });
+    state.ledgerImportFile = file;
+    renderLedgerImportResult(result.preview);
+    ledgerImportStatus.textContent = result.preview.canImport
+      ? "Review the results below, then import only the rows marked New."
+      : "There are no new valid rows to import.";
+  } catch (error) {
+    state.ledgerImportFile = null;
+    ledgerImportPreview.hidden = true;
+    ledgerImportStatus.textContent = error.message;
+  } finally {
+    setBusy(previewLedgerImportButton, false);
+  }
+});
+
+commitLedgerImportButton.addEventListener("click", async () => {
+  if (!state.ledgerImportFile) {
+    ledgerImportStatus.textContent = "Review the spreadsheet again before importing it.";
+    return;
+  }
+  ledgerImportStatus.classList.remove("is-success");
+  ledgerImportStatus.textContent = "Importing new ledger entries…";
+  setBusy(commitLedgerImportButton, true, "Importing…");
+  try {
+    const { result } = await api("/ledger/imports", { method: "POST", body: ledgerImportFormData(state.ledgerImportFile) });
+    setBusy(commitLedgerImportButton, false);
+    renderLedgerImportResult(result.import, true);
+    ledgerImportStatus.classList.add("is-success");
+    ledgerImportStatus.textContent = `Import complete: ${plural(result.import.imported, "new entry", "new entries")} added.`;
+    await loadLedger();
+  } catch (error) {
+    ledgerImportStatus.textContent = error.message;
+    setBusy(commitLedgerImportButton, false);
+  }
+});
 peopleViewTab.addEventListener("click", () => switchView("people"));
 requestsViewTab.addEventListener("click", () => switchView("requests"));
 gridViewTab.addEventListener("click", () => switchView("grid"));
 csmInboxViewTab.addEventListener("click", () => switchView("csm-inbox"));
+ledgerViewTab.addEventListener("click", () => switchView("ledger"));
 teamsViewTab.addEventListener("click", () => switchView("teams"));
 ministriesViewTab.addEventListener("click", () => switchView("ministries"));
 internshipToolkitViewTab.addEventListener("click", () => switchView("internship-toolkit"));
 document.querySelector(".admin-view-tabs").addEventListener("keydown", event => {
   if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
   event.preventDefault();
-  const views = ["people", "requests", "grid", "csm-inbox", "teams", "ministries", "internship-toolkit"];
+  const views = ["people", "requests", "grid", "csm-inbox", "ledger", "teams", "ministries", "internship-toolkit"];
   const direction = event.key === "ArrowRight" ? 1 : -1;
   const nextIndex = (views.indexOf(state.view) + direction + views.length) % views.length;
   switchView(views[nextIndex], true);

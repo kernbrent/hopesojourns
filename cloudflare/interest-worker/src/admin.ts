@@ -41,6 +41,12 @@ const CONTACT_AREA_OPTIONS = [
 const ALLOWED_CONTACT_TYPES = new Set<string>(CONTACT_TYPE_OPTIONS.map(([value]) => value));
 const ALLOWED_CONTACT_AREAS = new Set<string>(CONTACT_AREA_OPTIONS.map(([value]) => value));
 
+export function contactTypeFilterOptions(): Array<{ value: string; label: string }> {
+  return CONTACT_TYPE_OPTIONS
+    .map(([value, label]) => ({ value, label }))
+    .sort((left, right) => left.label.localeCompare(right.label, "en-US"));
+}
+
 export type AdminEnv = Env & {
   ADMIN_PASSWORD?: string;
   ADMIN_SESSION_SECRET?: string;
@@ -101,6 +107,8 @@ type PeopleListRow = {
   first_submission_at: string | null;
   last_submission_at: string | null;
   latest_activity_at: string;
+  last_contacted_at: string | null;
+  last_contacted_note: string | null;
   submission_count: number;
   reply_count: number;
   interests_json: string;
@@ -188,6 +196,7 @@ type ImportPersonRow = {
   notes: string | null;
   contact_status: "active" | "inactive";
   last_contacted_at: string | null;
+  last_contacted_note: string | null;
 };
 
 type ImportRowAnalysis = {
@@ -278,6 +287,16 @@ function cleanOptionalMessage(value: unknown, maximum: number): string | null {
 function cleanOptionalLine(value: unknown, maximum: number): string | null {
   if (value === undefined || value === null || value === "") return null;
   return cleanLine(value, maximum);
+}
+
+export function cleanLastContactedNote(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "string" && !value.normalize("NFKC").replace(/\s+/g, " ").trim()) return null;
+  const note = cleanLine(value, 50);
+  if (!note) {
+    throw new AdminError(422, "INVALID_CONTACT", "Use 50 characters or fewer for the last-contacted note.");
+  }
+  return note;
 }
 
 function normalizeTeamName(value: string): string {
@@ -386,6 +405,7 @@ type ContactInput = {
   notes: string | null;
   contactStatus: "active" | "inactive";
   lastContactedAt: string | null;
+  lastContactedNote: string | null;
   contactTypes: string[];
   areas: string[];
   languages: string[];
@@ -439,6 +459,7 @@ function contactInput(body: Record<string, unknown>): ContactInput {
     notes: cleanOptionalMessage(body.notes, 5000),
     contactStatus,
     lastContactedAt: cleanOptionalDate(body.lastContactedAt),
+    lastContactedNote: cleanLastContactedNote(body.lastContactedNote),
     contactTypes: contactTypes.length ? contactTypes : ["other"],
     areas: cleanChoiceArray(body.areas, ALLOWED_CONTACT_AREAS, 3, "Choose valid Hope Sojourns areas."),
     languages: cleanLanguages(body.languages),
@@ -1004,7 +1025,7 @@ async function adminFilterOptions(env: AdminEnv): Promise<Record<string, unknown
   return {
     opportunities: opportunities.results,
     teams: teams.results,
-    contactTypes: CONTACT_TYPE_OPTIONS.map(([value, label]) => ({ value, label })),
+    contactTypes: contactTypeFilterOptions(),
     contactAreas: CONTACT_AREA_OPTIONS.map(([value, label]) => ({ value, label })),
     earliestDate: dates?.earliest ?? null,
     latestDate: dates?.latest ?? null,
@@ -1110,6 +1131,7 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
     `SELECT
        p.id, p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study,
        p.organization, p.contact_status, p.record_source, p.created_at, p.updated_at,
+       p.last_contacted_at, p.last_contacted_note,
        (SELECT MIN(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id) AS first_submission_at,
        (SELECT MAX(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id) AS last_submission_at,
        COALESCE((SELECT MAX(s.created_at) FROM interest_submissions s WHERE s.person_id = p.id), p.updated_at) AS latest_activity_at,
@@ -1195,6 +1217,8 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
       firstSubmissionAt: row.first_submission_at,
       lastSubmissionAt: row.last_submission_at,
       latestActivityAt: row.latest_activity_at,
+      lastContactedAt: row.last_contacted_at,
+      lastContactedNote: row.last_contacted_note,
       submissionCount: Number(row.submission_count ?? 0),
       replyCount: Number(row.reply_count ?? 0),
       interests: parseJsonArray(row.interests_json),
@@ -1259,18 +1283,18 @@ async function createContact(request: Request, env: AdminEnv): Promise<Response>
            id, first_name, last_name, first_name_normalized, last_name_normalized,
            email, email_normalized, phone, phone_normalized, contact_preference, field_of_study,
            preferred_name, address_line_1, address_line_2, city, region, postal_code, country,
-           organization, website, notes, record_source, contact_status, last_contacted_at,
+           organization, website, notes, record_source, contact_status, last_contacted_at, last_contacted_note,
            created_at, updated_at
          ) VALUES (
            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
-           ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, 'manual', ?22, ?23, ?24, ?25
+           ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, 'manual', ?22, ?23, ?24, ?25, ?26
          )`,
       ).bind(
         id, input.firstName, input.lastName, normalizeTeamName(input.firstName), normalizeTeamName(input.lastName),
         input.email, emailNormalized, input.phone, phoneNormalized, input.contactPreference, input.fieldOfStudy,
         input.preferredName, input.addressLine1, input.addressLine2, input.city, input.region, input.postalCode,
         input.country, input.organization, input.website, input.notes, input.contactStatus, input.lastContactedAt,
-        now, now,
+        input.lastContactedNote, now, now,
       ),
       ...contactRelationStatements(env, id, input, now),
       auditStatement(env, "person", id, "contact_created", { recordSource: "manual" }),
@@ -1303,14 +1327,14 @@ async function updateContact(request: Request, env: AdminEnv, personId: string):
            contact_preference = ?9, field_of_study = ?10, preferred_name = ?11,
            address_line_1 = ?12, address_line_2 = ?13, city = ?14, region = ?15,
            postal_code = ?16, country = ?17, organization = ?18, website = ?19, notes = ?20,
-           contact_status = ?21, last_contacted_at = ?22, updated_at = ?23
-         WHERE id = ?24`,
+           contact_status = ?21, last_contacted_at = ?22, last_contacted_note = ?23, updated_at = ?24
+         WHERE id = ?25`,
       ).bind(
         input.firstName, input.lastName, normalizeTeamName(input.firstName), normalizeTeamName(input.lastName),
         input.email, emailNormalized, input.phone, phoneNormalized, input.contactPreference, input.fieldOfStudy,
         input.preferredName, input.addressLine1, input.addressLine2, input.city, input.region, input.postalCode,
         input.country, input.organization, input.website, input.notes, input.contactStatus, input.lastContactedAt,
-        now, personId,
+        input.lastContactedNote, now, personId,
       ),
       env.DB.prepare("DELETE FROM contact_types WHERE person_id = ?1").bind(personId),
       env.DB.prepare("DELETE FROM contact_languages WHERE person_id = ?1").bind(personId),
@@ -1333,7 +1357,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
   const person = await env.DB.prepare(
     `SELECT id, first_name, last_name, preferred_name, email, phone, contact_preference, field_of_study,
             address_line_1, address_line_2, city, region, postal_code, country,
-            organization, website, notes, record_source, contact_status, last_contacted_at,
+            organization, website, notes, record_source, contact_status, last_contacted_at, last_contacted_note,
             created_at, updated_at
      FROM people WHERE id = ?1 LIMIT 1`,
   ).bind(personId).first<Record<string, string | null>>();
@@ -1447,6 +1471,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
       recordSource: person.record_source,
       contactStatus: person.contact_status,
       lastContactedAt: person.last_contacted_at,
+      lastContactedNote: person.last_contacted_note,
       createdAt: person.created_at,
       updatedAt: person.updated_at,
       latestSubmissionId: submissionHistory[0]?.id ?? null,
@@ -2289,7 +2314,7 @@ const IMPORT_PERSON_COLUMNS = `
   id, first_name, last_name, first_name_normalized, last_name_normalized,
   preferred_name, email, email_normalized, phone, phone_normalized, contact_preference,
   field_of_study, address_line_1, address_line_2, city, region, postal_code, country,
-  organization, website, notes, contact_status, last_contacted_at`;
+  organization, website, notes, contact_status, last_contacted_at, last_contacted_note`;
 
 async function findImportPeople(env: AdminEnv, inputs: ContactImportInput[]): Promise<ImportPersonRow[]> {
   const ids = [...new Set(inputs.map(input => input.contactId).filter((value): value is string => Boolean(value)))];
@@ -2480,6 +2505,7 @@ function mergeContactImportInput(input: ContactImportInput, existing: ImportPers
     notes: mergedImportNotes(existing?.notes ?? null, input.notes, now),
     contactStatus: input.contactStatus ?? existing?.contact_status ?? "active",
     lastContactedAt: input.lastContactedAt ?? existing?.last_contacted_at ?? null,
+    lastContactedNote: existing?.last_contacted_note ?? null,
     contactTypes: input.contactTypes.length ? input.contactTypes : existing ? [] : ["other"],
     areas: input.areas,
     languages: input.languages,
@@ -2523,18 +2549,18 @@ function contactImportWrite(
          id, first_name, last_name, first_name_normalized, last_name_normalized,
          email, email_normalized, phone, phone_normalized, contact_preference, field_of_study,
          preferred_name, address_line_1, address_line_2, city, region, postal_code, country,
-         organization, website, notes, record_source, contact_status, last_contacted_at,
+         organization, website, notes, record_source, contact_status, last_contacted_at, last_contacted_note,
          created_at, updated_at
        ) VALUES (
          ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
-         ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, 'manual', ?22, ?23, ?24, ?25
+         ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, 'manual', ?22, ?23, ?24, ?25, ?26
        )`,
     ).bind(
       personId, input.firstName, input.lastName, normalizeImportName(input.firstName), normalizeImportName(input.lastName),
       input.email, emailNormalized, input.phone, phoneNormalized, input.contactPreference, input.fieldOfStudy,
       input.preferredName, input.addressLine1, input.addressLine2, input.city, input.region, input.postalCode,
       input.country, input.organization, input.website, input.notes, input.contactStatus, input.lastContactedAt,
-      now, now,
+      input.lastContactedNote, now, now,
     )
     : env.DB.prepare(
       `UPDATE people SET
@@ -2543,14 +2569,14 @@ function contactImportWrite(
          contact_preference = ?9, field_of_study = ?10, preferred_name = ?11,
          address_line_1 = ?12, address_line_2 = ?13, city = ?14, region = ?15,
          postal_code = ?16, country = ?17, organization = ?18, website = ?19, notes = ?20,
-         contact_status = ?21, last_contacted_at = ?22, updated_at = ?23
-       WHERE id = ?24`,
+         contact_status = ?21, last_contacted_at = ?22, last_contacted_note = ?23, updated_at = ?24
+       WHERE id = ?25`,
     ).bind(
       input.firstName, input.lastName, normalizeImportName(input.firstName), normalizeImportName(input.lastName),
       input.email, emailNormalized, input.phone, phoneNormalized, input.contactPreference, input.fieldOfStudy,
       input.preferredName, input.addressLine1, input.addressLine2, input.city, input.region, input.postalCode,
       input.country, input.organization, input.website, input.notes, input.contactStatus, input.lastContactedAt,
-      now, personId,
+      input.lastContactedNote, now, personId,
     );
   return {
     row,
@@ -2666,7 +2692,7 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
       `SELECT p.id AS contact_id, p.first_name, p.preferred_name, p.last_name, p.email, p.phone,
               p.contact_preference, p.organization, p.website, p.field_of_study,
               p.address_line_1, p.address_line_2, p.city, p.region, p.postal_code, p.country,
-              p.contact_status, p.record_source, p.last_contacted_at, p.notes,
+              p.contact_status, p.record_source, p.last_contacted_at, p.last_contacted_note, p.notes,
               COALESCE((SELECT group_concat(selected.contact_type, '; ') FROM (
                 SELECT ct.contact_type FROM contact_types ct WHERE ct.person_id = p.id ORDER BY ct.contact_type
               ) selected), '') AS contact_types,
@@ -2695,7 +2721,7 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
     const columns = [
       "contact_id", "first_name", "preferred_name", "last_name", "email", "phone", "contact_preference",
       "organization", "website", "field_of_study", "address_line_1", "address_line_2", "city", "region",
-      "postal_code", "country", "contact_status", "record_source", "last_contacted_at", "contact_types",
+      "postal_code", "country", "contact_status", "record_source", "last_contacted_at", "last_contacted_note", "contact_types",
       "languages", "hope_sojourns_areas", "trips", "teams", "ministries", "notes", "created_at", "updated_at",
     ];
     const csv = [columns.map(csvCell).join(","), ...rows.results.map(row => columns.map(column => csvCell(row[column])).join(","))].join("\r\n");

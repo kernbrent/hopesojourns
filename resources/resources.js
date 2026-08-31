@@ -13,12 +13,35 @@
   const isAudio = item => Boolean(item.url && /\.(mp3|m4a|aac|wav|ogg)(?:[?#].*)?$/i.test(item.url));
   const related = item => (item.relatedIds || []).map(id => items.find(x => x.id === id)).filter(Boolean);
   const externalAttributes = url => /^https?:/.test(url) ? ' target="_blank" rel="noopener"' : '';
+  const youtubeId = value => {
+    if (!value) return "";
+    try {
+      const url = new URL(value, window.location.origin);
+      const host = url.hostname.toLowerCase().replace(/^(?:www\.|m\.)/, "");
+      let id = "";
+      if (host === "youtu.be") id = url.pathname.split("/").filter(Boolean)[0] || "";
+      if (host === "youtube.com" || host === "youtube-nocookie.com") {
+        const parts = url.pathname.split("/").filter(Boolean);
+        id = url.searchParams.get("v") || (["embed", "shorts", "live"].includes(parts[0]) ? parts[1] : "") || "";
+      }
+      return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
+    } catch {
+      return "";
+    }
+  };
+  const youtubeEmbed = (url, title, linkLabel = "Watch on YouTube") => {
+    const id = youtubeId(url);
+    if (!id) return "";
+    return `<div class="resource-video"><div class="resource-video-frame"><iframe src="https://www.youtube-nocookie.com/embed/${esc(id)}" title="${esc(title || "YouTube video")}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div><a class="text-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(linkLabel)} &rarr;</a></div>`;
+  };
   const bundledAction = action => {
     const details = [action.author, action.duration].filter(Boolean).map(esc).join(" | ");
     const description = action.description ? `<p>${esc(action.description)}</p>` : "";
     const detailLine = details ? `<div><small>${details}</small></div>` : "";
     let control = "";
-    if (action.media === "audio" || isAudio(action)) {
+    if (youtubeId(action.url)) {
+      control = youtubeEmbed(action.url, action.label || `${action.type || "Video"} on YouTube`, action.label || "Watch on YouTube");
+    } else if (action.media === "audio" || isAudio(action)) {
       control = `<audio class="resource-audio" controls preload="metadata" src="${esc(action.url)}" aria-label="${esc(action.label || `Play ${action.type || "audio"}`)}">Your browser does not support audio playback. <a href="${esc(action.url)}">Open the audio file</a>.</audio>`;
     } else if (action.url) {
       const primary = `<a class="text-link" href="${esc(action.url)}"${externalAttributes(action.url)}>${esc(action.label || `Open ${action.type || "resource"}`)} &rarr;</a>`;
@@ -33,6 +56,8 @@
     const meta = [item.type, item.author, item.format, item.pageCount, item.fileSize, item.duration, date(item.date), item.status].filter(Boolean).map(esc).join(" · ");
     const action = bundled.length
       ? `<div class="resource-related"><strong>Explore this collection</strong>${bundled.map(bundledAction).join("")}</div>`
+      : youtubeId(item.url)
+      ? youtubeEmbed(item.url, item.title, item.actionLabel || "Watch on YouTube")
       : isAudio(item)
       ? `<audio class="resource-audio" controls preload="metadata" src="${esc(item.url)}" aria-label="Play ${esc(item.title)}">Your browser does not support audio playback. <a href="${esc(item.url)}">Open the audio file</a>.</audio>`
       : item.url && item.downloadUrl

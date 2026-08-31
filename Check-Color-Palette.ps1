@@ -4,9 +4,9 @@ param()
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $violations = [System.Collections.Generic.List[string]]::new()
-$excludedFolders = '\\(?:\.git|\.audio_env|\.video_env|\.venv|\.tmp|venv|node_modules|dist|build|site-dist|tmp|work|outputs|DoYouSeeMeMusicVideo|logo-explorations)\\'
+$excludedFolders = '\\(?:\.git|\.codex-tmp|\.audio_env|\.video_env|\.venv|\.tmp|venv|node_modules|dist|build|site-dist|tmp|work|outputs|DoYouSeeMeMusicVideo|logo-explorations)\\'
 
-$cssFiles = Get-ChildItem -LiteralPath $projectRoot -Recurse -File -Filter '*.css' |
+$cssFiles = Get-ChildItem -LiteralPath $projectRoot -Recurse -File -Filter '*.css' -ErrorAction SilentlyContinue |
   Where-Object { $_.FullName -notmatch $excludedFolders }
 
 $rootBlockPattern = [regex]::new(':root\s*\{.*?\}', [System.Text.RegularExpressions.RegexOptions]::Singleline)
@@ -31,7 +31,7 @@ foreach ($file in $cssFiles) {
   }
 }
 
-$htmlFiles = Get-ChildItem -LiteralPath $projectRoot -Recurse -File -Filter '*.html' |
+$htmlFiles = Get-ChildItem -LiteralPath $projectRoot -Recurse -File -Filter '*.html' -ErrorAction SilentlyContinue |
   Where-Object { $_.FullName -notmatch $excludedFolders }
 
 foreach ($file in $htmlFiles) {

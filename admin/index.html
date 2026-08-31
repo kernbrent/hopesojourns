@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=25">
-  <link rel="stylesheet" href="/admin/admin.css?v=15">
+  <link rel="stylesheet" href="/admin/admin.css?v=16">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -92,6 +92,7 @@
           <button class="admin-view-tab is-active" id="people-view-tab" type="button" role="tab" aria-selected="true" aria-controls="people-list"><strong>Contacts</strong><span>Master people list</span></button>
           <button class="admin-view-tab" id="requests-view-tab" type="button" role="tab" aria-selected="false" aria-controls="submissions-list"><strong>Requests</strong><span>Submitted forms</span></button>
           <button class="admin-view-tab" id="csm-inbox-view-tab" type="button" role="tab" aria-selected="false" aria-controls="csm-inbox-workspace"><strong>CSM inbox</strong><span><b id="csm-inbox-badge">0</b> awaiting review</span></button>
+          <button class="admin-view-tab" id="ledger-view-tab" type="button" role="tab" aria-selected="false" aria-controls="ledger-workspace"><strong>Ledger</strong><span>Income and expenses</span></button>
           <button class="admin-view-tab" id="grid-view-tab" type="button" role="tab" aria-selected="false" aria-controls="people-grid"><strong>Spreadsheet</strong><span>Grid view</span></button>
           <button class="admin-view-tab" id="teams-view-tab" type="button" role="tab" aria-selected="false" aria-controls="teams-workspace"><strong>Teams</strong><span>People assignments</span></button>
           <button class="admin-view-tab" id="ministries-view-tab" type="button" role="tab" aria-selected="false" aria-controls="ministries-workspace"><strong>Ministries</strong><span>Partner directory</span></button>
@@ -182,6 +183,37 @@
         </div>
         <div class="admin-request-list admin-people-list" id="people-list" role="tabpanel" aria-labelledby="people-view-tab" aria-live="polite"></div>
         <div class="admin-request-list" id="submissions-list" role="tabpanel" aria-labelledby="requests-view-tab" aria-live="polite" hidden></div>
+        <section class="admin-ledger-workspace" id="ledger-workspace" role="tabpanel" aria-labelledby="ledger-view-tab" hidden>
+          <div class="admin-ledger-toolbar">
+            <div><strong>Hope Sojourns financial ledger</strong><span>Review approved ChristianSteps transactions, imported spreadsheet rows, and manual entries together.</span></div>
+            <div class="admin-ledger-toolbar-actions">
+              <button class="admin-button admin-button-outline" id="import-ledger" type="button">Import spreadsheet</button>
+              <button class="admin-button admin-button-outline" id="export-ledger" type="button">Export Excel</button>
+              <button class="admin-button admin-button-primary" id="add-ledger-entry" type="button">Add entry</button>
+            </div>
+          </div>
+          <div class="admin-ledger-summary" aria-label="Filtered ledger totals">
+            <article><span>Income</span><strong id="ledger-income">$0.00</strong><small>filtered entries</small></article>
+            <article><span>Expenses</span><strong id="ledger-expense">$0.00</strong><small>filtered entries</small></article>
+            <article class="admin-ledger-balance"><span>Balance</span><strong id="ledger-balance">$0.00</strong><small>income minus expenses</small></article>
+            <article><span>Entries</span><strong id="ledger-count">0</strong><small>matching records</small></article>
+          </div>
+          <form class="admin-ledger-filters" id="ledger-filters" role="search">
+            <label><span>Search ledger</span><input name="search" type="search" maxlength="100" placeholder="Name, note, category, or payment type"></label>
+            <label><span>Year</span><select name="year" id="ledger-year-filter"><option value="">All years</option></select></label>
+            <label><span>Type</span><select name="entryType"><option value="">Income and expenses</option><option value="income">Income</option><option value="expense">Expenses</option></select></label>
+            <label><span>Source</span><select name="sourceType"><option value="">Every source</option><option value="csm">ChristianSteps / PayPal</option><option value="import">Spreadsheet import</option><option value="manual">Manual entry</option></select></label>
+            <button class="admin-button admin-button-primary" type="submit">Apply</button>
+            <button class="admin-button admin-button-quiet" id="reset-ledger-filters" type="button">Clear</button>
+          </form>
+          <p class="admin-form-status" id="ledger-status" role="status" aria-live="polite"></p>
+          <div class="admin-ledger-table-shell" id="ledger-table-shell" aria-live="polite"></div>
+          <nav class="admin-ledger-pagination" aria-label="Ledger pages">
+            <button class="admin-button admin-button-quiet" id="previous-ledger-page" type="button">Previous</button>
+            <span id="ledger-page-label">Page 1 of 1</span>
+            <button class="admin-button admin-button-quiet" id="next-ledger-page" type="button">Next</button>
+          </nav>
+        </section>
         <section class="admin-csm-workspace" id="csm-inbox-workspace" role="tabpanel" aria-labelledby="csm-inbox-view-tab" hidden>
           <div class="admin-csm-toolbar">
             <div><strong>Christian Steps transactions</strong><span>Approve received gifts and sent payments before they enter the Hope Sojourns ledger.</span></div>
@@ -387,6 +419,76 @@
       </div>
     </div>
   </dialog>
+  <dialog class="admin-detail-dialog admin-ledger-entry-dialog" id="ledger-entry-dialog" aria-labelledby="ledger-entry-title">
+    <div class="admin-detail-shell">
+      <header class="admin-detail-header">
+        <div><p class="eyebrow">Financial ledger</p><h2 id="ledger-entry-title">Add income or expense</h2></div>
+        <button class="admin-dialog-close" id="close-ledger-entry-dialog" type="button" aria-label="Close ledger entry form">&times;</button>
+      </header>
+      <div class="admin-detail-content">
+        <form class="admin-ledger-entry-form" id="ledger-entry-form">
+          <label><span>Transaction date</span><input name="transactionDate" type="date" required></label>
+          <label><span>Income or expense</span><select name="entryType" required><option value="income">Income</option><option value="expense">Expense</option></select></label>
+          <label><span>Payment type</span><input name="paymentType" type="text" maxlength="80" list="ledger-payment-types" required placeholder="For example: Check"></label>
+          <label><span>Expense category <small>Optional for income</small></span><input name="expenseCategory" type="text" maxlength="100" list="ledger-expense-categories" placeholder="For example: Travel"></label>
+          <label><span>Amount</span><input name="amount" type="number" min="0.01" max="100000000" step="0.01" inputmode="decimal" required></label>
+          <label><span>Budget category</span><input name="budgetCategory" type="text" maxlength="100" list="ledger-budget-categories" required placeholder="For example: General"></label>
+          <label><span>Name <small>Donor, payee, or vendor</small></span><input name="name" type="text" maxlength="160"></label>
+          <label><span>Connect to donor <small>Optional</small></span><select name="personId" id="ledger-person-select"><option value="">No contact link</option></select></label>
+          <label class="admin-ledger-entry-note"><span>Note <small>Optional</small></span><textarea name="note" maxlength="1000" rows="4"></textarea></label>
+          <datalist id="ledger-payment-types"></datalist>
+          <datalist id="ledger-expense-categories"></datalist>
+          <datalist id="ledger-budget-categories"></datalist>
+          <button class="admin-button admin-button-primary" type="submit">Save ledger entry</button>
+          <p class="admin-form-status" id="ledger-entry-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="admin-detail-dialog admin-import-dialog" id="ledger-import-dialog" aria-labelledby="ledger-import-title">
+    <div class="admin-detail-shell">
+      <header class="admin-detail-header">
+        <div><p class="eyebrow">Financial ledger</p><h2 id="ledger-import-title">Import an income and expense spreadsheet</h2></div>
+        <button class="admin-dialog-close" id="close-ledger-import-dialog" type="button" aria-label="Close ledger spreadsheet import">&times;</button>
+      </header>
+      <div class="admin-detail-content admin-import-content">
+        <section class="admin-import-intro">
+          <div>
+            <h3>Review before anything is saved</h3>
+            <p>The preview identifies new rows, entries loaded before, changed sequence numbers, and rows that need correction. Only new valid rows are imported.</p>
+          </div>
+        </section>
+        <form class="admin-import-form" id="ledger-import-form">
+          <label for="ledger-import-file">
+            <span>Income and expense spreadsheet</span>
+            <input id="ledger-import-file" name="file" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required>
+            <small>Excel .xlsx or CSV &middot; up to 1,000 entries &middot; maximum 2 MB</small>
+          </label>
+          <button class="admin-button admin-button-primary" id="preview-ledger-import" type="submit">Review spreadsheet</button>
+        </form>
+        <p class="admin-form-status admin-import-status" id="ledger-import-status" role="status" aria-live="polite"></p>
+        <section class="admin-import-preview" id="ledger-import-preview" hidden>
+          <div class="admin-import-preview-heading">
+            <div><p class="eyebrow">Before saving</p><h3>Ledger import preview</h3></div>
+            <p id="ledger-import-file-name"></p>
+          </div>
+          <div class="admin-import-summary admin-ledger-import-summary" aria-label="Ledger import totals">
+            <article><span>New entries</span><strong id="ledger-import-new">0</strong></article>
+            <article><span>Already loaded</span><strong id="ledger-import-loaded">0</strong></article>
+            <article><span>Changed Seq #</span><strong id="ledger-import-conflicts">0</strong></article>
+            <article class="admin-import-summary-error"><span>Need correction</span><strong id="ledger-import-errors">0</strong></article>
+          </div>
+          <p class="admin-import-help" id="ledger-import-help"></p>
+          <div class="admin-import-table-shell" id="ledger-import-table-shell"></div>
+          <div class="admin-import-actions">
+            <button class="admin-button admin-button-quiet" id="choose-another-ledger-import" type="button">Choose another file</button>
+            <button class="admin-button admin-button-primary" id="commit-ledger-import" type="button">Import new rows</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </dialog>
 
   <footer class="admin-footer">
     <p>&copy; <span id="year"></span> Hope Sojourns</p>
@@ -394,6 +496,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=18" defer></script>
+  <script src="/admin/admin.js?v=20" defer></script>
 </body>
 </html>

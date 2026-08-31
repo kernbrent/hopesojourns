@@ -1,6 +1,6 @@
 {
-  "version": 7,
-  "updated": "2026-08-29",
+  "version": 8,
+  "updated": "2026-08-30",
   "items": [
     {
       "id": "hope-sojourns-brochure",
@@ -38,8 +38,8 @@
       "type": "Collection",
       "title": "Do You See Me?",
       "subtitle": "Learning to See People the Way Jesus Does",
-      "description": "Explore the article, reflective song, official music video, and companion sermon together in one collection about seeing people with the compassion of Jesus.",
-      "author": "Brent D Kern and Eric Clanton",
+      "description": "Explore the article, reflective song written by @PapaOdin and Brent D Kern, official music video by Brent D Kern, and companion sermon together in one collection about seeing people with the compassion of Jesus.",
+      "author": "Brent D Kern and @PapaOdin",
       "date": "2026-08-15",
       "featured": true,
       "fullWidth": true,
@@ -57,27 +57,27 @@
         {
           "type": "Song",
           "label": "Listen to the companion song",
-          "description": "A reflective piano song written to accompany the article and sermon.",
-          "author": "Eric Clanton",
+          "description": "A reflective piano song written by @PapaOdin and Brent D Kern to accompany the article and sermon.",
+          "author": "@PapaOdin and Brent D Kern",
           "duration": "4:16",
           "url": "/resources/do-you-see-me/DoYouSeeMe_Song.mp3",
           "media": "audio"
         },
         {
-          "type": "Video",
-          "label": "Watch the official music video",
-          "description": "Set to Eric Clanton's reflective song, the video invites viewers to look beyond labels and notice the person before them.",
-          "author": "Brent Kern",
-          "url": "https://www.youtube.com/watch?v=i2I7wFjWrDE"
-        },
-        {
           "type": "Sermon",
           "label": "Listen to the companion sermon",
-          "description": "Brent Kern expands on the article through Scripture and mission experiences, emphasizing the God-given dignity of people who are often overlooked.",
+          "description": "Brent D Kern expands on the article through Scripture and mission experiences, emphasizing the God-given dignity of people who are often overlooked.",
           "author": "Brent D Kern",
           "duration": "44:37",
           "url": "/resources/do-you-see-me/DoYouSeeMe_Sermon_08152026.mp3",
           "media": "audio"
+        },
+        {
+          "type": "Video",
+          "label": "Watch the official music video",
+          "description": "Set to the reflective song by @PapaOdin and Brent D Kern, the video by Brent D Kern invites viewers to look beyond labels and notice the person before them.",
+          "author": "Brent D Kern",
+          "url": "https://www.youtube.com/watch?v=i2I7wFjWrDE"
         }
       ],
       "tags": [

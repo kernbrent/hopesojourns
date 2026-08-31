@@ -2,6 +2,7 @@ import { parseDistributionMessage, type CsmDistributionMessage } from "./csm-dis
 import {
   AdminError, adminJson, authenticate, auditStatement, readAdminJson, secureEqual, type AdminEnv,
 } from "./admin";
+import { csmLedgerStatement } from "./ledger-admin";
 
 type CsmEnv = AdminEnv & { CSM_DISTRIBUTION_SECRET?: string; CSM_STATUS?: Fetcher };
 type InboxStatus = "pending" | "needs_match" | "approved" | "denied" | "failed";
@@ -265,6 +266,7 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
     );
   }
   const recordId = crypto.randomUUID();
+  const ledgerId = crypto.randomUUID();
   statements.push(
     env.DB.prepare(
       `INSERT INTO financial_transactions
@@ -279,6 +281,13 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
       message.transaction.fee, message.transaction.net, message.transaction.itemName,
       message.transaction.itemId, now,
     ),
+    csmLedgerStatement(env, {
+      ledgerId, financialTransactionId: recordId, idempotencyKey: row.idempotency_key,
+      transactionDate: message.transaction.eventDate, direction: message.transaction.direction,
+      displayName: message.displayName, personId, currency: message.transaction.currency,
+      gross: message.transaction.gross, fee: message.transaction.fee, net: message.transaction.net,
+      itemName: message.transaction.itemName, createdAt: now,
+    }),
     env.DB.prepare(
       `UPDATE csm_distribution_inbox SET status = 'approved', matched_person_id = ?1, match_method = ?2,
        recipient_record_id = ?3, callback_status = 'pending', decision_reason = NULL,

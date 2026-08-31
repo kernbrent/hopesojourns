@@ -861,3 +861,290 @@
   .admin-csm-summary, .admin-csm-meta, .admin-csm-review { grid-template-columns: 1fr; }
   .admin-csm-review .admin-button { grid-column: 1; }
 }
+.admin-ledger-workspace {
+  margin: 0 1.25rem 1.25rem;
+}
+
+.admin-ledger-toolbar,
+.admin-grid-bulk-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-ledger-toolbar {
+  padding: 1rem;
+  border: 1px solid rgba(var(--ink-rgb), .12);
+  border-radius: 16px;
+  background: var(--forest-wash);
+}
+
+.admin-ledger-toolbar > div:first-child,
+.admin-grid-bulk-heading > div:first-child {
+  display: grid;
+  gap: .2rem;
+}
+
+.admin-ledger-toolbar span,
+.admin-grid-bulk-heading span {
+  color: var(--muted);
+}
+
+.admin-ledger-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .55rem;
+}
+
+.admin-ledger-summary {
+  display: grid;
+  margin: .9rem 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .7rem;
+}
+
+.admin-ledger-summary article {
+  display: grid;
+  min-height: 112px;
+  padding: 1rem;
+  align-content: center;
+  gap: .25rem;
+  border: 1px solid rgba(var(--ink-rgb), .12);
+  border-radius: 15px;
+  background: var(--cream);
+}
+
+.admin-ledger-summary span,
+.admin-ledger-summary small {
+  color: var(--muted);
+}
+
+.admin-ledger-summary strong {
+  color: var(--forest-dark);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.2vw, 2rem);
+}
+
+.admin-ledger-summary .admin-ledger-balance {
+  background: var(--forest-dark);
+}
+
+.admin-ledger-summary .admin-ledger-balance span,
+.admin-ledger-summary .admin-ledger-balance small,
+.admin-ledger-summary .admin-ledger-balance strong {
+  color: var(--white);
+}
+
+.admin-ledger-summary .admin-ledger-balance.is-negative {
+  background: var(--terracotta-dark);
+}
+
+.admin-ledger-filters {
+  display: grid;
+  padding: 1rem;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(130px, .75fr)) auto auto;
+  align-items: end;
+  gap: .7rem;
+  border: 1px solid rgba(var(--ink-rgb), .1);
+  border-radius: 15px;
+  background: var(--paper);
+}
+
+.admin-ledger-filters label,
+.admin-ledger-entry-form label,
+.admin-grid-bulk-group label {
+  display: grid;
+  gap: .35rem;
+}
+
+.admin-ledger-filters label > span,
+.admin-ledger-entry-form label > span,
+.admin-grid-bulk-group label > span {
+  font-size: .84rem;
+  font-weight: 700;
+}
+
+.admin-ledger-table-shell {
+  overflow-x: auto;
+  border: 1px solid rgba(var(--ink-rgb), .12);
+  border-radius: 16px;
+  background: var(--paper);
+}
+
+.admin-ledger-table {
+  min-width: 1120px;
+}
+
+.admin-ledger-table td small {
+  display: block;
+  margin-top: .22rem;
+  color: var(--muted);
+}
+
+.admin-ledger-type,
+.admin-ledger-amount {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-ledger-type-income,
+.admin-ledger-type-income + .admin-ledger-amount {
+  color: var(--forest);
+}
+
+.admin-ledger-type-expense,
+.admin-ledger-type-expense + .admin-ledger-amount {
+  color: var(--terracotta-dark);
+}
+
+.admin-ledger-pagination {
+  display: flex;
+  padding-top: .8rem;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .6rem;
+}
+
+.admin-ledger-entry-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .85rem;
+}
+
+.admin-ledger-entry-note,
+.admin-ledger-entry-form > .admin-button,
+.admin-ledger-entry-form > .admin-form-status {
+  grid-column: 1 / -1;
+}
+
+.admin-ledger-import-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-grid-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-grid-bulk-tools {
+  display: grid;
+  padding: 1rem;
+  gap: .85rem;
+  border: 1px solid rgba(var(--ink-rgb), .12);
+  border-radius: 16px;
+  background: var(--forest-wash);
+}
+
+.admin-selection-count {
+  padding: .35rem .65rem;
+  border-radius: 999px;
+  background: var(--forest-dark);
+  color: var(--white) !important;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-grid-bulk-group {
+  display: grid;
+  padding-top: .8rem;
+  grid-template-columns: minmax(150px, .75fr) minmax(210px, 1fr) minmax(240px, 1.35fr) auto;
+  align-items: end;
+  gap: .7rem;
+  border-top: 1px solid rgba(var(--ink-rgb), .12);
+}
+
+.admin-grid-document-group {
+  grid-template-columns: minmax(180px, .8fr) minmax(120px, .45fr) auto minmax(280px, 1.3fr) auto;
+}
+
+.admin-grid-template-field small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.admin-grid-bulk-status {
+  min-height: 1.25rem;
+  margin: 0;
+}
+
+.admin-grid-select-cell {
+  width: 46px;
+  min-width: 46px;
+  text-align: center;
+}
+
+.admin-grid-select-cell input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--forest);
+}
+
+.admin-grid-activity-note {
+  display: block;
+  margin-top: .25rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+@media (max-width: 1100px) {
+  .admin-ledger-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-ledger-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-grid-bulk-group,
+  .admin-grid-document-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-grid-bulk-group > strong {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-ledger-workspace {
+    margin-right: .9rem;
+    margin-left: .9rem;
+  }
+
+  .admin-ledger-toolbar,
+  .admin-grid-bulk-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-ledger-toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .admin-ledger-summary,
+  .admin-ledger-filters,
+  .admin-ledger-entry-form,
+  .admin-grid-bulk-group,
+  .admin-grid-document-group,
+  .admin-ledger-import-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-ledger-entry-note,
+  .admin-ledger-entry-form > .admin-button,
+  .admin-ledger-entry-form > .admin-form-status,
+  .admin-grid-bulk-group > strong {
+    grid-column: 1;
+  }
+
+  .admin-ledger-toolbar-actions .admin-button,
+  .admin-grid-bulk-group .admin-button {
+    width: 100%;
+  }
+
+  .admin-ledger-pagination {
+    justify-content: space-between;
+  }
+}

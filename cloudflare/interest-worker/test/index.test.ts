@@ -8,6 +8,8 @@ import {
 } from "../src/index";
 import {
   adminPasswordPolicyError,
+  cleanLastContactedNote,
+  contactTypeFilterOptions,
   csvCell,
   dateFilterBound,
   deriveAdminPasswordHash,
@@ -116,5 +118,20 @@ describe("admin security helpers", () => {
     expect(dateFilterBound("2026-08-19", true)).toBe("2026-08-20T00:00:00.000Z");
     expect(dateFilterBound(null)).toBeNull();
     expect(() => dateFilterBound("2026-02-30")).toThrow("Choose a valid date filter.");
+  });
+
+  it("keeps last-contacted notes brief and normalized", () => {
+    expect(cleanLastContactedNote("  Left voicemail   with Dana. ")).toBe("Left voicemail with Dana.");
+    expect(cleanLastContactedNote("x".repeat(50))).toBe("x".repeat(50));
+    expect(cleanLastContactedNote("   ")).toBeNull();
+    expect(() => cleanLastContactedNote("x".repeat(51)))
+      .toThrow("Use 50 characters or fewer for the last-contacted note.");
+  });
+
+  it("sorts contact types alphabetically for the search filter", () => {
+    expect(contactTypeFilterOptions().map(option => option.label)).toEqual([
+      "Donor", "Hope Sojourns Staff", "Leader", "Ministry Contact", "Other",
+      "Prospective Traveler", "Traveler", "Volunteer",
+    ]);
   });
 });

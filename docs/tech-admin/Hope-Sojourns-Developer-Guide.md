@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 1.6
+Version 1.9
 
-Last reviewed: August 29, 2026
+Last reviewed: August 30, 2026
 
 ## 1. Purpose and operating rules
 
@@ -153,6 +153,8 @@ Use stable IDs, valid types, accurate metadata, descriptive action labels, and v
 
 A top-level resource may use an `actions` array when an article, song, video, sermon, or other media item should appear inside one collection tile. Each action requires `type`, `label`, and `url`; it may also include `description`, `author`, `duration`, `media`, `secondaryLabel`, `secondaryUrl`, and `downloadName`. Set `media` to `audio` for an inline audio player. Action types and copy are included in search and type filtering, but the matching collection renders only once. Use `fullWidth: true` when a featured collection needs a one-column layout to keep the bundled controls readable. Do not create separate top-level records for items that are intentionally presented as one collection tile.
 
+YouTube URLs in top-level resources and collection actions are detected by `/resources/resources.js` and rendered as responsive, privacy-enhanced `youtube-nocookie.com` players with direct YouTube fallbacks. Standard watch, share, embed, Shorts, and live URL forms are supported. Collection actions render in JSON order, so place a video action after the sermon when it should appear at the bottom of the card.
+
 ### Gallery
 
 `/past-trips/gallery/gallery-data.json` contains trip, date, URL, and caption values. Captions should be factual and dignity-preserving. Confirm that remote image URLs are intentionally allowed and reliable before adding them.
@@ -198,8 +200,13 @@ Current migrations:
 6. `0006_master_contacts_ministries.sql`
 7. `0007_contact_imports.sql`
 8. `0008_admin_credentials.sql`
+9. `0009_csm_distribution_inbox.sql`
+10. `0010_last_contacted_note.sql`
+11. `0011_unified_ledger.sql`
 
 Do not edit a migration that has already been applied to a shared environment. Add a new numbered migration.
+Migration `0011_unified_ledger.sql` creates `ledger_entries`, indexes its date, type, source, and linked-person fields, and backfills existing approved CSM `financial_transactions`. Apply it before deploying Worker code that reads or writes the unified ledger.
+
 
 ### Admin security model
 
@@ -210,7 +217,9 @@ The response portal uses secure HTTP-only sessions, CSRF protection for state-ch
 
 Never store those values in source, documentation, test snapshots, or browser-accessible JavaScript.
 
-The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. The Internship toolkit exposes a download-all ZIP while preserving every individual document download. CSV output must continue to neutralize spreadsheet formulas.
+The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. A contact can store `last_contacted_at` plus a short `last_contacted_note`; the note is limited to 50 characters in the browser, Worker, and D1 schema, appears in person details and contact CSV exports, and is preserved by spreadsheet imports. The Contact type search filter presents its options alphabetically by label. The Internship toolkit exposes a download-all ZIP while preserving every individual document download. CSV output must continue to neutralize spreadsheet formulas.
+
+The contact spreadsheet supports persistent row selection for up to 25 contacts at a time. One bulk action updates `last_contacted_at` and `last_contacted_note`; document actions generate personalized Word files from the branded giving-statement template or an uploaded `.docx` template. The server repeats all selection, length, file-size, and template validation even when the browser has already enforced it.
 
 ### CSM distribution inbox and giving ledger
 
@@ -221,6 +230,35 @@ The inbox response includes a current-year `givingSummary` computed from approve
 The portal's **Approve all awaiting** action processes the open queue in repeated batches, up to the safety limit of 5,000 transactions. It calls the existing per-transaction approval endpoint for every item so audit records, ledger writes, callbacks, and failure reporting remain identical to individual approval. Received gifts link to an existing Person or create a donor; sent payments do not create People.
 
 Immediately before creating a new donor, the Worker repeats its exact normalized-email match when no person was selected or stored. This final check prevents a duplicate Person when an earlier approval in the same bulk run already created the donor. Approval responses include `createdPerson`, allowing the portal to report how many new donors were added. **View donors in People** resets the People filters, selects Donor, sorts newest first, and opens the People view so approved donors are immediately visible.
+
+### Unified financial ledger
+
+
+`/cloudflare/interest-worker/src/ledger-admin.ts` owns the authenticated ledger, contact-activity, and document-generation APIs. The routes are:
+
+| Method and route | Purpose |
+|---|---|
+| `GET /admin/ledger` | Filtered, paginated entries, summary totals, years, and category suggestions |
+| `POST /admin/ledger/entries` | Create one validated manual income or expense entry |
+| `POST /admin/ledger/imports/preview` | Parse an Excel or CSV file and classify every row before saving |
+| `POST /admin/ledger/imports` | Re-parse the uploaded file and insert only new valid rows |
+| `GET /admin/ledger/export.xlsx` | Export the complete ledger plus reusable category lists |
+| `POST /admin/contacts/bulk-activity` | Update the latest-activity date and 50-character note for selected contacts |
+| `POST /admin/contacts/documents` | Create a ZIP of personalized Word documents for selected contacts |
+
+`ledger_entries` is the unified reporting store. `source_type` distinguishes `csm`, `import`, and `manual` entries. Each row has a unique `import_key` and a separate `content_fingerprint`; together they let a spreadsheet preview distinguish a previously loaded row from a changed row that reuses a sequence number. CSM approvals write the legacy `financial_transactions` record and its unified ledger row in the same D1 batch. Imported income uses exact normalized donor-name matching when a unique Person exists; ambiguous or unmatched names remain unlinked for safe review.
+
+The HSLedger importer accepts `.xlsx` or `.csv`, no more than 2 MB and 1,000 data rows. It recognizes the current nine-column ledger layout, ignores sequence-only placeholder rows, validates dates, types, amounts, and required categories, and never updates or deletes an existing ledger entry. Preview and commit both parse the file independently so a browser cannot alter the reviewed result. The export is a real `.xlsx` workbook with `Ledger` and `Categories` worksheets.
+
+Manual entries reuse category values already present in the database while retaining safe defaults. Amounts are stored as positive numbers and interpreted through `entry_type`; financial reporting computes balance as income minus expenses.
+
+### Personalized Word documents
+
+`/cloudflare/interest-worker/src/document-merge.ts` performs server-side `.docx` merging without executing macros or external programs. It accepts Word templates up to 2 MB and a maximum of 25 selected contacts. Text replacement works even when Word splits a placeholder across XML runs. Giving statements repeat the contribution-detail row and use the gross PayPal gift when available; the output ZIP includes one `.docx` per contact plus a manifest identifying contacts with no gifts in the selected tax year.
+
+Supported placeholder forms include `[[FIELD_NAME]]` and `{{FIELD_NAME}}`. The current merge data supports contact identity, greeting, address, email, phone, organization, letter date, tax year, receipt statement, contribution total, and the giving-statement detail fields. Keep the canonical branded template at `/admin/supplemental-documents/Hope-Sojourns-Giving-Statement-Template.docx`. If a new placeholder is introduced, add its alias in `document-merge.ts`, add a test for split and unsplit Word runs, and update the portal help text.
+
+`/cloudflare/interest-worker/src/office-archive.ts` provides the constrained ZIP reader/writer used by both spreadsheet and Word flows. Preserve its entry-count, expanded-size, path, compression, and CRC checks when extending Office-file support.
 
 ### Admin headers and indexing
 
@@ -400,9 +438,14 @@ Create a new numbered migration, update TypeScript queries and response models, 
 - Keep CSV formula neutralization.
 - Use parameterized D1 statements; do not construct SQL from untrusted strings.
 - Validate on the server even when the browser already validates.
+- Keep `last_contacted_note` to brief operational follow-up context; do not put confidential pastoral, medical, financial, or safeguarding details in this short field.
 - Confirm destructive admin actions and maintain audit records.
 - Use `rel="noopener noreferrer"` for untrusted external tabs.
 - Review new third-party scripts for privacy, security, CSP, availability, and fallback behavior.
+- Treat imported financial files and uploaded Word templates as untrusted binary input; preserve file-size, ZIP-entry, expanded-size, path, and format validation.
+- Keep ledger deduplication server-side and preserve the unique `import_key`; browser preview alone is not a data-integrity control.
+- Giving statements may contain donor names, addresses, and contribution history. Generate them only through authenticated, CSRF-protected admin routes and never store generated batches in the public static site.
+- Keep the 25-contact document limit unless memory and CPU behavior is revalidated for the Worker runtime.
 
 ## 14. Deployment boundaries
 
@@ -465,6 +508,9 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-30 | 1.9 | Added the unified ledger schema and APIs, safe spreadsheet preview/import/export, CSM transaction integration, bulk contact activity updates, and authenticated Word giving-statement and template-merge generation. |
+| 2026-08-30 | 1.8 | Added the 50-character last-contacted note data field, three-layer validation, import preservation, detail display, CSV export behavior, and alphabetical Contact type search options. |
+| 2026-08-30 | 1.7 | Documented automatic privacy-enhanced YouTube embeds and JSON-controlled video placement in resource cards. |
 | 2026-08-29 | 1.6 | Documented grouped resource actions, collection filtering, and full-width featured collection cards. |
 | 2026-08-24 | 1.5 | Documented the CSM giving dashboard, approve-all queue processing, final donor rematch, and People donor shortcut. |
 | 2026-08-23 | 1.4 | Added the production launch architecture, environment guard, isolated Workers and D1 databases, and deployment order. |

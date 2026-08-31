@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 1.5
+Version 1.7
 
-Last reviewed: August 29, 2026
+Last reviewed: August 30, 2026
 
 ## 1. Purpose
 
@@ -266,6 +266,20 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - At medium widths, the giving summary and transaction metadata reduce to two columns. At narrow widths, the toolbar, summary, metadata, and review fields stack into one column.
 - Bulk actions require clear confirmation, visible progress, a completion summary, and per-item failure reporting. Do not replace the existing individual approval and denial controls.
 
+### Admin ledger and contact-batch workspace
+
+- Present the ledger as a dedicated top-level portal tab, not as a secondary control inside the CSM inbox. The inbox is for reviewing incoming CSM transactions; the ledger is the complete financial record.
+- Lead with income, expense, balance, and entry-count summary cards. Balance receives the dark-forest emphasis; a negative balance may use the established error color, but it must retain the visible label and signed amount.
+- Place import, export, and manual-entry actions together in the ledger introduction panel. Use one gold primary action and restrained outline treatments for supporting actions.
+- Keep search, year, type, and source filters visibly labeled. At wide sizes they may share one row; below the existing medium and narrow breakpoints they reduce to two columns and then one.
+- Financial tables must use explicit text labels for Income and Expense in addition to color. Keep dates, values, names, categories, source, and notes scannable; on narrow screens, contain horizontal scrolling inside the table shell rather than forcing the entire page to overflow.
+- Spreadsheet imports require a preview with separate counts for new entries, exact duplicates, sequence conflicts, and rows needing correction. The final action must state that only new rows will be imported.
+- Contact selection belongs in the first grid column and must include an accessible per-row name plus a select-visible control. The selected count remains visible above the actions and survives paging or filtering until the action succeeds or the administrator changes the selection.
+- Group bulk activity and personalized-document tools by outcome. Use a date and brief-note pair for activity; use a tax year, branded statement action, uploaded Word template, and merge action for documents.
+- At narrow widths, bulk fields and actions stack in a logical reading order and primary buttons fill the available width. Keep the data grid in a contained horizontal-scrolling shell.
+- Long-running import and document actions need visible working text, success or error status, and disabled repeat actions while processing.
+- Downloaded spreadsheets and Word files are operational artifacts. Preserve branded document styles, clear filenames, readable totals, and an accompanying manifest when a batch can contain exceptions.
+
 ### Dialogs and lightboxes
 
 - Use semantic `<dialog>` where practical and provide an obvious close action.
@@ -296,6 +310,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 
 - Use YouTube's privacy-enhanced `youtube-nocookie.com` host for embedded players.
 - Keep embedded video responsive at a 16:9 aspect ratio, provide a descriptive iframe title, allow full-screen playback, and include an external YouTube link as a fallback.
+- Render YouTube video resources as embedded players inside their resource-library cards instead of requiring visitors to leave the site. In an intentionally ordered collection, place the video where its action appears; use the final position when the video should conclude the sequence after the sermon or other companion material.
 - Introduce each video or audio item with a concise description that explains how it relates to the surrounding resource.
 - Use native audio controls with `preload="metadata"` and include a direct audio link in the fallback text.
 - Do not autoplay companion audio on a page that contains another playable media item. Let the visitor decide which experience to begin.
@@ -385,6 +400,8 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-30 | 1.7 | Added responsive unified-ledger, spreadsheet-import preview, bulk contact selection, activity-update, and personalized-document interface standards. |
+| 2026-08-30 | 1.6 | Required embedded YouTube players in resource-library cards and documented intentional collection ordering. |
 | 2026-08-29 | 1.5 | Added the single-card resource collection standard for related articles, songs, videos, and sermons. |
 | 2026-08-29 | 1.4 | Added the responsive embedded-video and companion-audio standard for resource articles. |
 | 2026-08-24 | 1.3 | Added the compact, responsive admin giving dashboard and transaction-review layout standard. |

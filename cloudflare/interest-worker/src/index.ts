@@ -1,5 +1,6 @@
 import { handleAdminRequest } from "./admin";
 import { handleCsmAdminRequest, handleCsmDelivery } from "./csm-distribution";
+import { handleLedgerAdminRequest } from "./ledger-admin";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_OPPORTUNITIES = 12;
@@ -483,6 +484,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   }
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
   if (path.startsWith("/admin/csm-inbox")) return handleCsmAdminRequest(request, env, path);
+  if (path.startsWith("/admin/ledger") || path.startsWith("/admin/contacts/bulk-activity") || path.startsWith("/admin/contacts/documents")) {
+    return handleLedgerAdminRequest(request, env, path);
+  }
   if (path.startsWith("/admin/")) return handleAdminRequest(request, env, path);
   if (request.method === "GET" && path === "/opportunities") return listOpportunities(request, env);
   if (request.method === "POST" && path === "/submissions") return submitInterest(request, env);
