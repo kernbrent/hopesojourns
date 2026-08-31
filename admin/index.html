@@ -199,7 +199,7 @@
             <article><span>Entries</span><strong id="ledger-count">0</strong><small>matching records</small></article>
           </div>
           <form class="admin-ledger-filters" id="ledger-filters" role="search">
-            <label><span>Search ledger</span><input name="search" type="search" maxlength="100" placeholder="Name, note, category, or payment type"></label>
+            <label><span>Search ledger</span><input name="search" type="search" maxlength="100" placeholder="Name, note, check number, category, or payment type"></label>
             <label><span>Year</span><select name="year" id="ledger-year-filter"><option value="">All years</option></select></label>
             <label><span>Type</span><select name="entryType"><option value="">Income and expenses</option><option value="income">Income</option><option value="expense">Expenses</option></select></label>
             <label><span>Source</span><select name="sourceType"><option value="">Every source</option><option value="csm">ChristianSteps / PayPal</option><option value="import">Spreadsheet import</option><option value="manual">Manual entry</option></select></label>
@@ -433,13 +433,14 @@
           <label><span>Expense category <small>Optional for income</small></span><input name="expenseCategory" type="text" maxlength="100" list="ledger-expense-categories" placeholder="For example: Travel"></label>
           <label><span>Amount</span><input name="amount" type="number" min="0.01" max="100000000" step="0.01" inputmode="decimal" required></label>
           <label><span>Budget category</span><input name="budgetCategory" type="text" maxlength="100" list="ledger-budget-categories" required placeholder="For example: General"></label>
+          <label><span>Check number <small>Optional</small></span><input name="checkNumber" type="text" maxlength="40" placeholder="For example: 1045"></label>
           <label><span>Name <small>Donor, payee, or vendor</small></span><input name="name" type="text" maxlength="160"></label>
           <label><span>Connect to donor <small>Optional</small></span><select name="personId" id="ledger-person-select"><option value="">No contact link</option></select></label>
           <label class="admin-ledger-entry-note"><span>Note <small>Optional</small></span><textarea name="note" maxlength="1000" rows="4"></textarea></label>
           <datalist id="ledger-payment-types"></datalist>
           <datalist id="ledger-expense-categories"></datalist>
           <datalist id="ledger-budget-categories"></datalist>
-          <button class="admin-button admin-button-primary" type="submit">Save ledger entry</button>
+          <button class="admin-button admin-button-primary" id="save-ledger-entry" type="submit">Save ledger entry</button>
           <p class="admin-form-status" id="ledger-entry-status" role="status" aria-live="polite"></p>
         </form>
       </div>
@@ -456,7 +457,7 @@
         <section class="admin-import-intro">
           <div>
             <h3>Review before anything is saved</h3>
-            <p>The preview identifies new rows, entries loaded before, changed sequence numbers, and rows that need correction. Only new valid rows are imported.</p>
+            <p>Edit any field that needs correction, or select and remove an entire row from this import. Every reviewed row is validated again before new entries are saved.</p>
           </div>
         </section>
         <form class="admin-import-form" id="ledger-import-form">
@@ -480,10 +481,14 @@
             <article class="admin-import-summary-error"><span>Need correction</span><strong id="ledger-import-errors">0</strong></article>
           </div>
           <p class="admin-import-help" id="ledger-import-help"></p>
+          <div class="admin-ledger-import-review-actions">
+            <span id="ledger-import-selection-count">0 entries selected</span>
+            <button class="admin-button admin-button-danger" id="remove-selected-ledger-import" type="button" disabled>Remove selected entries</button>
+          </div>
           <div class="admin-import-table-shell" id="ledger-import-table-shell"></div>
           <div class="admin-import-actions">
             <button class="admin-button admin-button-quiet" id="choose-another-ledger-import" type="button">Choose another file</button>
-            <button class="admin-button admin-button-primary" id="commit-ledger-import" type="button">Import new rows</button>
+            <button class="admin-button admin-button-primary" id="commit-ledger-import" type="button">Validate and import reviewed rows</button>
           </div>
         </section>
       </div>
@@ -496,6 +501,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=21" defer></script>
+  <script src="/admin/admin.js?v=22" defer></script>
 </body>
 </html>

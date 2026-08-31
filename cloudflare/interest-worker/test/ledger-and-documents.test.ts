@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { buildDocumentBatchZip, mergeContactDocument, type MergeContact } from "../src/document-merge";
-import { ledgerImportIdentity, parseLedgerImportFile } from "../src/ledger-file";
+import { applyLedgerImportReview, ledgerImportIdentity, parseLedgerImportFile } from "../src/ledger-file";
 import { buildLedgerWorkbook } from "../src/ledger-xlsx";
 import { unzipOfficeArchive } from "../src/office-archive";
 
@@ -43,11 +43,36 @@ describe("ledger spreadsheet handling", () => {
     expect(second).toEqual(first);
   });
 
+  it("revalidates edited preview rows and omits rows removed during review", () => {
+    const csv = [
+      "Seq #,Date,Income/Expense,Payment Type,Expense Category,Amount,Name,Budget Category,Check Number,Note",
+      "10,not-a-date,Income,Check,,wrong,Jordan Example,General,445,Gift",
+      "11,8/25/2026,Expense,Check,Travel,25,Hotel,Trip,,Room",
+    ].join("\r\n");
+    const parsed = parseLedgerImportFile("HSLedger.csv", new TextEncoder().encode(csv));
+    expect(parsed.rows[0]?.input).toBeNull();
+    const reviewed = applyLedgerImportReview(parsed, JSON.stringify([{
+      rowNumber: 2,
+      sequence: "10",
+      transactionDate: "2026-08-24",
+      entryType: "income",
+      paymentType: "Check",
+      expenseCategory: "",
+      amount: "100.00",
+      name: "Jordan Example",
+      budgetCategory: "General",
+      checkNumber: "445",
+      note: "Corrected gift",
+    }]));
+    expect(reviewed.rows).toHaveLength(1);
+    expect(reviewed.rows[0]?.input).toMatchObject({ transactionDate: "2026-08-24", amount: 100, checkNumber: "445" });
+  });
+
   it("exports a valid Excel workbook that can be imported again", () => {
     const workbook = buildLedgerWorkbook([{
       id: "ledger-1", transactionDate: "2026-08-24", entryType: "income", paymentType: "Venmo",
       expenseCategory: "Misc", amount: 1500, name: "John Gully", personId: null,
-      budgetCategory: "General", note: "General fund gift", sourceType: "import",
+      budgetCategory: "General", checkNumber: null, note: "General fund gift", sourceType: "import",
       sourceFileName: "HSLedger.xlsx", sourceRowNumber: 2, currency: "USD",
       gross: null, fee: null, net: null, createdAt: "2026-08-30T12:00:00.000Z",
     }]);

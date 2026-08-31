@@ -68,6 +68,8 @@ const ledgerEntryForm = document.querySelector("#ledger-entry-form");
 const ledgerEntryStatus = document.querySelector("#ledger-entry-status");
 const ledgerPersonSelect = document.querySelector("#ledger-person-select");
 const ledgerPaymentTypes = document.querySelector("#ledger-payment-types");
+const ledgerEntryTitle = document.querySelector("#ledger-entry-title");
+const saveLedgerEntryButton = document.querySelector("#save-ledger-entry");
 const ledgerExpenseCategories = document.querySelector("#ledger-expense-categories");
 const ledgerBudgetCategories = document.querySelector("#ledger-budget-categories");
 const ledgerImportDialog = document.querySelector("#ledger-import-dialog");
@@ -89,6 +91,8 @@ const commitLedgerImportButton = document.querySelector("#commit-ledger-import")
 const peopleGrid = document.querySelector("#people-grid");
 const teamsWorkspace = document.querySelector("#teams-workspace");
 const teamsList = document.querySelector("#teams-list");
+const ledgerImportSelectionCount = document.querySelector("#ledger-import-selection-count");
+const removeSelectedLedgerImportButton = document.querySelector("#remove-selected-ledger-import");
 const teamCreateForm = document.querySelector("#team-create-form");
 const teamCreateStatus = document.querySelector("#team-create-status");
 const ministriesWorkspace = document.querySelector("#ministries-workspace");
@@ -151,6 +155,11 @@ const state = {
   ledgerPage: 1,
   ledgerPages: 1,
   ledgerImportFile: null,
+  ledgerImportRows: [],
+  selectedLedgerImportRows: new Set(),
+  ledgerEditingEntryId: "",
+  ledgerImportResult: null,
+  ledgerEntries: new Map(),
   ledgerCategories: { paymentTypes: [], expenseCategories: [], budgetCategories: [] },
   selectedPersonIds: new Set(),
 };
@@ -162,9 +171,23 @@ function element(tag, className, text) {
   return node;
 }
 
+function localDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function localDateFromValue(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.getFullYear() === Number(match[1]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[3]) ? date : null;
+}
+
 function formatDate(value, includeTime = true) {
   if (!value) return "Not recorded";
-  const date = new Date(value);
+  const date = includeTime ? new Date(value) : localDateFromValue(value) || new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return new Intl.DateTimeFormat("en-US", includeTime
     ? { dateStyle: "medium", timeStyle: "short" }
@@ -506,7 +529,7 @@ function renderContactGridToolbar(people) {
   dateLabel.append(element("span", "", "Activity date"));
   const date = document.createElement("input");
   date.type = "date";
-  date.value = new Date().toISOString().slice(0, 10);
+  date.value = localDateInputValue();
   dateLabel.append(date);
   const noteLabel = element("label", "admin-grid-note-field");
   noteLabel.append(element("span", "", "Last contacted notes"));
@@ -1209,7 +1232,7 @@ function ledgerSourceLabel(value) {
   return value === "csm" ? "ChristianSteps / PayPal" : value === "import" ? "Spreadsheet" : "Manual";
 }
 
-function renderLedgerTable(entries) {
+function renderLedgerTableLegacy(entries) {
   if (!entries.length) {
     const empty = element("article", "admin-empty-state");
     empty.append(element("h3", "", "No ledger entries match these filters"), element("p", "", "Clear the filters, import a spreadsheet, or add the first manual entry."));
@@ -1239,6 +1262,72 @@ function renderLedgerTable(entries) {
     const source = gridCell(row, ledgerSourceLabel(entry.sourceType));
     if (entry.sourceFileName) source.append(element("small", "", `${entry.sourceFileName}${entry.sourceRowNumber ? ` · row ${entry.sourceRowNumber}` : ""}`));
     gridCell(row, entry.note || "—", entry.note ? "" : "admin-grid-muted");
+    body.append(row);
+  });
+  table.append(head, body);
+  return table;
+}
+
+function renderLedgerTable(entries) {
+  state.ledgerEntries = new Map(entries.map(entry => [entry.id, entry]));
+  if (!entries.length) {
+    const empty = element("article", "admin-empty-state");
+    empty.append(element("h3", "", "No ledger entries match these filters"), element("p", "", "Clear the filters, import a spreadsheet, or add the first manual entry."));
+    return empty;
+  }
+  const table = element("table", "admin-data-grid admin-ledger-table");
+  table.append(element("caption", "", "Filtered Hope Sojourns income and expense ledger."));
+  const head = document.createElement("thead");
+  const heading = document.createElement("tr");
+  ["Date", "Type", "Amount", "Name", "Payment", "Check #", "Expense category", "Budget category", "Source", "Note", "Actions"].forEach(label => {
+    const cell = element("th", "", label);
+    cell.scope = "col";
+    heading.append(cell);
+  });
+  head.append(heading);
+  const body = document.createElement("tbody");
+  entries.forEach(entry => {
+    const row = document.createElement("tr");
+    gridCell(row, formatDate(entry.transactionDate, false));
+    const type = gridCell(row, titleCase(entry.entryType), `admin-ledger-type admin-ledger-type-${entry.entryType}`);
+    type.dataset.label = entry.entryType;
+    gridCell(row, formatMoney(entry.amount), "admin-ledger-amount");
+    gridCell(row, entry.name || "—", entry.name ? "" : "admin-grid-muted");
+    gridCell(row, entry.paymentType);
+    gridCell(row, entry.checkNumber || "—", entry.checkNumber ? "" : "admin-grid-muted");
+    gridCell(row, entry.expenseCategory || "—", entry.expenseCategory ? "" : "admin-grid-muted");
+    gridCell(row, entry.budgetCategory);
+    const source = gridCell(row, ledgerSourceLabel(entry.sourceType));
+    if (entry.sourceFileName) source.append(element("small", "", `${entry.sourceFileName}${entry.sourceRowNumber ? ` · row ${entry.sourceRowNumber}` : ""}`));
+    gridCell(row, entry.note || "—", entry.note ? "" : "admin-grid-muted");
+    const actionsCell = document.createElement("td");
+    const actions = element("div", "admin-ledger-row-actions");
+    const edit = element("button", "admin-button admin-button-outline", "Edit");
+    edit.type = "button";
+    edit.addEventListener("click", () => openLedgerEntryDialog(entry));
+    const remove = element("button", "admin-button admin-button-danger", "Delete");
+    remove.type = "button";
+    remove.addEventListener("click", async () => {
+      const confirmation = window.prompt(`Permanently delete this ${titleCase(entry.entryType)} entry for ${formatMoney(entry.amount)} on ${formatDate(entry.transactionDate, false)}? This removes the ledger row only.\n\nType DELETE to confirm.`);
+      if (confirmation === null) return;
+      if (confirmation !== "DELETE") {
+        ledgerStatus.textContent = "Nothing was deleted. Enter DELETE exactly to confirm permanent deletion.";
+        return;
+      }
+      setBusy(remove, true, "Deleting…");
+      ledgerStatus.textContent = "Deleting the ledger entry…";
+      try {
+        await api(`/ledger/entries/${encodeURIComponent(entry.id)}`, { method: "DELETE" });
+        ledgerStatus.textContent = "The ledger entry was permanently deleted.";
+        await loadLedger();
+      } catch (error) {
+        ledgerStatus.textContent = error.message;
+        setBusy(remove, false);
+      }
+    });
+    actions.append(edit, remove);
+    actionsCell.append(actions);
+    row.append(actionsCell);
     body.append(row);
   });
   table.append(head, body);
@@ -1301,7 +1390,7 @@ async function loadLedgerDonors() {
   }
 }
 
-function openLedgerEntryDialog() {
+function openLedgerEntryDialogLegacy() {
   ledgerEntryForm.reset();
   ledgerEntryForm.elements.transactionDate.value = new Date().toISOString().slice(0, 10);
   ledgerEntryForm.elements.entryType.value = "income";
@@ -1313,13 +1402,37 @@ function openLedgerEntryDialog() {
   ledgerEntryForm.elements.transactionDate.focus();
 }
 
-function ledgerImportFormData(file) {
+function ledgerImportFormDataLegacy(file) {
   const formData = new FormData();
   formData.set("file", file, file.name);
   return formData;
 }
+function openLedgerEntryDialog(entry = null) {
+  ledgerEntryForm.reset();
+  state.ledgerEditingEntryId = entry?.id || "";
+  ledgerEntryTitle.textContent = entry ? "Edit ledger entry" : "Add income or expense";
+  saveLedgerEntryButton.textContent = entry ? "Save changes" : "Save ledger entry";
+  ledgerEntryForm.elements.transactionDate.value = entry?.transactionDate || localDateInputValue();
+  ledgerEntryForm.elements.entryType.value = entry?.entryType || "income";
+  ledgerEntryForm.elements.paymentType.value = entry?.paymentType || "Check";
+  ledgerEntryForm.elements.expenseCategory.value = entry?.expenseCategory || "";
+  ledgerEntryForm.elements.amount.value = entry?.amount || "";
+  ledgerEntryForm.elements.budgetCategory.value = entry?.budgetCategory || "General";
+  ledgerEntryForm.elements.checkNumber.value = entry?.checkNumber || "";
+  ledgerEntryForm.elements.name.value = entry?.name || "";
+  ledgerEntryForm.elements.personId.value = entry?.personId || "";
+  ledgerEntryForm.elements.note.value = entry?.note || "";
+  ledgerEntryStatus.classList.remove("is-success");
+  ledgerEntryStatus.textContent = entry?.sourceType === "csm"
+    ? "This entry came from the Hope Sojourns Inbox. Your changes apply to the ledger row."
+    : entry?.sourceType === "import" ? "This entry came from a spreadsheet. Your changes apply to the ledger row." : "";
+  loadLedgerDonors();
+  if (!ledgerEntryDialog.open) ledgerEntryDialog.showModal();
+  ledgerEntryForm.elements.transactionDate.focus();
+}
 
-function resetLedgerImport(focusFile = false) {
+
+function resetLedgerImportLegacy(focusFile = false) {
   ledgerImportForm.reset();
   state.ledgerImportFile = null;
   ledgerImportPreview.hidden = true;
@@ -1331,7 +1444,7 @@ function resetLedgerImport(focusFile = false) {
   if (focusFile) ledgerImportFile.focus();
 }
 
-function renderLedgerImportRows(rows, committed) {
+function renderLedgerImportRowsLegacy(rows, committed) {
   const table = element("table", "admin-import-table");
   table.append(element("caption", "", committed ? "Ledger spreadsheet import results" : "Ledger spreadsheet import preview"));
   const head = document.createElement("thead");
@@ -1364,7 +1477,7 @@ function renderLedgerImportRows(rows, committed) {
   return table;
 }
 
-function renderLedgerImportResult(result, committed = false) {
+function renderLedgerImportResultLegacy(result, committed = false) {
   ledgerImportFileName.textContent = result.fileName;
   ledgerImportNew.textContent = String(result.newRows || 0);
   ledgerImportLoaded.textContent = String(result.alreadyLoaded || 0);
@@ -1379,6 +1492,163 @@ function renderLedgerImportResult(result, committed = false) {
   commitLedgerImportButton.textContent = committed ? "Import complete" : "Import new rows";
   ledgerImportPreview.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
+function ledgerReviewPayload() {
+  const fields = ["rowNumber", "sequence", "transactionDate", "entryType", "paymentType", "expenseCategory", "amount", "name", "budgetCategory", "checkNumber", "note"];
+  return state.ledgerImportRows.map(row => Object.fromEntries(fields.map(field => [field, row[field] ?? ""])));
+}
+
+function ledgerImportFormData(file, includeReview = false) {
+  const formData = new FormData();
+  formData.set("file", file, file.name);
+  if (includeReview) formData.set("reviewRows", JSON.stringify(ledgerReviewPayload()));
+  return formData;
+}
+
+function updateLedgerImportSelectionState() {
+  const available = new Set(state.ledgerImportRows.map(row => Number(row.rowNumber)));
+  for (const rowNumber of state.selectedLedgerImportRows) if (!available.has(rowNumber)) state.selectedLedgerImportRows.delete(rowNumber);
+  const count = state.selectedLedgerImportRows.size;
+  ledgerImportSelectionCount.textContent = plural(count, "entry", "entries") + " selected";
+  removeSelectedLedgerImportButton.disabled = count === 0;
+}
+
+function resetLedgerImport(focusFile = false) {
+  ledgerImportForm.reset();
+  state.ledgerImportFile = null;
+  state.ledgerImportRows = [];
+  state.ledgerImportResult = null;
+  state.selectedLedgerImportRows.clear();
+  ledgerImportPreview.hidden = true;
+  ledgerImportStatus.textContent = "";
+  ledgerImportStatus.classList.remove("is-success");
+  ledgerImportTableShell.replaceChildren();
+  commitLedgerImportButton.disabled = true;
+  commitLedgerImportButton.textContent = "Validate and import reviewed rows";
+  ledgerImportSelectionCount.parentElement.hidden = false;
+  updateLedgerImportSelectionState();
+  if (focusFile) ledgerImportFile.focus();
+}
+
+function ledgerImportActionLabel(item) {
+  return item.action === "new" ? "New" : item.action === "already_loaded" ? "Already loaded" : item.action === "conflict" ? "Changed Seq #" : "Needs correction";
+}
+
+function ledgerImportEditCell(item, key, options = {}) {
+  const cell = document.createElement("td");
+  const input = document.createElement(options.select ? "select" : "input");
+  if (options.select) {
+    for (const value of options.options || []) {
+      const option = element("option", "", value.label);
+      option.value = value.value;
+      input.append(option);
+    }
+  } else {
+    input.type = options.type || "text";
+    if (options.maxLength) input.maxLength = options.maxLength;
+    if (options.step) input.step = options.step;
+    if (options.min) input.min = options.min;
+    if (options.max) input.max = options.max;
+    if (options.list) input.setAttribute("list", options.list);
+  }
+  input.value = String(item[key] ?? "");
+  input.setAttribute("aria-label", `${options.label || key} for spreadsheet row ${item.rowNumber}`);
+  if (options.className) input.className = options.className;
+  const update = () => { item[key] = input.value; };
+  input.addEventListener("input", update);
+  input.addEventListener("change", update);
+  cell.append(input);
+  return cell;
+}
+
+function renderLedgerImportRows(rows, committed) {
+  if (committed) return renderLedgerImportRowsLegacy(rows, true);
+  const table = element("table", "admin-import-table admin-ledger-import-edit-table");
+  table.append(element("caption", "", "Editable ledger spreadsheet import preview"));
+  const head = document.createElement("thead");
+  const heading = document.createElement("tr");
+  const selectionHeading = document.createElement("th");
+  const selectAll = document.createElement("input");
+  selectAll.type = "checkbox";
+  selectAll.setAttribute("aria-label", "Select every spreadsheet entry shown");
+  selectAll.checked = rows.length > 0 && rows.every(item => state.selectedLedgerImportRows.has(Number(item.rowNumber)));
+  selectAll.addEventListener("change", () => {
+    for (const item of rows) {
+      if (selectAll.checked) state.selectedLedgerImportRows.add(Number(item.rowNumber));
+      else state.selectedLedgerImportRows.delete(Number(item.rowNumber));
+    }
+    table.querySelectorAll("[data-ledger-import-select]").forEach(box => { box.checked = selectAll.checked; });
+    updateLedgerImportSelectionState();
+  });
+  selectionHeading.append(selectAll);
+  heading.append(selectionHeading);
+  ["Row", "Status", "Seq #", "Date", "Type", "Payment", "Expense category", "Amount", "Name", "Budget category", "Check #", "Note", "Review details"].forEach(label => heading.append(element("th", "", label)));
+  head.append(heading);
+  const body = document.createElement("tbody");
+  for (const item of rows) {
+    const row = document.createElement("tr");
+    if (["error", "conflict"].includes(item.action)) row.classList.add("admin-import-row-error");
+    const selection = document.createElement("td");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.ledgerImportSelect = "";
+    checkbox.checked = state.selectedLedgerImportRows.has(Number(item.rowNumber));
+    checkbox.setAttribute("aria-label", `Select spreadsheet row ${item.rowNumber}`);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) state.selectedLedgerImportRows.add(Number(item.rowNumber));
+      else state.selectedLedgerImportRows.delete(Number(item.rowNumber));
+      updateLedgerImportSelectionState();
+    });
+    selection.append(checkbox);
+    row.append(selection, element("td", "", String(item.rowNumber)), element("td", "", ledgerImportActionLabel(item)));
+    row.append(
+      ledgerImportEditCell(item, "sequence", { label: "Sequence number", maxLength: 30 }),
+      ledgerImportEditCell(item, "transactionDate", { label: "Transaction date", type: "date" }),
+      ledgerImportEditCell(item, "entryType", { label: "Income or expense", select: true, options: [{ value: "income", label: "Income" }, { value: "expense", label: "Expense" }] }),
+      ledgerImportEditCell(item, "paymentType", { label: "Payment type", maxLength: 80, list: "ledger-payment-types" }),
+      ledgerImportEditCell(item, "expenseCategory", { label: "Expense category", maxLength: 100, list: "ledger-expense-categories" }),
+      ledgerImportEditCell(item, "amount", { label: "Amount", type: "number", min: "0.01", max: "100000000", step: "0.01" }),
+      ledgerImportEditCell(item, "name", { label: "Name", maxLength: 160 }),
+      ledgerImportEditCell(item, "budgetCategory", { label: "Budget category", maxLength: 100, list: "ledger-budget-categories" }),
+      ledgerImportEditCell(item, "checkNumber", { label: "Check number", maxLength: 40 }),
+      ledgerImportEditCell(item, "note", { label: "Note", maxLength: 1000, className: "admin-ledger-import-note-field" }),
+    );
+    const details = document.createElement("td");
+    const messages = element("ul", "admin-import-messages");
+    for (const error of item.errors || []) messages.append(element("li", "admin-import-message-error", error));
+    if (!messages.children.length) messages.append(element("li", "", item.action === "already_loaded" ? "This exact entry is already in the ledger." : "Ready for validation."));
+    details.append(messages);
+    row.append(details);
+    body.append(row);
+  }
+  table.append(head, body);
+  updateLedgerImportSelectionState();
+  return table;
+}
+
+function renderLedgerImportResult(result, committed = false) {
+  if (!committed) {
+    state.ledgerImportRows = (result.rows || []).map(row => ({ ...row }));
+    state.ledgerImportResult = { ...result, rows: state.ledgerImportRows };
+    state.selectedLedgerImportRows.clear();
+  }
+  const rows = committed ? (result.rows || []) : state.ledgerImportRows;
+  const count = action => rows.filter(row => row.action === action).length;
+  ledgerImportFileName.textContent = result.fileName;
+  ledgerImportNew.textContent = String(count("new"));
+  ledgerImportLoaded.textContent = String(count("already_loaded"));
+  ledgerImportConflicts.textContent = String(count("conflict"));
+  ledgerImportErrors.textContent = String(count("error"));
+  ledgerImportHelp.textContent = committed
+    ? `${plural(result.imported || 0, "new entry", "new entries")} imported. Previously loaded, changed, and invalid rows were not added twice.`
+    : "Edit fields as needed. Select and remove any entry you do not want included. The remaining rows will be validated again, and only new valid entries will be saved.";
+  ledgerImportTableShell.replaceChildren(renderLedgerImportRows(rows, committed));
+  ledgerImportPreview.hidden = false;
+  ledgerImportSelectionCount.parentElement.hidden = committed;
+  commitLedgerImportButton.disabled = committed || rows.length === 0;
+  commitLedgerImportButton.textContent = committed ? "Import complete" : "Validate and import reviewed rows";
+  ledgerImportPreview.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 
 function selectedLedgerImportFile() {
   const file = ledgerImportFile.files?.[0];
@@ -2862,8 +3132,10 @@ ledgerEntryForm.addEventListener("submit", async event => {
   setBusy(submit, true, "Saving…");
   ledgerEntryStatus.textContent = "";
   try {
-    await api("/ledger/entries", {
-      method: "POST",
+    const editingEntryId = state.ledgerEditingEntryId;
+    const entryPath = editingEntryId ? `/ledger/entries/${encodeURIComponent(editingEntryId)}` : "/ledger/entries";
+    await api(entryPath, {
+      method: editingEntryId ? "PUT" : "POST",
       body: {
         transactionDate: String(formData.get("transactionDate") || ""),
         entryType: String(formData.get("entryType") || ""),
@@ -2874,10 +3146,11 @@ ledgerEntryForm.addEventListener("submit", async event => {
         name: String(formData.get("name") || ""),
         personId: String(formData.get("personId") || ""),
         note: String(formData.get("note") || ""),
+        checkNumber: String(formData.get("checkNumber") || ""),
       },
     });
     ledgerEntryStatus.classList.add("is-success");
-    ledgerEntryStatus.textContent = "Ledger entry saved.";
+    ledgerEntryStatus.textContent = editingEntryId ? "Ledger entry updated." : "Ledger entry saved.";
     await loadLedger();
     setTimeout(() => ledgerEntryDialog.close(), 450);
   } catch (error) {
@@ -2911,11 +3184,26 @@ closeLedgerImportDialog.addEventListener("click", () => ledgerImportDialog.close
 ledgerImportDialog.addEventListener("close", () => resetLedgerImport());
 ledgerImportFile.addEventListener("change", () => {
   state.ledgerImportFile = null;
+  state.ledgerImportRows = [];
+  state.ledgerImportResult = null;
+  state.selectedLedgerImportRows.clear();
+  updateLedgerImportSelectionState();
   ledgerImportPreview.hidden = true;
   ledgerImportStatus.textContent = "";
   ledgerImportStatus.classList.remove("is-success");
 });
 chooseAnotherLedgerImportButton.addEventListener("click", () => resetLedgerImport(true));
+
+removeSelectedLedgerImportButton.addEventListener("click", () => {
+  if (!state.selectedLedgerImportRows.size || !state.ledgerImportResult) return;
+  state.ledgerImportRows = state.ledgerImportRows.filter(row => !state.selectedLedgerImportRows.has(Number(row.rowNumber)));
+  state.selectedLedgerImportRows.clear();
+  state.ledgerImportResult = { ...state.ledgerImportResult, rows: state.ledgerImportRows };
+  renderLedgerImportResult(state.ledgerImportResult);
+  ledgerImportStatus.textContent = state.ledgerImportRows.length
+    ? "Selected entries were removed from this import. Review the remaining entries before importing."
+    : "Every entry was removed. Choose another file or review the spreadsheet again.";
+});
 
 ledgerImportForm.addEventListener("submit", async event => {
   event.preventDefault();
@@ -2927,9 +3215,7 @@ ledgerImportForm.addEventListener("submit", async event => {
     const { result } = await api("/ledger/imports/preview", { method: "POST", body: ledgerImportFormData(file) });
     state.ledgerImportFile = file;
     renderLedgerImportResult(result.preview);
-    ledgerImportStatus.textContent = result.preview.canImport
-      ? "Review the results below, then import only the rows marked New."
-      : "There are no new valid rows to import.";
+    ledgerImportStatus.textContent = "Edit or remove entries as needed, then validate and import the reviewed rows.";
   } catch (error) {
     state.ledgerImportFile = null;
     ledgerImportPreview.hidden = true;
@@ -2948,7 +3234,7 @@ commitLedgerImportButton.addEventListener("click", async () => {
   ledgerImportStatus.textContent = "Importing new ledger entries…";
   setBusy(commitLedgerImportButton, true, "Importing…");
   try {
-    const { result } = await api("/ledger/imports", { method: "POST", body: ledgerImportFormData(state.ledgerImportFile) });
+    const { result } = await api("/ledger/imports", { method: "POST", body: ledgerImportFormData(state.ledgerImportFile, true) });
     setBusy(commitLedgerImportButton, false);
     renderLedgerImportResult(result.import, true);
     ledgerImportStatus.classList.add("is-success");

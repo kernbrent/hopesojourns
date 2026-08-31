@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 1.8
+Version 1.9
 
 Last reviewed: August 30, 2026
 
@@ -273,7 +273,9 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Place import, export, and manual-entry actions together in the ledger introduction panel. Use one gold primary action and restrained outline treatments for supporting actions.
 - Keep search, year, type, and source filters visibly labeled. At wide sizes they may share one row; below the existing medium and narrow breakpoints they reduce to two columns and then one.
 - Financial tables must use explicit text labels for Income and Expense in addition to color. Keep dates, values, names, categories, source, and notes scannable; on narrow screens, contain horizontal scrolling inside the table shell rather than forcing the entire page to overflow.
-- Spreadsheet imports require a preview with separate counts for new entries, exact duplicates, sequence conflicts, and rows needing correction. The final action must state that only new rows will be imported.
+- Include Check # as a distinct ledger column. Keep Edit and Delete in a final Actions column, use established outline and danger buttons, and require typed confirmation before permanent deletion.
+- Spreadsheet imports require a preview with separate counts for new entries, exact duplicates, sequence conflicts, and rows needing correction. Every source field must remain editable in the review table, including sequence number and check number. Provide a select-all control, per-row checkboxes, and an explicit **Remove selected entries** action that removes rows only from the current import review.
+- The final spreadsheet action must say that reviewed rows will be validated and imported. Keep horizontal overflow inside the review table shell, retain visible field labels through the sticky header and accessible control names, and report which rows were imported or skipped.
 - Contact selection belongs in the first grid column and must include an accessible per-row name plus a select-visible control. The selected count remains visible above the actions and survives paging or filtering until the action succeeds or the administrator changes the selection.
 - Group bulk activity and personalized-document tools by outcome. Use a date and brief-note pair for activity; use a tax year, branded statement action, uploaded Word template, and merge action for documents.
 - At narrow widths, bulk fields and actions stack in a logical reading order and primary buttons fill the available width. Keep the data grid in a contained horizontal-scrolling shell.
@@ -400,6 +402,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-30 | 1.9 | Added editable and removable spreadsheet-review rows, ledger check-number and row-action columns, and typed-confirmation deletion guidance. |
 | 2026-08-30 | 1.8 | Renamed the user-facing CSM inbox to Payment inbox so the portal describes the workspace by purpose rather than by its internal integration. |
 | 2026-08-30 | 1.7 | Added responsive unified-ledger, spreadsheet-import preview, bulk contact selection, activity-update, and personalized-document interface standards. |
 | 2026-08-30 | 1.6 | Required embedded YouTube players in resource-library cards and documented intentional collection ordering. |

@@ -6,7 +6,7 @@ import {
   DocumentMergeError, type MergeContact, type MergeGift,
 } from "./document-merge";
 import {
-  LEDGER_IMPORT_MAX_FILE_BYTES, LedgerImportFileError, ledgerImportIdentity,
+  applyLedgerImportReview, LEDGER_IMPORT_MAX_FILE_BYTES, LedgerImportFileError, ledgerImportIdentity,
   parseLedgerImportFile, sha256Hex, type LedgerImportInput, type ParsedLedgerImport,
 } from "./ledger-file";
 import { buildLedgerWorkbook, type LedgerWorkbookRow } from "./ledger-xlsx";
@@ -18,6 +18,7 @@ type LedgerRow = {
   source_file_name: string | null; source_row_number: number | null; transaction_date: string;
   entry_type: LedgerType; payment_type: string; expense_category: string | null; budget_category: string;
   amount: number; name: string | null; person_id: string | null; note: string | null; currency: string;
+  check_number: string | null;
   gross: number | null; fee: number | null; net: number | null; created_at: string;
 };
 type ExistingImportRow = { import_key: string; content_fingerprint: string };
@@ -89,6 +90,7 @@ function mappedLedgerRow(row: LedgerRow): Record<string, unknown> {
     id: row.id, sourceType: row.source_type, transactionDate: row.transaction_date, entryType: row.entry_type,
     paymentType: row.payment_type, expenseCategory: row.expense_category, budgetCategory: row.budget_category,
     amount: Number(row.amount), name: row.name, personId: row.person_id, note: row.note, currency: row.currency,
+    checkNumber: row.check_number,
     gross: row.gross === null ? null : Number(row.gross), fee: row.fee === null ? null : Number(row.fee),
     net: row.net === null ? null : Number(row.net), sourceFileName: row.source_file_name,
     sourceRowNumber: row.source_row_number, createdAt: row.created_at,
@@ -126,9 +128,9 @@ function ledgerWhere(url: URL): { clause: string; bindings: unknown[] } {
   }
   if (search) {
     if (search.length > 100) throw new AdminError(422, "INVALID_FILTER", "Search with 100 characters or fewer.");
-    conditions.push("(name LIKE ? ESCAPE '\\' OR payment_type LIKE ? ESCAPE '\\' OR expense_category LIKE ? ESCAPE '\\' OR budget_category LIKE ? ESCAPE '\\' OR note LIKE ? ESCAPE '\\')");
+    conditions.push("(name LIKE ? ESCAPE '\\' OR payment_type LIKE ? ESCAPE '\\' OR expense_category LIKE ? ESCAPE '\\' OR budget_category LIKE ? ESCAPE '\\' OR check_number LIKE ? ESCAPE '\\' OR note LIKE ? ESCAPE '\\')");
     const pattern = `%${search.replace(/[\\%_]/g, "\\$&")}%`;
-    bindings.push(pattern, pattern, pattern, pattern, pattern);
+    bindings.push(pattern, pattern, pattern, pattern, pattern, pattern);
   }
   return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", bindings };
 }
@@ -149,7 +151,7 @@ async function listLedger(request: Request, env: AdminEnv): Promise<Response> {
     env.DB.prepare(
       `SELECT id, source_type, import_key, content_fingerprint, source_file_name, source_row_number,
               transaction_date, entry_type, payment_type, expense_category, budget_category, amount,
-              name, person_id, note, currency, gross, fee, net, created_at
+              name, person_id, check_number, note, currency, gross, fee, net, created_at
        FROM ledger_entries ${where.clause}
        ORDER BY transaction_date DESC, created_at DESC LIMIT ? OFFSET ?`,
     ).bind(...where.bindings, pageSize, (page - 1) * pageSize).all<LedgerRow>(),
@@ -164,15 +166,20 @@ async function listLedger(request: Request, env: AdminEnv): Promise<Response> {
   });
 }
 
-async function createLedgerEntry(request: Request, env: AdminEnv): Promise<Response> {
-  const session = await authenticate(request, env, true);
-  const body = await readAdminJson(request);
+type CleanLedgerEntry = {
+  transactionDate: string; entryType: LedgerType; paymentType: string; expenseCategory: string | null;
+  budgetCategory: string; amount: number; name: string | null; personId: string | null;
+  checkNumber: string | null; note: string | null; contentFingerprint: string;
+};
+
+async function cleanLedgerEntry(body: Record<string, unknown>, env: AdminEnv): Promise<CleanLedgerEntry> {
   const transactionDate = cleanDate(body.transactionDate, "transaction date");
   const entryType = cleanEntryType(body.entryType);
   const paymentType = cleanLine(body.paymentType, 80, true)!;
   const expenseCategory = cleanLine(body.expenseCategory, 100);
   const budgetCategory = cleanLine(body.budgetCategory, 100, true)!;
   const amount = cleanPositiveAmount(body.amount);
+  const checkNumber = cleanLine(body.checkNumber, 40);
   const note = cleanMessage(body.note, 1_000);
   const requestedName = cleanLine(body.name, 160);
   const personId = cleanLine(body.personId, 64);
@@ -182,20 +189,56 @@ async function createLedgerEntry(request: Request, env: AdminEnv): Promise<Respo
     if (!person) throw new AdminError(422, "PERSON_NOT_FOUND", "Choose a valid contact for this ledger entry.");
     name = name || `${person.first_name} ${person.last_name}`;
   }
+  const canonical = JSON.stringify([transactionDate, entryType, paymentType, expenseCategory, amount, name, personId, budgetCategory, checkNumber, note]);
+  return { transactionDate, entryType, paymentType, expenseCategory, budgetCategory, amount, name, personId, checkNumber, note, contentFingerprint: await sha256Hex(canonical) };
+}
+
+async function createLedgerEntry(request: Request, env: AdminEnv): Promise<Response> {
+  const session = await authenticate(request, env, true);
+  const entry = await cleanLedgerEntry(await readAdminJson(request), env);
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  const canonical = JSON.stringify([transactionDate, entryType, paymentType, expenseCategory, amount, name, personId, budgetCategory, note]);
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO ledger_entries
         (id, source_type, import_key, content_fingerprint, transaction_date, entry_type, payment_type,
-         expense_category, budget_category, amount, name, person_id, note, currency,
+         expense_category, budget_category, amount, name, person_id, check_number, note, currency,
          created_by_session_id, created_at, updated_at)
-       VALUES (?1, 'manual', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'USD', ?13, ?14, ?14)`,
-    ).bind(id, `manual:${id}`, await sha256Hex(canonical), transactionDate, entryType, paymentType, expenseCategory, budgetCategory, amount, name, personId, note, session.id, now),
-    auditStatement(env, "ledger_entry", id, "created", { sourceType: "manual", entryType, amount, transactionDate }),
+       VALUES (?1, 'manual', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, 'USD', ?14, ?15, ?15)`,
+    ).bind(id, `manual:${id}`, entry.contentFingerprint, entry.transactionDate, entry.entryType, entry.paymentType, entry.expenseCategory, entry.budgetCategory, entry.amount, entry.name, entry.personId, entry.checkNumber, entry.note, session.id, now),
+    auditStatement(env, "ledger_entry", id, "created", { sourceType: "manual", entryType: entry.entryType, amount: entry.amount, transactionDate: entry.transactionDate }),
   ]);
   return adminJson({ entryId: id, success: true }, 201);
+}
+
+async function updateLedgerEntry(request: Request, env: AdminEnv, id: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const existing = await env.DB.prepare("SELECT id, source_type FROM ledger_entries WHERE id = ?1").bind(id).first<{ id: string; source_type: LedgerSource }>();
+  if (!existing) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
+  const entry = await cleanLedgerEntry(await readAdminJson(request), env);
+  const now = new Date().toISOString();
+  const results = await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE ledger_entries SET content_fingerprint = ?1, transaction_date = ?2, entry_type = ?3,
+         payment_type = ?4, expense_category = ?5, budget_category = ?6, amount = ?7, name = ?8,
+         person_id = ?9, check_number = ?10, note = ?11, updated_at = ?12 WHERE id = ?13`,
+    ).bind(entry.contentFingerprint, entry.transactionDate, entry.entryType, entry.paymentType, entry.expenseCategory, entry.budgetCategory, entry.amount, entry.name, entry.personId, entry.checkNumber, entry.note, now, id),
+    auditStatement(env, "ledger_entry", id, "updated", { sourceType: existing.source_type, entryType: entry.entryType, amount: entry.amount, transactionDate: entry.transactionDate }),
+  ]);
+  if (Number(results[0]?.meta.changes ?? 0) !== 1) throw new AdminError(409, "LEDGER_ENTRY_NOT_UPDATED", "The ledger entry could not be updated. Refresh and try again.");
+  return adminJson({ success: true, entryId: id });
+}
+
+async function deleteLedgerEntry(request: Request, env: AdminEnv, id: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const existing = await env.DB.prepare("SELECT id, source_type, transaction_date, entry_type, amount FROM ledger_entries WHERE id = ?1").bind(id).first<{ id: string; source_type: LedgerSource; transaction_date: string; entry_type: LedgerType; amount: number }>();
+  if (!existing) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
+  const results = await env.DB.batch([
+    env.DB.prepare("DELETE FROM ledger_entries WHERE id = ?1").bind(id),
+    auditStatement(env, "ledger_entry", id, "deleted", { sourceType: existing.source_type, entryType: existing.entry_type, amount: Number(existing.amount), transactionDate: existing.transaction_date }),
+  ]);
+  if (Number(results[0]?.meta.changes ?? 0) !== 1) throw new AdminError(409, "LEDGER_ENTRY_NOT_DELETED", "The ledger entry could not be deleted. Refresh and try again.");
+  return adminJson({ success: true, entryId: id });
 }
 
 async function readMultipart(request: Request, maximumFileBytes: number): Promise<{ formData: FormData; file: File; fileName: string; bytes: Uint8Array }> {
@@ -233,6 +276,7 @@ async function readMultipart(request: Request, maximumFileBytes: number): Promis
 type ImportPreviewRow = {
   rowNumber: number; action: "new" | "already_loaded" | "conflict" | "error";
   input: LedgerImportInput | null; errors: string[]; importKey: string | null; contentFingerprint: string | null;
+  values: Record<string, string>;
 };
 
 async function analyzeImport(env: AdminEnv, parsed: ParsedLedgerImport): Promise<{ rows: ImportPreviewRow[]; newRows: number; alreadyLoaded: number; conflicts: number; errors: number; canImport: boolean }> {
@@ -247,13 +291,13 @@ async function analyzeImport(env: AdminEnv, parsed: ParsedLedgerImport): Promise
   const withinFile = new Set<string>();
   const rows: ImportPreviewRow[] = parsed.rows.map(row => {
     const identity = identities.get(row.rowNumber) ?? null;
-    if (!row.input || !identity) return { rowNumber: row.rowNumber, action: "error", input: row.input, errors: row.errors, importKey: null, contentFingerprint: null };
-    if (withinFile.has(identity.importKey)) return { rowNumber: row.rowNumber, action: "error", input: row.input, errors: ["This row duplicates another Seq # or transaction in the same spreadsheet."], ...identity };
+    if (!row.input || !identity) return { rowNumber: row.rowNumber, action: "error", input: row.input, errors: row.errors, importKey: null, contentFingerprint: null, values: row.values };
+    if (withinFile.has(identity.importKey)) return { rowNumber: row.rowNumber, action: "error", input: row.input, errors: ["This row duplicates another Seq # or transaction in the same spreadsheet."], values: row.values, ...identity };
     withinFile.add(identity.importKey);
     const prior = existing.get(identity.importKey);
-    if (prior === identity.contentFingerprint) return { rowNumber: row.rowNumber, action: "already_loaded", input: row.input, errors: [], ...identity };
-    if (prior) return { rowNumber: row.rowNumber, action: "conflict", input: row.input, errors: ["This Seq # was imported before, but its details are now different. Review the existing ledger entry instead of importing it twice."], ...identity };
-    return { rowNumber: row.rowNumber, action: "new", input: row.input, errors: [], ...identity };
+    if (prior === identity.contentFingerprint) return { rowNumber: row.rowNumber, action: "already_loaded", input: row.input, errors: [], values: row.values, ...identity };
+    if (prior) return { rowNumber: row.rowNumber, action: "conflict", input: row.input, errors: ["This Seq # was imported before, but its details are now different. Review the existing ledger entry instead of importing it twice."], values: row.values, ...identity };
+    return { rowNumber: row.rowNumber, action: "new", input: row.input, errors: [], values: row.values, ...identity };
   });
   const count = (action: ImportPreviewRow["action"]): number => rows.filter(row => row.action === action).length;
   const newRows = count("new");
@@ -266,9 +310,11 @@ function importPreviewJson(fileName: string, parsed: ParsedLedgerImport, preview
     newRows: preview.newRows, alreadyLoaded: preview.alreadyLoaded, conflicts: preview.conflicts, errors: preview.errors, canImport: preview.canImport,
     rows: preview.rows.map(row => ({
       rowNumber: row.rowNumber, action: row.action, errors: row.errors,
-      transactionDate: row.input?.transactionDate ?? null, entryType: row.input?.entryType ?? null,
-      paymentType: row.input?.paymentType ?? null, amount: row.input?.amount ?? null,
-      name: row.input?.name ?? null, budgetCategory: row.input?.budgetCategory ?? null, sequence: row.input?.sequence ?? null,
+      transactionDate: row.input?.transactionDate ?? row.values.transactionDate, entryType: row.input?.entryType ?? row.values.entryType,
+      paymentType: row.input?.paymentType ?? row.values.paymentType, expenseCategory: row.input?.expenseCategory ?? row.values.expenseCategory,
+      amount: row.input?.amount ?? row.values.amount, name: row.input?.name ?? row.values.name,
+      budgetCategory: row.input?.budgetCategory ?? row.values.budgetCategory, sequence: row.input?.sequence ?? row.values.sequence,
+      checkNumber: row.input?.checkNumber ?? row.values.checkNumber, note: row.input?.note ?? row.values.note,
     })),
   };
 }
@@ -292,7 +338,7 @@ async function matchedPersonId(env: AdminEnv, input: LedgerImportInput): Promise
 async function commitLedgerImport(request: Request, env: AdminEnv): Promise<Response> {
   const session = await authenticate(request, env, true);
   const upload = await readMultipart(request, LEDGER_IMPORT_MAX_FILE_BYTES);
-  const parsed = parseLedgerImportFile(upload.fileName, upload.bytes);
+  const parsed = applyLedgerImportReview(parseLedgerImportFile(upload.fileName, upload.bytes), upload.formData.get("reviewRows"));
   const preview = await analyzeImport(env, parsed);
   const ready = preview.rows.filter((row): row is ImportPreviewRow & { input: LedgerImportInput; importKey: string; contentFingerprint: string } => row.action === "new" && Boolean(row.input && row.importKey && row.contentFingerprint));
   const now = new Date().toISOString();
@@ -306,12 +352,12 @@ async function commitLedgerImport(request: Request, env: AdminEnv): Promise<Resp
         `INSERT OR IGNORE INTO ledger_entries
           (id, source_type, import_key, content_fingerprint, source_file_name, source_row_number,
            transaction_date, entry_type, payment_type, expense_category, budget_category, amount,
-           name, person_id, note, currency, created_by_session_id, created_at, updated_at)
-         VALUES (?1, 'import', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 'USD', ?15, ?16, ?16)`,
+           name, person_id, check_number, note, currency, created_by_session_id, created_at, updated_at)
+         VALUES (?1, 'import', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, 'USD', ?16, ?17, ?17)`,
       ).bind(
         id, row.importKey, row.contentFingerprint, upload.fileName, row.rowNumber,
         row.input.transactionDate, row.input.entryType, row.input.paymentType, row.input.expenseCategory,
-        row.input.budgetCategory, row.input.amount, row.input.name, personId, row.input.note, session.id, now,
+        row.input.budgetCategory, row.input.amount, row.input.name, personId, row.input.checkNumber, row.input.note, session.id, now,
       ));
     }
     const results = await env.DB.batch(statements);
@@ -329,13 +375,14 @@ async function exportLedger(request: Request, env: AdminEnv): Promise<Response> 
   const rows = await env.DB.prepare(
     `SELECT id, source_type, import_key, content_fingerprint, source_file_name, source_row_number,
             transaction_date, entry_type, payment_type, expense_category, budget_category, amount,
-            name, person_id, note, currency, gross, fee, net, created_at
+            name, person_id, check_number, note, currency, gross, fee, net, created_at
      FROM ledger_entries ORDER BY transaction_date DESC, created_at DESC`,
   ).all<LedgerRow>();
   const workbookRows: LedgerWorkbookRow[] = rows.results.map(row => ({
     id: row.id, transactionDate: row.transaction_date, entryType: row.entry_type, paymentType: row.payment_type,
     expenseCategory: row.expense_category, amount: Number(row.amount), name: row.name, personId: row.person_id,
     budgetCategory: row.budget_category, note: row.note, sourceType: row.source_type, sourceFileName: row.source_file_name,
+    checkNumber: row.check_number,
     sourceRowNumber: row.source_row_number, currency: row.currency, gross: row.gross === null ? null : Number(row.gross),
     fee: row.fee === null ? null : Number(row.fee), net: row.net === null ? null : Number(row.net), createdAt: row.created_at,
   }));
@@ -460,6 +507,11 @@ export async function handleLedgerAdminRequest(request: Request, env: AdminEnv, 
   try {
     if (request.method === "GET" && path === "/admin/ledger") return await listLedger(request, env);
     if (request.method === "POST" && path === "/admin/ledger/entries") return await createLedgerEntry(request, env);
+    const entryRoute = path.match(/^\/admin\/ledger\/entries\/([^/]+)$/);
+    if (entryRoute && (request.method === "PUT" || request.method === "DELETE")) {
+      const id = cleanLine(decodeURIComponent(entryRoute[1]!), 128, true)!;
+      return request.method === "PUT" ? await updateLedgerEntry(request, env, id) : await deleteLedgerEntry(request, env, id);
+    }
     if (request.method === "POST" && path === "/admin/ledger/imports/preview") return await previewLedgerImport(request, env);
     if (request.method === "POST" && path === "/admin/ledger/imports") return await commitLedgerImport(request, env);
     if (request.method === "GET" && path === "/admin/ledger/export.xlsx") return await exportLedger(request, env);

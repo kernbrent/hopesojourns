@@ -19,6 +19,7 @@ export type LedgerImportInput = {
   amount: number;
   name: string | null;
   budgetCategory: string;
+  checkNumber: string | null;
   note: string | null;
 };
 
@@ -27,6 +28,7 @@ export type ParsedLedgerImportRow = {
   input: LedgerImportInput | null;
   errors: string[];
   canonical: string | null;
+  values: Record<LedgerColumnKey, string>;
 };
 
 export type ParsedLedgerImport = {
@@ -36,7 +38,7 @@ export type ParsedLedgerImport = {
   rows: ParsedLedgerImportRow[];
 };
 
-type LedgerColumnKey = "sequence" | "transactionDate" | "entryType" | "paymentType" | "expenseCategory" | "amount" | "name" | "budgetCategory" | "note";
+export type LedgerColumnKey = "sequence" | "transactionDate" | "entryType" | "paymentType" | "expenseCategory" | "amount" | "name" | "budgetCategory" | "checkNumber" | "note";
 type MatrixRow = { rowNumber: number; cells: string[] };
 
 const COLUMNS: Array<{ key: LedgerColumnKey; aliases: string[] }> = [
@@ -48,6 +50,7 @@ const COLUMNS: Array<{ key: LedgerColumnKey; aliases: string[] }> = [
   { key: "amount", aliases: ["amount", "transaction amount"] },
   { key: "name", aliases: ["name", "payee", "payer", "donor", "vendor"] },
   { key: "budgetCategory", aliases: ["budget category", "budget", "fund", "designation"] },
+  { key: "checkNumber", aliases: ["check #", "check number", "check no", "check no."] },
   { key: "note", aliases: ["note", "notes", "memo", "description"] },
 ];
 
@@ -238,15 +241,17 @@ function validateRow(rowNumber: number, values: Record<LedgerColumnKey, string>)
   const amount = normalizedAmount(values.amount, errors);
   const name = cleanLine(values.name, 160, "Name", errors);
   const budgetCategory = cleanLine(values.budgetCategory, 100, "Budget Category", errors, true);
+  const checkNumber = cleanLine(values.checkNumber, 40, "Check Number", errors);
   const note = cleanLine(values.note, 1_000, "Note", errors);
-  if (errors.length || !transactionDate || !entryType || !paymentType || amount === null || !budgetCategory) return { rowNumber, input: null, errors, canonical: null };
-  const input: LedgerImportInput = { sequence, transactionDate, entryType, paymentType, expenseCategory, amount, name, budgetCategory, note };
+  if (errors.length || !transactionDate || !entryType || !paymentType || amount === null || !budgetCategory) return { rowNumber, input: null, errors, canonical: null, values };
+  const input: LedgerImportInput = { sequence, transactionDate, entryType, paymentType, expenseCategory, amount, name, budgetCategory, checkNumber, note };
   const canonical = JSON.stringify([
     sequence ?? "", transactionDate, entryType, paymentType.toLocaleLowerCase("en-US"),
     expenseCategory?.toLocaleLowerCase("en-US") ?? "", amount.toFixed(2),
-    name?.toLocaleLowerCase("en-US") ?? "", budgetCategory.toLocaleLowerCase("en-US"), note?.toLocaleLowerCase("en-US") ?? "",
+    name?.toLocaleLowerCase("en-US") ?? "", budgetCategory.toLocaleLowerCase("en-US"),
+    checkNumber?.toLocaleLowerCase("en-US") ?? "", note?.toLocaleLowerCase("en-US") ?? "",
   ]);
-  return { rowNumber, input, errors: [], canonical };
+  return { rowNumber, input, errors: [], canonical, values };
 }
 
 function rowsFromMatrix(matrix: MatrixRow[], fileType: "xlsx" | "csv"): Omit<ParsedLedgerImport, "fileType" | "sheetName"> {
@@ -295,6 +300,32 @@ export function parseLedgerImportFile(fileName: string, bytes: Uint8Array): Pars
     if (error instanceof OfficeArchiveError) throw new LedgerImportFileError("INVALID_EXCEL_FILE", error.message);
     throw error;
   }
+}
+
+export function applyLedgerImportReview(parsed: ParsedLedgerImport, rawReview: FormDataEntryValue | null): ParsedLedgerImport {
+  if (rawReview === null) return parsed;
+  if (typeof rawReview !== "string") throw new LedgerImportFileError("INVALID_REVIEW", "Review the spreadsheet again before importing it.");
+  let review: unknown;
+  try { review = JSON.parse(rawReview); }
+  catch { throw new LedgerImportFileError("INVALID_REVIEW", "The spreadsheet review could not be read. Review the file again."); }
+  if (!Array.isArray(review) || review.length > parsed.rows.length) throw new LedgerImportFileError("INVALID_REVIEW", "The spreadsheet review does not match the uploaded file.");
+  const originals = new Map(parsed.rows.map(row => [row.rowNumber, row]));
+  const seen = new Set<number>();
+  const keys = COLUMNS.map(column => column.key);
+  const rows = review.map(item => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw new LedgerImportFileError("INVALID_REVIEW", "The spreadsheet review contains an invalid row.");
+    const record = item as Record<string, unknown>;
+    const rowNumber = Number(record.rowNumber);
+    if (!Number.isInteger(rowNumber) || !originals.has(rowNumber) || seen.has(rowNumber)) throw new LedgerImportFileError("INVALID_REVIEW", "The spreadsheet review does not match the uploaded file.");
+    seen.add(rowNumber);
+    const values = Object.fromEntries(keys.map(key => {
+      const value = record[key];
+      if (value !== null && value !== undefined && typeof value !== "string" && typeof value !== "number") throw new LedgerImportFileError("INVALID_REVIEW", `Spreadsheet row ${rowNumber} contains an invalid value.`);
+      return [key, String(value ?? "")];
+    })) as Record<LedgerColumnKey, string>;
+    return validateRow(rowNumber, values);
+  });
+  return { ...parsed, rows };
 }
 
 export async function sha256Hex(value: string | Uint8Array): Promise<string> {

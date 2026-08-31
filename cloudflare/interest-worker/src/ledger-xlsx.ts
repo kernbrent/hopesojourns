@@ -10,6 +10,7 @@ export type LedgerWorkbookRow = {
   name: string | null;
   personId: string | null;
   budgetCategory: string;
+  checkNumber: string | null;
   note: string | null;
   sourceType: string;
   sourceFileName: string | null;
@@ -65,7 +66,7 @@ function worksheetXml(rows: Cell[][], widths: number[], filter = true): string {
 export function buildLedgerWorkbook(entries: LedgerWorkbookRow[]): Uint8Array {
   const headers = [
     "ID", "Date", "Income/Expense", "Payment Type", "Expense Category", "Amount", "Name", "Contact ID",
-    "Budget Category", "Note", "Source", "Source File", "Source Row", "Currency", "Gross", "Fee", "Net", "Created At",
+    "Budget Category", "Check Number", "Note", "Source", "Source File", "Source Row", "Currency", "Gross", "Fee", "Net", "Created At",
   ];
   const ledgerRows: Cell[][] = [headers.map(value => ({ value, style: 3 }))];
   for (const entry of entries) {
@@ -80,6 +81,7 @@ export function buildLedgerWorkbook(entries: LedgerWorkbookRow[]): Uint8Array {
       { value: entry.name },
       { value: entry.personId },
       { value: entry.budgetCategory },
+      { value: entry.checkNumber },
       { value: entry.note },
       { value: entry.sourceType },
       { value: entry.sourceFileName },

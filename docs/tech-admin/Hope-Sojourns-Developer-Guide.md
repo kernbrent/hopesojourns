@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 2.0
+Version 2.1
 
 Last reviewed: August 30, 2026
 
@@ -203,9 +203,12 @@ Current migrations:
 9. `0009_csm_distribution_inbox.sql`
 10. `0010_last_contacted_note.sql`
 11. `0011_unified_ledger.sql`
+12. `0012_ledger_entry_management.sql`
 
 Do not edit a migration that has already been applied to a shared environment. Add a new numbered migration.
 Migration `0011_unified_ledger.sql` creates `ledger_entries`, indexes its date, type, source, and linked-person fields, and backfills existing approved CSM `financial_transactions`. Apply it before deploying Worker code that reads or writes the unified ledger.
+Migration `0012_ledger_entry_management.sql` adds the optional `check_number` field. Apply it before deploying Worker or portal code that reads, writes, searches, imports, or exports check numbers.
+
 
 
 ### Admin security model
@@ -218,6 +221,8 @@ The response portal uses secure HTTP-only sessions, CSRF protection for state-ch
 Never store those values in source, documentation, test snapshots, or browser-accessible JavaScript.
 
 The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. A contact can store `last_contacted_at` plus a short `last_contacted_note`; the note is limited to 50 characters in the browser, Worker, and D1 schema, appears in person details and contact CSV exports, and is preserved by spreadsheet imports. The Contact type search filter presents its options alphabetically by label. The Internship toolkit exposes a download-all ZIP while preserving every individual document download. CSV output must continue to neutralize spreadsheet formulas.
+
+Date-only contact activity values use local calendar parsing in the portal. Do not pass a `YYYY-MM-DD` string directly to the JavaScript `Date` constructor for display, because UTC interpretation can move the visible date one day earlier in United States time zones.
 
 The contact spreadsheet supports persistent row selection for up to 25 contacts at a time. One bulk action updates `last_contacted_at` and `last_contacted_note`; document actions generate personalized Word files from the branded giving-statement template or an uploaded `.docx` template. The server repeats all selection, length, file-size, and template validation even when the browser has already enforced it.
 
@@ -242,17 +247,19 @@ Immediately before creating a new donor, the Worker repeats its exact normalized
 |---|---|
 | `GET /admin/ledger` | Filtered, paginated entries, summary totals, years, and category suggestions |
 | `POST /admin/ledger/entries` | Create one validated manual income or expense entry |
-| `POST /admin/ledger/imports/preview` | Parse an Excel or CSV file and classify every row before saving |
-| `POST /admin/ledger/imports` | Re-parse the uploaded file and insert only new valid rows |
+| `PUT /admin/ledger/entries/:id` | Validate and update an existing ledger entry without changing its source or import key |
+| `DELETE /admin/ledger/entries/:id` | Permanently delete one ledger row while retaining its audit event |
+| `POST /admin/ledger/imports/preview` | Parse an Excel or CSV file and return editable row values plus duplicate and validation classifications |
+| `POST /admin/ledger/imports` | Re-parse the original file, apply the reviewed row set, revalidate every edit, and insert only new valid rows |
 | `GET /admin/ledger/export.xlsx` | Export the complete ledger plus reusable category lists |
 | `POST /admin/contacts/bulk-activity` | Update the latest-activity date and 50-character note for selected contacts |
 | `POST /admin/contacts/documents` | Create a ZIP of personalized Word documents for selected contacts |
 
-`ledger_entries` is the unified reporting store. `source_type` distinguishes `csm`, `import`, and `manual` entries. Each row has a unique `import_key` and a separate `content_fingerprint`; together they let a spreadsheet preview distinguish a previously loaded row from a changed row that reuses a sequence number. CSM approvals write the legacy `financial_transactions` record and its unified ledger row in the same D1 batch. Imported income uses exact normalized donor-name matching when a unique Person exists; ambiguous or unmatched names remain unlinked for safe review.
+`ledger_entries` is the unified reporting store. `source_type` distinguishes `csm`, `import`, and `manual` entries. Each row has a unique `import_key`, a separate `content_fingerprint`, and an optional `check_number`; together they let a spreadsheet preview distinguish a previously loaded row from a changed row that reuses a sequence number. CSM approvals write the legacy `financial_transactions` record and its unified ledger row in the same D1 batch. Imported income uses exact normalized donor-name matching when a unique Person exists; ambiguous or unmatched names remain unlinked for safe review.
 
-The HSLedger importer accepts `.xlsx` or `.csv`, no more than 2 MB and 1,000 data rows. It recognizes the current nine-column ledger layout, ignores sequence-only placeholder rows, validates dates, types, amounts, and required categories, and never updates or deletes an existing ledger entry. Preview and commit both parse the file independently so a browser cannot alter the reviewed result. The export is a real `.xlsx` workbook with `Ledger` and `Categories` worksheets.
+The HSLedger importer accepts `.xlsx` or `.csv`, no more than 2 MB and 1,000 data rows. It recognizes the current ledger layout plus optional Check Number aliases, ignores sequence-only placeholder rows, and validates dates, types, amounts, text lengths, and required categories. The preview permits the administrator to edit fields or omit selected source rows. Commit re-parses the original upload, verifies that every submitted row number existed in that file, applies only the reviewed rows, repeats all validation, recomputes deduplication identities, and inserts only rows classified as new. Omitted rows are not deleted from the source file or from the database. The export is a real `.xlsx` workbook with `Ledger` and `Categories` worksheets and includes check numbers.
 
-Manual entries reuse category values already present in the database while retaining safe defaults. Amounts are stored as positive numbers and interpreted through `entry_type`; financial reporting computes balance as income minus expenses.
+Manual entries reuse category values already present in the database while retaining safe defaults. Existing manual, spreadsheet, and CSM ledger rows can be corrected through the authenticated update route or permanently removed through the typed-confirmation delete control; both actions write audit events. Editing does not change the row's source or unique import key, and deleting a CSM-sourced ledger row does not delete its upstream `financial_transactions` record. Amounts are stored as positive numbers and interpreted through `entry_type`; financial reporting computes balance as income minus expenses.
 
 ### Personalized Word documents
 
@@ -510,6 +517,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-30 | 2.1 | Added local-calendar date handling, editable and removable spreadsheet-review rows with server revalidation, ledger update/delete APIs, and check-number storage, search, import, and export. |
 | 2026-08-30 | 2.0 | Documented the purpose-based Payment inbox label while preserving internal CSM integration identifiers and routes. |
 | 2026-08-30 | 1.9 | Added the unified ledger schema and APIs, safe spreadsheet preview/import/export, CSM transaction integration, bulk contact activity updates, and authenticated Word giving-statement and template-merge generation. |
 | 2026-08-30 | 1.8 | Added the 50-character last-contacted note data field, three-layer validation, import preservation, detail display, CSV export behavior, and alphabetical Contact type search options. |

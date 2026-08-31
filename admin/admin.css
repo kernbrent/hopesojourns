@@ -1023,6 +1023,59 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.admin-ledger-row-actions {
+  display: flex;
+  min-width: 150px;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+
+.admin-ledger-row-actions .admin-button {
+  padding: .48rem .65rem;
+  font-size: .72rem;
+}
+
+.admin-ledger-import-review-actions {
+  display: flex;
+  margin: .75rem 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.admin-ledger-import-review-actions span {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+.admin-ledger-import-edit-table {
+  min-width: 1920px;
+}
+
+.admin-ledger-import-edit-table th,
+.admin-ledger-import-edit-table td {
+  min-width: 118px;
+}
+
+.admin-ledger-import-edit-table th:first-child,
+.admin-ledger-import-edit-table td:first-child,
+.admin-ledger-import-edit-table th:nth-child(2),
+.admin-ledger-import-edit-table td:nth-child(2) {
+  min-width: 54px;
+}
+
+.admin-ledger-import-edit-table input,
+.admin-ledger-import-edit-table select {
+  width: 100%;
+  min-width: 105px;
+  padding: .5rem .55rem;
+  border: 1px solid rgba(var(--ink-rgb), .2);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
 .admin-grid-content {
   display: grid;
   gap: 1rem;
