@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 1.7
+Version 1.8
 
 Last reviewed: August 30, 2026
 
@@ -268,7 +268,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 
 ### Admin ledger and contact-batch workspace
 
-- Present the ledger as a dedicated top-level portal tab, not as a secondary control inside the CSM inbox. The inbox is for reviewing incoming CSM transactions; the ledger is the complete financial record.
+- Present the ledger as a dedicated top-level portal tab, not as a secondary control inside the Payment inbox. The Payment inbox is for reviewing incoming Christian Steps/PayPal transactions; the ledger is the complete financial record.
 - Lead with income, expense, balance, and entry-count summary cards. Balance receives the dark-forest emphasis; a negative balance may use the established error color, but it must retain the visible label and signed amount.
 - Place import, export, and manual-entry actions together in the ledger introduction panel. Use one gold primary action and restrained outline treatments for supporting actions.
 - Keep search, year, type, and source filters visibly labeled. At wide sizes they may share one row; below the existing medium and narrow breakpoints they reduce to two columns and then one.
@@ -400,6 +400,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-30 | 1.8 | Renamed the user-facing CSM inbox to Payment inbox so the portal describes the workspace by purpose rather than by its internal integration. |
 | 2026-08-30 | 1.7 | Added responsive unified-ledger, spreadsheet-import preview, bulk contact selection, activity-update, and personalized-document interface standards. |
 | 2026-08-30 | 1.6 | Required embedded YouTube players in resource-library cards and documented intentional collection ordering. |
 | 2026-08-29 | 1.5 | Added the single-card resource collection standard for related articles, songs, videos, and sermons. |

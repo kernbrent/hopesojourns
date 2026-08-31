@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 1.9
+Version 2.0
 
 Last reviewed: August 30, 2026
 
@@ -221,9 +221,11 @@ The portal supports people, submissions, contact editing/import, teams, ministri
 
 The contact spreadsheet supports persistent row selection for up to 25 contacts at a time. One bulk action updates `last_contacted_at` and `last_contacted_note`; document actions generate personalized Word files from the branded giving-statement template or an uploaded `.docx` template. The server repeats all selection, length, file-size, and template validation even when the browser has already enforced it.
 
-### CSM distribution inbox and giving ledger
+### Payment inbox and giving ledger
 
 `/cloudflare/interest-worker/src/csm-distribution.ts` receives the Christian Steps Ministries distribution feed, lists transactions for review, records approvals or denials, writes approved transactions to the Hope Sojourns financial ledger, and reports the decision back to CSM. The feed accepts received gifts and sent payments; holds and releases are not part of this workflow.
+
+The portal labels this workspace **Payment inbox**. Keep the internal route names, source-type value, and Worker integration identifiers as `csm` because they identify the upstream system; use the purpose-based Payment inbox wording in administrator-facing navigation, headings, loading text, and empty-state text.
 
 The inbox response includes a current-year `givingSummary` computed from approved `financial_transactions` using UTC calendar-year boundaries. The large value is gross received donations. The supporting values are net received after fees, the count of received donations, distinct linked givers, and the absolute value of sent payments. Sent payments are reported separately and never reduce gross received.
 
@@ -508,6 +510,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-30 | 2.0 | Documented the purpose-based Payment inbox label while preserving internal CSM integration identifiers and routes. |
 | 2026-08-30 | 1.9 | Added the unified ledger schema and APIs, safe spreadsheet preview/import/export, CSM transaction integration, bulk contact activity updates, and authenticated Word giving-statement and template-merge generation. |
 | 2026-08-30 | 1.8 | Added the 50-character last-contacted note data field, three-layer validation, import preservation, detail display, CSV export behavior, and alphabetical Contact type search options. |
 | 2026-08-30 | 1.7 | Documented automatic privacy-enhanced YouTube embeds and JSON-controlled video placement in resource cards. |

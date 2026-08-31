@@ -960,7 +960,7 @@ function updateCsmBadge(counts = {}) {
 }
 
 async function loadCsmInbox() {
-  submissionsStatus.textContent = "Loading CSM transactions…";
+  submissionsStatus.textContent = "Loading payment transactions…";
   csmInboxList.setAttribute("aria-busy", "true");
   try {
     const { result } = await api(`/csm-inbox?status=${encodeURIComponent(csmInboxFilter.value)}`);
@@ -968,13 +968,13 @@ async function loadCsmInbox() {
     const cards = result.messages.map(renderCsmCard);
     if (!cards.length) {
       const empty = element("article", "admin-csm-card");
-      empty.append(element("h3", "", "No transactions in this view"), element("p", "", "New CSM transactions will appear here for review."));
+      empty.append(element("h3", "", "No transactions in this view"), element("p", "", "New payment transactions will appear here for review."));
       cards.push(empty);
     }
     csmInboxList.replaceChildren(...cards);
     const open = updateCsmBadge(result.counts);
     resultsCount.textContent = plural(result.messages.length, "transaction");
-    submissionsStatus.textContent = open ? `${plural(open, "transaction")} awaiting review.` : "The CSM inbox is clear.";
+    submissionsStatus.textContent = open ? `${plural(open, "transaction")} awaiting review.` : "The payment inbox is clear.";
   } catch (error) {
     if (error.status !== 401) submissionsStatus.textContent = error.message;
   } finally {
@@ -1446,7 +1446,7 @@ function switchViewLegacy(view, focusTab = false) {
   recordsPagination.hidden = showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
   exportButton.hidden = showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
   submissionsEmpty.hidden = true;
-  recordsTitle.textContent = showPeople ? "Master contacts" : showRequests ? "Individual requests" : showGrid ? "Contact spreadsheet" : showCsmInbox ? "CSM transaction inbox" : showTeams ? "Teams" : showMinistries ? "Ministries" : "Internship toolkit";
+  recordsTitle.textContent = showPeople ? "Master contacts" : showRequests ? "Individual requests" : showGrid ? "Contact spreadsheet" : showCsmInbox ? "Payment inbox" : showTeams ? "Teams" : showMinistries ? "Ministries" : "Internship toolkit";
   if (focusTab) (showPeople ? peopleViewTab : showRequests ? requestsViewTab : showGrid ? gridViewTab : showCsmInbox ? csmInboxViewTab : showTeams ? teamsViewTab : showMinistries ? ministriesViewTab : internshipToolkitViewTab).focus();
   loadRecords();
 }
@@ -1516,7 +1516,7 @@ function switchView(view, focusTab = false) {
     people: "Master contacts",
     requests: "Individual requests",
     grid: "Contact spreadsheet",
-    "csm-inbox": "CSM transaction inbox",
+    "csm-inbox": "Payment inbox",
     ledger: "Income and expense ledger",
     teams: "Teams",
     ministries: "Ministries",
