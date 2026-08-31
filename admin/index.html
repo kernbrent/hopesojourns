@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=25">
-  <link rel="stylesheet" href="/admin/admin.css?v=16">
+  <link rel="stylesheet" href="/admin/admin.css?v=17">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -447,6 +447,38 @@
     </div>
   </dialog>
 
+  <dialog class="admin-detail-dialog admin-receipt-dialog" id="ledger-receipt-dialog" aria-labelledby="ledger-receipt-title">
+    <div class="admin-detail-shell">
+      <header class="admin-detail-header">
+        <div><p class="eyebrow">Expense documentation</p><h2 id="ledger-receipt-title">Receipts</h2></div>
+        <button class="admin-dialog-close" id="close-ledger-receipt-dialog" type="button" aria-label="Close receipt manager">&times;</button>
+      </header>
+      <div class="admin-detail-content admin-receipt-content">
+        <p class="admin-receipt-entry-summary" id="ledger-receipt-entry-summary"></p>
+        <section class="admin-receipt-upload" aria-labelledby="ledger-receipt-upload-title">
+          <div>
+            <h3 id="ledger-receipt-upload-title">Add receipt files</h3>
+            <p>Take a photo on your phone or choose existing photos and PDFs. Each private file may be up to 10 MB.</p>
+          </div>
+          <div class="admin-receipt-upload-actions">
+            <button class="admin-button admin-button-primary" id="take-ledger-receipt-photo" type="button"><span aria-hidden="true">&#128247;</span> Take photo</button>
+            <button class="admin-button admin-button-outline" id="choose-ledger-receipt-files" type="button">Choose photos or PDF</button>
+          </div>
+          <input id="ledger-receipt-camera-input" type="file" accept="image/*" capture="environment" hidden>
+          <input id="ledger-receipt-file-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.pdf,image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,application/pdf" hidden>
+          <p class="admin-form-status" id="ledger-receipt-status" role="status" aria-live="polite"></p>
+        </section>
+        <section aria-labelledby="ledger-receipt-files-title">
+          <div class="admin-receipt-list-heading">
+            <h3 id="ledger-receipt-files-title">Stored receipts</h3>
+            <span id="ledger-receipt-count">0 files</span>
+          </div>
+          <div class="admin-receipt-list" id="ledger-receipt-list"></div>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
   <dialog class="admin-detail-dialog admin-import-dialog" id="ledger-import-dialog" aria-labelledby="ledger-import-title">
     <div class="admin-detail-shell">
       <header class="admin-detail-header">
@@ -501,6 +533,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=22" defer></script>
+  <script src="/admin/admin.js?v=23" defer></script>
 </body>
 </html>

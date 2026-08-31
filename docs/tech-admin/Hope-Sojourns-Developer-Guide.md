@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 2.1
+Version 2.2
 
-Last reviewed: August 30, 2026
+Last reviewed: August 31, 2026
 
 ## 1. Purpose and operating rules
 
@@ -181,14 +181,14 @@ Public submissions include opportunity choices, contact details, optional backgr
 
 ### Worker
 
-`/cloudflare/interest-worker/src/index.ts` handles public submissions and admin APIs. The Wrangler configuration requires an explicit environment and binds `DB` to a different D1 database in each environment:
+`/cloudflare/interest-worker/src/index.ts` handles public submissions and admin APIs. The Wrangler configuration requires an explicit environment and binds `DB` and `RECEIPTS` to different D1 databases and private R2 buckets in each environment:
 
-| Environment | Worker | Route | D1 database |
-|---|---|---|---|
-| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest` and `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` |
-| Production | `hope-sojourns-interest-production` | `/api/interest` and `/api/interest/*` on `hopesojourns.com` and `www.hopesojourns.com` | `hope-sojourns-forms-production` |
+| Environment | Worker | Route | D1 database | Private receipt bucket |
+|---|---|---|---|---|
+| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest` and `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` | `hope-sojourns-receipts-test` |
+| Production | `hope-sojourns-interest-production` | `/api/interest` and `/api/interest/*` on `hopesojourns.com` and `www.hopesojourns.com` | `hope-sojourns-forms-production` | `hope-sojourns-receipts-production` |
 
-`/cloudflare/interest-worker/scripts/verify-environment-isolation.mjs` fails when routes, allowed origins, environment names, or database IDs cross those boundaries. Both the exact `/api/interest` path and its `/api/interest/*` descendants must be routed so the public submission endpoint and admin endpoints reach the same environment-specific Worker. Never copy a test D1 export, backup, credential row, or user-data row into production. Production is initialized only by applying the numbered migrations to its empty database; the migrations seed the legitimate opportunity catalog but no contacts, submissions, teams, ministries, sessions, or administrator credentials.
+`/cloudflare/interest-worker/scripts/verify-environment-isolation.mjs` fails when routes, allowed origins, environment names, database IDs, or receipt-bucket names cross those boundaries. Both the exact `/api/interest` path and its `/api/interest/*` descendants must be routed so the public submission endpoint and admin endpoints reach the same environment-specific Worker. Never copy a test D1 export, R2 receipt object, backup, credential row, or user-data row into production. Production is initialized only by applying the numbered migrations to its database and uses a dedicated production receipt bucket; migrations seed the legitimate opportunity catalog but no contacts, submissions, teams, ministries, sessions, administrator credentials, or receipt files.
 
 Current migrations:
 
@@ -204,10 +204,12 @@ Current migrations:
 10. `0010_last_contacted_note.sql`
 11. `0011_unified_ledger.sql`
 12. `0012_ledger_entry_management.sql`
+13. `0013_ledger_receipts.sql`
 
 Do not edit a migration that has already been applied to a shared environment. Add a new numbered migration.
 Migration `0011_unified_ledger.sql` creates `ledger_entries`, indexes its date, type, source, and linked-person fields, and backfills existing approved CSM `financial_transactions`. Apply it before deploying Worker code that reads or writes the unified ledger.
 Migration `0012_ledger_entry_management.sql` adds the optional `check_number` field. Apply it before deploying Worker or portal code that reads, writes, searches, imports, or exports check numbers.
+Migration `0013_ledger_receipts.sql` creates receipt metadata with a cascading relationship to `ledger_entries`. Apply it and provision the environment's private R2 bucket before deploying Worker code that lists or stores receipts.
 
 
 
@@ -248,18 +250,34 @@ Immediately before creating a new donor, the Worker repeats its exact normalized
 | `GET /admin/ledger` | Filtered, paginated entries, summary totals, years, and category suggestions |
 | `POST /admin/ledger/entries` | Create one validated manual income or expense entry |
 | `PUT /admin/ledger/entries/:id` | Validate and update an existing ledger entry without changing its source or import key |
-| `DELETE /admin/ledger/entries/:id` | Permanently delete one ledger row while retaining its audit event |
+| `DELETE /admin/ledger/entries/:id` | Permanently delete one ledger row and its stored receipt objects while retaining audit events |
+| `GET /admin/ledger/entries/:id/receipts` | List authenticated receipt metadata for one ledger entry |
+| `POST /admin/ledger/entries/:id/receipts` | Validate and privately store one receipt file for an expense |
+| `GET /admin/ledger/entries/:id/receipts/:receiptId/file` | Stream one authenticated private receipt with no-store security headers |
+| `DELETE /admin/ledger/entries/:id/receipts/:receiptId` | Permanently delete one receipt record and private object |
 | `POST /admin/ledger/imports/preview` | Parse an Excel or CSV file and return editable row values plus duplicate and validation classifications |
 | `POST /admin/ledger/imports` | Re-parse the original file, apply the reviewed row set, revalidate every edit, and insert only new valid rows |
-| `GET /admin/ledger/export.xlsx` | Export the complete ledger plus reusable category lists |
+| `GET /admin/ledger/export.xlsx` | Export the complete ledger, receipt counts, and reusable category lists |
 | `POST /admin/contacts/bulk-activity` | Update the latest-activity date and 50-character note for selected contacts |
 | `POST /admin/contacts/documents` | Create a ZIP of personalized Word documents for selected contacts |
 
 `ledger_entries` is the unified reporting store. `source_type` distinguishes `csm`, `import`, and `manual` entries. Each row has a unique `import_key`, a separate `content_fingerprint`, and an optional `check_number`; together they let a spreadsheet preview distinguish a previously loaded row from a changed row that reuses a sequence number. CSM approvals write the legacy `financial_transactions` record and its unified ledger row in the same D1 batch. Imported income uses exact normalized donor-name matching when a unique Person exists; ambiguous or unmatched names remain unlinked for safe review.
 
-The HSLedger importer accepts `.xlsx` or `.csv`, no more than 2 MB and 1,000 data rows. It recognizes the current ledger layout plus optional Check Number aliases, ignores sequence-only placeholder rows, and validates dates, types, amounts, text lengths, and required categories. The preview permits the administrator to edit fields or omit selected source rows. Commit re-parses the original upload, verifies that every submitted row number existed in that file, applies only the reviewed rows, repeats all validation, recomputes deduplication identities, and inserts only rows classified as new. Omitted rows are not deleted from the source file or from the database. The export is a real `.xlsx` workbook with `Ledger` and `Categories` worksheets and includes check numbers.
+The HSLedger importer accepts `.xlsx` or `.csv`, no more than 2 MB and 1,000 data rows. It recognizes the current ledger layout plus optional Check Number aliases, ignores sequence-only placeholder rows, and validates dates, types, amounts, text lengths, and required categories. The preview permits the administrator to edit fields or omit selected source rows. Commit re-parses the original upload, verifies that every submitted row number existed in that file, applies only the reviewed rows, repeats all validation, recomputes deduplication identities, and inserts only rows classified as new. Omitted rows are not deleted from the source file or from the database. The export is a real `.xlsx` workbook with `Ledger` and `Categories` worksheets and includes check numbers and per-entry receipt counts; binary receipt files are not embedded in the export.
 
-Manual entries reuse category values already present in the database while retaining safe defaults. Existing manual, spreadsheet, and CSM ledger rows can be corrected through the authenticated update route or permanently removed through the typed-confirmation delete control; both actions write audit events. Editing does not change the row's source or unique import key, and deleting a CSM-sourced ledger row does not delete its upstream `financial_transactions` record. Amounts are stored as positive numbers and interpreted through `entry_type`; financial reporting computes balance as income minus expenses.
+Manual entries reuse category values already present in the database while retaining safe defaults. Existing manual, spreadsheet, and CSM ledger rows can be corrected through the authenticated update route or permanently removed through the typed-confirmation delete control; both actions write audit events. An expense with receipts cannot be changed to income until those receipts are removed. Deleting a ledger entry also removes its receipt metadata and private objects; deleting a CSM-sourced ledger row does not delete its upstream `financial_transactions` record. Editing does not change the row's source or unique import key. Amounts are stored as positive numbers and interpreted through `entry_type`; financial reporting computes balance as income minus expenses.
+
+### Expense receipt attachments
+
+Expense receipts use two coordinated stores. D1 table `ledger_receipts` holds the ledger relationship, private object key, original filename, verified media type, byte size, SHA-256 digest, creator session ID, and creation time. The `RECEIPTS` R2 binding holds the binary object. Object keys are random-ID paths and are never returned by the API. Test and production use different buckets; neither bucket should have public development URLs or a custom public domain.
+
+The portal presents receipt controls only on expense rows. An expense may hold up to 20 JPEG, PNG, WebP, AVIF, HEIC, HEIF, or PDF files, with a 10 MB limit per file. Mobile users can invoke the rear-facing camera through the capture input; all users can choose one or more existing photos or PDFs. Browser acceptance is convenience only. `/cloudflare/interest-worker/src/receipt-file.ts` verifies file signatures, normalizes display filenames, and creates storage-safe object keys before an upload is accepted.
+
+Receipt list and file-stream requests require a valid administrator session. Upload and delete additionally require CSRF validation. File responses use the D1-verified media type plus `private, no-store`, `nosniff`, same-origin resource policy, no-referrer policy, and a sandboxed content security policy. Upload and delete events are audited with size, media type, filename, and SHA-256 metadata.
+
+R2 storage is written before D1 metadata; if the D1 write fails, the Worker removes the just-written object. Deleting a receipt removes D1 metadata first and then its object. Deleting a ledger entry relies on the D1 cascade and removes all known objects after the database deletion. Failed best-effort object cleanup is logged without disclosing file content. Reconcile those logs against R2 if a cleanup failure occurs.
+
+A D1 backup alone is not a complete receipt backup. Full recovery requires the matching D1 metadata and R2 object inventory from the same environment. Do not restore test metadata or objects into production. Treat permanent receipt or expense deletion as irreversible unless a separate, access-controlled R2 backup or version-retention process has been established.
 
 ### Personalized Word documents
 
@@ -454,6 +472,9 @@ Create a new numbered migration, update TypeScript queries and response models, 
 - Treat imported financial files and uploaded Word templates as untrusted binary input; preserve file-size, ZIP-entry, expanded-size, path, and format validation.
 - Keep ledger deduplication server-side and preserve the unique `import_key`; browser preview alone is not a data-integrity control.
 - Giving statements may contain donor names, addresses, and contribution history. Generate them only through authenticated, CSRF-protected admin routes and never store generated batches in the public static site.
+- Treat receipts as private financial records. Keep R2 buckets private, require an administrator session to read a file, and require CSRF validation to upload or delete one.
+- Validate receipt signatures on the server instead of trusting filenames or browser media types. Preserve the 10 MB per-file and 20-file per-expense limits unless Worker memory, audit needs, and storage cost are reviewed.
+- A D1 backup contains receipt metadata but not R2 object bytes. Include both stores in any full financial-record backup or recovery plan.
 - Keep the 25-contact document limit unless memory and CPU behavior is revalidated for the Worker runtime.
 
 ## 14. Deployment boundaries
@@ -470,7 +491,7 @@ Before an authorized deployment:
 - confirm the admin security headers and noindex behavior; and
 - have a rollback or recovery plan.
 
-The Interest Worker has isolated test and production environments. Always name the intended environment in migration, secret, and deployment commands. Production launch order is: validate isolation, create or verify the production D1 database, apply production migrations, set production-only secrets, dry-run the production Worker, deploy it, publish the production Pages build, and verify both production hostnames. Test data must remain bound only to the test Worker and database.
+The Interest Worker has isolated test and production environments. Always name the intended environment in migration, secret, R2, and deployment commands. Production launch order is: validate isolation, create or verify the production D1 database and private receipt bucket, back up existing production data, apply production migrations, set production-only secrets, dry-run the production Worker, deploy it, publish the production Pages build, and verify both production hostnames. Test data and receipt files must remain bound only to the test Worker, database, and R2 bucket.
 
 ## 15. Documentation maintenance
 
@@ -517,6 +538,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-31 | 2.2 | Added private expense-receipt storage, authenticated receipt APIs, R2/D1 isolation, file validation and lifecycle rules, receipt-count export, and backup/deployment guidance. |
 | 2026-08-30 | 2.1 | Added local-calendar date handling, editable and removable spreadsheet-review rows with server revalidation, ledger update/delete APIs, and check-number storage, search, import, and export. |
 | 2026-08-30 | 2.0 | Documented the purpose-based Payment inbox label while preserving internal CSM integration identifiers and routes. |
 | 2026-08-30 | 1.9 | Added the unified ledger schema and APIs, safe spreadsheet preview/import/export, CSM transaction integration, bulk contact activity updates, and authenticated Word giving-statement and template-merge generation. |

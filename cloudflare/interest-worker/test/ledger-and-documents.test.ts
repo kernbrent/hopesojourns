@@ -74,11 +74,13 @@ describe("ledger spreadsheet handling", () => {
       expenseCategory: "Misc", amount: 1500, name: "John Gully", personId: null,
       budgetCategory: "General", checkNumber: null, note: "General fund gift", sourceType: "import",
       sourceFileName: "HSLedger.xlsx", sourceRowNumber: 2, currency: "USD",
-      gross: null, fee: null, net: null, createdAt: "2026-08-30T12:00:00.000Z",
+      gross: null, fee: null, net: null, receiptCount: 2, createdAt: "2026-08-30T12:00:00.000Z",
     }]);
     const entries = unzipOfficeArchive(workbook);
     expect(entries.has("xl/workbook.xml")).toBe(true);
     expect(entries.has("xl/worksheets/sheet1.xml")).toBe(true);
+    const sheetXml = new TextDecoder().decode(entries.get("xl/worksheets/sheet1.xml"));
+    expect(sheetXml).toContain("Receipt Count");
     const parsed = parseLedgerImportFile("Hope-Sojourns-Ledger.xlsx", workbook);
     expect(parsed.rows[0]?.input).toMatchObject({ transactionDate: "2026-08-24", entryType: "income", amount: 1500 });
   });

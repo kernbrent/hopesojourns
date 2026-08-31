@@ -10,6 +10,10 @@ import {
   parseLedgerImportFile, sha256Hex, type LedgerImportInput, type ParsedLedgerImport,
 } from "./ledger-file";
 import { buildLedgerWorkbook, type LedgerWorkbookRow } from "./ledger-xlsx";
+import {
+  cleanReceiptFileName, detectReceiptMedia, RECEIPT_MAX_FILE_BYTES, RECEIPT_MAX_FILES_PER_ENTRY,
+  ReceiptFileError, receiptObjectKey, type ReceiptMedia,
+} from "./receipt-file";
 
 type LedgerSource = "csm" | "import" | "manual";
 type LedgerType = "income" | "expense";
@@ -19,9 +23,13 @@ type LedgerRow = {
   entry_type: LedgerType; payment_type: string; expense_category: string | null; budget_category: string;
   amount: number; name: string | null; person_id: string | null; note: string | null; currency: string;
   check_number: string | null;
-  gross: number | null; fee: number | null; net: number | null; created_at: string;
+  gross: number | null; fee: number | null; net: number | null; created_at: string; receipt_count: number;
 };
 type ExistingImportRow = { import_key: string; content_fingerprint: string };
+type ReceiptRow = {
+  id: string; ledger_entry_id: string; object_key: string; original_file_name: string;
+  media_type: ReceiptMedia["mediaType"]; file_size: number; sha256: string; created_at: string;
+};
 
 const PAYMENT_DEFAULTS = ["ACH", "Bank transfer", "Cash", "Check", "Credit card", "PayPal", "Venmo", "Other"];
 const EXPENSE_DEFAULTS = ["Administrative", "Fees", "Insurance", "Lodging", "Marketing", "Meals", "Ministry support", "Misc", "Supplies", "Transportation", "Travel", "Other"];
@@ -93,7 +101,7 @@ function mappedLedgerRow(row: LedgerRow): Record<string, unknown> {
     checkNumber: row.check_number,
     gross: row.gross === null ? null : Number(row.gross), fee: row.fee === null ? null : Number(row.fee),
     net: row.net === null ? null : Number(row.net), sourceFileName: row.source_file_name,
-    sourceRowNumber: row.source_row_number, createdAt: row.created_at,
+    sourceRowNumber: row.source_row_number, createdAt: row.created_at, receiptCount: Number(row.receipt_count ?? 0),
   };
 }
 
@@ -151,7 +159,8 @@ async function listLedger(request: Request, env: AdminEnv): Promise<Response> {
     env.DB.prepare(
       `SELECT id, source_type, import_key, content_fingerprint, source_file_name, source_row_number,
               transaction_date, entry_type, payment_type, expense_category, budget_category, amount,
-              name, person_id, check_number, note, currency, gross, fee, net, created_at
+              name, person_id, check_number, note, currency, gross, fee, net, created_at,
+              (SELECT COUNT(*) FROM ledger_receipts WHERE ledger_entry_id = ledger_entries.id) AS receipt_count
        FROM ledger_entries ${where.clause}
        ORDER BY transaction_date DESC, created_at DESC LIMIT ? OFFSET ?`,
     ).bind(...where.bindings, pageSize, (page - 1) * pageSize).all<LedgerRow>(),
@@ -213,9 +222,13 @@ async function createLedgerEntry(request: Request, env: AdminEnv): Promise<Respo
 
 async function updateLedgerEntry(request: Request, env: AdminEnv, id: string): Promise<Response> {
   await authenticate(request, env, true);
-  const existing = await env.DB.prepare("SELECT id, source_type FROM ledger_entries WHERE id = ?1").bind(id).first<{ id: string; source_type: LedgerSource }>();
+  const existing = await env.DB.prepare("SELECT id, source_type, entry_type FROM ledger_entries WHERE id = ?1").bind(id).first<{ id: string; source_type: LedgerSource; entry_type: LedgerType }>();
   if (!existing) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
   const entry = await cleanLedgerEntry(await readAdminJson(request), env);
+  if (existing.entry_type === "expense" && entry.entryType === "income") {
+    const receipt = await env.DB.prepare("SELECT id FROM ledger_receipts WHERE ledger_entry_id = ?1 LIMIT 1").bind(id).first<{ id: string }>();
+    if (receipt) throw new AdminError(409, "LEDGER_RECEIPTS_ATTACHED", "Remove the attached receipts before changing this expense to income.");
+  }
   const now = new Date().toISOString();
   const results = await env.DB.batch([
     env.DB.prepare(
@@ -233,11 +246,16 @@ async function deleteLedgerEntry(request: Request, env: AdminEnv, id: string): P
   await authenticate(request, env, true);
   const existing = await env.DB.prepare("SELECT id, source_type, transaction_date, entry_type, amount FROM ledger_entries WHERE id = ?1").bind(id).first<{ id: string; source_type: LedgerSource; transaction_date: string; entry_type: LedgerType; amount: number }>();
   if (!existing) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
+  const receipts = await env.DB.prepare("SELECT object_key FROM ledger_receipts WHERE ledger_entry_id = ?1").bind(id).all<{ object_key: string }>();
   const results = await env.DB.batch([
     env.DB.prepare("DELETE FROM ledger_entries WHERE id = ?1").bind(id),
-    auditStatement(env, "ledger_entry", id, "deleted", { sourceType: existing.source_type, entryType: existing.entry_type, amount: Number(existing.amount), transactionDate: existing.transaction_date }),
+    auditStatement(env, "ledger_entry", id, "deleted", { sourceType: existing.source_type, entryType: existing.entry_type, amount: Number(existing.amount), transactionDate: existing.transaction_date, receiptCount: receipts.results.length }),
   ]);
   if (Number(results[0]?.meta.changes ?? 0) !== 1) throw new AdminError(409, "LEDGER_ENTRY_NOT_DELETED", "The ledger entry could not be deleted. Refresh and try again.");
+  if (receipts.results.length) {
+    try { await env.RECEIPTS.delete(receipts.results.map(receipt => receipt.object_key)); }
+    catch (error) { console.error(JSON.stringify({ event: "ledger_receipt_cleanup_failed", ledgerEntryId: id, objectKeys: receipts.results.map(receipt => receipt.object_key), message: error instanceof Error ? error.message : "Unknown error" })); }
+  }
   return adminJson({ success: true, entryId: id });
 }
 
@@ -245,8 +263,9 @@ async function readMultipart(request: Request, maximumFileBytes: number): Promis
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLocaleLowerCase("en-US").startsWith("multipart/form-data;")) throw new AdminError(415, "UNSUPPORTED_MEDIA_TYPE", "Upload the file from the Admin Portal.");
   const requestLimit = maximumFileBytes + 256 * 1024;
+  const sizeLabel = `${Math.round(maximumFileBytes / (1024 * 1024))} MB`;
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(declaredLength) && declaredLength > requestLimit) throw new AdminError(413, "REQUEST_TOO_LARGE", "Choose a file smaller than 2 MB.");
+  if (Number.isFinite(declaredLength) && declaredLength > requestLimit) throw new AdminError(413, "REQUEST_TOO_LARGE", `Choose a file no larger than ${sizeLabel}.`);
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -255,7 +274,7 @@ async function readMultipart(request: Request, maximumFileBytes: number): Promis
       const next = await reader.read();
       if (next.done) break;
       total += next.value.byteLength;
-      if (total > requestLimit) { await reader.cancel(); throw new AdminError(413, "REQUEST_TOO_LARGE", "Choose a file smaller than 2 MB."); }
+      if (total > requestLimit) { await reader.cancel(); throw new AdminError(413, "REQUEST_TOO_LARGE", `Choose a file no larger than ${sizeLabel}.`); }
       chunks.push(next.value);
     }
   }
@@ -267,7 +286,8 @@ async function readMultipart(request: Request, maximumFileBytes: number): Promis
   catch { throw new AdminError(400, "INVALID_UPLOAD", "The uploaded file could not be read."); }
   const file = formData.get("file");
   if (!(file instanceof File)) throw new AdminError(422, "FILE_REQUIRED", "Choose a file to upload.");
-  if (file.size > maximumFileBytes) throw new AdminError(413, "REQUEST_TOO_LARGE", "Choose a file smaller than 2 MB.");
+  if (!file.size) throw new AdminError(422, "EMPTY_FILE", "Choose a file that is not empty.");
+  if (file.size > maximumFileBytes) throw new AdminError(413, "REQUEST_TOO_LARGE", `Choose a file no larger than ${sizeLabel}.`);
   const fileName = file.name.normalize("NFKC").replace(/[\\/]+/g, "-").replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 180);
   if (!fileName) throw new AdminError(422, "INVALID_FILE_NAME", "Choose a file with a valid name.");
   return { formData, file, fileName, bytes: new Uint8Array(await file.arrayBuffer()) };
@@ -375,7 +395,8 @@ async function exportLedger(request: Request, env: AdminEnv): Promise<Response> 
   const rows = await env.DB.prepare(
     `SELECT id, source_type, import_key, content_fingerprint, source_file_name, source_row_number,
             transaction_date, entry_type, payment_type, expense_category, budget_category, amount,
-            name, person_id, check_number, note, currency, gross, fee, net, created_at
+            name, person_id, check_number, note, currency, gross, fee, net, created_at,
+            (SELECT COUNT(*) FROM ledger_receipts WHERE ledger_entry_id = ledger_entries.id) AS receipt_count
      FROM ledger_entries ORDER BY transaction_date DESC, created_at DESC`,
   ).all<LedgerRow>();
   const workbookRows: LedgerWorkbookRow[] = rows.results.map(row => ({
@@ -384,7 +405,8 @@ async function exportLedger(request: Request, env: AdminEnv): Promise<Response> 
     budgetCategory: row.budget_category, note: row.note, sourceType: row.source_type, sourceFileName: row.source_file_name,
     checkNumber: row.check_number,
     sourceRowNumber: row.source_row_number, currency: row.currency, gross: row.gross === null ? null : Number(row.gross),
-    fee: row.fee === null ? null : Number(row.fee), net: row.net === null ? null : Number(row.net), createdAt: row.created_at,
+    fee: row.fee === null ? null : Number(row.fee), net: row.net === null ? null : Number(row.net),
+    receiptCount: Number(row.receipt_count ?? 0), createdAt: row.created_at,
   }));
   const bytes = buildLedgerWorkbook(workbookRows);
   const stamp = new Date().toISOString().slice(0, 10);
@@ -395,6 +417,130 @@ async function exportLedger(request: Request, env: AdminEnv): Promise<Response> 
   } });
 }
 
+type LedgerReceiptEntry = {
+  id: string; transaction_date: string; entry_type: LedgerType; amount: number; name: string | null;
+};
+
+function receiptPreviewable(mediaType: string): boolean {
+  return ["image/jpeg", "image/png", "image/webp", "image/avif"].includes(mediaType);
+}
+
+function mappedReceipt(row: ReceiptRow): Record<string, unknown> {
+  return {
+    id: row.id, ledgerEntryId: row.ledger_entry_id, originalFileName: row.original_file_name,
+    mediaType: row.media_type, fileSize: Number(row.file_size), createdAt: row.created_at,
+    previewable: receiptPreviewable(row.media_type),
+  };
+}
+
+async function receiptLedgerEntry(env: AdminEnv, id: string): Promise<LedgerReceiptEntry> {
+  const entry = await env.DB.prepare(
+    "SELECT id, transaction_date, entry_type, amount, name FROM ledger_entries WHERE id = ?1",
+  ).bind(id).first<LedgerReceiptEntry>();
+  if (!entry) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
+  return entry;
+}
+
+async function listLedgerReceipts(request: Request, env: AdminEnv, ledgerEntryId: string): Promise<Response> {
+  await authenticate(request, env);
+  const entry = await receiptLedgerEntry(env, ledgerEntryId);
+  const rows = await env.DB.prepare(
+    `SELECT id, ledger_entry_id, object_key, original_file_name, media_type, file_size, sha256, created_at
+     FROM ledger_receipts WHERE ledger_entry_id = ?1 ORDER BY created_at DESC`,
+  ).bind(ledgerEntryId).all<ReceiptRow>();
+  return adminJson({
+    entry: { id: entry.id, transactionDate: entry.transaction_date, entryType: entry.entry_type, amount: Number(entry.amount), name: entry.name },
+    receipts: rows.results.map(mappedReceipt),
+    limits: { maxFiles: RECEIPT_MAX_FILES_PER_ENTRY, maxFileBytes: RECEIPT_MAX_FILE_BYTES },
+  });
+}
+
+async function uploadLedgerReceipt(request: Request, env: AdminEnv, ledgerEntryId: string): Promise<Response> {
+  const session = await authenticate(request, env, true);
+  const entry = await receiptLedgerEntry(env, ledgerEntryId);
+  if (entry.entry_type !== "expense") throw new AdminError(409, "RECEIPTS_REQUIRE_EXPENSE", "Receipts can only be attached to expense entries.");
+  const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM ledger_receipts WHERE ledger_entry_id = ?1").bind(ledgerEntryId).first<{ count: number }>();
+  if (Number(count?.count ?? 0) >= RECEIPT_MAX_FILES_PER_ENTRY) {
+    throw new AdminError(409, "RECEIPT_LIMIT_REACHED", `This expense already has the maximum of ${RECEIPT_MAX_FILES_PER_ENTRY} receipt files.`);
+  }
+
+  const upload = await readMultipart(request, RECEIPT_MAX_FILE_BYTES);
+  const originalFileName = cleanReceiptFileName(upload.fileName);
+  const media = detectReceiptMedia(upload.bytes);
+  const receiptId = crypto.randomUUID();
+  const objectKey = receiptObjectKey(ledgerEntryId, receiptId, media.extension);
+  const digest = await sha256Hex(upload.bytes);
+  const now = new Date().toISOString();
+
+  await env.RECEIPTS.put(objectKey, upload.bytes, {
+    httpMetadata: { contentType: media.mediaType, contentDisposition: "inline", cacheControl: "private, no-store" },
+    customMetadata: { ledgerEntryId, receiptId, sha256: digest },
+  });
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO ledger_receipts
+          (id, ledger_entry_id, object_key, original_file_name, media_type, file_size, sha256, created_by_session_id, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+      ).bind(receiptId, ledgerEntryId, objectKey, originalFileName, media.mediaType, upload.bytes.byteLength, digest, session.id, now),
+      auditStatement(env, "ledger_receipt", receiptId, "uploaded", {
+        ledgerEntryId, originalFileName, mediaType: media.mediaType, fileSize: upload.bytes.byteLength, sha256: digest,
+      }),
+    ]);
+  } catch (error) {
+    await env.RECEIPTS.delete(objectKey).catch(() => undefined);
+    throw error;
+  }
+  return adminJson({ success: true, receipt: mappedReceipt({
+    id: receiptId, ledger_entry_id: ledgerEntryId, object_key: objectKey, original_file_name: originalFileName,
+    media_type: media.mediaType, file_size: upload.bytes.byteLength, sha256: digest, created_at: now,
+  }) }, 201);
+}
+
+async function viewLedgerReceipt(request: Request, env: AdminEnv, ledgerEntryId: string, receiptId: string): Promise<Response> {
+  await authenticate(request, env);
+  const receipt = await env.DB.prepare(
+    `SELECT id, ledger_entry_id, object_key, original_file_name, media_type, file_size, sha256, created_at
+     FROM ledger_receipts WHERE id = ?1 AND ledger_entry_id = ?2`,
+  ).bind(receiptId, ledgerEntryId).first<ReceiptRow>();
+  if (!receipt) throw new AdminError(404, "RECEIPT_NOT_FOUND", "The receipt file no longer exists.");
+  const object = await env.RECEIPTS.get(receipt.object_key);
+  if (!object) throw new AdminError(404, "RECEIPT_FILE_NOT_FOUND", "The receipt record exists, but its stored file could not be found.");
+
+  const fallbackName = receipt.original_file_name.replace(/[^A-Za-z0-9._-]/g, "_") || "receipt";
+  const encodedName = encodeURIComponent(receipt.original_file_name).replace(/['()*]/g, character => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+  const headers = new Headers({
+    "Content-Type": receipt.media_type,
+    "Content-Length": String(receipt.file_size),
+    "Content-Disposition": `inline; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`,
+    "Cache-Control": "private, no-store",
+    "Content-Security-Policy": "default-src 'none'; sandbox",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+  });
+  return new Response(object.body, { headers });
+}
+
+async function deleteLedgerReceipt(request: Request, env: AdminEnv, ledgerEntryId: string, receiptId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const receipt = await env.DB.prepare(
+    `SELECT id, ledger_entry_id, object_key, original_file_name, media_type, file_size, sha256, created_at
+     FROM ledger_receipts WHERE id = ?1 AND ledger_entry_id = ?2`,
+  ).bind(receiptId, ledgerEntryId).first<ReceiptRow>();
+  if (!receipt) throw new AdminError(404, "RECEIPT_NOT_FOUND", "The receipt file no longer exists.");
+  const results = await env.DB.batch([
+    env.DB.prepare("DELETE FROM ledger_receipts WHERE id = ?1 AND ledger_entry_id = ?2").bind(receiptId, ledgerEntryId),
+    auditStatement(env, "ledger_receipt", receiptId, "deleted", {
+      ledgerEntryId, originalFileName: receipt.original_file_name, mediaType: receipt.media_type,
+      fileSize: Number(receipt.file_size), sha256: receipt.sha256,
+    }),
+  ]);
+  if (Number(results[0]?.meta.changes ?? 0) !== 1) throw new AdminError(409, "RECEIPT_NOT_DELETED", "The receipt could not be deleted. Refresh and try again.");
+  try { await env.RECEIPTS.delete(receipt.object_key); }
+  catch (error) { console.error(JSON.stringify({ event: "ledger_receipt_cleanup_failed", ledgerEntryId, receiptId, objectKey: receipt.object_key, message: error instanceof Error ? error.message : "Unknown error" })); }
+  return adminJson({ success: true, receiptId });
+}
 async function bulkContactActivity(request: Request, env: AdminEnv): Promise<Response> {
   await authenticate(request, env, true);
   const body = await readAdminJson(request);
@@ -507,6 +653,25 @@ export async function handleLedgerAdminRequest(request: Request, env: AdminEnv, 
   try {
     if (request.method === "GET" && path === "/admin/ledger") return await listLedger(request, env);
     if (request.method === "POST" && path === "/admin/ledger/entries") return await createLedgerEntry(request, env);
+    const receiptCollectionRoute = path.match(/^\/admin\/ledger\/entries\/([^/]+)\/receipts$/);
+    if (receiptCollectionRoute && (request.method === "GET" || request.method === "POST")) {
+      const ledgerEntryId = cleanLine(decodeURIComponent(receiptCollectionRoute[1]!), 128, true)!;
+      return request.method === "GET"
+        ? await listLedgerReceipts(request, env, ledgerEntryId)
+        : await uploadLedgerReceipt(request, env, ledgerEntryId);
+    }
+    const receiptFileRoute = path.match(/^\/admin\/ledger\/entries\/([^/]+)\/receipts\/([^/]+)\/file$/);
+    if (receiptFileRoute && request.method === "GET") {
+      const ledgerEntryId = cleanLine(decodeURIComponent(receiptFileRoute[1]!), 128, true)!;
+      const receiptId = cleanLine(decodeURIComponent(receiptFileRoute[2]!), 128, true)!;
+      return await viewLedgerReceipt(request, env, ledgerEntryId, receiptId);
+    }
+    const receiptRoute = path.match(/^\/admin\/ledger\/entries\/([^/]+)\/receipts\/([^/]+)$/);
+    if (receiptRoute && request.method === "DELETE") {
+      const ledgerEntryId = cleanLine(decodeURIComponent(receiptRoute[1]!), 128, true)!;
+      const receiptId = cleanLine(decodeURIComponent(receiptRoute[2]!), 128, true)!;
+      return await deleteLedgerReceipt(request, env, ledgerEntryId, receiptId);
+    }
     const entryRoute = path.match(/^\/admin\/ledger\/entries\/([^/]+)$/);
     if (entryRoute && (request.method === "PUT" || request.method === "DELETE")) {
       const id = cleanLine(decodeURIComponent(entryRoute[1]!), 128, true)!;
@@ -522,6 +687,7 @@ export async function handleLedgerAdminRequest(request: Request, env: AdminEnv, 
     const recognized = recognizedAdminError(error);
     if (recognized) return adminJson({ error: recognized.message, code: recognized.code }, recognized.status, recognized.headers);
     if (error instanceof LedgerImportFileError) return adminJson({ error: error.message, code: error.code }, error.status);
+    if (error instanceof ReceiptFileError) return adminJson({ error: error.message, code: error.code }, error.status);
     if (error instanceof DocumentMergeError) return adminJson({ error: error.message, code: "DOCUMENT_MERGE_FAILED" }, 422);
     console.error(JSON.stringify({ event: "ledger_admin_failed", message: error instanceof Error ? error.message : "Unknown error" }));
     return adminJson({ error: "The ledger encountered an unexpected error.", code: "SERVER_ERROR" }, 500);

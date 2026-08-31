@@ -88,6 +88,16 @@ const ledgerImportHelp = document.querySelector("#ledger-import-help");
 const ledgerImportTableShell = document.querySelector("#ledger-import-table-shell");
 const chooseAnotherLedgerImportButton = document.querySelector("#choose-another-ledger-import");
 const commitLedgerImportButton = document.querySelector("#commit-ledger-import");
+const ledgerReceiptDialog = document.querySelector("#ledger-receipt-dialog");
+const closeLedgerReceiptDialog = document.querySelector("#close-ledger-receipt-dialog");
+const ledgerReceiptEntrySummary = document.querySelector("#ledger-receipt-entry-summary");
+const ledgerReceiptStatus = document.querySelector("#ledger-receipt-status");
+const ledgerReceiptList = document.querySelector("#ledger-receipt-list");
+const ledgerReceiptCount = document.querySelector("#ledger-receipt-count");
+const ledgerReceiptCameraInput = document.querySelector("#ledger-receipt-camera-input");
+const ledgerReceiptFileInput = document.querySelector("#ledger-receipt-file-input");
+const takeLedgerReceiptPhotoButton = document.querySelector("#take-ledger-receipt-photo");
+const chooseLedgerReceiptFilesButton = document.querySelector("#choose-ledger-receipt-files");
 const peopleGrid = document.querySelector("#people-grid");
 const teamsWorkspace = document.querySelector("#teams-workspace");
 const teamsList = document.querySelector("#teams-list");
@@ -162,6 +172,10 @@ const state = {
   ledgerEntries: new Map(),
   ledgerCategories: { paymentTypes: [], expenseCategories: [], budgetCategories: [] },
   selectedPersonIds: new Set(),
+  ledgerReceiptEntryId: "",
+  ledgerReceiptFileCount: 0,
+  ledgerReceiptLimits: { maxFiles: 20, maxFileBytes: 10 * 1024 * 1024 },
+  ledgerReceiptUploading: false,
 };
 
 function element(tag, className, text) {
@@ -322,6 +336,7 @@ function showLogin(message = "") {
   if (ledgerImportDialog.open) ledgerImportDialog.close();
   accountMenu.open = false;
   resetPasswordVisibility(loginForm);
+  if (ledgerReceiptDialog.open) ledgerReceiptDialog.close();
   passwordInput.focus();
 }
 
@@ -1279,7 +1294,7 @@ function renderLedgerTable(entries) {
   table.append(element("caption", "", "Filtered Hope Sojourns income and expense ledger."));
   const head = document.createElement("thead");
   const heading = document.createElement("tr");
-  ["Date", "Type", "Amount", "Name", "Payment", "Check #", "Expense category", "Budget category", "Source", "Note", "Actions"].forEach(label => {
+  ["Date", "Type", "Amount", "Name", "Payment", "Check #", "Expense category", "Budget category", "Source", "Note", "Receipts", "Actions"].forEach(label => {
     const cell = element("th", "", label);
     cell.scope = "col";
     heading.append(cell);
@@ -1300,6 +1315,24 @@ function renderLedgerTable(entries) {
     const source = gridCell(row, ledgerSourceLabel(entry.sourceType));
     if (entry.sourceFileName) source.append(element("small", "", `${entry.sourceFileName}${entry.sourceRowNumber ? ` · row ${entry.sourceRowNumber}` : ""}`));
     gridCell(row, entry.note || "—", entry.note ? "" : "admin-grid-muted");
+    const receiptCell = document.createElement("td");
+    receiptCell.className = "admin-ledger-receipt-cell";
+    if (entry.entryType === "expense") {
+      const receiptTotal = Number(entry.receiptCount || 0);
+      const receiptButton = element("button", "admin-button admin-button-outline admin-receipt-button");
+      receiptButton.type = "button";
+      receiptButton.setAttribute("aria-label", `${receiptTotal ? `View ${plural(receiptTotal, "receipt")}` : "Add a receipt"} for this expense`);
+      receiptButton.append(
+        element("span", "", String.fromCodePoint(0x1f4f7)),
+        document.createTextNode(receiptTotal ? String(receiptTotal) : "Add"),
+      );
+      receiptButton.addEventListener("click", () => openLedgerReceiptDialog(entry));
+      receiptCell.append(receiptButton);
+    } else {
+      receiptCell.textContent = "\u2014";
+      receiptCell.classList.add("admin-grid-muted");
+    }
+    row.append(receiptCell);
     const actionsCell = document.createElement("td");
     const actions = element("div", "admin-ledger-row-actions");
     const edit = element("button", "admin-button admin-button-outline", "Edit");
@@ -1308,7 +1341,8 @@ function renderLedgerTable(entries) {
     const remove = element("button", "admin-button admin-button-danger", "Delete");
     remove.type = "button";
     remove.addEventListener("click", async () => {
-      const confirmation = window.prompt(`Permanently delete this ${titleCase(entry.entryType)} entry for ${formatMoney(entry.amount)} on ${formatDate(entry.transactionDate, false)}? This removes the ledger row only.\n\nType DELETE to confirm.`);
+      const receiptWarning = Number(entry.receiptCount || 0) ? ` This also permanently removes ${plural(Number(entry.receiptCount), "stored receipt")}.` : "";
+      const confirmation = window.prompt(`Permanently delete this ${titleCase(entry.entryType)} entry for ${formatMoney(entry.amount)} on ${formatDate(entry.transactionDate, false)}?${receiptWarning}\n\nType DELETE to confirm.`);
       if (confirmation === null) return;
       if (confirmation !== "DELETE") {
         ledgerStatus.textContent = "Nothing was deleted. Enter DELETE exactly to confirm permanent deletion.";
@@ -1332,6 +1366,154 @@ function renderLedgerTable(entries) {
   });
   table.append(head, body);
   return table;
+}
+
+function ledgerReceiptFilePath(ledgerEntryId, receiptId) {
+  return `/ledger/entries/${encodeURIComponent(ledgerEntryId)}/receipts/${encodeURIComponent(receiptId)}/file`;
+}
+
+function formatFileSize(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value >= 100 * 1024 ? 0 : 1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function createLedgerReceiptCard(receipt) {
+  const card = element("article", "admin-receipt-card");
+  const filePath = ledgerReceiptFilePath(state.ledgerReceiptEntryId, receipt.id);
+  const previewLink = element("a", receipt.previewable ? "admin-receipt-preview" : "admin-receipt-file-icon");
+  previewLink.href = `${API_BASE}${filePath}`;
+  previewLink.target = "_blank";
+  previewLink.rel = "noopener";
+  previewLink.setAttribute("aria-label", `View ${receipt.originalFileName}`);
+  if (receipt.previewable) {
+    const image = document.createElement("img");
+    image.src = `${API_BASE}${filePath}`;
+    image.alt = `Receipt preview: ${receipt.originalFileName}`;
+    image.loading = "lazy";
+    previewLink.append(image);
+  } else {
+    previewLink.textContent = receipt.mediaType === "application/pdf" ? "PDF" : "IMAGE";
+  }
+
+  const copy = element("div", "admin-receipt-card-copy");
+  copy.append(
+    element("strong", "", receipt.originalFileName),
+    element("span", "", `${formatFileSize(receipt.fileSize)} \u00b7 added ${formatDate(receipt.createdAt)}`),
+  );
+
+  const actions = element("div", "admin-receipt-card-actions");
+  const view = element("a", "admin-button admin-button-outline", "View");
+  view.href = `${API_BASE}${filePath}`;
+  view.target = "_blank";
+  view.rel = "noopener";
+  const remove = element("button", "admin-button admin-button-danger", "Delete");
+  remove.type = "button";
+  remove.addEventListener("click", async () => {
+    if (!window.confirm(`Permanently delete the receipt file "${receipt.originalFileName}"? This cannot be undone.`)) return;
+    setBusy(remove, true, "Deleting\u2026");
+    ledgerReceiptStatus.textContent = "Deleting the receipt file\u2026";
+    try {
+      await api(`/ledger/entries/${encodeURIComponent(state.ledgerReceiptEntryId)}/receipts/${encodeURIComponent(receipt.id)}`, { method: "DELETE" });
+      await loadLedgerReceipts();
+      await loadLedger();
+      ledgerReceiptStatus.textContent = "The receipt file was permanently deleted.";
+    } catch (error) {
+      ledgerReceiptStatus.textContent = error.message;
+      setBusy(remove, false);
+    }
+  });
+  actions.append(view, remove);
+  card.append(previewLink, copy, actions);
+  return card;
+}
+
+function renderLedgerReceipts(receipts) {
+  const files = receipts || [];
+  state.ledgerReceiptFileCount = files.length;
+  ledgerReceiptCount.textContent = plural(files.length, "file");
+  if (!files.length) {
+    ledgerReceiptList.replaceChildren(element("p", "admin-receipt-empty", "No receipts are stored for this expense yet."));
+    return;
+  }
+  ledgerReceiptList.replaceChildren(...files.map(createLedgerReceiptCard));
+}
+
+async function loadLedgerReceipts() {
+  if (!state.ledgerReceiptEntryId) return;
+  ledgerReceiptList.setAttribute("aria-busy", "true");
+  ledgerReceiptStatus.textContent = "Loading receipt files\u2026";
+  try {
+    const { result } = await api(`/ledger/entries/${encodeURIComponent(state.ledgerReceiptEntryId)}/receipts`);
+    state.ledgerReceiptLimits = result.limits || state.ledgerReceiptLimits;
+    renderLedgerReceipts(result.receipts || []);
+    ledgerReceiptStatus.textContent = "";
+  } catch (error) {
+    if (error.status !== 401) ledgerReceiptStatus.textContent = error.message;
+  } finally {
+    ledgerReceiptList.removeAttribute("aria-busy");
+  }
+}
+
+function openLedgerReceiptDialog(entry) {
+  if (!entry || entry.entryType !== "expense") return;
+  state.ledgerReceiptEntryId = entry.id;
+  state.ledgerReceiptFileCount = Number(entry.receiptCount || 0);
+  ledgerReceiptStatus.textContent = "";
+  ledgerReceiptEntrySummary.textContent = `${formatDate(entry.transactionDate, false)} \u00b7 ${formatMoney(entry.amount)} \u00b7 ${entry.name || "Expense"}`;
+  ledgerReceiptList.replaceChildren(element("p", "admin-receipt-empty", "Loading receipt files\u2026"));
+  ledgerReceiptCount.textContent = plural(state.ledgerReceiptFileCount, "file");
+  if (!ledgerReceiptDialog.open) ledgerReceiptDialog.showModal();
+  loadLedgerReceipts();
+}
+
+async function uploadLedgerReceiptFiles(fileList) {
+  if (state.ledgerReceiptUploading || !state.ledgerReceiptEntryId) return;
+  const files = Array.from(fileList || []).filter(file => file instanceof File);
+  if (!files.length) return;
+  const remaining = Math.max(0, Number(state.ledgerReceiptLimits.maxFiles || 20) - state.ledgerReceiptFileCount);
+  if (files.length > remaining) {
+    ledgerReceiptStatus.textContent = remaining
+      ? `Choose no more than ${plural(remaining, "additional file")} for this expense.`
+      : "This expense already has the maximum number of receipt files.";
+    return;
+  }
+  const maximumBytes = Number(state.ledgerReceiptLimits.maxFileBytes || 10 * 1024 * 1024);
+  const oversized = files.find(file => file.size > maximumBytes);
+  if (oversized) {
+    ledgerReceiptStatus.textContent = `"${oversized.name}" is larger than 10 MB. Choose a smaller file.`;
+    return;
+  }
+
+  state.ledgerReceiptUploading = true;
+  takeLedgerReceiptPhotoButton.disabled = true;
+  chooseLedgerReceiptFilesButton.disabled = true;
+  takeLedgerReceiptPhotoButton.setAttribute("aria-busy", "true");
+  chooseLedgerReceiptFilesButton.setAttribute("aria-busy", "true");
+  try {
+    let uploaded = 0;
+    for (const file of files) {
+      ledgerReceiptStatus.textContent = `Uploading ${uploaded + 1} of ${files.length}: ${file.name}`;
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+      await api(`/ledger/entries/${encodeURIComponent(state.ledgerReceiptEntryId)}/receipts`, { method: "POST", body: formData });
+      uploaded += 1;
+    }
+    await loadLedgerReceipts();
+    await loadLedger();
+    ledgerReceiptStatus.textContent = `${plural(uploaded, "receipt file")} uploaded securely.`;
+  } catch (error) {
+    ledgerReceiptStatus.textContent = error.message;
+  } finally {
+    state.ledgerReceiptUploading = false;
+    ledgerReceiptCameraInput.value = "";
+    ledgerReceiptFileInput.value = "";
+    takeLedgerReceiptPhotoButton.disabled = false;
+    chooseLedgerReceiptFilesButton.disabled = false;
+    takeLedgerReceiptPhotoButton.removeAttribute("aria-busy");
+    chooseLedgerReceiptFilesButton.removeAttribute("aria-busy");
+  }
 }
 
 function ensureLedgerYears() {
@@ -2769,8 +2951,8 @@ function renderMinistryDetail(ministry) {
   grid.append(
     profile,
     trips,
-    add,
     contacts,
+    add,
     createDeletionPanel({
       title: "Delete this ministry",
       description: `Permanently removes the ministry and its ${plural(ministry.contacts.length, "contact link")} and ${plural(ministry.trips.length, "trip link")}. Contact and trip records remain.`,
@@ -3124,6 +3306,31 @@ nextLedgerPage.addEventListener("click", () => {
 
 addLedgerEntryButton.addEventListener("click", openLedgerEntryDialog);
 closeLedgerEntryDialog.addEventListener("click", () => ledgerEntryDialog.close());
+closeLedgerReceiptDialog.addEventListener("click", () => {
+  if (!state.ledgerReceiptUploading) ledgerReceiptDialog.close();
+});
+ledgerReceiptDialog.addEventListener("cancel", event => {
+  if (state.ledgerReceiptUploading) event.preventDefault();
+});
+ledgerReceiptDialog.addEventListener("close", () => {
+  if (state.ledgerReceiptUploading) return;
+  state.ledgerReceiptEntryId = "";
+  state.ledgerReceiptFileCount = 0;
+  ledgerReceiptCameraInput.value = "";
+  ledgerReceiptFileInput.value = "";
+  ledgerReceiptStatus.textContent = "";
+  ledgerReceiptList.replaceChildren();
+});
+takeLedgerReceiptPhotoButton.addEventListener("click", () => {
+  ledgerReceiptCameraInput.value = "";
+  ledgerReceiptCameraInput.click();
+});
+chooseLedgerReceiptFilesButton.addEventListener("click", () => {
+  ledgerReceiptFileInput.value = "";
+  ledgerReceiptFileInput.click();
+});
+ledgerReceiptCameraInput.addEventListener("change", () => uploadLedgerReceiptFiles(ledgerReceiptCameraInput.files));
+ledgerReceiptFileInput.addEventListener("change", () => uploadLedgerReceiptFiles(ledgerReceiptFileInput.files));
 
 ledgerEntryForm.addEventListener("submit", async event => {
   event.preventDefault();

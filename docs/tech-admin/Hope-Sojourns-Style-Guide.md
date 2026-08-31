@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 1.9
+Version 2.0
 
-Last reviewed: August 30, 2026
+Last reviewed: August 31, 2026
 
 ## 1. Purpose
 
@@ -273,16 +273,26 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Place import, export, and manual-entry actions together in the ledger introduction panel. Use one gold primary action and restrained outline treatments for supporting actions.
 - Keep search, year, type, and source filters visibly labeled. At wide sizes they may share one row; below the existing medium and narrow breakpoints they reduce to two columns and then one.
 - Financial tables must use explicit text labels for Income and Expense in addition to color. Keep dates, values, names, categories, source, and notes scannable; on narrow screens, contain horizontal scrolling inside the table shell rather than forcing the entire page to overflow.
-- Include Check # as a distinct ledger column. Keep Edit and Delete in a final Actions column, use established outline and danger buttons, and require typed confirmation before permanent deletion.
+- Include Check # and Receipts as distinct ledger columns. Receipt controls appear only for expenses and combine a camera symbol with either Add or the stored-file count. Keep Edit and Delete in a final Actions column, use established outline and danger buttons, and require typed confirmation before permanent deletion.
 - Spreadsheet imports require a preview with separate counts for new entries, exact duplicates, sequence conflicts, and rows needing correction. Every source field must remain editable in the review table, including sequence number and check number. Provide a select-all control, per-row checkboxes, and an explicit **Remove selected entries** action that removes rows only from the current import review.
 - The final spreadsheet action must say that reviewed rows will be validated and imported. Keep horizontal overflow inside the review table shell, retain visible field labels through the sticky header and accessible control names, and report which rows were imported or skipped.
 - Contact selection belongs in the first grid column and must include an accessible per-row name plus a select-visible control. The selected count remains visible above the actions and survives paging or filtering until the action succeeds or the administrator changes the selection.
 - Group bulk activity and personalized-document tools by outcome. Use a date and brief-note pair for activity; use a tax year, branded statement action, uploaded Word template, and merge action for documents.
 - At narrow widths, bulk fields and actions stack in a logical reading order and primary buttons fill the available width. Keep the data grid in a contained horizontal-scrolling shell.
 - Long-running import and document actions need visible working text, success or error status, and disabled repeat actions while processing.
+- The expense-receipt dialog begins with a concise date, amount, and payee summary, then presents one gold camera-first action and one outline file-picker action. State plainly that files are private and show the 10 MB limit near the controls.
+- Stored receipts use contained cards with a preview when the browser supports the image format, a clear PDF or image fallback when it does not, filename, file size, added time, View, and Delete. Never rely on a thumbnail as the only file label.
+- At narrow widths, receipt actions stack to full width and receipt cards reduce to a compact image-and-copy row with actions below it. Long filenames must wrap without widening the dialog.
+- Receipt upload, loading, success, and error states remain visible through the shared live-status pattern; disable repeat upload actions while files are being transferred.
 - Downloaded spreadsheets and Word files are operational artifacts. Preserve branded document styles, clear filenames, readable totals, and an accompanying manifest when a batch can contain exceptions.
 
+### Admin ministry details
+
+- Order ministry detail content by review workflow: profile and connected trips first, then **Ministry contacts**, then **Add a ministry contact**, with permanent deletion last.
+- Existing linked contacts take precedence over the add form so administrators can understand current relationships before creating another one.
+
 ### Dialogs and lightboxes
+
 
 - Use semantic `<dialog>` where practical and provide an obvious close action.
 - Trap attention through the native dialog behavior rather than visual obstruction alone.
@@ -402,6 +412,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-31 | 2.0 | Added camera-first private receipt-management patterns, responsive receipt cards and status behavior, a Receipts ledger column, and ministry-contact-before-add-form ordering. |
 | 2026-08-30 | 1.9 | Added editable and removable spreadsheet-review rows, ledger check-number and row-action columns, and typed-confirmation deletion guidance. |
 | 2026-08-30 | 1.8 | Renamed the user-facing CSM inbox to Payment inbox so the portal describes the workspace by purpose rather than by its internal integration. |
 | 2026-08-30 | 1.7 | Added responsive unified-ledger, spreadsheet-import preview, bulk contact selection, activity-update, and personalized-document interface standards. |

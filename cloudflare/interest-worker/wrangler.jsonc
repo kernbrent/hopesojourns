@@ -40,6 +40,12 @@
           "migrations_dir": "migrations"
         }
       ],
+      "r2_buckets": [
+        {
+          "binding": "RECEIPTS",
+          "bucket_name": "hope-sojourns-receipts-test"
+        }
+      ],
       "services": [
         { "binding": "CSM_STATUS", "service": "christian-steps-admin-api" }
       ]
@@ -78,6 +84,12 @@
           "database_name": "hope-sojourns-forms-production",
           "database_id": "d277a0d4-a471-43c6-8bcf-81524d08cd12",
           "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "RECEIPTS",
+          "bucket_name": "hope-sojourns-receipts-production"
         }
       ],
       "services": [

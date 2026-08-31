@@ -20,7 +20,14 @@ function database(environment) {
   return binding;
 }
 
-assert(!config.routes && !config.vars && !config.d1_databases && !config.secrets, "top-level routes, variables, secrets, and D1 bindings must remain unset");
+function receiptBucket(environment) {
+  assert(environment.r2_buckets?.length === 1, "each environment must have exactly one R2 receipt bucket");
+  const [binding] = environment.r2_buckets;
+  assert(binding.binding === "RECEIPTS", "each environment must use the RECEIPTS binding");
+  return binding;
+}
+
+assert(!config.routes && !config.vars && !config.d1_databases && !config.r2_buckets && !config.secrets, "top-level routes, variables, secrets, D1 bindings, and R2 bindings must remain unset");
 assert(config.env?.test && config.env?.production, "test and production environments are required");
 
 const testEnvironment = config.env.test;
@@ -28,6 +35,8 @@ const productionEnvironment = config.env.production;
 const testDatabase = database(testEnvironment);
 const productionDatabase = database(productionEnvironment);
 
+const testReceiptBucket = receiptBucket(testEnvironment);
+const productionReceiptBucket = receiptBucket(productionEnvironment);
 assert(testEnvironment.vars?.ENVIRONMENT === "test", "test ENVIRONMENT must be test");
 assert(productionEnvironment.vars?.ENVIRONMENT === "production", "production ENVIRONMENT must be production");
 assert(JSON.stringify(testEnvironment.secrets?.required?.sort()) === JSON.stringify(["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET", "CSM_DISTRIBUTION_SECRET"].sort()), "test secret declarations are incomplete");
@@ -35,6 +44,9 @@ assert(JSON.stringify(productionEnvironment.secrets?.required?.sort()) === JSON.
 assert(testDatabase.database_name === "hope-sojourns-forms-test", "the test database name changed unexpectedly");
 assert(productionDatabase.database_name === "hope-sojourns-forms-production", "the production database name changed unexpectedly");
 assert(testDatabase.database_id !== productionDatabase.database_id, "test and production database IDs must differ");
+assert(testReceiptBucket.bucket_name === "hope-sojourns-receipts-test", "the test receipt bucket name changed unexpectedly");
+assert(productionReceiptBucket.bucket_name === "hope-sojourns-receipts-production", "the production receipt bucket name changed unexpectedly");
+assert(testReceiptBucket.bucket_name !== productionReceiptBucket.bucket_name, "test and production receipt buckets must differ");
 
 assert(
   JSON.stringify(routePatterns(testEnvironment)) === JSON.stringify([
@@ -64,4 +76,4 @@ assert(!productionOrigins.includes("test"), "production origins must not include
 assert(productionOriginList.includes("https://hopesojourns.com"), "production origins must include the apex site");
 assert(productionOriginList.includes("https://www.hopesojourns.com"), "production origins must include the www site");
 
-console.log("Verified isolated test and production Workers, routes, origins, and D1 databases.");
+console.log("Verified isolated test and production Workers, routes, origins, D1 databases, and private R2 receipt buckets.");
