@@ -188,6 +188,7 @@ const state = {
   lastDataRefreshAt: 0,
   portalUpdateCheckPending: false,
   resumeRefreshPending: false,
+  expandedPersonId: "",
 };
 
 function element(tag, className, text) {
@@ -457,37 +458,95 @@ function appendInterests(container, interests, limit = 3) {
   if (interests.length > limit) container.append(element("span", "admin-interest-pill", `+${interests.length - limit} more`));
 }
 
+function setPersonCardExpanded(card, expanded) {
+  const personId = card.dataset.personId || "";
+  const nameButton = card.querySelector(".admin-person-name-button");
+  card.classList.toggle("is-expanded", expanded);
+  card.querySelectorAll("[data-person-compact]").forEach(item => {
+    item.hidden = expanded;
+  });
+  card.querySelectorAll("[data-person-expanded]").forEach(item => {
+    item.hidden = !expanded;
+  });
+  nameButton.setAttribute("aria-expanded", String(expanded));
+  nameButton.setAttribute("aria-label", (expanded ? "Collapse" : "Expand") + " contact summary for " + nameButton.dataset.personName);
+  const indicator = nameButton.querySelector(".admin-person-name-indicator");
+  if (indicator) indicator.textContent = expanded ? "−" : "+";
+  if (expanded) state.expandedPersonId = personId;
+  else if (state.expandedPersonId === personId) state.expandedPersonId = "";
+}
+
+function togglePersonCard(card) {
+  const shouldExpand = !card.classList.contains("is-expanded");
+  peopleList.querySelectorAll(".admin-person-card.is-expanded").forEach(openCard => {
+    if (openCard !== card) setPersonCardExpanded(openCard, false);
+  });
+  setPersonCardExpanded(card, shouldExpand);
+}
+
+function personCompactField(label, value, className = "") {
+  const field = element("span", ("admin-person-compact-field " + className).trim());
+  field.dataset.personCompact = "";
+  field.append(element("small", "admin-person-compact-label", label), element("span", "admin-person-compact-value", value));
+  return field;
+}
+
+function renderPersonListHeading() {
+  const heading = element("div", "admin-person-list-heading");
+  heading.setAttribute("aria-hidden", "true");
+  for (const label of ["Name", "Contact type", "Organization", "Phone number"]) heading.append(element("span", "", label));
+  return heading;
+}
 function renderPersonCard(person) {
-  const card = element("button", "admin-request-card admin-person-card");
-  card.type = "button";
-  card.setAttribute("aria-label", `Open complete record for ${person.firstName} ${person.lastName}`);
-  card.addEventListener("click", () => openPerson(person.id));
+  const fullName = [person.firstName, person.lastName].join(" ");
+  const card = element("article", "admin-request-card admin-person-card");
+  card.dataset.personId = String(person.id);
 
   const identity = element("span", "admin-request-person");
-  identity.append(element("strong", "", `${person.firstName} ${person.lastName}`));
-  identity.append(element("small", "", person.organization || "No organization recorded"));
-  identity.append(element("small", "", `Updated ${formatDate(person.latestActivityAt || person.updatedAt)}`));
+  const nameButton = element("button", "admin-person-name-button");
+  nameButton.type = "button";
+  nameButton.dataset.personName = fullName;
+  nameButton.append(element("strong", "", fullName), element("span", "admin-person-name-indicator", "+"));
+  nameButton.addEventListener("click", () => togglePersonCard(card));
+  const expandedIdentity = element("span", "admin-person-expanded-identity");
+  expandedIdentity.dataset.personExpanded = "";
+  expandedIdentity.append(element("small", "", person.organization || "No organization recorded"));
+  expandedIdentity.append(element("small", "", "Updated " + formatDate(person.latestActivityAt || person.updatedAt)));
+  identity.append(nameButton, expandedIdentity);
+
+  const contactTypes = (person.contactTypes || []).length
+    ? person.contactTypes.map(contactTypeLabel).join(", ")
+    : "Contact";
+  const compactTypes = personCompactField("Contact type", contactTypes, "admin-person-compact-types");
+  const compactOrganization = personCompactField("Organization", person.organization || "No organization recorded", "admin-person-compact-organization");
+  const compactPhone = personCompactField("Phone number", person.phone || "No cell number", "admin-person-compact-phone");
 
   const contact = element("span", "admin-request-contact");
+  contact.dataset.personExpanded = "";
   contact.append(element("span", "", person.email || "No email address"));
   contact.append(element("small", "", person.phone || "No cell number"));
 
   const interests = element("span", "admin-request-interests");
+  interests.dataset.personExpanded = "";
   (person.contactTypes || []).slice(0, 3).forEach(type => interests.append(element("span", "admin-interest-pill", contactTypeLabel(type))));
   if (!(person.contactTypes || []).length) interests.append(element("span", "admin-interest-pill", "Contact"));
   if (person.languages?.length) interests.append(element("span", "admin-interest-pill", person.languages.join(", ")));
 
   const activity = element("span", "admin-person-activity");
+  activity.dataset.personExpanded = "";
   activity.append(element("strong", "", plural(person.submissionCount, "request")));
   activity.append(element("small", "", person.replyCount ? plural(person.replyCount, "saved reply") : "No reply prepared"));
 
-  const arrow = element("span", "admin-request-arrow", "→");
-  arrow.setAttribute("aria-hidden", "true");
-  arrow.append(element("small", "", "View everything"));
-  card.append(identity, contact, interests, activity, arrow);
+  const viewEverything = element("button", "admin-button admin-button-outline admin-person-view-all", "View everything");
+  viewEverything.type = "button";
+  viewEverything.dataset.personExpanded = "";
+  viewEverything.setAttribute("aria-label", "View the complete contact record for " + fullName);
+  viewEverything.addEventListener("click", () => openPerson(person.id));
+
+  card.append(identity, compactTypes, compactOrganization, compactPhone, contact, interests, activity, viewEverything);
+  setPersonCardExpanded(card, state.expandedPersonId === String(person.id));
   return card;
 }
-
 function renderSubmissionCard(submission) {
   const card = element("button", "admin-request-card");
   card.type = "button";
@@ -911,10 +970,11 @@ function applyResultMeta(result, recordCount, unit, pluralUnit) {
 
 function applyListResult(result, records, renderCard, unit, pluralUnit) {
   const list = state.view === "people" ? peopleList : submissionsList;
-  list.replaceChildren(...records.map(renderCard));
+  const content = records.map(renderCard);
+  if (state.view === "people" && records.length) content.unshift(renderPersonListHeading());
+  list.replaceChildren(...content);
   applyResultMeta(result, records.length, unit, pluralUnit);
 }
-
 function csmMoney(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
 }

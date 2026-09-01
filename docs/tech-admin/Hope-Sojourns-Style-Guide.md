@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 2.3
+Version 2.4
 
 Last reviewed: September 1, 2026
 
@@ -266,6 +266,14 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - At medium widths, the giving summary and transaction metadata reduce to two columns. At narrow widths, the toolbar, summary, metadata, and review fields stack into one column.
 - Bulk actions require clear confirmation, visible progress, a completion summary, and per-item failure reporting. Do not replace the existing individual approval and denial controls.
 
+### Admin contact directory
+
+- Present the master contact list as a compact directory by default. Each closed row contains only Name, Contact type, Organization, and Phone number so substantially more contacts remain visible at once.
+- Use a four-column heading above compact rows on wider screens. On phones, hide the shared heading and repeat those labels inside each card so the values remain understandable when the layout wraps.
+- Make the contact name the explicit expand/collapse control, pair it with a visible plus/minus indicator, and update its expanded state and accessible label.
+- Keep no more than one summary expanded at a time. Expanding a different contact closes the previously expanded summary so the directory does not gradually return to a long-card layout.
+- The expanded summary restores the established organization and activity date, email and phone, contact-type and language pills, request and reply counts, and a distinct **View everything** button. Keep that button hidden in the compact state.
+- On narrow screens, let compact values wrap instead of clipping. Stack expanded summary sections and make **View everything** full width.
 ### Admin mobile workspace
 
 - At `760px` and below, replace the desktop tab strip with one sticky **Choose a workspace** selector. Keep its selected value synchronized with the active Contacts, Requests, Payment inbox, Ledger, Spreadsheet, Teams, Ministries, or Internship toolkit view.
@@ -424,6 +432,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-01 | 2.4 | Added the compact four-field contact directory, one-card-at-a-time summary disclosure, and separate full-record action. |
 | 2026-09-01 | 2.3 | Added the prominent mobile Update portal control, distinct fresh-data action, and plain-language database refresh guidance. |
 | 2026-09-01 | 2.2 | Added the phone-first Admin Portal workspace selector, labeled record cards, stacked touch controls, and full-screen mobile dialog standards. |
 | 2026-08-31 | 2.1 | Added phone-camera optimization messaging, live optimizing status, before-and-after size feedback, and unchanged-file-picker guidance. |

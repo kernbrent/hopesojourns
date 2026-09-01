@@ -1389,6 +1389,143 @@
     flex: 1;
   }
 }
+/* Contacts use progressive disclosure so the directory stays dense while details remain one click away. */
+.admin-person-list-heading {
+  display: grid;
+  margin: 0 0 -.25rem;
+  padding: 0 .85rem;
+  grid-template-columns: minmax(160px, 1.05fr) minmax(130px, .85fr) minmax(170px, 1.1fr) minmax(120px, .75fr);
+  gap: .8rem;
+  color: var(--muted);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.admin-person-card {
+  min-height: 54px;
+  padding: .45rem .85rem;
+  grid-template-columns: minmax(160px, 1.05fr) minmax(130px, .85fr) minmax(170px, 1.1fr) minmax(120px, .75fr);
+  gap: .8rem;
+  cursor: default;
+}
+
+.admin-person-card:hover {
+  transform: none;
+}
+
+.admin-person-card > *,
+.admin-person-compact-field {
+  min-width: 0;
+}
+
+.admin-person-card [hidden] {
+  display: none !important;
+}
+
+.admin-person-name-button {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  padding: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: .55rem;
+  border: 0;
+  background: transparent;
+  color: var(--forest);
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-person-name-button strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 1rem;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-overflow: ellipsis;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.admin-person-name-button:focus-visible {
+  border-radius: 6px;
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.admin-person-name-indicator {
+  display: inline-flex;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--forest-wash);
+  color: var(--forest-dark);
+  font-family: Arial, sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.admin-person-compact-field {
+  display: block;
+}
+
+.admin-person-compact-label {
+  display: none;
+  color: var(--muted);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.admin-person-compact-value {
+  display: block;
+  overflow: hidden;
+  color: var(--forest-dark);
+  font-size: .78rem;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-person-expanded-identity small {
+  display: block;
+  margin-top: .2rem;
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.admin-person-card.is-expanded {
+  min-height: 0;
+  padding: .85rem .95rem;
+  grid-template-columns: minmax(180px, 1fr) minmax(210px, 1.1fr) minmax(300px, 1.8fr) auto auto;
+  gap: 1rem;
+}
+
+.admin-person-card.is-expanded .admin-person-name-button {
+  min-height: 0;
+  align-items: flex-start;
+}
+
+.admin-person-card.is-expanded .admin-person-name-button strong {
+  color: var(--forest-dark);
+  font-size: 1.18rem;
+  text-decoration: none;
+  white-space: normal;
+}
+
+.admin-person-view-all {
+  min-height: 40px;
+  justify-self: end;
+  white-space: nowrap;
+}
 .admin-mobile-workspace {
   display: none;
 }
@@ -1817,5 +1954,62 @@
   .admin-footer {
     width: calc(100% - 12px);
     margin-bottom: 6px;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-person-list-heading {
+    display: none;
+  }
+
+  .admin-person-card,
+  .admin-person-card.is-expanded {
+    padding: .65rem .7rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: .55rem .75rem;
+  }
+
+  .admin-person-card:not(.is-expanded) .admin-request-person {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .admin-person-card:not(.is-expanded) .admin-person-compact-types {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .admin-person-card:not(.is-expanded) .admin-person-compact-organization {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .admin-person-compact-label {
+    display: block;
+    margin-bottom: .15rem;
+  }
+
+  .admin-person-compact-value {
+    overflow: visible;
+    line-height: 1.35;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .admin-person-card:not(.is-expanded) .admin-person-compact-phone {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .admin-person-card.is-expanded .admin-request-person,
+  .admin-person-card.is-expanded > [data-person-expanded] {
+    grid-column: 1 / -1;
+  }
+
+  .admin-person-card.is-expanded .admin-person-view-all {
+    width: 100%;
+    justify-self: stretch;
   }
 }
