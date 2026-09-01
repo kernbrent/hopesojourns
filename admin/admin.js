@@ -3,6 +3,10 @@
 const API_BASE = "/api/interest/admin";
 const LEDGER_RECEIPT_PHONE_PHOTO_MAX_EDGE = 2000;
 const LEDGER_RECEIPT_PHONE_PHOTO_JPEG_QUALITY = 0.82;
+const ADMIN_VERSION_URL = "/admin/version.json";
+const ADMIN_BUILD = document.documentElement.dataset.adminBuild || "";
+const ADMIN_UPDATE_ATTEMPT_KEY = "hope-sojourns-admin-update-attempt";
+const ADMIN_RESUME_REFRESH_AFTER_MS = 60_000;
 const adminEnvironmentBadge = document.querySelector("[data-admin-environment]");
 const adminReturnLink = document.querySelector("[data-admin-return]");
 const adminEnvironmentNote = document.querySelector("[data-admin-environment-note]");
@@ -30,6 +34,7 @@ const loginForm = document.querySelector("#admin-login-form");
 const passwordInput = document.querySelector("#admin-password");
 const loginStatus = document.querySelector("#login-status");
 const accountMenu = document.querySelector("#admin-account-menu");
+const refreshPortalButton = document.querySelector("#refresh-portal");
 const changePasswordDialog = document.querySelector("#change-password-dialog");
 const changePasswordForm = document.querySelector("#change-password-form");
 const changePasswordStatus = document.querySelector("#change-password-status");
@@ -138,6 +143,7 @@ const contactTypeFilter = document.querySelector("#contact-type-filter");
 const contactAreaFilter = document.querySelector("#contact-area-filter");
 const resultsCount = document.querySelector("#results-count");
 const recordsTitle = document.querySelector("#records-title");
+const mobileWorkspaceSelect = document.querySelector("#admin-mobile-workspace-select");
 const peopleViewTab = document.querySelector("#people-view-tab");
 const requestsViewTab = document.querySelector("#requests-view-tab");
 const gridViewTab = document.querySelector("#grid-view-tab");
@@ -178,6 +184,9 @@ const state = {
   ledgerReceiptFileCount: 0,
   ledgerReceiptLimits: { maxFiles: 20, maxFileBytes: 10 * 1024 * 1024 },
   ledgerReceiptUploading: false,
+  lastDataRefreshAt: 0,
+  portalUpdateCheckPending: false,
+  resumeRefreshPending: false,
 };
 
 function element(tag, className, text) {
@@ -247,6 +256,58 @@ function setBusy(button, busy, busyText) {
   }
 }
 
+function reloadAdminPortal(revision = "") {
+  try {
+    if (revision) sessionStorage.setItem(ADMIN_UPDATE_ATTEMPT_KEY, revision);
+  } catch {
+    /* A private browser session may disable session storage. */
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("portalRefresh", Date.now().toString());
+  window.location.replace(url);
+}
+
+async function checkForAdminPortalUpdate() {
+  if (state.portalUpdateCheckPending) return false;
+  state.portalUpdateCheckPending = true;
+  try {
+    const response = await fetch(`${ADMIN_VERSION_URL}?fresh=${Date.now()}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (!response.ok) return false;
+    const manifest = await response.json();
+    const revision = String(manifest.revision || "").trim();
+    if (!revision || revision === ADMIN_BUILD) {
+      try { sessionStorage.removeItem(ADMIN_UPDATE_ATTEMPT_KEY); } catch { /* Storage is optional. */ }
+      return false;
+    }
+    let attemptedRevision = "";
+    try { attemptedRevision = sessionStorage.getItem(ADMIN_UPDATE_ATTEMPT_KEY) || ""; } catch { /* Storage is optional. */ }
+    if (attemptedRevision === revision) return false;
+    reloadAdminPortal(revision);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    state.portalUpdateCheckPending = false;
+  }
+}
+
+async function refreshAdminAfterResume() {
+  if (state.resumeRefreshPending) return;
+  state.resumeRefreshPending = true;
+  try {
+    if (await checkForAdminPortalUpdate()) return;
+    const dataIsStale = Date.now() - state.lastDataRefreshAt >= ADMIN_RESUME_REFRESH_AFTER_MS;
+    if (!dashboardPanel.hidden && dataIsStale) await loadRecords();
+  } catch {
+    /* Existing load and session handlers present any actionable error. */
+  } finally {
+    state.resumeRefreshPending = false;
+  }
+}
+
 function resetPasswordVisibility(container) {
   container.querySelectorAll("[data-password-toggle]").forEach(button => {
     const input = document.querySelector(`#${button.getAttribute("aria-controls")}`);
@@ -268,6 +329,7 @@ async function api(path, options = {}) {
     method,
     headers,
     credentials: "same-origin",
+    cache: method === "GET" || method === "HEAD" ? "no-store" : "default",
     body: options.body === undefined ? undefined : isFormData ? options.body : JSON.stringify(options.body),
   });
   let result = {};
@@ -295,6 +357,7 @@ async function apiDownload(path, options = {}) {
     method,
     headers,
     credentials: "same-origin",
+    cache: method === "GET" || method === "HEAD" ? "no-store" : "default",
     body: options.body === undefined ? undefined : isFormData ? options.body : JSON.stringify(options.body),
   });
   if (!response.ok) {
@@ -435,6 +498,20 @@ function gridCell(row, value, className = "") {
   return cell;
 }
 
+function prepareResponsiveTable(table) {
+  const labels = [...table.querySelectorAll("thead th")].map(heading => {
+    const text = heading.textContent.trim();
+    return text || (heading.querySelector('input[type="checkbox"]') ? "Select" : "Details");
+  });
+  table.querySelectorAll("tbody tr").forEach(row => {
+    [...row.children].forEach((cell, index) => {
+      if (cell.matches("td, th")) cell.dataset.columnLabel = labels[index] || "Details";
+    });
+  });
+  table.classList.add("admin-responsive-table");
+  return table;
+}
+
 function renderPeopleGridLegacy(people) {
   const table = element("table", "admin-data-grid");
   table.append(element("caption", "", "Filtered people records. Select a person's name to open their complete record."));
@@ -479,7 +556,7 @@ function renderPeopleGridLegacy(people) {
     body.append(row);
   });
   table.append(head, body);
-  return table;
+  return prepareResponsiveTable(table);
 }
 
 function selectedContactIds() {
@@ -607,7 +684,7 @@ function renderContactGridToolbar(people) {
 
   statement.addEventListener("click", async () => {
     try {
-      const response = await fetch("/admin/supplemental-documents/Hope-Sojourns-Giving-Statement-Template.docx", { credentials: "same-origin" });
+      const response = await fetch("/admin/supplemental-documents/Hope-Sojourns-Giving-Statement-Template.docx", { cache: "no-store", credentials: "same-origin" });
       if (!response.ok) throw new Error("The Hope Sojourns giving-statement template could not be opened.");
       const file = new File([await response.blob()], "Hope-Sojourns-Giving-Statement-Template.docx", {
         type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -706,6 +783,7 @@ function renderPeopleGrid(people) {
     body.append(row);
   });
   table.append(head, body);
+  prepareResponsiveTable(table);
   shell.append(table);
   queueMicrotask(updateGridSelectionState);
   return shell;
@@ -1282,7 +1360,7 @@ function renderLedgerTableLegacy(entries) {
     body.append(row);
   });
   table.append(head, body);
-  return table;
+  return prepareResponsiveTable(table);
 }
 
 function renderLedgerTable(entries) {
@@ -1367,7 +1445,7 @@ function renderLedgerTable(entries) {
     body.append(row);
   });
   table.append(head, body);
-  return table;
+  return prepareResponsiveTable(table);
 }
 
 function ledgerReceiptFilePath(ledgerEntryId, receiptId) {
@@ -1718,7 +1796,7 @@ function renderLedgerImportRowsLegacy(rows, committed) {
     body.append(row);
   }
   table.append(head, body);
-  return table;
+  return prepareResponsiveTable(table);
 }
 
 function renderLedgerImportResultLegacy(result, committed = false) {
@@ -1866,7 +1944,7 @@ function renderLedgerImportRows(rows, committed) {
   }
   table.append(head, body);
   updateLedgerImportSelectionState();
-  return table;
+  return prepareResponsiveTable(table);
 }
 
 function renderLedgerImportResult(result, committed = false) {
@@ -1980,6 +2058,7 @@ async function loadRecords() {
     submissionsStatus.textContent = "";
   }
   if (state.view !== "csm-inbox") await refreshCsmBadge();
+  state.lastDataRefreshAt = Date.now();
 }
 
 function switchView(view, focusTab = false) {
@@ -2037,6 +2116,7 @@ function switchView(view, focusTab = false) {
     "internship-toolkit": "Internship toolkit",
   };
   recordsTitle.textContent = titles[view];
+  mobileWorkspaceSelect.value = view;
   if (focusTab) tabs[view].focus();
   loadRecords();
 }
@@ -3169,7 +3249,7 @@ function renderContactImportRows(rows, committed) {
     body.append(row);
   }
   table.append(head, body);
-  return table;
+  return prepareResponsiveTable(table);
 }
 
 function renderContactImportResult(result, committed = false) {
@@ -3522,6 +3602,7 @@ ledgerViewTab.addEventListener("click", () => switchView("ledger"));
 teamsViewTab.addEventListener("click", () => switchView("teams"));
 ministriesViewTab.addEventListener("click", () => switchView("ministries"));
 internshipToolkitViewTab.addEventListener("click", () => switchView("internship-toolkit"));
+mobileWorkspaceSelect.addEventListener("change", () => switchView(mobileWorkspaceSelect.value));
 document.querySelector(".admin-view-tabs").addEventListener("keydown", event => {
   if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
   event.preventDefault();
@@ -3603,6 +3684,10 @@ document.querySelector("#reset-filters").addEventListener("click", () => {
   state.page = 1;
   loadRecords();
 });
+refreshPortalButton.addEventListener("click", event => {
+  setBusy(event.currentTarget, true, "Updating...");
+  reloadAdminPortal();
+});
 document.querySelector("#refresh-submissions").addEventListener("click", event => {
   setBusy(event.currentTarget, true, "Refreshing…");
   loadRecords().finally(() => setBusy(event.currentTarget, false));
@@ -3619,7 +3704,7 @@ exportButton.addEventListener("click", async event => {
     params.delete("page");
     params.delete("pageSize");
     params.set("view", state.view === "requests" ? "requests" : "people");
-    const response = await fetch(`${API_BASE}/export.csv?${params}`, { credentials: "same-origin" });
+    const response = await fetch(`${API_BASE}/export.csv?${params}`, { cache: "no-store", credentials: "same-origin" });
     if (!response.ok) {
       if (response.status === 401) showLogin("Your session ended. Sign in again.");
       throw new Error("The export could not be prepared.");
@@ -3653,8 +3738,14 @@ changePasswordDialog.addEventListener("click", event => {
 });
 document.querySelector("#year").textContent = new Date().getFullYear();
 
+window.addEventListener("pageshow", refreshAdminAfterResume);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshAdminAfterResume();
+});
+
 (async function startPortal() {
   try {
+    if (await checkForAdminPortalUpdate()) return;
     const { result } = await api("/session");
     showDashboard(result);
   } catch (error) {

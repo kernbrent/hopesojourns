@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 2.3
+Version 2.5
 
-Last reviewed: August 31, 2026
+Last reviewed: September 1, 2026
 
 ## 1. Purpose and operating rules
 
@@ -225,6 +225,22 @@ Never store those values in source, documentation, test snapshots, or browser-ac
 The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. A contact can store `last_contacted_at` plus a short `last_contacted_note`; the note is limited to 50 characters in the browser, Worker, and D1 schema, appears in person details and contact CSV exports, and is preserved by spreadsheet imports. The Contact type search filter presents its options alphabetically by label. The Internship toolkit exposes a download-all ZIP while preserving every individual document download. CSV output must continue to neutralize spreadsheet formulas.
 
 Date-only contact activity values use local calendar parsing in the portal. Do not pass a `YYYY-MM-DD` string directly to the JavaScript `Date` constructor for display, because UTC interpretation can move the visible date one day earlier in United States time zones.
+
+### Admin mobile rendering
+
+`/admin/index.html` includes a phone-only `#admin-mobile-workspace-select` with the same view values as the desktop tab list. `/admin/admin.js` keeps that selector synchronized inside `switchView()` and routes selector changes through the same view-loading path as tab clicks. When adding or renaming a top-level workspace, update the desktop tab, the mobile option, the `tabs` map, and the view-title map together.
+
+Generated contact, ledger, ledger-import, and contact-import tables pass through `prepareResponsiveTable()`. The helper copies each desktop column heading into a `data-column-label` on the corresponding body cell and applies the shared responsive-table class. `/admin/admin.css` uses those labels to present each row as a readable record card at `760px` and below; desktop behavior remains table-based. New generated admin tables should use the same helper unless their mobile presentation is intentionally different and documented.
+
+The phone layout also replaces the desktop tab strip with the sticky workspace selector, stacks forms and actions, removes table-shell overflow for converted tables, and expands supported admin dialogs to `100dvh` with sticky headings. This is a presentation-only layer: it does not change API routes, authentication, authorization, storage, or record semantics.
+
+### Admin cache and data refresh
+
+`/admin/index.html` declares its current build in `data-admin-build`; that value must match `/admin/version.json` and the query revision on `/admin/admin.css` and `/admin/admin.js`. The version manifest is fetched with `cache: "no-store"` at startup, on `pageshow`, and when a hidden mobile tab becomes visible. If a different revision is found, the browser adds a one-time refresh query and reloads the page. A session-storage guard prevents a reload loop while a Pages deployment is still converging.
+
+All authenticated GET and HEAD requests in `api()` and `apiDownload()` use `cache: "no-store"`. **Refresh data** therefore re-reads the active production API and database-backed view; it never resets or migrates D1. When the Admin Portal returns to the foreground after at least one minute, it automatically checks the build and refreshes the visible workspace if its data is stale.
+
+**Update portal** performs an explicit page reload with a unique query value so the newest no-store HTML can load the current versioned CSS and JavaScript. The `/admin/*` response rule remains `no-store, private`, while `/styles.css` uses `max-age=0, must-revalidate` so the shared stylesheet may be stored but must be checked before reuse.
 
 The contact spreadsheet supports persistent row selection for up to 25 contacts at a time. One bulk action updates `last_contacted_at` and `last_contacted_note`; document actions generate personalized Word files from the branded giving-statement template or an uploaded `.docx` template. The server repeats all selection, length, file-size, and template validation even when the browser has already enforced it.
 
@@ -540,6 +556,8 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-01 | 2.5 | Added Admin build-manifest checking, asset cache-busting, no-store API reads, explicit portal reload, and mobile foreground data refresh behavior. |
+| 2026-09-01 | 2.4 | Documented the Admin Portal mobile workspace selector, generated-table labeling helper, card transformation, stacked controls, and full-screen dialog behavior. |
 | 2026-08-31 | 2.3 | Added browser-side phone-camera receipt resizing and JPEG compression with original-file fallback and visible size-reduction feedback. |
 | 2026-08-31 | 2.2 | Added private expense-receipt storage, authenticated receipt APIs, R2/D1 isolation, file validation and lifecycle rules, receipt-count export, and backup/deployment guidance. |
 | 2026-08-30 | 2.1 | Added local-calendar date handling, editable and removable spreadsheet-review rows with server revalidation, ledger update/delete APIs, and check-number storage, search, import, and export. |

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-admin-build="2026-09-01.2">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=25">
-  <link rel="stylesheet" href="/admin/admin.css?v=17">
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-01.2">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -66,7 +66,8 @@
           <p>Contacts, requests, serving teams, and ministry partners—all in one organized workspace.</p>
         </div>
         <div class="admin-dashboard-actions">
-          <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh</button>
+          <button class="admin-button admin-button-dark admin-update-button" id="refresh-portal" type="button"><span aria-hidden="true">&#8635;</span> Update portal</button>
+          <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh data</button>
           <button class="admin-button admin-button-outline" id="export-submissions" type="button">Export CSV</button>
           <details class="admin-account-menu" id="admin-account-menu">
             <summary>Account</summary>
@@ -88,6 +89,19 @@
       </section>
 
       <section class="admin-workspace" aria-labelledby="records-title">
+        <label class="admin-mobile-workspace" for="admin-mobile-workspace-select">
+          <span>Choose a workspace</span>
+          <select id="admin-mobile-workspace-select">
+            <option value="people">Contacts</option>
+            <option value="requests">Requests</option>
+            <option value="csm-inbox">Payment inbox</option>
+            <option value="ledger">Ledger</option>
+            <option value="grid">Spreadsheet</option>
+            <option value="teams">Teams</option>
+            <option value="ministries">Ministries</option>
+            <option value="internship-toolkit">Internship toolkit</option>
+          </select>
+        </label>
         <div class="admin-view-tabs" role="tablist" aria-label="Choose an area of the response center">
           <button class="admin-view-tab is-active" id="people-view-tab" type="button" role="tab" aria-selected="true" aria-controls="people-list"><strong>Contacts</strong><span>Master people list</span></button>
           <button class="admin-view-tab" id="requests-view-tab" type="button" role="tab" aria-selected="false" aria-controls="submissions-list"><strong>Requests</strong><span>Submitted forms</span></button>
@@ -533,6 +547,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=24" defer></script>
+  <script src="/admin/admin.js?v=2026-09-01.2" defer></script>
 </body>
 </html>

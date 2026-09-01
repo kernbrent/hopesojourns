@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 2.1
+Version 2.3
 
-Last reviewed: August 31, 2026
+Last reviewed: September 1, 2026
 
 ## 1. Purpose
 
@@ -266,6 +266,17 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - At medium widths, the giving summary and transaction metadata reduce to two columns. At narrow widths, the toolbar, summary, metadata, and review fields stack into one column.
 - Bulk actions require clear confirmation, visible progress, a completion summary, and per-item failure reporting. Do not replace the existing individual approval and denial controls.
 
+### Admin mobile workspace
+
+- At `760px` and below, replace the desktop tab strip with one sticky **Choose a workspace** selector. Keep its selected value synchronized with the active Contacts, Requests, Payment inbox, Ledger, Spreadsheet, Teams, Ministries, or Internship toolkit view.
+- Reduce dashboard spacing while retaining the summary hierarchy. Header actions, account controls, filters, form fields, toolbars, and action groups stack to the available width instead of requiring sideways scrolling.
+- Convert generated data tables into labeled record cards on phones. Each value must retain the text of its desktop column header through a visible mobile label; selection checkboxes and action controls remain reachable in normal reading order.
+- Use full-screen, `100dvh` dialogs on phones, with a sticky heading and a close control at least `44px` square. Dialog content scrolls independently and all editing actions stack to full width.
+- Use at least `46px` for primary mobile controls and `16px` for text inputs, selects, and textareas so controls remain easy to touch and mobile browsers do not zoom unexpectedly.
+- Preserve the established desktop tabs, tables, and multi-column layouts above the mobile breakpoint.
+- Present **Update portal** as the strongest dashboard refresh control, with the circular-arrow cue and dark-forest treatment. It reloads the page and versioned assets; the separate **Refresh data** control remains visually quieter.
+- Keep both controls full-width and plainly labeled on phones. Refreshing data means re-reading the current production records without resetting, replacing, or migrating the database.
+
 ### Admin ledger and contact-batch workspace
 
 - Present the ledger as a dedicated top-level portal tab, not as a secondary control inside the Payment inbox. The Payment inbox is for reviewing incoming Christian Steps/PayPal transactions; the ledger is the complete financial record.
@@ -413,6 +424,8 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-01 | 2.3 | Added the prominent mobile Update portal control, distinct fresh-data action, and plain-language database refresh guidance. |
+| 2026-09-01 | 2.2 | Added the phone-first Admin Portal workspace selector, labeled record cards, stacked touch controls, and full-screen mobile dialog standards. |
 | 2026-08-31 | 2.1 | Added phone-camera optimization messaging, live optimizing status, before-and-after size feedback, and unchanged-file-picker guidance. |
 | 2026-08-31 | 2.0 | Added camera-first private receipt-management patterns, responsive receipt cards and status behavior, a Receipts ledger column, and ministry-contact-before-add-form ordering. |
 | 2026-08-30 | 1.9 | Added editable and removable spreadsheet-review rows, ledger check-number and row-action columns, and typed-confirmation deletion guidance. |
