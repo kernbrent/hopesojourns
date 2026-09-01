@@ -1,6 +1,8 @@
 "use strict";
 
 const API_BASE = "/api/interest/admin";
+const LEDGER_RECEIPT_PHONE_PHOTO_MAX_EDGE = 2000;
+const LEDGER_RECEIPT_PHONE_PHOTO_JPEG_QUALITY = 0.82;
 const adminEnvironmentBadge = document.querySelector("[data-admin-environment]");
 const adminReturnLink = document.querySelector("[data-admin-return]");
 const adminEnvironmentNote = document.querySelector("[data-admin-environment-note]");
@@ -1379,6 +1381,55 @@ function formatFileSize(bytes) {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function canvasToBlob(canvas, type, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+function optimizedReceiptPhotoName(fileName) {
+  const name = String(fileName || "receipt-photo").trim() || "receipt-photo";
+  const stem = name.replace(/\.[^.]+$/, "") || "receipt-photo";
+  return `${stem}-optimized.jpg`;
+}
+
+async function optimizeLedgerReceiptPhonePhoto(file) {
+  const unchanged = { file, optimized: false, originalSize: file.size, optimizedSize: file.size };
+  if (!file.type.startsWith("image/") || typeof window.createImageBitmap !== "function") return unchanged;
+
+  let bitmap;
+  try {
+    try {
+      bitmap = await window.createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      bitmap = await window.createImageBitmap(file);
+    }
+
+    const longestEdge = Math.max(bitmap.width, bitmap.height);
+    if (!longestEdge) return unchanged;
+    const scale = Math.min(1, LEDGER_RECEIPT_PHONE_PHOTO_MAX_EDGE / longestEdge);
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) return unchanged;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(bitmap, 0, 0, width, height);
+    const blob = await canvasToBlob(canvas, "image/jpeg", LEDGER_RECEIPT_PHONE_PHOTO_JPEG_QUALITY);
+    if (!blob || blob.type !== "image/jpeg" || blob.size >= file.size) return unchanged;
+    const optimizedFile = new File([blob], optimizedReceiptPhotoName(file.name), {
+      type: "image/jpeg",
+      lastModified: file.lastModified,
+    });
+    return { file: optimizedFile, optimized: true, originalSize: file.size, optimizedSize: optimizedFile.size };
+  } catch {
+    return unchanged;
+  } finally {
+    if (bitmap && typeof bitmap.close === "function") bitmap.close();
+  }
+}
+
 function createLedgerReceiptCard(receipt) {
   const card = element("article", "admin-receipt-card");
   const filePath = ledgerReceiptFilePath(state.ledgerReceiptEntryId, receipt.id);
@@ -1468,21 +1519,15 @@ function openLedgerReceiptDialog(entry) {
   loadLedgerReceipts();
 }
 
-async function uploadLedgerReceiptFiles(fileList) {
+async function uploadLedgerReceiptFiles(fileList, { optimizePhonePhotos = false } = {}) {
   if (state.ledgerReceiptUploading || !state.ledgerReceiptEntryId) return;
-  const files = Array.from(fileList || []).filter(file => file instanceof File);
-  if (!files.length) return;
+  const selectedFiles = Array.from(fileList || []).filter(file => file instanceof File);
+  if (!selectedFiles.length) return;
   const remaining = Math.max(0, Number(state.ledgerReceiptLimits.maxFiles || 20) - state.ledgerReceiptFileCount);
-  if (files.length > remaining) {
+  if (selectedFiles.length > remaining) {
     ledgerReceiptStatus.textContent = remaining
       ? `Choose no more than ${plural(remaining, "additional file")} for this expense.`
       : "This expense already has the maximum number of receipt files.";
-    return;
-  }
-  const maximumBytes = Number(state.ledgerReceiptLimits.maxFileBytes || 10 * 1024 * 1024);
-  const oversized = files.find(file => file.size > maximumBytes);
-  if (oversized) {
-    ledgerReceiptStatus.textContent = `"${oversized.name}" is larger than 10 MB. Choose a smaller file.`;
     return;
   }
 
@@ -1492,6 +1537,17 @@ async function uploadLedgerReceiptFiles(fileList) {
   takeLedgerReceiptPhotoButton.setAttribute("aria-busy", "true");
   chooseLedgerReceiptFilesButton.setAttribute("aria-busy", "true");
   try {
+    let preparedFiles = selectedFiles.map(file => ({ file, optimized: false, originalSize: file.size, optimizedSize: file.size }));
+    if (optimizePhonePhotos) {
+      ledgerReceiptStatus.textContent = "Optimizing phone photo before secure upload\u2026";
+      preparedFiles = [];
+      for (const file of selectedFiles) preparedFiles.push(await optimizeLedgerReceiptPhonePhoto(file));
+    }
+    const files = preparedFiles.map(result => result.file);
+    const maximumBytes = Number(state.ledgerReceiptLimits.maxFileBytes || 10 * 1024 * 1024);
+    const oversized = files.find(file => file.size > maximumBytes);
+    if (oversized) throw new Error(`"${oversized.name}" is larger than 10 MB. Choose a smaller file.`);
+
     let uploaded = 0;
     for (const file of files) {
       ledgerReceiptStatus.textContent = `Uploading ${uploaded + 1} of ${files.length}: ${file.name}`;
@@ -1502,7 +1558,13 @@ async function uploadLedgerReceiptFiles(fileList) {
     }
     await loadLedgerReceipts();
     await loadLedger();
-    ledgerReceiptStatus.textContent = `${plural(uploaded, "receipt file")} uploaded securely.`;
+    const optimizedPhotos = preparedFiles.filter(result => result.optimized);
+    const optimizationSummary = optimizedPhotos.length === 1
+      ? ` Phone photo reduced from ${formatFileSize(optimizedPhotos[0].originalSize)} to ${formatFileSize(optimizedPhotos[0].optimizedSize)}.`
+      : optimizedPhotos.length > 1
+        ? ` ${plural(optimizedPhotos.length, "phone photo")} optimized before upload.`
+        : "";
+    ledgerReceiptStatus.textContent = `${plural(uploaded, "receipt file")} uploaded securely.${optimizationSummary}`;
   } catch (error) {
     ledgerReceiptStatus.textContent = error.message;
   } finally {
@@ -3329,7 +3391,7 @@ chooseLedgerReceiptFilesButton.addEventListener("click", () => {
   ledgerReceiptFileInput.value = "";
   ledgerReceiptFileInput.click();
 });
-ledgerReceiptCameraInput.addEventListener("change", () => uploadLedgerReceiptFiles(ledgerReceiptCameraInput.files));
+ledgerReceiptCameraInput.addEventListener("change", () => uploadLedgerReceiptFiles(ledgerReceiptCameraInput.files, { optimizePhonePhotos: true }));
 ledgerReceiptFileInput.addEventListener("change", () => uploadLedgerReceiptFiles(ledgerReceiptFileInput.files));
 
 ledgerEntryForm.addEventListener("submit", async event => {

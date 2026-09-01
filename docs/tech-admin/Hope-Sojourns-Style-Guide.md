@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 2.0
+Version 2.1
 
 Last reviewed: August 31, 2026
 
@@ -284,6 +284,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Stored receipts use contained cards with a preview when the browser supports the image format, a clear PDF or image fallback when it does not, filename, file size, added time, View, and Delete. Never rely on a thumbnail as the only file label.
 - At narrow widths, receipt actions stack to full width and receipt cards reduce to a compact image-and-copy row with actions below it. Long filenames must wrap without widening the dialog.
 - Receipt upload, loading, success, and error states remain visible through the shared live-status pattern; disable repeat upload actions while files are being transferred.
+- When **Take photo** invokes the phone camera, explain that the capture will be optimized before upload. Use the shared live-status area for the optimizing state and report the original and stored sizes after a successful reduction. The separate existing-file picker should not imply that chosen photos or PDFs will be changed.
 - Downloaded spreadsheets and Word files are operational artifacts. Preserve branded document styles, clear filenames, readable totals, and an accompanying manifest when a batch can contain exceptions.
 
 ### Admin ministry details
@@ -412,6 +413,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-31 | 2.1 | Added phone-camera optimization messaging, live optimizing status, before-and-after size feedback, and unchanged-file-picker guidance. |
 | 2026-08-31 | 2.0 | Added camera-first private receipt-management patterns, responsive receipt cards and status behavior, a Receipts ledger column, and ministry-contact-before-add-form ordering. |
 | 2026-08-30 | 1.9 | Added editable and removable spreadsheet-review rows, ledger check-number and row-action columns, and typed-confirmation deletion guidance. |
 | 2026-08-30 | 1.8 | Renamed the user-facing CSM inbox to Payment inbox so the portal describes the workspace by purpose rather than by its internal integration. |

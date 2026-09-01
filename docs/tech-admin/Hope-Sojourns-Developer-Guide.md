@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 2.2
+Version 2.3
 
 Last reviewed: August 31, 2026
 
@@ -271,7 +271,9 @@ Manual entries reuse category values already present in the database while retai
 
 Expense receipts use two coordinated stores. D1 table `ledger_receipts` holds the ledger relationship, private object key, original filename, verified media type, byte size, SHA-256 digest, creator session ID, and creation time. The `RECEIPTS` R2 binding holds the binary object. Object keys are random-ID paths and are never returned by the API. Test and production use different buckets; neither bucket should have public development URLs or a custom public domain.
 
-The portal presents receipt controls only on expense rows. An expense may hold up to 20 JPEG, PNG, WebP, AVIF, HEIC, HEIF, or PDF files, with a 10 MB limit per file. Mobile users can invoke the rear-facing camera through the capture input; all users can choose one or more existing photos or PDFs. Browser acceptance is convenience only. `/cloudflare/interest-worker/src/receipt-file.ts` verifies file signatures, normalizes display filenames, and creates storage-safe object keys before an upload is accepted.
+The portal presents receipt controls only on expense rows. An expense may hold up to 20 JPEG, PNG, WebP, AVIF, HEIC, HEIF, or PDF files, with a 10 MB limit per file. Mobile users can invoke the rear-facing camera through the capture input; all users can choose one or more existing photos or PDFs.
+
+Photos returned by the dedicated camera input are optimized in the browser before upload. The portal honors encoded orientation, caps the longest edge at 2,000 pixels, re-encodes at 82 percent JPEG quality, and uses the optimized result only when it is smaller than the captured file. Canvas re-encoding removes incidental camera metadata. If the browser cannot safely decode or encode the capture, the original file continues through the normal upload path; manually chosen photos and PDFs are never changed. Browser acceptance and optimization are conveniences only. `/cloudflare/interest-worker/src/receipt-file.ts` still verifies file signatures, normalizes display filenames, and creates storage-safe object keys before an upload is accepted.
 
 Receipt list and file-stream requests require a valid administrator session. Upload and delete additionally require CSRF validation. File responses use the D1-verified media type plus `private, no-store`, `nosniff`, same-origin resource policy, no-referrer policy, and a sandboxed content security policy. Upload and delete events are audited with size, media type, filename, and SHA-256 metadata.
 
@@ -538,6 +540,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-31 | 2.3 | Added browser-side phone-camera receipt resizing and JPEG compression with original-file fallback and visible size-reduction feedback. |
 | 2026-08-31 | 2.2 | Added private expense-receipt storage, authenticated receipt APIs, R2/D1 isolation, file validation and lifecycle rules, receipt-count export, and backup/deployment guidance. |
 | 2026-08-30 | 2.1 | Added local-calendar date handling, editable and removable spreadsheet-review rows with server revalidation, ledger update/delete APIs, and check-number storage, search, import, and export. |
 | 2026-08-30 | 2.0 | Documented the purpose-based Payment inbox label while preserving internal CSM integration identifiers and routes. |
