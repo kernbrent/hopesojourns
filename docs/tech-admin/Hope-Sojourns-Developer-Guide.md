@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 2.5
+Version 2.6
 
 Last reviewed: September 1, 2026
 
@@ -221,6 +221,8 @@ The response portal uses secure HTTP-only sessions, CSRF protection for state-ch
 - `ADMIN_SESSION_SECRET`
 
 Never store those values in source, documentation, test snapshots, or browser-accessible JavaScript.
+
+The login page is always the initial portal view. Startup may check for a newer frontend build, but it must not exchange a remembered session for immediate dashboard access. Only an explicit login-form submission may call the login endpoint and show the dashboard. The password field retains the current-password autocomplete attribute so the browser can securely prefill a saved password, and the non-sensitive “Remember me” checkbox preference is retained in local storage; the password itself must never be copied into local storage or other browser-accessible application data.
 
 The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. A contact can store `last_contacted_at` plus a short `last_contacted_note`; the note is limited to 50 characters in the browser, Worker, and D1 schema, appears in person details and contact CSV exports, and is preserved by spreadsheet imports. The Contact type search filter presents its options alphabetically by label. The Internship toolkit exposes a download-all ZIP while preserving every individual document download. CSV output must continue to neutralize spreadsheet formulas.
 
@@ -556,6 +558,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-01 | 2.6 | Required an explicit Admin Portal sign-in submission on every page load while preserving secure browser password autofill and the remembered checkbox preference. |
 | 2026-09-01 | 2.5 | Added Admin build-manifest checking, asset cache-busting, no-store API reads, explicit portal reload, and mobile foreground data refresh behavior. |
 | 2026-09-01 | 2.4 | Documented the Admin Portal mobile workspace selector, generated-table labeling helper, card transformation, stacked controls, and full-screen dialog behavior. |
 | 2026-08-31 | 2.3 | Added browser-side phone-camera receipt resizing and JPEG compression with original-file fallback and visible size-reduction feedback. |

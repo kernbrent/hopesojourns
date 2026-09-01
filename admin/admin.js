@@ -6,6 +6,7 @@ const LEDGER_RECEIPT_PHONE_PHOTO_JPEG_QUALITY = 0.82;
 const ADMIN_VERSION_URL = "/admin/version.json";
 const ADMIN_BUILD = document.documentElement.dataset.adminBuild || "";
 const ADMIN_UPDATE_ATTEMPT_KEY = "hope-sojourns-admin-update-attempt";
+const ADMIN_REMEMBER_ME_PREFERENCE_KEY = "hope-sojourns-admin-remember-me";
 const ADMIN_RESUME_REFRESH_AFTER_MS = 60_000;
 const adminEnvironmentBadge = document.querySelector("[data-admin-environment]");
 const adminReturnLink = document.querySelector("[data-admin-return]");
@@ -388,12 +389,31 @@ function saveDownload(blob, fileName) {
 function formatMoney(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
 }
+
+function restoreRememberMePreference() {
+  try {
+    loginForm.elements.rememberMe.checked = localStorage.getItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY) === "true";
+  } catch {
+    /* Browser storage is optional; the checkbox still works for the current sign-in. */
+  }
+}
+
+function saveRememberMePreference(rememberMe) {
+  try {
+    if (rememberMe) localStorage.setItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY, "true");
+    else localStorage.removeItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY);
+  } catch {
+    /* Browser storage is optional; the server session remains authoritative. */
+  }
+}
+
 function showLogin(message = "") {
   state.csrfToken = "";
   dashboardPanel.hidden = true;
   loginPanel.hidden = false;
   loginStatus.textContent = message;
   loginForm.reset();
+  restoreRememberMePreference();
   if (submissionDialog.open) submissionDialog.close();
   if (contactImportDialog.open) contactImportDialog.close();
   if (changePasswordDialog.open) changePasswordDialog.close();
@@ -3343,6 +3363,7 @@ commitContactImportButton.addEventListener("click", async () => {
 loginForm.addEventListener("submit", async event => {
   event.preventDefault();
   const submit = loginForm.querySelector("button[type='submit']");
+  const rememberMe = loginForm.elements.rememberMe.checked;
   setBusy(submit, true, "Checking…");
   loginStatus.textContent = "Checking your password…";
   try {
@@ -3350,9 +3371,10 @@ loginForm.addEventListener("submit", async event => {
       method: "POST",
       body: {
         password: passwordInput.value,
-        rememberMe: loginForm.elements.rememberMe.checked,
+        rememberMe,
       },
     });
+    saveRememberMePreference(rememberMe);
     loginForm.reset();
     showDashboard(result);
   } catch (error) {
@@ -3746,10 +3768,9 @@ document.addEventListener("visibilitychange", () => {
 (async function startPortal() {
   try {
     if (await checkForAdminPortalUpdate()) return;
-    const { result } = await api("/session");
-    showDashboard(result);
-  } catch (error) {
-    if (error.status === 503) showLogin("The portal is being configured. Please try again shortly.");
-    else showLogin();
+  } catch {
+    /* The login remains usable if the version check is temporarily unavailable. */
   }
+  restoreRememberMePreference();
+  passwordInput.focus();
 })();
