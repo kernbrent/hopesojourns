@@ -16,10 +16,12 @@ describe("Admin contact progressive disclosure contract", () => {
     expect(adminScript).toContain('field.dataset.personCompact = ""');
   });
 
-  it("uses the contact name as an accessible expansion control", () => {
+  it("uses separate accessible controls for the full record and summary expansion", () => {
     expect(adminScript).toContain('element("button", "admin-person-name-button")');
-    expect(adminScript).toContain('nameButton.addEventListener("click", () => togglePersonCard(card))');
-    expect(adminScript).toContain('nameButton.setAttribute("aria-expanded", String(expanded))');
+    expect(adminScript).toContain('nameButton.addEventListener("click", () => openPerson(person.id))');
+    expect(adminScript).toContain('element("button", "admin-person-expand-button", "+")');
+    expect(adminScript).toContain('expandButton.addEventListener("click", () => togglePersonCard(card))');
+    expect(adminScript).toContain('expandButton.setAttribute("aria-expanded", String(expanded))');
     expect(adminScript).toContain('peopleList.querySelectorAll(".admin-person-card.is-expanded")');
   });
 

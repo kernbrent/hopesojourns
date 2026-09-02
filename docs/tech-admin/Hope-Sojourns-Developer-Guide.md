@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 2.7
+Version 2.8
 
 Last reviewed: September 1, 2026
 
@@ -228,9 +228,9 @@ The portal supports people, submissions, contact editing/import, teams, ministri
 
 ### Compact contact-card disclosure
 
-The renderPersonCard() function returns an article containing separate controls rather than making the whole card a button. The closed state exposes only Name, Contact type, Organization, and Phone number through elements marked with data-person-compact. The name button calls togglePersonCard(), which closes any other expanded contact card before passing the selected card to setPersonCardExpanded().
+The renderPersonCard() function returns an article containing separate controls rather than making the whole card a button. The closed state exposes only Name, Contact type, Organization, and Phone number through elements marked with data-person-compact. The underlined name button calls openPerson() directly to display the complete contact record. A separate plus/minus button calls togglePersonCard(), which closes any other expanded contact card before passing the selected card to setPersonCardExpanded().
 
-Expanded-only summary fields and the **View everything** button use data-person-expanded. setPersonCardExpanded() changes their hidden state, the card's is-expanded class, the name button's expanded value and accessible label, and state.expandedPersonId. The full-record dialog is still opened only by openPerson() from the separate **View everything** action.
+Expanded-only summary fields and the **View everything** button use data-person-expanded. setPersonCardExpanded() changes their hidden state, the card's is-expanded class, the plus/minus button's expanded value and accessible label, and state.expandedPersonId. The full-record dialog opens through openPerson() from either the underlined name or the expanded **View everything** action.
 
 applyListResult() prepends renderPersonListHeading() only for non-empty People results. Keep the four headings synchronized with personCompactField() calls and with the phone labels in /admin/admin.css. Preserve the one-card-at-a-time behavior and the focused contract test in /cloudflare/interest-worker/test/contact-card-disclosure.test.ts when modifying this directory.
 Date-only contact activity values use local calendar parsing in the portal. Do not pass a `YYYY-MM-DD` string directly to the JavaScript `Date` constructor for display, because UTC interpretation can move the visible date one day earlier in United States time zones.
@@ -565,6 +565,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-01 | 2.8 | Separated the contact-name full-record action from the plus/minus summary disclosure control. |
 | 2026-09-01 | 2.7 | Added the compact contact-card rendering contract, one-at-a-time disclosure state, accessible name control, and separate full-record action. |
 | 2026-09-01 | 2.6 | Required an explicit Admin Portal sign-in submission on every page load while preserving secure browser password autofill and the remembered checkbox preference. |
 | 2026-09-01 | 2.5 | Added Admin build-manifest checking, asset cache-busting, no-store API reads, explicit portal reload, and mobile foreground data refresh behavior. |

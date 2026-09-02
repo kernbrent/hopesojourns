@@ -460,7 +460,7 @@ function appendInterests(container, interests, limit = 3) {
 
 function setPersonCardExpanded(card, expanded) {
   const personId = card.dataset.personId || "";
-  const nameButton = card.querySelector(".admin-person-name-button");
+  const expandButton = card.querySelector(".admin-person-expand-button");
   card.classList.toggle("is-expanded", expanded);
   card.querySelectorAll("[data-person-compact]").forEach(item => {
     item.hidden = expanded;
@@ -468,10 +468,9 @@ function setPersonCardExpanded(card, expanded) {
   card.querySelectorAll("[data-person-expanded]").forEach(item => {
     item.hidden = !expanded;
   });
-  nameButton.setAttribute("aria-expanded", String(expanded));
-  nameButton.setAttribute("aria-label", (expanded ? "Collapse" : "Expand") + " contact summary for " + nameButton.dataset.personName);
-  const indicator = nameButton.querySelector(".admin-person-name-indicator");
-  if (indicator) indicator.textContent = expanded ? "−" : "+";
+  expandButton.setAttribute("aria-expanded", String(expanded));
+  expandButton.setAttribute("aria-label", (expanded ? "Collapse" : "Expand") + " contact summary for " + expandButton.dataset.personName);
+  expandButton.textContent = expanded ? "−" : "+";
   if (expanded) state.expandedPersonId = personId;
   else if (state.expandedPersonId === personId) state.expandedPersonId = "";
 }
@@ -503,16 +502,24 @@ function renderPersonCard(person) {
   card.dataset.personId = String(person.id);
 
   const identity = element("span", "admin-request-person");
+  const nameRow = element("span", "admin-person-name-row");
   const nameButton = element("button", "admin-person-name-button");
   nameButton.type = "button";
-  nameButton.dataset.personName = fullName;
-  nameButton.append(element("strong", "", fullName), element("span", "admin-person-name-indicator", "+"));
-  nameButton.addEventListener("click", () => togglePersonCard(card));
+  nameButton.setAttribute("aria-label", "View the complete contact record for " + fullName);
+  nameButton.append(element("strong", "", fullName));
+  nameButton.addEventListener("click", () => openPerson(person.id));
+  const expandButton = element("button", "admin-person-expand-button", "+");
+  expandButton.type = "button";
+  expandButton.dataset.personName = fullName;
+  expandButton.setAttribute("aria-expanded", "false");
+  expandButton.setAttribute("aria-label", "Expand contact summary for " + fullName);
+  expandButton.addEventListener("click", () => togglePersonCard(card));
+  nameRow.append(nameButton, expandButton);
   const expandedIdentity = element("span", "admin-person-expanded-identity");
   expandedIdentity.dataset.personExpanded = "";
   expandedIdentity.append(element("small", "", person.organization || "No organization recorded"));
   expandedIdentity.append(element("small", "", "Updated " + formatDate(person.latestActivityAt || person.updatedAt)));
-  identity.append(nameButton, expandedIdentity);
+  identity.append(nameRow, expandedIdentity);
 
   const contactTypes = (person.contactTypes || []).length
     ? person.contactTypes.map(contactTypeLabel).join(", ")

@@ -1424,14 +1424,21 @@
   display: none !important;
 }
 
-.admin-person-name-button {
+.admin-person-name-row {
   display: flex;
   width: 100%;
   min-height: 38px;
-  padding: 0;
   align-items: center;
-  justify-content: space-between;
   gap: .55rem;
+}
+
+.admin-person-name-button {
+  display: flex;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0;
+  flex: 1;
+  align-items: center;
   border: 0;
   background: transparent;
   color: var(--forest);
@@ -1456,13 +1463,15 @@
   outline-offset: 2px;
 }
 
-.admin-person-name-indicator {
+.admin-person-expand-button {
   display: inline-flex;
   flex: 0 0 26px;
   width: 26px;
   height: 26px;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--forest-wash);
   color: var(--forest-dark);
@@ -1470,6 +1479,12 @@
   font-size: 1rem;
   font-weight: 900;
   line-height: 1;
+  cursor: pointer;
+}
+
+.admin-person-expand-button:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
 }
 
 .admin-person-compact-field {
