@@ -524,6 +524,8 @@ def choose_table_widths(headers: list[str], rows: list[list[str]]) -> list[int]:
         return [2100, 2500, 1580, 3180]
     if count == 5 and "hex" in lower and "rgb" in lower:
         return [1820, 1500, 1200, 1840, 3000]
+    if lower == ["environment", "worker", "route", "d1 database", "private receipt bucket"]:
+        return [1400, 2000, 2440, 1760, 1760]
 
     lengths = []
     all_rows = [headers, *rows]

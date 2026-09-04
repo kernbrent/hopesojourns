@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 2.6
+Version 2.7
 
-Last reviewed: September 3, 2026
+Last reviewed: September 4, 2026
 
 ## 1. Purpose
 
@@ -316,6 +316,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 
 
 - Use semantic `<dialog>` where practical and provide an obvious close action.
+- Clicking a dialog backdrop must leave the dialog open and preserve entered or selected information; dismissal requires an intentional close, cancel, or completed action.
 - Trap attention through the native dialog behavior rather than visual obstruction alone.
 - Photo viewing retains captions, position information, previous/next controls, and keyboard support.
 
@@ -433,6 +434,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-04 | 2.7 | Required intentional dismissal for Admin Portal dialogs so backdrop clicks preserve work in progress. |
 | 2026-09-03 | 2.6 | Added conditional email-address and phone-number rows to the complete Admin Portal contact record. |
 | 2026-09-01 | 2.5 | Made the underlined contact name open the complete record while retaining a separate plus/minus summary control. |
 | 2026-09-01 | 2.4 | Added the compact four-field contact directory, one-card-at-a-time summary disclosure, and separate full-record action. |

@@ -8,6 +8,17 @@ const ADMIN_BUILD = document.documentElement.dataset.adminBuild || "";
 const ADMIN_UPDATE_ATTEMPT_KEY = "hope-sojourns-admin-update-attempt";
 const ADMIN_REMEMBER_ME_PREFERENCE_KEY = "hope-sojourns-admin-remember-me";
 const ADMIN_RESUME_REFRESH_AFTER_MS = 60_000;
+
+function preventDialogBackdropDismissal() {
+  document.querySelectorAll("dialog").forEach(dialog => dialog.setAttribute("closedby", "closerequest"));
+  document.addEventListener("click", event => {
+    if (!(event.target instanceof HTMLDialogElement) || !event.target.open) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+}
+
+preventDialogBackdropDismissal();
 const adminEnvironmentBadge = document.querySelector("[data-admin-environment]");
 const adminReturnLink = document.querySelector("[data-admin-return]");
 const adminEnvironmentNote = document.querySelector("[data-admin-environment-note]");
@@ -3820,13 +3831,9 @@ exportButton.addEventListener("click", async event => {
 });
 
 document.querySelector("#close-submission-dialog").addEventListener("click", () => submissionDialog.close());
-submissionDialog.addEventListener("click", event => {
-  if (event.target === submissionDialog) submissionDialog.close();
-});
+
 document.querySelector("#close-change-password-dialog").addEventListener("click", () => changePasswordDialog.close());
-changePasswordDialog.addEventListener("click", event => {
-  if (event.target === changePasswordDialog) changePasswordDialog.close();
-});
+
 document.querySelector("#year").textContent = new Date().getFullYear();
 
 window.addEventListener("pageshow", refreshAdminAfterResume);
