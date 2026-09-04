@@ -2776,6 +2776,8 @@ function renderPersonDetail(person) {
     ["Contact type", person.contactTypes.map(contactTypeLabel).join(", ")],
     ["Status", titleCase(person.contactStatus)],
     ["Preferred contact", titleCase(person.contactPreference)],
+    ...(person.email ? [["Email address", person.email]] : []),
+    ...(person.phone ? [["Phone number", person.phone]] : []),
     ["Organization", person.organization],
     ["Address", address],
     ["Languages", person.languages.join(", ")],

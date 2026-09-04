@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 2.5
+Version 2.6
 
-Last reviewed: September 1, 2026
+Last reviewed: September 3, 2026
 
 ## 1. Purpose
 
@@ -273,6 +273,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Keep the contact name underlined and use it as a direct action that opens the complete contact record. Place a separate plus/minus control beside it for expanding and collapsing the compact summary; update that control's expanded state and accessible label.
 - Keep no more than one summary expanded at a time. Expanding a different contact closes the previously expanded summary so the directory does not gradually return to a long-card layout.
 - The expanded summary restores the established organization and activity date, email and phone, contact-type and language pills, request and reply counts, and a distinct **View everything** button. Keep that button hidden in the compact state.
+- In the complete contact record, show **Email address** and **Phone number** directly below **Preferred contact** when their values exist. Omit either row when its value is empty instead of displaying a **Not provided** placeholder.
 - On narrow screens, let compact values wrap instead of clipping. Stack expanded summary sections and make **View everything** full width.
 ### Admin mobile workspace
 
@@ -432,6 +433,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-03 | 2.6 | Added conditional email-address and phone-number rows to the complete Admin Portal contact record. |
 | 2026-09-01 | 2.5 | Made the underlined contact name open the complete record while retaining a separate plus/minus summary control. |
 | 2026-09-01 | 2.4 | Added the compact four-field contact directory, one-card-at-a-time summary disclosure, and separate full-record action. |
 | 2026-09-01 | 2.3 | Added the prominent mobile Update portal control, distinct fresh-data action, and plain-language database refresh guidance. |

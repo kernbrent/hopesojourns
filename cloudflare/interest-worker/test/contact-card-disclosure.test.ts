@@ -33,6 +33,11 @@ describe("Admin contact progressive disclosure contract", () => {
     expect(adminScript).toContain('viewEverything.addEventListener("click", () => openPerson(person.id))');
   });
 
+  it("shows available email and phone values in the complete record without empty placeholders", () => {
+    expect(adminScript).toContain('...(person.email ? [["Email address", person.email]] : [])');
+    expect(adminScript).toContain('...(person.phone ? [["Phone number", person.phone]] : [])');
+  });
+
   it("keeps compact rows dense on desktop and labeled on phones", () => {
     expect(adminStyles).toContain(".admin-person-list-heading");
     expect(adminStyles).toContain(".admin-person-card.is-expanded");
