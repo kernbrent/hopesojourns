@@ -6,8 +6,10 @@ import { describe, expect, it } from "vitest";
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const adminScript = readFileSync(resolve(testDirectory, "../../../admin/admin.js"), "utf8");
 const adminPage = readFileSync(resolve(testDirectory, "../../../admin/index.html"), "utf8");
+const publicStyles = readFileSync(resolve(testDirectory, "../../../styles.css"), "utf8");
 const tripScript = readFileSync(resolve(testDirectory, "../../../admin/trips/trips.js"), "utf8");
 const tripPage = readFileSync(resolve(testDirectory, "../../../admin/trips/index.html"), "utf8");
+const tripStyles = readFileSync(resolve(testDirectory, "../../../admin/trips/trips.css"), "utf8");
 
 describe("Admin Portal sign-in contract", () => {
   it("requires manual sign-in on direct visits but resumes intentional trip-workspace navigation", () => {
@@ -42,6 +44,15 @@ describe("Admin Portal sign-in contract", () => {
     expect(tripScript).toContain("localStorage.setItem(TRIP_GUIDED_HELP_KEY");
     expect(tripScript).toContain("steps complete");
     expect(tripScript).toContain("openNextGuideStep");
+  });
+
+  it("scopes public trip-card overlays away from admin form cards", () => {
+    const adminClassTokens = [...tripPage.matchAll(/class="([^"]*)"/g)]
+      .flatMap(match => match[1].split(/\s+/));
+    expect(publicStyles).toContain(".trip-card::after");
+    expect(adminClassTokens).not.toContain("trip-card");
+    expect(adminClassTokens).toContain("trip-admin-card");
+    expect(tripStyles).toContain(".trip-admin-card {");
   });
 
   it("keeps browser-managed saved-password autofill enabled", () => {

@@ -440,15 +440,15 @@
   align-items: center;
 }
 
-.trip-card {
+.trip-admin-card {
   padding: 1.2rem;
   border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--color-card);
 }
 
-.trip-card h3 { margin: .1rem 0 .5rem; color: var(--forest-dark); }
-.trip-card > p:not(.eyebrow) { margin: 0 0 1rem; color: var(--color-text-muted); }
+.trip-admin-card h3 { margin: .1rem 0 .5rem; color: var(--forest-dark); }
+.trip-admin-card > p:not(.eyebrow) { margin: 0 0 1rem; color: var(--color-text-muted); }
 
 .trip-form {
   display: grid;

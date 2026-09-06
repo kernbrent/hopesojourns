@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 3.1
+Version 3.2
 
 Last reviewed: September 6, 2026
 
@@ -320,6 +320,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Introduce the workspace with one short explanation: labeled fields plus a Save button are editable; summary cards show saved information; core dates, location, status, capacity, and public settings use **Edit trip**.
 - Offer **Guided help** as an optional, persistent control. When enabled, show a setup-guide card after a trip opens with completed and total step counts, a progress meter, the next recommended action, a direct **Go to next step** control, and an expandable checklist. Enable it for first use, remember the administrator's on/off choice in that browser, and keep required prerequisite notes visible independently of this preference.
 - Keep dense setup forms inside cards or disclosures and keep saved records visually separate beneath them. Buttons must use direct verbs such as **Save cost**, **Record payment**, **Add coverage**, **Create request**, and **Create invitation**.
+- Keep administrator cards visually and technically separate from the cinematic public trip cards. Trip administration uses the neutral `trip-admin-card` component; the public `trip-card` component includes image overlays, fixed visual heights, and hover movement that must never cover or resize an administrator form.
 - When an action depends on another record, place a visible note inside that card using **Please complete [prerequisite] before this [item]** and disable only the unavailable action. Link to another administrator workspace when that is where the prerequisite is created. Saved team-member and organization cards must provide an **Edit** action that returns the administrator to the populated form.
 - Use friendly **payment request**, **balance notice**, or **status** language in participant communication. Do not use **invoice** unless a later legal or accounting decision specifically requires it.
 - Financial summaries must distinguish charges, payments, support credits, balance, costs paid through Hope Sojourns, and costs paid externally. Never use one unlabeled total to combine cash received by Hope Sojourns with an outside partner's settlement.
@@ -464,6 +465,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.2 | Separated neutral trip-administration cards from the public trip-card overlay and grid treatment so every administrator form remains readable, correctly sized, and interactive. |
 | 2026-09-06 | 3.1 | Distinguished trip summary cards from editable forms, added clear edit paths, selection prerequisites, and optional progress-based guided help, and applied the no-backdrop-dismiss rule explicitly to trip administration. |
 | 2026-09-06 | 3.0 | Added visual and language standards for actual-trip administration, public departures, traveler-only content, private account statements, financial separation, invitation handling, and annual gift/payment summaries. |
 | 2026-09-04 | 2.7 | Required intentional dismissal for Admin Portal dialogs so backdrop clicks preserve work in progress. |
