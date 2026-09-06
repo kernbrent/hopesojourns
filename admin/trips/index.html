@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-trip-admin-build="2026-09-06.2">
+<html lang="en" data-trip-admin-build="2026-09-06.3">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Trips | Hope Sojourns Administration</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-06.2">
+  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-06.3">
 </head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
@@ -36,12 +36,13 @@
       <a class="trip-admin-brand" href="/"><img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns"></a>
       <p class="trip-admin-environment">Test workspace</p>
       <nav>
-        <a href="/admin/"><span aria-hidden="true">⌂</span> Response center</a>
+        <a href="/admin/" data-admin-navigation><span aria-hidden="true">⌂</span> Response center</a>
         <a class="is-active" href="/admin/trips/" aria-current="page"><span aria-hidden="true">✦</span> Trips</a>
-        <a href="/admin/#ledger"><span aria-hidden="true">$</span> Organization finances</a>
-        <a href="/admin/#ministries"><span aria-hidden="true">◇</span> Ministries</a>
-        <a href="/admin/#people"><span aria-hidden="true">○</span> People</a>
+        <a href="/admin/#ledger" data-admin-navigation><span aria-hidden="true">$</span> Organization finances</a>
+        <a href="/admin/#ministries" data-admin-navigation><span aria-hidden="true">◇</span> Ministries</a>
+        <a href="/admin/#people" data-admin-navigation><span aria-hidden="true">○</span> People</a>
       </nav>
+      <label class="trip-guide-toggle"><input id="trip-guide-toggle" type="checkbox"><span><strong>Guided help</strong><small>Show trip setup steps and the next action.</small></span></label>
       <div class="trip-admin-sidebar-note">
         <strong>Built for clarity</strong>
         <span>Public details, traveler resources, and internal finances stay deliberately separated.</span>
@@ -90,6 +91,14 @@
             </div>
           </div>
           <div class="trip-summary-grid" id="trip-summary-grid"></div>
+          <aside class="trip-setup-guide" id="trip-setup-guide" aria-labelledby="trip-setup-guide-title" hidden>
+            <div class="trip-setup-guide-heading"><div><p class="eyebrow">Optional helper</p><h3 id="trip-setup-guide-title">Trip setup guide</h3></div><strong id="trip-setup-guide-progress">0 of 0 steps complete</strong></div>
+            <progress id="trip-setup-guide-meter" max="1" value="0">0 of 0 steps complete</progress>
+            <p class="trip-setup-guide-next" id="trip-setup-guide-next"></p>
+            <p id="trip-setup-guide-copy"></p>
+            <div class="trip-card-actions"><button class="trip-button trip-button-primary" id="trip-guide-next" type="button">Go to next step</button><button class="trip-button trip-button-quiet" id="trip-guide-hide" type="button">Turn guided help off</button></div>
+            <details class="trip-guide-steps"><summary>View all setup steps</summary><ol id="trip-setup-guide-list"></ol></details>
+          </aside>
         </div>
 
         <label class="trip-mobile-nav" for="trip-workspace-select"><span>Workspace area</span><select id="trip-workspace-select"></select></label>
@@ -104,25 +113,29 @@
           <button type="button" role="tab" data-trip-tab="public">Public page</button>
           <button type="button" role="tab" data-trip-tab="settings">Setup lists</button>
         </div>
+        <p class="trip-workspace-help">
+          <strong>How editing works:</strong> cards with labeled fields and a Save button accept entries. Cards labeled Summary show saved information. Use <strong>Edit trip</strong> for dates, location, status, capacity, and public settings.
+        </p>
 
         <section class="trip-tab-panel" data-trip-panel="overview">
           <div class="trip-two-column">
-            <article class="trip-card">
-              <p class="eyebrow">At a glance</p>
+            <article class="trip-card trip-summary-card">
+              <p class="eyebrow">Summary · At a glance</p>
               <h3>Trip readiness</h3>
               <div id="trip-readiness"></div>
             </article>
-            <article class="trip-card">
-              <p class="eyebrow">Financial picture</p>
+            <article class="trip-card trip-summary-card">
+              <p class="eyebrow">Summary · Financial picture</p>
               <h3>What the numbers mean</h3>
               <p>Operational cost includes expenses paid by HS and by outside partners. HS cash totals include only money that actually enters or leaves Hope Sojourns.</p>
               <div id="trip-finance-explainer"></div>
             </article>
           </div>
-          <article class="trip-card">
-            <p class="eyebrow">Public connection</p>
+          <article class="trip-card trip-summary-card">
+            <p class="eyebrow">Summary · Public connection</p>
             <h3 id="trip-opportunity-title">Not connected</h3>
             <p id="trip-opportunity-copy"></p>
+            <button class="trip-button trip-button-outline" type="button" data-edit-trip>Edit trip details</button>
           </article>
         </section>
 
@@ -130,7 +143,9 @@
           <div class="trip-two-column trip-align-start">
             <form class="trip-card trip-form" id="trip-member-form">
               <p class="eyebrow">Travelers and leaders</p><h3>Add or update a team member</h3>
+              <p class="trip-prerequisite" data-prerequisite="member" hidden></p>
               <label><span>Person</span><select name="personId" required></select></label>
+              <small>People are managed in the <a href="/admin/#people" data-admin-navigation>People workspace</a>. Add someone there first if this list is empty.</small>
               <div class="trip-form-row"><label><span>Role</span><select name="role"><option value="traveler">Traveler</option><option value="leader">Leader</option><option value="staff">Staff</option><option value="host">Host</option><option value="other">Other</option></select></label><label><span>Status</span><select name="status"><option value="interested">Interested</option><option value="invited">Invited</option><option value="applied">Applied</option><option value="approved">Approved</option><option value="confirmed">Confirmed</option><option value="waitlisted">Waitlisted</option><option value="withdrawn">Withdrawn</option></select></label></div>
               <label><span>Connected organization <small>Optional</small></span><select name="ministryId"></select></label>
               <fieldset><legend>Traveler directory permission</legend><label class="trip-check"><input name="directoryVisible" type="checkbox" checked><span>Show this person</span></label><label class="trip-check"><input name="directoryEmailVisible" type="checkbox"><span>Show email</span></label><label class="trip-check"><input name="directoryPhoneVisible" type="checkbox"><span>Show phone</span></label></fieldset>
@@ -139,7 +154,9 @@
             </form>
             <form class="trip-card trip-form" id="trip-organization-form">
               <p class="eyebrow">Partners and payers</p><h3>Connect an organization</h3>
+              <p class="trip-prerequisite" data-prerequisite="organization" hidden></p>
               <label><span>Organization</span><select name="ministryId" required></select></label>
+              <small>Organizations are managed in the <a href="/admin/#ministries" data-admin-navigation>Ministries workspace</a>. Add one there first if this list is empty.</small>
               <label><span>Role</span><input name="role" required maxlength="100" placeholder="Team provider, logistics partner, payer…"></label>
               <label><span>Notes</span><textarea name="notes" rows="4"></textarea></label>
               <button class="trip-button trip-button-primary" type="submit">Connect organization</button><p class="trip-form-status" data-form-status></p>
@@ -195,6 +212,7 @@
             <form class="trip-card trip-form" id="trip-cost-form">
               <input name="id" type="hidden">
               <p class="eyebrow">Where the money goes</p><h3>Add a cost</h3>
+              <p class="trip-prerequisite" data-prerequisite="cost" hidden></p>
               <label><span>Category</span><select name="categoryId" required></select></label>
               <label><span>Description</span><input name="description" required maxlength="240" placeholder="Round-trip airfare"></label>
               <div class="trip-form-row"><label><span>Scope</span><select name="expenseScope"><option value="trip">Entire trip</option><option value="group">Group</option><option value="individual">Individual</option></select></label><label><span>Related account</span><select name="accountId"></select></label></div>
@@ -212,6 +230,7 @@
             <form class="trip-card trip-form" id="trip-allocation-form">
               <input name="id" type="hidden">
               <p class="eyebrow">Who covered it</p><h3>Allocate a cost</h3>
+              <p class="trip-prerequisite" data-prerequisite="allocation" hidden></p>
               <label><span>Cost item</span><select name="costItemId" required></select></label>
               <label><span>Funding source</span><select name="fundingSourceId" required></select></label>
               <div class="trip-form-row"><label><span>Amount</span><input name="amount" type="number" min="0.01" step="0.01" required></label><label><span>Status</span><select name="status"><option value="planned">Planned</option><option value="confirmed">Confirmed</option><option value="paid">Paid</option><option value="canceled">Canceled</option></select></label></div>
@@ -224,12 +243,12 @@
 
         <section class="trip-tab-panel" data-trip-panel="accounts" hidden>
           <div class="trip-finance-summary" id="trip-account-summary"></div>
-          <details class="trip-form-disclosure" open><summary>Create or update an account</summary><form class="trip-form trip-inline-form" id="trip-account-form"><input name="id" type="hidden"><label><span>Account name</span><input name="name" required maxlength="180"></label><label><span>Type</span><select name="accountType"><option value="individual">Individual</option><option value="family">Family</option><option value="group">Group</option><option value="organization">Organization</option><option value="sponsor">Sponsor</option></select></label><label><span>Person</span><select name="personId"></select></label><label><span>Organization</span><select name="ministryId"></select></label><label><span>Billing email</span><input name="billingEmail" type="email"></label><label><span>Financial access</span><select name="financialAccess"><option value="private_link">Private link</option><option value="email_only">Statements by email</option><option value="disabled">Disabled</option></select></label><label><span>Status</span><select name="status"><option value="active">Active</option><option value="closed">Closed</option><option value="canceled">Canceled</option></select></label><button class="trip-button trip-button-primary" type="submit">Save account</button><p class="trip-form-status" data-form-status></p></form></details>
+          <details class="trip-form-disclosure" open><summary>Create or update an account</summary><form class="trip-form trip-inline-form" id="trip-account-form"><input name="id" type="hidden"><p class="trip-prerequisite" data-prerequisite="account" hidden></p><label><span>Account name</span><input name="name" required maxlength="180"></label><label><span>Type</span><select name="accountType"><option value="individual">Individual</option><option value="family">Family</option><option value="group">Group</option><option value="organization">Organization</option><option value="sponsor">Sponsor</option></select></label><label><span>Person</span><select name="personId"></select></label><label><span>Organization</span><select name="ministryId"></select></label><label><span>Billing email</span><input name="billingEmail" type="email"></label><label><span>Financial access</span><select name="financialAccess"><option value="private_link">Private link</option><option value="email_only">Statements by email</option><option value="disabled">Disabled</option></select></label><label><span>Status</span><select name="status"><option value="active">Active</option><option value="closed">Closed</option><option value="canceled">Canceled</option></select></label><button class="trip-button trip-button-primary" type="submit">Save account</button><p class="trip-form-status" data-form-status></p></form></details>
           <div class="trip-account-actions">
-            <form class="trip-card trip-form" id="trip-charge-form"><p class="eyebrow">What is owed</p><h3>Add a charge</h3><label><span>Account</span><select name="accountId" required></select></label><label><span>Title</span><input name="title" required maxlength="180"></label><div class="trip-form-row"><label><span>Purpose</span><select name="purpose"><option value="trip_payment">Trip payment</option><option value="admin_fee">Administrative fee</option><option value="other">Other</option></select></label><label><span>Amount</span><input name="amount" type="number" min="0.01" step="0.01" required></label></div><label><span>Due date</span><input name="dueDate" type="date"></label><label><span>Notes</span><textarea name="notes" rows="2"></textarea></label><button class="trip-button trip-button-primary" type="submit">Add charge</button><p class="trip-form-status" data-form-status></p></form>
-            <form class="trip-card trip-form" id="trip-award-form"><p class="eyebrow">HS and sponsor coverage</p><h3>Add support or credit</h3><label><span>Account</span><select name="accountId" required></select></label><label><span>Funding source</span><select name="fundingSourceId" required></select></label><div class="trip-form-row"><label><span>Type</span><select name="awardType"><option value="leader_support">Leader support</option><option value="scholarship">Scholarship</option><option value="sponsor_credit">Sponsor credit</option><option value="fee_waiver">Fee waiver</option><option value="other">Other</option></select></label><label><span>Amount</span><input name="amount" type="number" min="0.01" step="0.01" required></label></div><label><span>Date</span><input name="awardDate" type="date" required></label><label><span>Reason</span><textarea name="reason" rows="2"></textarea></label><button class="trip-button trip-button-primary" type="submit">Add coverage</button><p class="trip-form-status" data-form-status></p></form>
+            <form class="trip-card trip-form" id="trip-charge-form"><p class="eyebrow">What is owed</p><h3>Add a charge</h3><p class="trip-prerequisite" data-prerequisite="charge" hidden></p><label><span>Account</span><select name="accountId" required></select></label><label><span>Title</span><input name="title" required maxlength="180"></label><div class="trip-form-row"><label><span>Purpose</span><select name="purpose"><option value="trip_payment">Trip payment</option><option value="admin_fee">Administrative fee</option><option value="other">Other</option></select></label><label><span>Amount</span><input name="amount" type="number" min="0.01" step="0.01" required></label></div><label><span>Due date</span><input name="dueDate" type="date"></label><label><span>Notes</span><textarea name="notes" rows="2"></textarea></label><button class="trip-button trip-button-primary" type="submit">Add charge</button><p class="trip-form-status" data-form-status></p></form>
+            <form class="trip-card trip-form" id="trip-award-form"><p class="eyebrow">HS and sponsor coverage</p><h3>Add support or credit</h3><p class="trip-prerequisite" data-prerequisite="award" hidden></p><label><span>Account</span><select name="accountId" required></select></label><label><span>Funding source</span><select name="fundingSourceId" required></select></label><div class="trip-form-row"><label><span>Type</span><select name="awardType"><option value="leader_support">Leader support</option><option value="scholarship">Scholarship</option><option value="sponsor_credit">Sponsor credit</option><option value="fee_waiver">Fee waiver</option><option value="other">Other</option></select></label><label><span>Amount</span><input name="amount" type="number" min="0.01" step="0.01" required></label></div><label><span>Date</span><input name="awardDate" type="date" required></label><label><span>Reason</span><textarea name="reason" rows="2"></textarea></label><button class="trip-button trip-button-primary" type="submit">Add coverage</button><p class="trip-form-status" data-form-status></p></form>
             <form class="trip-card trip-form" id="trip-payment-form"><p class="eyebrow">Money received or settled</p><h3>Record a payment</h3><label><span>Account <small>Optional</small></span><select name="accountId"></select></label><label><span>Funding source <small>Optional</small></span><select name="fundingSourceId"></select></label><div class="trip-form-row"><label><span>Purpose</span><select name="purpose"><option value="trip_payment">Trip payment</option><option value="admin_fee">Administrative fee</option><option value="donation">Donation</option><option value="scholarship_contribution">Scholarship contribution</option><option value="refund">Refund</option><option value="other">Other</option></select></label><label><span>Amount</span><input name="amount" type="number" min="0.01" step="0.01" required></label></div><div class="trip-form-row"><label><span>Payment method</span><input name="paymentMethod" required maxlength="80" placeholder="Check, Venmo, PayPal…"></label><label><span>Money route</span><select name="settlementRoute"><option value="through_hs">Received by HS</option><option value="external">Settled externally</option></select></label></div><div class="trip-form-row"><label><span>Date</span><input name="transactionDate" type="date" required></label><label><span>Reference</span><input name="externalReference" maxlength="160"></label></div><label><span>Payer name</span><input name="payerName" maxlength="180"></label><label><span>Charitable portion</span><input name="charitableAmount" type="number" min="0" step="0.01" value="0"></label><label><span>Apply to charge <small>Optional</small></span><select name="chargeId"></select></label><label><span>Notes</span><textarea name="notes" rows="2"></textarea></label><button class="trip-button trip-button-primary" type="submit">Record payment</button><p class="trip-form-status" data-form-status></p></form>
-            <form class="trip-card trip-form" id="trip-request-form"><p class="eyebrow">Friendly balance notice</p><h3>Create a payment request</h3><label><span>Account</span><select name="accountId" required></select></label><label><span>Title</span><input name="title" required maxlength="180"></label><label><span>Amount</span><input name="amountRequested" type="number" min="0.01" step="0.01" required></label><label><span>Due date</span><input name="dueDate" type="date"></label><label><span>Message</span><textarea name="message" rows="3"></textarea></label><select name="status" hidden><option value="ready" selected>Ready</option></select><button class="trip-button trip-button-primary" type="submit">Create request</button><p class="trip-form-status" data-form-status></p></form>
+            <form class="trip-card trip-form" id="trip-request-form"><p class="eyebrow">Friendly balance notice</p><h3>Create a payment request</h3><p class="trip-prerequisite" data-prerequisite="request" hidden></p><label><span>Account</span><select name="accountId" required></select></label><label><span>Title</span><input name="title" required maxlength="180"></label><label><span>Amount</span><input name="amountRequested" type="number" min="0.01" step="0.01" required></label><label><span>Due date</span><input name="dueDate" type="date"></label><label><span>Message</span><textarea name="message" rows="3"></textarea></label><select name="status" hidden><option value="ready" selected>Ready</option></select><button class="trip-button trip-button-primary" type="submit">Create request</button><p class="trip-form-status" data-form-status></p></form>
           </div>
           <div class="trip-record-list" id="trip-account-list"></div>
           <div class="trip-record-list" id="trip-payment-list"></div>
@@ -246,7 +265,7 @@
 
         <section class="trip-tab-panel" data-trip-panel="public" hidden>
           <div class="trip-two-column trip-align-start">
-            <article class="trip-card"><p class="eyebrow">Actual trip page</p><h3>Dates people can act on</h3><p id="trip-public-summary"></p><a class="trip-button trip-button-primary" id="trip-open-public" href="/trip/" target="_blank" rel="noopener">Preview public trip</a></article>
+            <article class="trip-card trip-summary-card"><p class="eyebrow">Summary · Actual trip page</p><h3>Dates people can act on</h3><p id="trip-public-summary"></p><div class="trip-card-actions"><button class="trip-button trip-button-outline" type="button" data-edit-trip>Edit public details</button><a class="trip-button trip-button-primary" id="trip-open-public" href="/trip/" target="_blank" rel="noopener">Preview public trip</a></div></article>
             <article class="trip-card"><p class="eyebrow">Public safety</p><h3>Only approved content appears</h3><p>Public, traveler-only, and administrator-only visibility are separate from a trip’s lifecycle. Exact lodging, private contacts, and operational details remain protected.</p></article>
           </div>
           <div class="trip-record-list" id="trip-public-content-list"></div>
@@ -264,7 +283,7 @@
     </main>
   </div>
 
-  <dialog class="trip-dialog" id="trip-dialog" aria-labelledby="trip-dialog-title">
+  <dialog class="trip-dialog" id="trip-dialog" aria-labelledby="trip-dialog-title" closedby="closerequest">
     <form class="trip-dialog-card trip-form" id="trip-form">
       <input name="id" type="hidden">
       <div class="trip-dialog-heading"><div><p class="eyebrow">Actual departure</p><h2 id="trip-dialog-title">Create a trip</h2></div><button class="trip-dialog-close" type="button" aria-label="Close">×</button></div>
@@ -285,6 +304,6 @@
   </dialog>
 
   <template id="trip-record-template"><article class="trip-record"><div class="trip-record-main"></div><div class="trip-record-actions"></div></article></template>
-  <script src="/admin/trips/trips.js?v=2026-09-06.2" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-06.3" defer></script>
 </body>
 </html>

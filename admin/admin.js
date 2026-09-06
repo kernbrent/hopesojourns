@@ -7,6 +7,7 @@ const ADMIN_VERSION_URL = "/admin/version.json";
 const ADMIN_BUILD = document.documentElement.dataset.adminBuild || "";
 const ADMIN_UPDATE_ATTEMPT_KEY = "hope-sojourns-admin-update-attempt";
 const ADMIN_REMEMBER_ME_PREFERENCE_KEY = "hope-sojourns-admin-remember-me";
+const ADMIN_NAVIGATION_SESSION_KEY = "hope-sojourns-admin-navigation";
 const ADMIN_RESUME_REFRESH_AFTER_MS = 60_000;
 
 function preventDialogBackdropDismissal() {
@@ -437,13 +438,32 @@ function showLogin(message = "") {
   passwordInput.focus();
 }
 
+function requestedAdminView() {
+  const viewsByHash = {
+    "#ledger": "ledger",
+    "#ministries": "ministries",
+    "#people": "people",
+  };
+  return viewsByHash[window.location.hash.toLowerCase()] || "people";
+}
+
+function consumeAdminNavigationIntent() {
+  try {
+    const shouldResume = sessionStorage.getItem(ADMIN_NAVIGATION_SESSION_KEY) === "true";
+    sessionStorage.removeItem(ADMIN_NAVIGATION_SESSION_KEY);
+    return shouldResume;
+  } catch {
+    return false;
+  }
+}
+
 function showDashboard(session) {
   state.csrfToken = session.csrfToken;
   loginPanel.hidden = true;
   dashboardPanel.hidden = false;
   loginStatus.textContent = "";
   document.querySelector("#dashboard-title").focus?.();
-  loadRecords();
+  switchView(requestedAdminView());
 }
 
 function statusPill(status) {
@@ -3852,6 +3872,17 @@ document.addEventListener("visibilitychange", () => {
     if (await checkForAdminPortalUpdate()) return;
   } catch {
     /* The login remains usable if the version check is temporarily unavailable. */
+  }
+  if (consumeAdminNavigationIntent()) {
+    try {
+      const { result } = await api("/session");
+      showDashboard(result);
+      return;
+    } catch {
+      restoreRememberMePreference();
+      passwordInput.focus();
+      return;
+    }
   }
   restoreRememberMePreference();
   passwordInput.focus();

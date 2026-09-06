@@ -6,14 +6,42 @@ import { describe, expect, it } from "vitest";
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const adminScript = readFileSync(resolve(testDirectory, "../../../admin/admin.js"), "utf8");
 const adminPage = readFileSync(resolve(testDirectory, "../../../admin/index.html"), "utf8");
+const tripScript = readFileSync(resolve(testDirectory, "../../../admin/trips/trips.js"), "utf8");
+const tripPage = readFileSync(resolve(testDirectory, "../../../admin/trips/index.html"), "utf8");
 
 describe("Admin Portal sign-in contract", () => {
-  it("requires a manual form submission before opening the dashboard", () => {
+  it("requires manual sign-in on direct visits but resumes intentional trip-workspace navigation", () => {
     const startup = adminScript.match(/\(async function startPortal\(\) \{([\s\S]*?)\}\)\(\);/)?.[1] || "";
-    expect(startup).not.toContain('api("/session")');
-    expect(startup).not.toContain("showDashboard(");
+    expect(startup).toContain("consumeAdminNavigationIntent()");
+    expect(startup).toContain('api("/session")');
+    expect(startup).toContain("showDashboard(result)");
+    expect(adminScript).toContain("sessionStorage.removeItem(ADMIN_NAVIGATION_SESSION_KEY)");
     expect(adminScript).toContain('loginForm.addEventListener("submit"');
     expect(adminScript).toContain("showDashboard(result)");
+  });
+
+  it("opens the destination named by a trusted admin navigation hash", () => {
+    expect(adminScript).toContain('"#ledger": "ledger"');
+    expect(adminScript).toContain('"#ministries": "ministries"');
+    expect(adminScript).toContain("switchView(requestedAdminView())");
+  });
+
+  it("explains and blocks trip actions whose prerequisite records do not exist", () => {
+    expect(tripPage.match(/data-prerequisite=/g)).toHaveLength(8);
+    expect(tripScript).toContain("renderPrerequisiteGuidance()");
+    expect(tripScript).toContain("submit.disabled = prerequisite");
+    expect(tripScript).toContain("Please complete this traveler or leader in People before this team member.");
+    expect(tripScript).toContain("Please complete a trip cost before this funding allocation.");
+    expect(tripScript).toContain("Please complete a trip account before this payment request.");
+  });
+
+  it("provides optional, persistent, progress-based trip setup guidance", () => {
+    expect(tripPage).toContain('id="trip-guide-toggle"');
+    expect(tripPage).toContain('id="trip-setup-guide"');
+    expect(tripScript).toContain('const TRIP_GUIDED_HELP_KEY = "hope-sojourns-trip-guided-help"');
+    expect(tripScript).toContain("localStorage.setItem(TRIP_GUIDED_HELP_KEY");
+    expect(tripScript).toContain("steps complete");
+    expect(tripScript).toContain("openNextGuideStep");
   });
 
   it("keeps browser-managed saved-password autofill enabled", () => {

@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 3.0
+Version 3.1
 
 Last reviewed: September 6, 2026
 
@@ -316,7 +316,11 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Treat a public opportunity, an actual trip, shared traveler resources, and private financial information as four distinct layers. Labels and actions must make the current layer obvious.
 - Use **Trip management** as a focused administrator destination instead of crowding the main response-portal tabs. Give the workspace a persistent trip list on wide screens, a clear back action, and a compact selector or stacked layout on narrow screens.
 - Lead each trip workspace with name, trip ID, dates, status, and concise readiness and financial summaries. Follow with task-centered areas for overview, team and partners, traveler portal, content, budget and funding, accounts and payments, invitations and messages, public page, and setup lists.
+- Keep summary cards visibly distinct from entry forms. Label read-only cards as **Summary**, use a lighter dashed boundary, and provide an adjacent edit action when the saved values are maintained elsewhere.
+- Introduce the workspace with one short explanation: labeled fields plus a Save button are editable; summary cards show saved information; core dates, location, status, capacity, and public settings use **Edit trip**.
+- Offer **Guided help** as an optional, persistent control. When enabled, show a setup-guide card after a trip opens with completed and total step counts, a progress meter, the next recommended action, a direct **Go to next step** control, and an expandable checklist. Enable it for first use, remember the administrator's on/off choice in that browser, and keep required prerequisite notes visible independently of this preference.
 - Keep dense setup forms inside cards or disclosures and keep saved records visually separate beneath them. Buttons must use direct verbs such as **Save cost**, **Record payment**, **Add coverage**, **Create request**, and **Create invitation**.
+- When an action depends on another record, place a visible note inside that card using **Please complete [prerequisite] before this [item]** and disable only the unavailable action. Link to another administrator workspace when that is where the prerequisite is created. Saved team-member and organization cards must provide an **Edit** action that returns the administrator to the populated form.
 - Use friendly **payment request**, **balance notice**, or **status** language in participant communication. Do not use **invoice** unless a later legal or accounting decision specifically requires it.
 - Financial summaries must distinguish charges, payments, support credits, balance, costs paid through Hope Sojourns, and costs paid externally. Never use one unlabeled total to combine cash received by Hope Sojourns with an outside partner's settlement.
 - Present support for a leader or scholarship recipient as a named support credit with its funding source. Do not visually disguise coverage as a traveler payment.
@@ -342,6 +346,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 
 - Use semantic `<dialog>` where practical and provide an obvious close action.
 - Clicking a dialog backdrop must leave the dialog open and preserve entered or selected information; dismissal requires an intentional close, cancel, or completed action.
+- Apply that backdrop rule to every administrator dialog, including the trip create and edit window. Do not add component-specific backdrop handlers that close a dialog.
 - Trap attention through the native dialog behavior rather than visual obstruction alone.
 - Photo viewing retains captions, position information, previous/next controls, and keyboard support.
 
@@ -459,6 +464,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.1 | Distinguished trip summary cards from editable forms, added clear edit paths, selection prerequisites, and optional progress-based guided help, and applied the no-backdrop-dismiss rule explicitly to trip administration. |
 | 2026-09-06 | 3.0 | Added visual and language standards for actual-trip administration, public departures, traveler-only content, private account statements, financial separation, invitation handling, and annual gift/payment summaries. |
 | 2026-09-04 | 2.7 | Required intentional dismissal for Admin Portal dialogs so backdrop clicks preserve work in progress. |
 | 2026-09-03 | 2.6 | Added conditional email-address and phone-number rows to the complete Admin Portal contact record. |

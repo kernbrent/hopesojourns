@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 3.0
+Version 3.1
 
 Last reviewed: September 6, 2026
 
@@ -235,7 +235,7 @@ The response portal uses secure HTTP-only sessions, CSRF protection for state-ch
 
 Never store those values in source, documentation, test snapshots, or browser-accessible JavaScript.
 
-The login page is always the initial portal view. Startup may check for a newer frontend build, but it must not exchange a remembered session for immediate dashboard access. Only an explicit login-form submission may call the login endpoint and show the dashboard. The password field retains the current-password autocomplete attribute so the browser can securely prefill a saved password, and the non-sensitive “Remember me” checkbox preference is retained in local storage; the password itself must never be copied into local storage or other browser-accessible application data.
+A direct visit to `/admin/` always starts on the login page. Startup may check for a newer frontend build, but it must not exchange a remembered session for immediate dashboard access. The one exception is intentional navigation from the authenticated `/admin/trips/` workspace: those links write the one-time `hope-sojourns-admin-navigation` marker to same-tab session storage, and `/admin/` consumes and removes the marker before validating the existing HTTP-only session through `GET /admin/session`. The destination hash selects People, Ministries, or Organization finances after validation. An invalid or expired session still returns to login, and a direct visit without the marker still requires an explicit login-form submission. The password field retains the current-password autocomplete attribute so the browser can securely prefill a saved password, and the non-sensitive “Remember me” checkbox preference is retained in local storage; the password itself must never be copied into local storage or other browser-accessible application data.
 
 The portal supports people, submissions, contact editing/import, teams, ministries, internship-toolkit access, replies, status changes, CSV export, and confirmed deletion flows. A contact can store `last_contacted_at` plus a short `last_contacted_note`; the note is limited to 50 characters in the browser, Worker, and D1 schema, appears in person details and contact CSV exports, and is preserved by spreadsheet imports. The Contact type search filter presents its options alphabetically by label. The Internship toolkit exposes a download-all ZIP while preserving every individual document download. CSV output must continue to neutralize spreadsheet formulas.
 
@@ -321,6 +321,10 @@ An actual trip is a dated operational record in `trips`. Its optional `opportuni
 
 The administrator workspace is `/admin/trips/`. Its bootstrap endpoint returns trips plus shared People, Ministries, funding-source, cost-category, and public-opportunity lists. A trip workspace returns its content, interest records, members, organizations, accounts, costs, allocations, charges, support awards, payments, payment requests, invitation records, and message outbox. Create and update routes reuse the main administrator session, CSRF token, audit log, validation conventions, and no-store response headers.
 
+The trip interface labels read-only cards as summaries and identifies cards with labeled fields and Save buttons as entry forms. Core trip and public settings open through the shared trip dialog; backdrop clicks are intercepted and `closedby="closerequest"` permits only an intentional close request. `renderPrerequisiteGuidance()` checks the active People, Ministries, cost-category, funding-source, cost-item, and trip-account records. When a required catalog is empty, the affected card shows a **Please complete [prerequisite] before this [item]** note and disables its submit button. People and Ministry notes link to the corresponding main administrator workspace. Those cross-workspace links set a one-time navigation marker so the valid administrator session can be checked and reused without forcing another login. Team-member and connected-organization record cards provide Edit actions that repopulate their forms. Event listeners for independent forms, invitation creation, and invitation-link copying must be registered once during startup.
+
+
+Guided setup is a presentation-layer helper, not stored trip data. `TRIP_GUIDED_HELP_KEY` saves only an on/off preference in local storage and defaults to enabled when no preference exists. `tripSetupSteps()` derives completion from the currently loaded workspace, and `renderSetupGuide()` displays the completed/total count, progress meter, next action, and full checklist. `openNextGuideStep()` either opens the trip editor or activates and focuses the relevant workspace form. Required prerequisite notices remain active when guided help is disabled.
 Trip invitations are hashed bearer tokens. They preselect the actual trip and optional organization on `/interest/`, can expire or have a maximum use count, and are revealed only at creation. A successful interest form links the submission and Person to `trip_interests`; it does not silently confirm the traveler. Administrators review the interest and control the separate `trip_members.status` lifecycle.
 
 The shared traveler password is PBKDF2-SHA-256 derived with a random per-trip salt and 100,000 iterations. The plaintext password is never stored. Successful sign-in creates an HTTP-only, Secure, SameSite Strict session cookie scoped to the portal API. Changing the credential revokes all existing sessions. Failed logins are limited by the hash of the normalized login ID and client address; repeated failures create a temporary block, and old attempt rows are removed automatically. The shared portal never includes account balances or payment history.
@@ -639,6 +643,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.1 | Documented intentional session reuse between trip and main admin workspaces, trip form and summary distinctions, edit actions, prerequisites, optional progress-based guided help, universal dialog backdrop protection, and single-registration form wiring. |
 | 2026-09-06 | 3.0 | Added the complete actual-trip platform: opportunity linkage, admin workspaces, intake, shared and private portals, content publishing, extensible budgets and funding, central-ledger synchronization, account/payment/support workflows, annual summaries, message-delivery safeguards, and test-only deployment requirements. |
 | 2026-09-03 | 2.9 | Documented conditional email-address and phone-number rendering in complete contact records and extended the disclosure contract test. |
 | 2026-09-01 | 2.8 | Separated the contact-name full-record action from the plus/minus summary disclosure control. |
