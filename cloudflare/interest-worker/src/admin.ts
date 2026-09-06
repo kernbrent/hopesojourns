@@ -47,9 +47,13 @@ export function contactTypeFilterOptions(): Array<{ value: string; label: string
     .sort((left, right) => left.label.localeCompare(right.label, "en-US"));
 }
 
-export type AdminEnv = Env & {
+export type AdminEnv = Omit<Env, "EMAIL_DELIVERY_MODE" | "EMAIL_FROM_ADDRESS" | "EMAIL_REPLY_TO"> & {
   ADMIN_PASSWORD?: string;
   ADMIN_SESSION_SECRET?: string;
+  EMAIL?: SendEmail;
+  EMAIL_DELIVERY_MODE?: "capture" | "live";
+  EMAIL_FROM_ADDRESS?: string;
+  EMAIL_REPLY_TO?: string;
 };
 
 type AdminSessionRow = {

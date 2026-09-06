@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 2.9
+Version 3.0
 
-Last reviewed: September 3, 2026
+Last reviewed: September 6, 2026
 
 ## 1. Purpose and operating rules
 
@@ -14,7 +14,7 @@ Do not commit, push, publish, deploy, merge, or open a pull request unless the u
 
 ## 2. System overview
 
-Hope Sojourns is primarily a static, progressively enhanced website with two API-backed workflows.
+Hope Sojourns is primarily a static, progressively enhanced website with public interest, trip-management, financial, and giving workflows backed by Cloudflare Workers and D1.
 
 ```text
 Visitor browser
@@ -46,6 +46,13 @@ There is no top-level frontend package or compilation step. Source HTML, CSS, Ja
 | `/styles.css` | Global CSS and design tokens |
 | `/script.js` | Shared header, footer, navigation, motion, introductory experience, and photo viewer |
 | `/trip.js` | Data and rendering for developing trip detail pages |
+| `/trip/` | Public page for one administrator-created actual trip |
+| `/journey/` | Shared-credential traveler portal for common trip content |
+| `/trip-account/` | Token-protected individual, family, group, organization, or sponsor financial statement |
+| `/admin/trips/` | Administrator trip workspaces, catalogs, budgets, accounts, communications, and publishing controls |
+| `/admin/annual-summary/` | Printable annual contact summary separating charitable gifts from other payments |
+| `/cloudflare/interest-worker/src/trip-platform.ts` | Trip platform validation, persistence, public/private APIs, financial posting, and message delivery |
+| `/cloudflare/build-test-site.mjs` | Creates the ignored `/site-dist/` Pages artifact and explicitly includes the public, admin, journey, trip-account, and actual-trip routes |
 | `/assets/` | Core website images and brand assets |
 | `/about/` | About page |
 | `/giving/` | Giving page and browser-side PayPal integration |
@@ -80,6 +87,9 @@ There is no top-level frontend package or compilation step. Source HTML, CSS, Ja
 | `/schedule/` | 30-minute Calendly conversation booking | `/script.js`, Calendly embed |
 | `/past-trips/` | Past-trip archive | `/script.js` |
 | `/past-trips/gallery/` | Filterable photo archive | `/script.js`, gallery script and JSON |
+| `/trip/?trip=<actual-trip-slug>` | Public detail for a dated actual trip | `/trip/trip.js` |
+| `/journey/` | Shared trip credential sign-in and traveler-only resources | `/journey/journey.js` |
+| `/trip-account/?access=<one-time-issued-token>` | Private account statement and balance | `/trip-account/trip-account.js` |
 
 ### Developing trip pages
 
@@ -93,7 +103,7 @@ Past-trip pages are static archives. The legacy `/past-trips/kenya-2019/` route 
 
 ### Private route
 
-`/admin/` is the private response portal. It loads the global stylesheet first, then `/admin/admin.css`, and uses `/admin/admin.js` to communicate with `/api/interest/admin`.
+`/admin/` is the private response portal. It loads the global stylesheet first, then `/admin/admin.css`, and uses `/admin/admin.js` to communicate with `/api/interest/admin`. `/admin/trips/` uses the same administrator session for focused trip workspaces, and `/admin/annual-summary/` creates printable contact summaries without exposing them publicly.
 
 ## 5. Shared frontend architecture
 
@@ -131,7 +141,7 @@ Because the header and footer are JavaScript-injected, pages that need the publi
 
 ### Cache-busting versions
 
-HTML references use query values such as `/styles.css?v=25` and `/script.js?v=15`. When a shared asset changes, bump its query version everywhere that loads it. Keep versions consistent for the same shared file; do not leave pages pointing at several generations of the same stylesheet.
+HTML references use query values such as `/styles.css?v=26` and `/script.js?v=15`. When a shared asset changes, bump its query version everywhere that loads it. Keep versions consistent for the same shared file; do not leave pages pointing at several generations of the same stylesheet.
 
 ## 6. Content and data files
 
@@ -206,10 +216,13 @@ Current migrations:
 12. `0012_ledger_entry_management.sql`
 13. `0013_ledger_receipts.sql`
 
+14. `0014_trip_platform.sql`
 Do not edit a migration that has already been applied to a shared environment. Add a new numbered migration.
 Migration `0011_unified_ledger.sql` creates `ledger_entries`, indexes its date, type, source, and linked-person fields, and backfills existing approved CSM `financial_transactions`. Apply it before deploying Worker code that reads or writes the unified ledger.
 Migration `0012_ledger_entry_management.sql` adds the optional `check_number` field. Apply it before deploying Worker or portal code that reads, writes, searches, imports, or exports check numbers.
 Migration `0013_ledger_receipts.sql` creates receipt metadata with a cascading relationship to `ledger_entries`. Apply it and provision the environment's private R2 bucket before deploying Worker code that lists or stores receipts.
+
+Migration `0014_trip_platform.sql` creates the actual-trip, content, organization, team, cost, allocation, account, charge, support-credit, payment, payment-request, private-link, portal-session, portal-rate-limit, invitation, interest, and email-outbox tables. It also adds trip, purpose, charitable-amount, account, and funding-source dimensions to `ledger_entries` and seeds editable funding-source and cost-category catalogs. Apply it before deploying the trip platform Worker or pages.
 
 
 
@@ -293,6 +306,58 @@ Immediately before creating a new donor, the Worker repeats its exact normalized
 The HSLedger importer accepts `.xlsx` or `.csv`, no more than 2 MB and 1,000 data rows. It recognizes the current ledger layout plus optional Check Number aliases, ignores sequence-only placeholder rows, and validates dates, types, amounts, text lengths, and required categories. The preview permits the administrator to edit fields or omit selected source rows. Commit re-parses the original upload, verifies that every submitted row number existed in that file, applies only the reviewed rows, repeats all validation, recomputes deduplication identities, and inserts only rows classified as new. Omitted rows are not deleted from the source file or from the database. The export is a real `.xlsx` workbook with `Ledger` and `Categories` worksheets and includes check numbers and per-entry receipt counts; binary receipt files are not embedded in the export.
 
 Manual entries reuse category values already present in the database while retaining safe defaults. Existing manual, spreadsheet, and CSM ledger rows can be corrected through the authenticated update route or permanently removed through the typed-confirmation delete control; both actions write audit events. An expense with receipts cannot be changed to income until those receipts are removed. Deleting a ledger entry also removes its receipt metadata and private objects; deleting a CSM-sourced ledger row does not delete its upstream `financial_transactions` record. Editing does not change the row's source or unique import key. Amounts are stored as positive numbers and interpreted through `entry_type`; financial reporting computes balance as income minus expenses.
+
+### Actual trip platform
+
+`/cloudflare/interest-worker/src/trip-platform.ts` owns actual-trip administration and the three intentionally different participant-facing surfaces:
+
+| Surface | Access | Information |
+|---|---|---|
+| `/trip/` | Public | Approved summary, dates, location, interest action, and content marked both Public and Published |
+| `/journey/` | One shared trip login ID and password | Devotionals, instructions, itinerary, resources, updates, and opted-in team-directory fields |
+| `/trip-account/` | Expiring private account link | One individual, family, group, organization, or sponsor account's charges, payments, support credits, requests, and balance |
+
+An actual trip is a dated operational record in `trips`. Its optional `opportunity_id` links it to one broader public opportunity, such as Mexico City. This preserves the evergreen idea page under `/trips/<slug>/` while allowing several actual departures, each with its own dates, status, capacity, public page, interest intake, content, traveler portal, team, partners, and finances. Completing a trip does not publish private content automatically.
+
+The administrator workspace is `/admin/trips/`. Its bootstrap endpoint returns trips plus shared People, Ministries, funding-source, cost-category, and public-opportunity lists. A trip workspace returns its content, interest records, members, organizations, accounts, costs, allocations, charges, support awards, payments, payment requests, invitation records, and message outbox. Create and update routes reuse the main administrator session, CSRF token, audit log, validation conventions, and no-store response headers.
+
+Trip invitations are hashed bearer tokens. They preselect the actual trip and optional organization on `/interest/`, can expire or have a maximum use count, and are revealed only at creation. A successful interest form links the submission and Person to `trip_interests`; it does not silently confirm the traveler. Administrators review the interest and control the separate `trip_members.status` lifecycle.
+
+The shared traveler password is PBKDF2-SHA-256 derived with a random per-trip salt and 100,000 iterations. The plaintext password is never stored. Successful sign-in creates an HTTP-only, Secure, SameSite Strict session cookie scoped to the portal API. Changing the credential revokes all existing sessions. Failed logins are limited by the hash of the normalized login ID and client address; repeated failures create a temporary block, and old attempt rows are removed automatically. The shared portal never includes account balances or payment history.
+
+Private financial access uses random account tokens whose hashes, expiration, revocation, and last-used time are stored in D1. Creating a replacement link revokes the prior active link. Because these links expose financial information, distribute them directly to the intended account contact and do not place them in the shared traveler portal or public pages.
+
+The trip financial model separates obligation, cash, and responsibility:
+
+- `trip_cost_categories` is an administrator-extensible list seeded with airfare, ground transportation, lodging, meals, onsite ministry donation, insurance, visas and fees, supplies, Hope Sojourns leadership, Hope Sojourns administration, contingency, and other.
+- `trip_funding_sources` is an administrator-extensible list seeded with traveler, Hope Sojourns general, leader-support and scholarship funds, church or ministry sponsor, individual sponsor, external partner, grant, and other. A custom source may link to a Person or Ministry.
+- `trip_cost_items` records estimates, actual totals, vendor, scope, dates, payment status, and whether settlement occurred through Hope Sojourns or externally. `trip_cost_allocations` records who covered each cost and supports split funding.
+- A paid cost settled through Hope Sojourns automatically creates or updates one linked `ledger_entries` expense with purpose `trip_expense`. Editing that cost keeps the ledger row synchronized. Changing it to external settlement or a non-paid state removes only its automatic ledger posting. Externally paid costs remain in operational trip totals but never inflate Hope Sojourns cash expenses.
+- `trip_accounts` supports individual, family, group, organization, and sponsor rollups. Multiple dated `trip_charges` provide installment plans; `trip_payment_requests` provide friendly balance notices instead of invoice language.
+- `trip_coverage_awards` records leader support, scholarships, sponsor credits, fee waivers, and other approved coverage without pretending cash was received from the traveler.
+- `trip_payments` records multiple payments, their funding source, purpose, payment method, status, and settlement route. Payments received by Hope Sojourns post to the unified ledger. External settlements reduce the appropriate trip account without becoming Hope Sojourns cash income. A payment application may reduce a selected charge only when the payment and charge use the same account.
+
+The unified ledger distinguishes transaction purpose and charitable amount. A trip payment or administrative fee has a charitable amount of zero. A donation or scholarship contribution may have a charitable portion, and only that portion appears in charitable giving output. The existing branded giving statement remains donation-focused. `/admin/annual-summary/` produces a broader printable annual summary with one section for charitable contributions and another for non-charitable trip or administrative payments, including separate Hope Sojourns-received and externally settled totals. It is an administrative record and not tax advice.
+
+The message outbox stores invitations, payment requests, statements, trip updates, and other messages before delivery. `EMAIL_DELIVERY_MODE` is `capture` by default in both configured environments; a Send action then returns a safe unavailable response and leaves the message queued. Live delivery requires all of the following: a Cloudflare Email Service `send_email` binding named `EMAIL`, `EMAIL_DELIVERY_MODE=live`, a verified sending domain, a permitted `EMAIL_FROM_ADDRESS`, and a valid `EMAIL_REPLY_TO`. Do not add the binding or switch modes until the Cloudflare account and sender are ready.
+
+Inbound `admin@hopesojourns.com` forwarding is operational DNS/account setup, separate from Worker message delivery. Create `hopesojourns@gmail.com`, verify it as the destination in Cloudflare Email Routing, then add the `admin` custom address. Keep delivery in capture mode until both forwarding and outbound sender requirements have been tested in the test environment.
+
+Primary route families are:
+
+| Method and route | Purpose |
+|---|---|
+| `GET /admin/trip-platform/bootstrap` | Load trips and shared selection catalogs |
+| `POST /admin/trips`, `PUT /admin/trips/:id`, `GET /admin/trips/:id` | Create, update, and open a trip workspace |
+| `POST /admin/trip-platform/funding-sources`, `POST /admin/trip-platform/cost-categories` | Create or update administrator-managed catalogs |
+| `POST /admin/trips/:id/<resource>` | Save members, organizations, content, costs, allocations, accounts, charges, awards, payments, payment requests, invites, or messages |
+| `POST /admin/trips/:id/portal-credential` | Replace the shared credential and revoke sessions |
+| `POST /admin/trips/:id/accounts/:accountId/access-links` | Revoke and replace a private account link |
+| `POST /admin/trips/:id/messages/:messageId/send` | Deliver one queued message only when live email is configured |
+| `GET /admin/trip-platform/annual-summary` | Return the two-part annual contact summary |
+| `GET /public/trips`, `GET /public/trips/:slug` | List or read published actual-trip information |
+| `POST /portal/login`, `GET /portal/session`, `POST /portal/logout` | Shared traveler portal session lifecycle |
+| `GET /private-account/:token` | Read one unrevoked, unexpired private account statement |
 
 ### Expense receipt attachments
 
@@ -522,6 +587,13 @@ Before an authorized deployment:
 
 The Interest Worker has isolated test and production environments. Always name the intended environment in migration, secret, R2, and deployment commands. Production launch order is: validate isolation, create or verify the production D1 database and private receipt bucket, back up existing production data, apply production migrations, set production-only secrets, dry-run the production Worker, deploy it, publish the production Pages build, and verify both production hostnames. Test data and receipt files must remain bound only to the test Worker, database, and R2 bucket.
 
+For an authorized test-site publication, build the allowlisted artifact and deploy that directory to the dedicated test Pages project:
+
+```powershell
+node .\cloudflare\build-test-site.mjs
+npx wrangler pages deploy .\site-dist --project-name hopesojourns-test --branch codex/test-admin-portal
+```
+
 ## 15. Documentation maintenance
 
 The canonical living guides are:
@@ -567,6 +639,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.0 | Added the complete actual-trip platform: opportunity linkage, admin workspaces, intake, shared and private portals, content publishing, extensible budgets and funding, central-ledger synchronization, account/payment/support workflows, annual summaries, message-delivery safeguards, and test-only deployment requirements. |
 | 2026-09-03 | 2.9 | Documented conditional email-address and phone-number rendering in complete contact records and extended the disclosure contract test. |
 | 2026-09-01 | 2.8 | Separated the contact-name full-record action from the plus/minus summary disclosure control. |
 | 2026-09-01 | 2.7 | Added the compact contact-card rendering contract, one-at-a-time disclosure state, accessible name control, and separate full-record action. |

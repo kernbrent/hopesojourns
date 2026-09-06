@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Private Hope Sojourns traveler portal.">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'">
+  <title>Traveler Portal | Hope Sojourns</title>
+  <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
+  <link rel="stylesheet" href="/styles.css?v=26">
+  <link rel="stylesheet" href="/journey/journey.css?v=2026-09-06.2">
+</head>
+<body class="journey-page">
+  <a class="skip-link" href="#journey-main">Skip to trip information</a>
+  <header class="journey-header">
+    <a href="/"><img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns"></a>
+    <span>Traveler portal</span>
+  </header>
+  <main id="journey-main">
+    <section class="journey-login" id="journey-login" aria-labelledby="journey-login-title">
+      <div class="journey-login-copy">
+        <p class="eyebrow">Your journey starts here</p>
+        <h1 id="journey-login-title">Welcome, traveler.</h1>
+        <p>Enter the shared Trip ID and password provided by your Hope Sojourns leader.</p>
+      </div>
+      <form class="journey-login-card" id="journey-login-form">
+        <img src="/assets/hope-sojourns-icon.png" alt="" width="60" height="60">
+        <label><span>Trip ID</span><input name="loginId" required maxlength="80" autocomplete="username"></label>
+        <label><span>Trip password</span><input name="password" type="password" required maxlength="128" autocomplete="current-password"></label>
+        <button class="button" type="submit">Open my trip</button>
+        <p class="journey-status" data-journey-status role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="journey-portal" id="journey-portal" hidden>
+      <div class="journey-hero">
+        <div><p class="eyebrow" id="journey-code">Hope Sojourns trip</p><h1 id="journey-title">Your trip</h1><p id="journey-meta"></p></div>
+        <button class="journey-signout" id="journey-signout" type="button">Sign out</button>
+      </div>
+      <nav class="journey-nav" aria-label="Trip information"></nav>
+      <div class="journey-content" id="journey-content"></div>
+      <section class="journey-team" id="journey-team" aria-labelledby="journey-team-title">
+        <p class="eyebrow">Serving together</p><h2 id="journey-team-title">Your team</h2><div class="journey-team-grid" id="journey-team-grid"></div>
+      </section>
+      <aside class="journey-private-note"><strong>Looking for your balance?</strong><span>Financial details are never shared with the whole team. Use the private account link sent to your email, or contact your trip leader.</span></aside>
+    </section>
+  </main>
+  <script src="/journey/journey.js?v=2026-09-06.2" defer></script>
+</body>
+</html>

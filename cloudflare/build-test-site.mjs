@@ -22,12 +22,15 @@ const publicEntries = [
   "giving",
   "interest",
   "internships",
+  "journey",
   "letters",
   "logo-explorations",
   "outputs/contact-import-template",
   "past-trips",
   "resources",
   "schedule",
+  "trip",
+  "trip-account",
   "trips",
 ];
 

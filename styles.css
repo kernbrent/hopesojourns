@@ -2826,3 +2826,30 @@ main > .section.internship-cost-section {
   .interest-submit-row { align-items: stretch; flex-direction: column; }
   .interest-submit-row .button { width: 100%; }
 }
+
+/* Dated departures connected to reusable public opportunity pages */
+.actual-departures {
+  margin: 1rem 0;
+  padding: 1rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.actual-departures[hidden] { display: none; }
+.actual-departures h3 { margin: 0 0 .7rem; }
+.actual-departure-list { display: grid; gap: .65rem; }
+.actual-departure {
+  display: grid;
+  gap: .2rem;
+  padding: .75rem;
+  border-radius: .8rem;
+  background: var(--forest-wash);
+}
+.actual-departure strong { color: var(--forest-dark); }
+.actual-departure span { color: var(--color-text-muted); font-size: .84rem; line-height: 1.45; }
+.actual-departure small {
+  color: var(--forest);
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}

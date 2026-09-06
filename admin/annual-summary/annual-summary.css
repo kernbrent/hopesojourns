@@ -1,0 +1,109 @@
+.annual-summary-page {
+  min-height: 100vh;
+  background: var(--color-page);
+}
+
+.annual-summary-toolbar {
+  min-height: 72px;
+  padding: 12px clamp(18px, 4vw, 56px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: var(--forest-deep);
+  color: var(--white);
+}
+
+.annual-summary-toolbar a { color: var(--white); }
+.annual-summary-toolbar img { width: min(210px, 35vw); max-height: 50px; object-fit: contain; }
+
+.annual-summary-toolbar button,
+.annual-summary-controls button {
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 18px;
+  background: var(--gold);
+  color: var(--forest-deep);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.annual-summary-toolbar button:disabled { cursor: not-allowed; opacity: .55; }
+
+.annual-summary-page main {
+  width: min(1040px, calc(100% - 32px));
+  margin: 36px auto 72px;
+}
+
+.annual-summary-controls,
+.annual-statement {
+  background: var(--color-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.annual-summary-controls { padding: clamp(24px, 5vw, 48px); }
+.annual-summary-controls h1 { margin: 4px 0 8px; }
+
+#annual-summary-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(120px, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+#annual-summary-form label { display: grid; gap: 6px; font-weight: 700; }
+#annual-summary-form select {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 9px 12px;
+  background: var(--color-card);
+  color: var(--color-text);
+  font: inherit;
+}
+
+#annual-summary-status { min-height: 1.7em; color: var(--color-text-muted); }
+#annual-summary-signin { padding: 12px 16px; background: var(--gold-wash); border-radius: 12px; }
+
+.annual-statement { margin-top: 28px; padding: clamp(24px, 5vw, 56px); }
+.annual-statement-header { display: flex; justify-content: space-between; gap: 24px; align-items: center; border-bottom: 3px solid var(--gold); padding-bottom: 22px; }
+.annual-statement-header img { width: min(260px, 42vw); }
+.annual-statement-header h2 { margin: 0; text-align: right; }
+.annual-statement-header .eyebrow { text-align: right; }
+.annual-recipient { padding: 28px 0 8px; }
+.annual-recipient h3, .annual-recipient p { margin: 0; white-space: pre-line; }
+.annual-statement section[aria-labelledby] { margin-top: 32px; }
+.annual-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 20px; }
+.annual-section-heading h3, .annual-section-heading p { margin: 0; }
+.annual-section-heading > strong { font-size: clamp(1.35rem, 4vw, 2rem); color: var(--forest); }
+
+.annual-table-shell { overflow-x: auto; }
+.annual-table-shell table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+.annual-table-shell th, .annual-table-shell td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.annual-table-shell th { color: var(--forest-dark); }
+.annual-table-shell th:last-child, .annual-table-shell td:last-child { text-align: right; }
+.annual-empty { padding: 18px; border: 1px dashed var(--line); border-radius: 14px; color: var(--color-text-muted); }
+.annual-payment-totals { display: flex; gap: 10px; flex-wrap: wrap; }
+.annual-payment-totals span { padding: 7px 11px; border-radius: 999px; background: var(--forest-wash); color: var(--forest-dark); font-weight: 700; }
+.annual-statement footer { margin-top: 42px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--color-text-muted); font-size: .9rem; }
+
+@media (max-width: 700px) {
+  .annual-summary-toolbar { flex-wrap: wrap; }
+  #annual-summary-form { grid-template-columns: 1fr; }
+  .annual-statement-header { align-items: flex-start; flex-direction: column; }
+  .annual-statement-header h2, .annual-statement-header .eyebrow { text-align: left; }
+  .annual-section-heading { align-items: flex-start; flex-direction: column; }
+}
+
+@media print {
+  @page { margin: .55in; }
+  .annual-summary-page { background: var(--color-card); }
+  .annual-summary-toolbar, .annual-summary-controls { display: none; }
+  .annual-summary-page main { width: 100%; margin: 0; }
+  .annual-statement { display: block !important; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+  .annual-table-shell { overflow: visible; }
+}

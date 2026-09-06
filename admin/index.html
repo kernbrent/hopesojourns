@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-admin-build="2026-09-04.1">
+<html lang="en" data-admin-build="2026-09-06.2">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,8 +8,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'">
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
-  <link rel="stylesheet" href="/styles.css?v=25">
-  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-04.1">
+  <link rel="stylesheet" href="/styles.css?v=26">
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-06.2">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -67,6 +67,7 @@
         </div>
         <div class="admin-dashboard-actions">
           <button class="admin-button admin-button-dark admin-update-button" id="refresh-portal" type="button"><span aria-hidden="true">&#8635;</span> Update portal</button>
+          <a class="admin-button admin-button-primary" href="/admin/trips/">Manage trips</a>
           <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh data</button>
           <button class="admin-button admin-button-outline" id="export-submissions" type="button">Export CSV</button>
           <details class="admin-account-menu" id="admin-account-menu">
@@ -105,6 +106,7 @@
         <div class="admin-view-tabs" role="tablist" aria-label="Choose an area of the response center">
           <button class="admin-view-tab is-active" id="people-view-tab" type="button" role="tab" aria-selected="true" aria-controls="people-list"><strong>Contacts</strong><span>Master people list</span></button>
           <button class="admin-view-tab" id="requests-view-tab" type="button" role="tab" aria-selected="false" aria-controls="submissions-list"><strong>Requests</strong><span>Submitted forms</span></button>
+          <a class="admin-view-tab" href="/admin/trips/"><strong>Trips</strong><span>Departures, portals &amp; budgets</span></a>
           <button class="admin-view-tab" id="csm-inbox-view-tab" type="button" role="tab" aria-selected="false" aria-controls="csm-inbox-workspace"><strong>Payment inbox</strong><span><b id="csm-inbox-badge">0</b> awaiting review</span></button>
           <button class="admin-view-tab" id="ledger-view-tab" type="button" role="tab" aria-selected="false" aria-controls="ledger-workspace"><strong>Ledger</strong><span>Income and expenses</span></button>
           <button class="admin-view-tab" id="grid-view-tab" type="button" role="tab" aria-selected="false" aria-controls="people-grid"><strong>Spreadsheet</strong><span>Grid view</span></button>
@@ -443,9 +445,21 @@
         <form class="admin-ledger-entry-form" id="ledger-entry-form">
           <label><span>Transaction date</span><input name="transactionDate" type="date" required></label>
           <label><span>Income or expense</span><select name="entryType" required><option value="income">Income</option><option value="expense">Expense</option></select></label>
+          <label><span>Purpose</span><select name="transactionPurpose" required>
+            <option value="donation">Donation</option>
+            <option value="scholarship_contribution">Scholarship contribution</option>
+            <option value="trip_payment">Traveler payment</option>
+            <option value="admin_fee">Administrative fee</option>
+            <option value="trip_expense">Trip expense</option>
+            <option value="reimbursement">Reimbursement</option>
+            <option value="refund">Refund</option>
+            <option value="other">Other payment</option>
+            <option value="general">General expense</option>
+          </select></label>
           <label><span>Payment type</span><input name="paymentType" type="text" maxlength="80" list="ledger-payment-types" required placeholder="For example: Check"></label>
           <label><span>Expense category <small>Optional for income</small></span><input name="expenseCategory" type="text" maxlength="100" list="ledger-expense-categories" placeholder="For example: Travel"></label>
           <label><span>Amount</span><input name="amount" type="number" min="0.01" max="100000000" step="0.01" inputmode="decimal" required></label>
+          <label><span>Charitable amount <small>Only donations or scholarship gifts</small></span><input name="charitableAmount" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" placeholder="Defaults to full gift amount"></label>
           <label><span>Budget category</span><input name="budgetCategory" type="text" maxlength="100" list="ledger-budget-categories" required placeholder="For example: General"></label>
           <label><span>Check number <small>Optional</small></span><input name="checkNumber" type="text" maxlength="40" placeholder="For example: 1045"></label>
           <label><span>Name <small>Donor, payee, or vendor</small></span><input name="name" type="text" maxlength="160"></label>
@@ -547,6 +561,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=2026-09-04.1" defer></script>
+  <script src="/admin/admin.js?v=2026-09-06.2" defer></script>
 </body>
 </html>

@@ -16,7 +16,7 @@
       "workers_dev": true,
       "preview_urls": true,
       "secrets": {
-        "required": ["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET", "CSM_DISTRIBUTION_SECRET"]
+        "required": ["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET"]
       },
       "routes": [
         {
@@ -30,7 +30,10 @@
       ],
       "vars": {
         "ENVIRONMENT": "test",
-        "ALLOWED_ORIGINS": "https://test.hopesojourns.com,https://hopesojourns-test.pages.dev,http://localhost:*,http://127.0.0.1:*"
+        "ALLOWED_ORIGINS": "https://test.hopesojourns.com,https://hopesojourns-test.pages.dev,http://localhost:*,http://127.0.0.1:*",
+        "EMAIL_DELIVERY_MODE": "capture",
+        "EMAIL_FROM_ADDRESS": "admin@hopesojourns.com",
+        "EMAIL_REPLY_TO": "admin@hopesojourns.com"
       },
       "d1_databases": [
         {

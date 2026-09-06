@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 2.7
+Version 3.0
 
-Last reviewed: September 4, 2026
+Last reviewed: September 6, 2026
 
 ## 1. Purpose
 
@@ -16,6 +16,10 @@ The goal is a site that feels warm, grounded, hopeful, relational, and trustwort
 |---|---|
 | `/styles.css` | Global visual system and the canonical `:root` design tokens |
 | `/admin/admin.css` | Portal-specific layouts that inherit global tokens |
+| `/admin/trips/trips.css` | Focused trip-administration workspace that inherits global tokens |
+| `/journey/journey.css` | Shared trip portal layout and content hierarchy |
+| `/trip-account/trip-account.css` | Private financial statement layout and print treatment |
+| `/trip/trip.css` and `/admin/annual-summary/annual-summary.css` | Actual-trip public detail and printable annual summary treatments |
 | `/script.js` | Shared header, navigation, footer, motion, and photo-viewer behavior |
 | `/COLOR-PALETTE.md` | Focused color specification, contrast notes, and token rules |
 | `/Check-Color-Palette.ps1` | Automated guardrail against one-off colors or pages missing the shared stylesheet |
@@ -307,6 +311,27 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - When **Take photo** invokes the phone camera, explain that the capture will be optimized before upload. Use the shared live-status area for the optimizing state and report the original and stored sizes after a successful reduction. The separate existing-file picker should not imply that chosen photos or PDFs will be changed.
 - Downloaded spreadsheets and Word files are operational artifacts. Preserve branded document styles, clear filenames, readable totals, and an accompanying manifest when a batch can contain exceptions.
 
+### Trip management and participant portals
+
+- Treat a public opportunity, an actual trip, shared traveler resources, and private financial information as four distinct layers. Labels and actions must make the current layer obvious.
+- Use **Trip management** as a focused administrator destination instead of crowding the main response-portal tabs. Give the workspace a persistent trip list on wide screens, a clear back action, and a compact selector or stacked layout on narrow screens.
+- Lead each trip workspace with name, trip ID, dates, status, and concise readiness and financial summaries. Follow with task-centered areas for overview, team and partners, traveler portal, content, budget and funding, accounts and payments, invitations and messages, public page, and setup lists.
+- Keep dense setup forms inside cards or disclosures and keep saved records visually separate beneath them. Buttons must use direct verbs such as **Save cost**, **Record payment**, **Add coverage**, **Create request**, and **Create invitation**.
+- Use friendly **payment request**, **balance notice**, or **status** language in participant communication. Do not use **invoice** unless a later legal or accounting decision specifically requires it.
+- Financial summaries must distinguish charges, payments, support credits, balance, costs paid through Hope Sojourns, and costs paid externally. Never use one unlabeled total to combine cash received by Hope Sojourns with an outside partner's settlement.
+- Present support for a leader or scholarship recipient as a named support credit with its funding source. Do not visually disguise coverage as a traveler payment.
+- Cost records should show estimate, actual total, settlement route, payment status, vendor, and funding allocations together. State plainly that a paid Hope Sojourns cost enters the central ledger and that externally settled costs do not.
+- Interest-form submissions remain a visible prospect list until an administrator changes the separate team-member status. Invitation records show label, organization, use count, expiration, and status without re-exposing their secret token.
+- The shared traveler portal uses one trip login ID and password for common information. Its sign-in screen should feel calm and welcoming while plainly explaining shared access. Never show charges, balances, payment history, private links, internal notes, or non-opted-in directory fields there.
+- Within the shared portal, group content by practical purpose: devotionals, itinerary, instructions, resources, updates, and team. Use date and time labels where relevant, preserve multiline content, and keep exact operational details out of public content.
+- Individual, family, group, organization, and sponsor finances belong on the private account statement. Lead with charges, payments, support credits, and remaining balance; follow with itemized records and payment requests. Make the page printable, low-chrome, and explicit that the link is private.
+- Public actual-trip pages show only an approved summary, dates, location, interest action, and Public plus Published content. On the evergreen opportunity page, actual departures appear as dated action cards without replacing the broader opportunity story.
+- Content visibility and publication status are independent. Use readable text for Public, Travelers only, Admin only, Draft, and Published; never rely on color. Finishing a trip must not visually imply that traveler-only content became public.
+- The annual contact summary must use separate, clearly titled sections for charitable contributions and other payments. Show subtotals for payments received by Hope Sojourns and settled externally, retain the charitable receipt disclaimer, and hide administrator controls in print.
+- Invitation and account links are sensitive results. Show each new secret link only after creation, offer a clear copy action, and do not repeat it in ordinary saved-record cards.
+- Message delivery status must say Draft, Queued, Sent, Failed, or Canceled in text. When outbound email is not configured, keep the message queued and explain the setup state rather than implying delivery.
+- All new trip pages load `/styles.css` first and use only shared palette variables. The focused stylesheets may add layout and component rules but may not introduce literal colors.
+
 ### Admin ministry details
 
 - Order ministry detail content by review workflow: profile and connected trips first, then **Ministry contacts**, then **Add a ministry contact**, with permanent deletion last.
@@ -434,6 +459,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.0 | Added visual and language standards for actual-trip administration, public departures, traveler-only content, private account statements, financial separation, invitation handling, and annual gift/payment summaries. |
 | 2026-09-04 | 2.7 | Required intentional dismissal for Admin Portal dialogs so backdrop clicks preserve work in progress. |
 | 2026-09-03 | 2.6 | Added conditional email-address and phone-number rows to the complete Admin Portal contact record. |
 | 2026-09-01 | 2.5 | Made the underlined contact name open the complete record while retaining a separate plus/minus summary control. |

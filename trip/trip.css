@@ -1,0 +1,24 @@
+.actual-trip-page { background: var(--color-page); }
+.actual-trip-page .site-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem clamp(1rem, 4vw, 3rem); border-bottom: 1px solid var(--line); background: var(--color-card); }
+.actual-trip-page .brand img { display: block; width: min(14rem, 55vw); height: auto; }
+.actual-trip-page .site-nav { display: flex; flex-wrap: wrap; gap: .85rem; }
+.actual-trip-page .site-nav a { color: var(--forest-dark); font-size: .84rem; font-weight: 800; text-decoration: none; }
+.actual-trip-loading, .actual-trip-error { width: min(50rem, calc(100% - 2rem)); margin: 8vh auto; padding: clamp(2rem, 5vw, 4rem); border-radius: var(--radius); background: var(--color-card); box-shadow: var(--shadow); text-align: center; }
+.actual-trip-loading h1, .actual-trip-error h1 { margin: 0; color: var(--forest-dark); }
+.actual-trip-hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(17rem, .75fr); gap: clamp(1.5rem, 5vw, 4rem); padding: clamp(2.5rem, 8vw, 7rem) max(1rem, calc((100vw - 72rem) / 2)); background: linear-gradient(135deg, var(--forest-deep), var(--forest)); color: var(--white); }
+.actual-trip-hero h1 { max-width: 13ch; margin: .2rem 0 .8rem; color: var(--white); font-size: clamp(3rem, 8vw, 7rem); line-height: .94; }
+.actual-trip-hero > div > p:not(.eyebrow) { max-width: 42rem; color: rgba(var(--white-rgb), .78); font-size: 1.1rem; }
+.actual-trip-at-a-glance { align-self: center; padding: 1.3rem; border: 1px solid rgba(var(--white-rgb), .24); border-radius: 1.2rem; background: rgba(var(--white-rgb), .08); }
+.actual-trip-at-a-glance dl { display: grid; grid-template-columns: auto 1fr; gap: .55rem 1rem; margin: 0 0 1rem; }
+.actual-trip-at-a-glance dt { color: var(--gold-light); font-size: .75rem; font-weight: 900; text-transform: uppercase; }
+.actual-trip-at-a-glance dd { margin: 0; }
+.actual-trip-description, .actual-trip-content, .actual-trip-final { width: min(72rem, calc(100% - 2rem)); margin: 0 auto; padding: clamp(2rem, 6vw, 5rem) 0; }
+.actual-trip-description h2, .actual-trip-final h2 { max-width: 18ch; margin: .1rem 0 1rem; color: var(--forest-dark); font-size: clamp(2rem, 5vw, 4rem); line-height: 1.05; }
+.actual-trip-description > p:not(.eyebrow), .actual-trip-final > p:not(.eyebrow) { max-width: 48rem; white-space: pre-wrap; }
+.actual-trip-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; padding-top: 0; }
+.actual-trip-content article { padding: 1.3rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--color-card); }
+.actual-trip-content h2 { margin: 0 0 .5rem; color: var(--forest-dark); }
+.actual-trip-content p { margin: 0; white-space: pre-wrap; }
+.actual-trip-content small { display: block; margin-bottom: .4rem; color: var(--color-text-muted); font-weight: 800; }
+.actual-trip-final { margin-bottom: 4rem; padding: clamp(1.5rem, 4vw, 3rem); border-radius: var(--radius); background: var(--gold-wash); }
+@media (max-width: 760px) { .actual-trip-page .site-nav { display: none; } .actual-trip-hero { grid-template-columns: 1fr; } }

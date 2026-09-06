@@ -1472,7 +1472,7 @@ function renderLedgerTable(entries) {
   table.append(element("caption", "", "Filtered Hope Sojourns income and expense ledger."));
   const head = document.createElement("thead");
   const heading = document.createElement("tr");
-  ["Date", "Type", "Amount", "Name", "Payment", "Check #", "Expense category", "Budget category", "Source", "Note", "Receipts", "Actions"].forEach(label => {
+  ["Date", "Type", "Purpose", "Amount", "Charitable", "Name", "Payment", "Check #", "Expense category", "Budget category", "Source", "Note", "Receipts", "Actions"].forEach(label => {
     const cell = element("th", "", label);
     cell.scope = "col";
     heading.append(cell);
@@ -1484,7 +1484,9 @@ function renderLedgerTable(entries) {
     gridCell(row, formatDate(entry.transactionDate, false));
     const type = gridCell(row, titleCase(entry.entryType), `admin-ledger-type admin-ledger-type-${entry.entryType}`);
     type.dataset.label = entry.entryType;
+    gridCell(row, titleCase(String(entry.transactionPurpose || "general").replaceAll("_", " ")));
     gridCell(row, formatMoney(entry.amount), "admin-ledger-amount");
+    gridCell(row, formatMoney(entry.charitableAmount || 0), "admin-ledger-amount");
     gridCell(row, entry.name || "—", entry.name ? "" : "admin-grid-muted");
     gridCell(row, entry.paymentType);
     gridCell(row, entry.checkNumber || "—", entry.checkNumber ? "" : "admin-grid-muted");
@@ -1834,9 +1836,11 @@ function openLedgerEntryDialog(entry = null) {
   saveLedgerEntryButton.textContent = entry ? "Save changes" : "Save ledger entry";
   ledgerEntryForm.elements.transactionDate.value = entry?.transactionDate || localDateInputValue();
   ledgerEntryForm.elements.entryType.value = entry?.entryType || "income";
+  ledgerEntryForm.elements.transactionPurpose.value = entry?.transactionPurpose || (entry?.entryType === "expense" ? "general" : "donation");
   ledgerEntryForm.elements.paymentType.value = entry?.paymentType || "Check";
   ledgerEntryForm.elements.expenseCategory.value = entry?.expenseCategory || "";
   ledgerEntryForm.elements.amount.value = entry?.amount || "";
+  ledgerEntryForm.elements.charitableAmount.value = entry ? Number(entry.charitableAmount || 0) : "";
   ledgerEntryForm.elements.budgetCategory.value = entry?.budgetCategory || "General";
   ledgerEntryForm.elements.checkNumber.value = entry?.checkNumber || "";
   ledgerEntryForm.elements.name.value = entry?.name || "";
@@ -3588,8 +3592,10 @@ ledgerEntryForm.addEventListener("submit", async event => {
     await api(entryPath, {
       method: editingEntryId ? "PUT" : "POST",
       body: {
+        charitableAmount: String(formData.get("charitableAmount") || "").trim() ? Number(formData.get("charitableAmount")) : null,
         transactionDate: String(formData.get("transactionDate") || ""),
         entryType: String(formData.get("entryType") || ""),
+        transactionPurpose: String(formData.get("transactionPurpose") || ""),
         paymentType: String(formData.get("paymentType") || ""),
         expenseCategory: String(formData.get("expenseCategory") || ""),
         amount: Number(formData.get("amount")),

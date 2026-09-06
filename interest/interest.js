@@ -80,6 +80,8 @@ if (interestForm) {
       preferredTiming: String(data.get("preferredTiming") || ""),
       message: String(data.get("message") || ""),
       opportunities: selectedOpportunities(),
+      tripId: new URLSearchParams(window.location.search).get("trip") || "",
+      inviteToken: new URLSearchParams(window.location.search).get("invite") || "",
       consent: data.get("consent") === "yes",
       website: String(data.get("website") || ""),
     };

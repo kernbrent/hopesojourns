@@ -135,3 +135,49 @@ if (trip) {
       </aside>
     </section>`;
 }
+
+if (trip) {
+  const card = document.querySelector(".info-card");
+  const actions = card?.querySelector(".info-card-actions");
+  if (card && actions) {
+    const departures = document.createElement("section");
+    departures.className = "actual-departures";
+    departures.hidden = true;
+    const heading = document.createElement("h3");
+    heading.textContent = "Upcoming dates";
+    const list = document.createElement("div");
+    list.className = "actual-departure-list";
+    departures.append(heading, list);
+    card.insertBefore(departures, actions);
+    fetch(`/api/interest/public/trips?opportunity=${encodeURIComponent(interestOpportunity)}`, { headers: { Accept: "application/json" } })
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("Trips unavailable")))
+      .then(result => {
+        result.trips.forEach(actual => {
+          const item = document.createElement("article");
+          item.className = "actual-departure";
+          const title = document.createElement("strong");
+          title.textContent = actual.title;
+          const details = document.createElement("span");
+          const start = actual.start_date ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${actual.start_date}T12:00:00`)) : "Dates being finalized";
+          const end = actual.end_date && actual.end_date !== actual.start_date ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${actual.end_date}T12:00:00`)) : "";
+          details.textContent = `${start}${end ? ` – ${end}` : ""} · ${actual.location}`;
+          const status = document.createElement("small");
+          status.textContent = String(actual.status).replace(/_/g, " ");
+          const link = document.createElement("a");
+          link.className = "text-link";
+          link.href = `/trip/?trip=${encodeURIComponent(actual.slug)}`;
+          link.textContent = "View this trip →";
+          item.append(title, details, status, link);
+          list.append(item);
+        });
+        if (result.trips.length) {
+          departures.hidden = false;
+          const genericButton = actions.querySelector(".button");
+          if (genericButton) genericButton.textContent = "Tell us what dates interest you";
+        }
+      })
+      .catch(() => {
+        departures.remove();
+      });
+  }
+}

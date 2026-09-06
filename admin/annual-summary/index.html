@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Create a Hope Sojourns annual giving and payment summary.">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'">
+  <title>Annual Summary | Hope Sojourns Administration</title>
+  <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
+  <link rel="stylesheet" href="/styles.css?v=26">
+  <link rel="stylesheet" href="/admin/annual-summary/annual-summary.css?v=2026-09-06.2">
+</head>
+<body class="annual-summary-page">
+  <a class="skip-link" href="#annual-summary-main">Skip to annual summary</a>
+  <header class="annual-summary-toolbar">
+    <a href="/admin/trips/">&larr; Trip workspace</a>
+    <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns">
+    <button id="print-summary" type="button" disabled>Print or save PDF</button>
+  </header>
+
+  <main id="annual-summary-main">
+    <section class="annual-summary-controls" aria-labelledby="annual-summary-controls-title">
+      <p class="eyebrow">Hope Sojourns administration</p>
+      <h1 id="annual-summary-controls-title">Annual giving &amp; payment summary</h1>
+      <p>Create one clear record that keeps charitable contributions separate from travel and administrative payments.</p>
+      <form id="annual-summary-form">
+        <label><span>Contact</span><select name="personId" id="annual-person" required><option value="">Loading contacts&hellip;</option></select></label>
+        <label><span>Year</span><select name="year" id="annual-year" required></select></label>
+        <button type="submit">Create summary</button>
+      </form>
+      <p id="annual-summary-status" role="status" aria-live="polite"></p>
+      <p id="annual-summary-signin" hidden><a href="/admin/">Sign in to the response center</a>, then return to this page.</p>
+    </section>
+
+    <article class="annual-statement" id="annual-statement" hidden aria-labelledby="annual-statement-title">
+      <header class="annual-statement-header">
+        <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns">
+        <div><p class="eyebrow" id="annual-statement-year"></p><h2 id="annual-statement-title">Annual giving &amp; payment summary</h2></div>
+      </header>
+      <section class="annual-recipient">
+        <h3 id="annual-recipient-name"></h3>
+        <p id="annual-recipient-address"></p>
+        <p id="annual-recipient-contact"></p>
+      </section>
+      <section aria-labelledby="annual-giving-title">
+        <div class="annual-section-heading"><div><p class="eyebrow">Tax-document section</p><h3 id="annual-giving-title">Charitable contributions</h3></div><strong id="annual-giving-total"></strong></div>
+        <p>Only amounts recorded by Hope Sojourns as charitable contributions appear in this section.</p>
+        <div class="annual-table-shell" id="annual-giving-table"></div>
+      </section>
+      <section aria-labelledby="annual-payments-title">
+        <div class="annual-section-heading"><div><p class="eyebrow">Informational section</p><h3 id="annual-payments-title">Travel and other payments</h3></div><strong id="annual-payments-total"></strong></div>
+        <p>These payments are shown for account history and are not included in the charitable contribution total.</p>
+        <div class="annual-payment-totals" id="annual-payment-totals"></div>
+        <div class="annual-table-shell" id="annual-payment-table"></div>
+      </section>
+      <footer>
+        <p id="annual-disclaimer"></p>
+        <p>Hope Sojourns &middot; hopesojourns.com</p>
+      </footer>
+    </article>
+  </main>
+  <script src="/admin/annual-summary/annual-summary.js?v=2026-09-06.2" defer></script>
+</body>
+</html>

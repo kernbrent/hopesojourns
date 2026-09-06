@@ -1,6 +1,7 @@
 import { handleAdminRequest } from "./admin";
 import { handleCsmAdminRequest, handleCsmDelivery } from "./csm-distribution";
 import { handleLedgerAdminRequest } from "./ledger-admin";
+import { handleTripAdminRequest, handleTripPublicRequest } from "./trip-platform";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_OPPORTUNITIES = 12;
@@ -22,6 +23,8 @@ type InterestSubmission = {
   preferredTiming: string | null;
   message: string | null;
   opportunities: string[];
+  tripId: string | null;
+  inviteToken: string | null;
   idempotencyKey: string;
 };
 
@@ -166,6 +169,13 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
   const idempotencyKey = cleanSingleLine(value.idempotencyKey, 100);
   if (!idempotencyKey || !/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) errors.form = "Refresh the page and try again.";
   if (value.consent !== true) errors.consent = "Confirm that Hope Sojourns may contact you.";
+  const tripId = cleanOptionalSingleLine(value.tripId, 100);
+  if (value.tripId && (!tripId || !/^[0-9a-f-]{36}$/i.test(tripId))) errors.form = "The selected trip link is not valid.";
+  const inviteToken = cleanOptionalSingleLine(value.inviteToken, 100);
+  if (value.inviteToken && (!inviteToken || !/^[A-Za-z0-9_-]{20,100}$/.test(inviteToken))) {
+    errors.form = "The invitation link is not valid.";
+  }
+
 
   if (Object.keys(errors).length > 0 || !firstName || !lastName || !email || !phone || !contactPreference || !idempotencyKey) {
     throw new HttpError(422, "VALIDATION_ERROR", "Please review the highlighted fields.", errors);
@@ -186,6 +196,8 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
     message,
     opportunities,
     idempotencyKey,
+    tripId,
+    inviteToken,
   };
 }
 
@@ -239,8 +251,16 @@ async function requestFingerprint(input: InterestSubmission): Promise<string> {
     preferredTiming: input.preferredTiming?.toLocaleLowerCase("en-US") ?? null,
     message: input.message,
     opportunities: input.opportunities,
+    tripId: input.tripId,
   });
   return bytesToHex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(stable)));
+}
+
+async function base64UrlHash(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  let binary = "";
+  for (const byte of new Uint8Array(digest)) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 export function isAllowedOrigin(origin: string | null, configuredOrigins: string): boolean {
@@ -353,6 +373,40 @@ async function listOpportunities(request: Request, env: Env): Promise<Response> 
   return json(request, env, { opportunities: result.results });
 }
 
+type RequestedTripRow = { id: string; opportunity_id: string | null; opportunity_slug: string | null; invite_id: string | null };
+
+async function requestedTrip(env: Env, input: InterestSubmission): Promise<RequestedTripRow | null> {
+  if (!input.tripId) return null;
+  let trip: RequestedTripRow | null;
+  if (input.inviteToken) {
+    trip = await env.DB.prepare(
+      `SELECT t.id, t.opportunity_id, o.slug AS opportunity_slug, i.id AS invite_id
+       FROM trips t
+       JOIN trip_invites i ON i.trip_id = t.id
+       LEFT JOIN opportunities o ON o.id = t.opportunity_id
+       WHERE t.id = ?1 AND i.token_hash = ?2 AND i.status = 'active'
+         AND (i.expires_at IS NULL OR date(i.expires_at) >= date('now'))
+         AND (i.max_uses IS NULL OR i.use_count < i.max_uses)`,
+    ).bind(input.tripId, await base64UrlHash(input.inviteToken)).first<RequestedTripRow>();
+  } else {
+    trip = await env.DB.prepare(
+      `SELECT t.id, t.opportunity_id, o.slug AS opportunity_slug, NULL AS invite_id
+       FROM trips t LEFT JOIN opportunities o ON o.id = t.opportunity_id
+       WHERE t.id = ?1 AND t.public_enabled = 1 AND t.interest_enabled = 1
+         AND t.status NOT IN ('draft', 'archived', 'canceled')`,
+    ).bind(input.tripId).first<RequestedTripRow>();
+  }
+  if (!trip) throw new HttpError(422, "TRIP_NOT_AVAILABLE", "That trip is not accepting interest right now.", {
+    opportunities: "Choose another available trip or contact Hope Sojourns.",
+  });
+  if (trip.opportunity_slug && !input.opportunities.includes(trip.opportunity_slug)) {
+    throw new HttpError(422, "TRIP_OPPORTUNITY_MISMATCH", "The trip selection did not match its public opportunity.", {
+      opportunities: "Open the trip page again and retry the form.",
+    });
+  }
+  return trip;
+}
+
 async function submitInterest(request: Request, env: Env): Promise<Response> {
   const raw = await readLimitedJson(request);
   if (isRecord(raw) && typeof raw.website === "string" && raw.website.trim()) {
@@ -370,6 +424,7 @@ async function submitInterest(request: Request, env: Env): Promise<Response> {
   const fingerprint = await requestFingerprint(input);
   const existing = await findExistingSubmission(env, input.idempotencyKey, fingerprint);
   if (existing) return existingSubmissionResult(request, env, existing, input.idempotencyKey, fingerprint);
+  const actualTrip = await requestedTrip(env, input);
 
   const personId = crypto.randomUUID();
   const submissionId = crypto.randomUUID();
@@ -429,14 +484,40 @@ async function submitInterest(request: Request, env: Env): Promise<Response> {
        AND people.first_name_normalized = ?3
        AND people.last_name_normalized = ?4`,
   ).bind(now, input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized);
+  const tripStatements: D1PreparedStatement[] = [];
+  if (actualTrip) {
+    tripStatements.push(
+      env.DB.prepare(`INSERT INTO trip_interests (
+        id, trip_id, person_id, submission_id, invite_id, status, created_at, updated_at
+      ) SELECT ?1, ?2, people.id, ?3, ?4, 'interested', ?5, ?5 FROM people
+        WHERE people.email_normalized = ?6 AND people.first_name_normalized = ?7 AND people.last_name_normalized = ?8
+      ON CONFLICT (trip_id, person_id) DO UPDATE SET submission_id = excluded.submission_id,
+        invite_id = COALESCE(excluded.invite_id, trip_interests.invite_id), updated_at = excluded.updated_at`).bind(
+        crypto.randomUUID(), actualTrip.id, submissionId, actualTrip.invite_id, now,
+        input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized,
+      ),
+      env.DB.prepare(`INSERT OR IGNORE INTO trip_members (
+        trip_id, person_id, role, status, directory_visible, directory_email_visible,
+        directory_phone_visible, created_at, updated_at
+      ) SELECT ?1, people.id, 'traveler', 'interested', 0, 0, 0, ?2, ?2 FROM people
+        WHERE people.email_normalized = ?3 AND people.first_name_normalized = ?4 AND people.last_name_normalized = ?5`).bind(
+        actualTrip.id, now, input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized,
+      ),
+    );
+    if (actualTrip.invite_id) {
+      tripStatements.push(env.DB.prepare(
+        "UPDATE trip_invites SET use_count = use_count + 1, updated_at = ?1 WHERE id = ?2",
+      ).bind(now, actualTrip.invite_id));
+    }
+  }
   const insertAudit = env.DB.prepare(
     `INSERT INTO audit_events (id, entity_type, entity_id, event_type, metadata_json, created_at)
      VALUES (?1, 'interest_submission', ?2, 'created', ?3, ?4)`,
-  ).bind(crypto.randomUUID(), submissionId, JSON.stringify({ opportunities: input.opportunities }), now);
+  ).bind(crypto.randomUUID(), submissionId, JSON.stringify({ opportunities: input.opportunities, tripId: actualTrip?.id ?? null }), now);
 
   let results: D1Result[];
   try {
-    results = await env.DB.batch([insertPerson, insertSubmission, ...interestStatements, tagProspectiveTraveler, insertAudit]);
+    results = await env.DB.batch([insertPerson, insertSubmission, ...interestStatements, ...tripStatements, tagProspectiveTraveler, insertAudit]);
   } catch (error) {
     if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
       const racedExisting = await findExistingSubmission(env, input.idempotencyKey, fingerprint);
@@ -483,11 +564,17 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return json(request, env, { status: "ok", service: "hope-sojourns-interest", environment: env.ENVIRONMENT });
   }
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
+  if (path.startsWith("/admin/trip-platform") || path.startsWith("/admin/trips")) {
+    return handleTripAdminRequest(request, env, path);
+  }
   if (path.startsWith("/admin/csm-inbox")) return handleCsmAdminRequest(request, env, path);
   if (path.startsWith("/admin/ledger") || path.startsWith("/admin/contacts/bulk-activity") || path.startsWith("/admin/contacts/documents")) {
     return handleLedgerAdminRequest(request, env, path);
   }
   if (path.startsWith("/admin/")) return handleAdminRequest(request, env, path);
+  if (path.startsWith("/public/trips") || path.startsWith("/portal/") || path.startsWith("/private-account/")) {
+    return handleTripPublicRequest(request, env, path);
+  }
   if (request.method === "GET" && path === "/opportunities") return listOpportunities(request, env);
   if (request.method === "POST" && path === "/submissions") return submitInterest(request, env);
   throw new HttpError(404, "NOT_FOUND", "Not found.");

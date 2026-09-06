@@ -1,0 +1,38 @@
+.journey-page { min-height: 100vh; background: var(--color-page); }
+.journey-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem clamp(1rem, 4vw, 3rem); border-bottom: 1px solid var(--line); background: var(--color-card); }
+.journey-header img { display: block; width: min(13rem, 55vw); height: auto; }
+.journey-header span { color: var(--forest); font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.journey-login { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(18rem, .8fr); gap: clamp(1.5rem, 6vw, 5rem); width: min(70rem, calc(100% - 2rem)); min-height: calc(100vh - 7rem); margin: auto; padding: clamp(2rem, 8vw, 7rem) 0; align-items: center; }
+.journey-login-copy h1 { max-width: 9ch; margin: 0; color: var(--forest-dark); font-size: clamp(3rem, 8vw, 6.5rem); line-height: .95; }
+.journey-login-copy p:not(.eyebrow) { max-width: 35rem; color: var(--color-text-muted); font-size: 1.1rem; }
+.journey-login-card { display: grid; gap: 1rem; padding: clamp(1.3rem, 4vw, 2.3rem); border: 1px solid var(--line); border-radius: var(--radius); background: var(--color-card); box-shadow: var(--shadow); }
+.journey-login-card img { border-radius: 1rem; }
+.journey-login-card label { display: grid; gap: .3rem; color: var(--forest-dark); font-weight: 800; }
+.journey-login-card input { min-height: 3.1rem; padding: .65rem .75rem; border: 1px solid rgba(var(--ink-rgb), .23); border-radius: .7rem; font: inherit; }
+.journey-login-card input:focus { border-color: var(--color-focus); outline: 0; box-shadow: 0 0 0 .2rem rgba(var(--gold-rgb), .2); }
+.journey-status { min-height: 1.5rem; margin: 0; color: var(--color-text-muted); font-weight: 700; }
+.journey-status[data-status="error"] { color: var(--error); }
+.journey-portal { width: min(76rem, calc(100% - 2rem)); margin: 0 auto; padding: clamp(1.5rem, 5vw, 4rem) 0 5rem; }
+.journey-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: clamp(1.4rem, 4vw, 3rem); border-radius: var(--radius); background: linear-gradient(135deg, var(--forest-deep), var(--forest)); color: var(--white); box-shadow: var(--shadow); }
+.journey-hero h1 { margin: .15rem 0; color: var(--white); font-size: clamp(2.3rem, 6vw, 5rem); line-height: 1; }
+.journey-hero p { margin: .25rem 0 0; color: rgba(var(--white-rgb), .78); }
+.journey-signout { padding: .55rem .8rem; border: 1px solid rgba(var(--white-rgb), .35); border-radius: .65rem; background: transparent; color: var(--white); font: inherit; font-weight: 800; }
+.journey-nav { display: flex; gap: .5rem; margin: 1rem 0; padding: .4rem; overflow-x: auto; border: 1px solid var(--line); border-radius: 1rem; background: var(--color-card); }
+.journey-nav a { flex: 0 0 auto; padding: .55rem .8rem; border-radius: .65rem; color: var(--forest-dark); font-size: .84rem; font-weight: 800; text-decoration: none; }
+.journey-nav a:hover, .journey-nav a:focus-visible { background: var(--forest-wash); }
+.journey-content { display: grid; gap: 1rem; }
+.journey-section { padding: clamp(1.2rem, 3vw, 2rem); border: 1px solid var(--line); border-radius: var(--radius); background: var(--color-surface); }
+.journey-section > h2 { margin: 0 0 1rem; color: var(--forest-dark); }
+.journey-item { padding: 1rem 0; border-top: 1px solid var(--line); }
+.journey-item:first-of-type { border-top: 0; }
+.journey-item h3, .journey-item p { margin: 0; }
+.journey-item p { margin-top: .5rem; white-space: pre-wrap; }
+.journey-item-meta { display: flex; flex-wrap: wrap; gap: .4rem .8rem; margin-top: .35rem; color: var(--color-text-muted); font-size: .82rem; }
+.journey-team { margin-top: 1rem; padding: clamp(1.2rem, 3vw, 2rem); border: 1px solid var(--line); border-radius: var(--radius); background: var(--forest-wash); }
+.journey-team h2 { margin: 0 0 1rem; }
+.journey-team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: .7rem; }
+.journey-person { padding: 1rem; border-radius: 1rem; background: var(--color-card); }
+.journey-person h3, .journey-person p { margin: 0; }
+.journey-person p { color: var(--color-text-muted); font-size: .86rem; }
+.journey-private-note { display: flex; gap: .5rem 1rem; margin-top: 1rem; padding: 1rem; border: 1px solid rgba(var(--gold-rgb), .4); border-radius: 1rem; background: var(--gold-wash); color: var(--gold-ink); }
+@media (max-width: 720px) { .journey-login { grid-template-columns: 1fr; } .journey-login-copy h1 { max-width: none; } .journey-hero, .journey-private-note { flex-direction: column; } }

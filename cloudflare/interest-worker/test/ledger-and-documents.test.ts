@@ -73,6 +73,8 @@ describe("ledger spreadsheet handling", () => {
       id: "ledger-1", transactionDate: "2026-08-24", entryType: "income", paymentType: "Venmo",
       expenseCategory: "Misc", amount: 1500, name: "John Gully", personId: null,
       budgetCategory: "General", checkNumber: null, note: "General fund gift", sourceType: "import",
+      transactionPurpose: "donation", charitableAmount: 1500, tripId: null, tripAccountId: null,
+      fundingSourceId: null,
       sourceFileName: "HSLedger.xlsx", sourceRowNumber: 2, currency: "USD",
       gross: null, fee: null, net: null, receiptCount: 2, createdAt: "2026-08-30T12:00:00.000Z",
     }]);
