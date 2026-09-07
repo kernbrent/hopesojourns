@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-trip-admin-build="2026-09-06.4">
+<html lang="en" data-trip-admin-build="2026-09-06.6">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,10 +9,15 @@
   <title>Trips | Hope Sojourns Administration</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-06.4">
+  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-06.6">
 </head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
+
+  <section class="trip-auth-loading" id="trip-auth-loading" role="status" aria-live="polite">
+    <img src="/assets/hope-sojourns-icon.png" alt="" width="64" height="64">
+    <p>Opening your trip workspace&hellip;</p>
+  </section>
 
   <section class="trip-admin-login" id="trip-admin-login" aria-labelledby="trip-admin-login-title" hidden>
     <div class="trip-admin-login-card">
@@ -22,7 +27,10 @@
       <p>Use the same administrator password as the response center.</p>
       <form id="trip-admin-login-form">
         <label for="trip-admin-password">Administrator password</label>
-        <input id="trip-admin-password" name="password" type="password" autocomplete="current-password" required>
+        <div class="trip-password-field">
+          <input id="trip-admin-password" name="password" type="password" autocomplete="current-password" required>
+          <button class="trip-password-toggle" type="button" data-password-toggle aria-controls="trip-admin-password" aria-label="Show administrator password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button>
+        </div>
         <label class="trip-check"><input name="rememberMe" type="checkbox"><span>Remember me on this device</span></label>
         <button class="trip-button trip-button-primary" type="submit">Open trip workspace</button>
         <p class="trip-form-status" id="trip-admin-login-status" role="status" aria-live="polite"></p>
@@ -32,7 +40,8 @@
   </section>
 
   <div class="trip-admin-app" id="trip-admin-app" hidden>
-    <aside class="trip-admin-sidebar" aria-label="Administration areas">
+    <button class="trip-sidebar-toggle" id="trip-sidebar-toggle" type="button" aria-controls="trip-admin-sidebar" aria-expanded="true"><span aria-hidden="true">&#8249;</span><span data-sidebar-toggle-label>Hide menu</span></button>
+    <aside class="trip-admin-sidebar" id="trip-admin-sidebar" aria-label="Administration areas">
       <a class="trip-admin-brand" href="/"><img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns"></a>
       <p class="trip-admin-environment">Test workspace</p>
       <nav>
@@ -170,12 +179,13 @@
 
         <section class="trip-tab-panel" data-trip-panel="portal" hidden>
           <div class="trip-two-column trip-align-start">
-            <form class="trip-admin-card trip-form" id="trip-portal-form">
+            <form class="trip-admin-card trip-form trip-credential-card" id="trip-portal-form">
               <p class="eyebrow">Shared traveler access</p><h3>Trip ID and password</h3>
               <p>Everyone on this trip uses the same credentials for shared resources. Changing the password signs out every existing portal session.</p>
               <label><span>Trip login ID</span><input name="loginId" required maxlength="80" autocomplete="off"></label>
-              <label><span>New shared password</span><input name="password" type="password" minlength="10" maxlength="128" required autocomplete="new-password"></label>
-              <button class="trip-button trip-button-primary" type="submit">Set portal credentials</button><p class="trip-form-status" data-form-status></p>
+              <label><span>New shared password</span><div class="trip-password-field"><input id="trip-shared-password" name="password" type="password" minlength="10" maxlength="128" required autocomplete="new-password"><button class="trip-password-toggle" type="button" data-password-toggle aria-controls="trip-shared-password" aria-label="Show shared trip password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button></div></label>
+              <p class="trip-credential-locked-note" data-credential-locked-note hidden>Credentials are protected. Select Unlock credentials to make changes.</p>
+              <div class="trip-card-actions"><button class="trip-button trip-button-primary" type="submit" data-save-portal-credentials>Set portal credentials</button><button class="trip-button trip-button-outline" id="trip-portal-unlock" type="button" hidden>Unlock credentials</button></div><p class="trip-form-status" data-form-status></p>
             </form>
             <article class="trip-admin-card">
               <p class="eyebrow">Traveler experience</p><h3>Common information only</h3>
@@ -186,6 +196,7 @@
         </section>
 
         <section class="trip-tab-panel" data-trip-panel="content" hidden>
+          <aside class="trip-import-callout"><div><strong>Adding several devotionals, itinerary items, instructions, or resources?</strong><span>Use the trip workbook to load them together, or keep using the form below for one-at-a-time entry.</span></div><button class="trip-button trip-button-outline" type="button" data-open-trip-import>Import spreadsheet</button></aside>
           <div class="trip-two-column trip-align-start">
             <form class="trip-admin-card trip-form" id="trip-content-form">
               <input name="id" type="hidden">
@@ -207,6 +218,7 @@
         </section>
 
         <section class="trip-tab-panel" data-trip-panel="budget" hidden>
+          <aside class="trip-import-callout"><div><strong>Building a full budget or funding plan?</strong><span>Import costs and allocations together from the formatted trip workbook, or enter them manually below.</span></div><button class="trip-button trip-button-outline" type="button" data-open-trip-import>Import spreadsheet</button></aside>
           <div class="trip-finance-summary" id="trip-budget-summary"></div>
           <div class="trip-two-column trip-align-start">
             <form class="trip-admin-card trip-form" id="trip-cost-form">
@@ -242,6 +254,7 @@
         </section>
 
         <section class="trip-tab-panel" data-trip-panel="accounts" hidden>
+          <aside class="trip-import-callout"><div><strong>Setting up several traveler or group accounts?</strong><span>Import accounts, charges, support credits, and payments together, or enter each item manually below.</span></div><button class="trip-button trip-button-outline" type="button" data-open-trip-import>Import spreadsheet</button></aside>
           <div class="trip-finance-summary" id="trip-account-summary"></div>
           <details class="trip-form-disclosure" open><summary>Create or update an account</summary><form class="trip-form trip-inline-form" id="trip-account-form"><input name="id" type="hidden"><p class="trip-prerequisite" data-prerequisite="account" hidden></p><label><span>Account name</span><input name="name" required maxlength="180"></label><label><span>Type</span><select name="accountType"><option value="individual">Individual</option><option value="family">Family</option><option value="group">Group</option><option value="organization">Organization</option><option value="sponsor">Sponsor</option></select></label><label><span>Person</span><select name="personId"></select></label><label><span>Organization</span><select name="ministryId"></select></label><label><span>Billing email</span><input name="billingEmail" type="email"></label><label><span>Financial access</span><select name="financialAccess"><option value="private_link">Private link</option><option value="email_only">Statements by email</option><option value="disabled">Disabled</option></select></label><label><span>Status</span><select name="status"><option value="active">Active</option><option value="closed">Closed</option><option value="canceled">Canceled</option></select></label><button class="trip-button trip-button-primary" type="submit">Save account</button><p class="trip-form-status" data-form-status></p></form></details>
           <div class="trip-account-actions">
@@ -255,6 +268,7 @@
         </section>
 
         <section class="trip-tab-panel" data-trip-panel="communications" hidden>
+          <aside class="trip-import-callout"><div><strong>Preparing several traveler invitations?</strong><span>Import invitation rows from the trip workbook, or create one private link at a time below.</span></div><button class="trip-button trip-button-outline" type="button" data-open-trip-import>Import spreadsheet</button></aside>
           <div class="trip-two-column trip-align-start">
             <form class="trip-admin-card trip-form" id="trip-invite-form"><p class="eyebrow">Friendly traveler intake</p><h3>Create an invitation link</h3><label><span>Invitation label</span><input name="label" maxlength="160" placeholder="One Creation team"></label><label><span>Preselected organization</span><select name="ministryId"></select></label><div class="trip-form-row"><label><span>Expires</span><input name="expiresAt" type="date"></label><label><span>Maximum uses</span><input name="maxUses" type="number" min="1"></label></div><button class="trip-button trip-button-primary" type="submit">Create invitation</button><p class="trip-form-status" data-form-status></p><div class="trip-invite-result" id="trip-invite-result" hidden><label><span>Share this private link</span><input id="trip-invite-link" type="url" readonly></label><button class="trip-button trip-button-outline" id="trip-copy-invite" type="button">Copy link</button><small>This secret link is shown only when it is created.</small></div></form>
             <form class="trip-admin-card trip-form" id="trip-message-form"><p class="eyebrow">Safe email outbox</p><h3>Prepare a message</h3><label><span>Recipient email</span><input name="recipientEmail" type="email" required></label><label><span>Message type</span><select name="messageType"><option value="invitation">Invitation</option><option value="payment_request">Payment request</option><option value="statement">Statement</option><option value="trip_update">Trip update</option><option value="other">Other</option></select></label><label><span>Subject</span><input name="subject" required maxlength="200"></label><label><span>Message</span><textarea name="bodyText" rows="7" required></textarea></label><label class="trip-check"><input name="queue" type="checkbox"><span>Queue for automatic delivery when email service is enabled</span></label><button class="trip-button trip-button-primary" type="submit">Save message</button><p class="trip-form-status" data-form-status></p></form>
@@ -303,7 +317,26 @@
     </form>
   </dialog>
 
+  <dialog class="trip-dialog trip-import-dialog" id="trip-import-dialog" aria-labelledby="trip-import-title" closedby="closerequest">
+    <div class="trip-dialog-card trip-import-shell">
+      <div class="trip-dialog-heading"><div><p class="eyebrow">Bulk trip setup</p><h2 id="trip-import-title">Import a trip spreadsheet</h2></div><button class="trip-dialog-close" id="trip-import-close" type="button" aria-label="Close trip spreadsheet import">&times;</button></div>
+      <p>One workbook can add team members, partners, content, budget items, funding allocations, accounts, charges, support credits, payments, and invitations. Blank sheets are safely ignored.</p>
+      <p><a class="trip-button trip-button-outline" href="/downloads/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx" download>Download the formatted template</a></p>
+      <form class="trip-form" id="trip-import-form">
+        <label><span>Completed Excel workbook</span><input id="trip-import-file" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>
+        <div class="trip-dialog-actions"><button class="trip-button trip-button-quiet" id="trip-import-reset" type="button">Choose another file</button><button class="trip-button trip-button-outline" id="trip-import-preview" type="submit">Preview import</button><button class="trip-button trip-button-primary" id="trip-import-commit" type="button" disabled>Import ready rows</button></div>
+        <p class="trip-form-status" id="trip-import-status" role="status" aria-live="polite"></p>
+      </form>
+      <section class="trip-import-results" id="trip-import-results" hidden>
+        <div class="trip-import-summary" id="trip-import-summary"></div>
+        <div class="trip-import-table-shell" id="trip-import-table-shell"></div>
+      </section>
+    </div>
+  </dialog>
+
+  <div class="trip-guide-alert" id="trip-guide-alert" role="alert" hidden><span></span><button type="button" aria-label="Dismiss setup message">&times;</button></div>
+
   <template id="trip-record-template"><article class="trip-record"><div class="trip-record-main"></div><div class="trip-record-actions"></div></article></template>
-  <script src="/admin/trips/trips.js?v=2026-09-06.4" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-06.6" defer></script>
 </body>
 </html>

@@ -43,4 +43,10 @@ for (const entry of publicEntries) {
   await cp(source, path.join(outputDirectory, entry), { recursive: true });
 }
 
+await mkdir(path.join(outputDirectory, "downloads"), { recursive: true });
+await cp(
+  path.join(repositoryRoot, "outputs", "01a0775c-925e-7713-9822-42450cb2f4b6", "Hope-Sojourns-Trip-Bulk-Import-Template.xlsx"),
+  path.join(outputDirectory, "downloads", "Hope-Sojourns-Trip-Bulk-Import-Template.xlsx"),
+);
+
 console.log(`Prepared ${publicEntries.length} public site entries.`);

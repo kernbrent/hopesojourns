@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 3.2
+Version 3.3
 
 Last reviewed: September 6, 2026
 
@@ -319,6 +319,11 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Keep summary cards visibly distinct from entry forms. Label read-only cards as **Summary**, use a lighter dashed boundary, and provide an adjacent edit action when the saved values are maintained elsewhere.
 - Introduce the workspace with one short explanation: labeled fields plus a Save button are editable; summary cards show saved information; core dates, location, status, capacity, and public settings use **Edit trip**.
 - Offer **Guided help** as an optional, persistent control. When enabled, show a setup-guide card after a trip opens with completed and total step counts, a progress meter, the next recommended action, a direct **Go to next step** control, and an expandable checklist. Enable it for first use, remember the administrator's on/off choice in that browser, and keep required prerequisite notes visible independently of this preference.
+- Make every setup-checklist item an action. Available items may be opened in any order; an unavailable item must remain clickable and answer with a brief **Please complete [prerequisite] before this [item]** message. Do not impose a linear sequence when the underlying records are independent.
+- Provide the same persistent, collapsible administration rail in the main response center and trip management. Remember its open or closed state in that browser, place the collapse control at the rail edge, and change it to a slide-over menu at narrower widths. A valid cross-workspace session should show a neutral loading state while it is checked, never a momentary login form.
+- Every password input needs an adjacent eye control with an accessible Show/Hide label. Revealing text is temporary; reset it to masked after sign-in, sign-out, successful save, or a return to a protected state.
+- After a shared trip login has been created, render its credential card as visibly locked and muted. Disable both fields, hide the save action, and expose one explicit **Unlock credentials** action. Unlocking requires entry of a new password; saving revokes prior traveler sessions and returns the card to its locked state.
+- Offer a spreadsheet-import callout wherever administrators manage trip content, budgets, accounts, payments, support, or invitations. The modal must lead with a downloadable formatted workbook, require a preview before commit, show row-by-row Ready, Already loaded, Conflict, and Needs attention states, and preserve the selected file while corrections are reviewed.
 - Keep dense setup forms inside cards or disclosures and keep saved records visually separate beneath them. Buttons must use direct verbs such as **Save cost**, **Record payment**, **Add coverage**, **Create request**, and **Create invitation**.
 - Keep administrator cards visually and technically separate from the cinematic public trip cards. Trip administration uses the neutral `trip-admin-card` component; the public `trip-card` component includes image overlays, fixed visual heights, and hover movement that must never cover or resize an administrator form.
 - When an action depends on another record, place a visible note inside that card using **Please complete [prerequisite] before this [item]** and disable only the unavailable action. Link to another administrator workspace when that is where the prerequisite is created. Saved team-member and organization cards must provide an **Edit** action that returns the administrator to the populated form.
@@ -465,6 +470,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.3 | Added persistent slide-out administration rails, no-flash session loading, accessible password reveal controls, locked shared credentials, dependency-aware clickable setup steps, and preview-first trip spreadsheet imports. |
 | 2026-09-06 | 3.2 | Separated neutral trip-administration cards from the public trip-card overlay and grid treatment so every administrator form remains readable, correctly sized, and interactive. |
 | 2026-09-06 | 3.1 | Distinguished trip summary cards from editable forms, added clear edit paths, selection prerequisites, and optional progress-based guided help, and applied the no-backdrop-dismiss rule explicitly to trip administration. |
 | 2026-09-06 | 3.0 | Added visual and language standards for actual-trip administration, public departures, traveler-only content, private account statements, financial separation, invitation handling, and annual gift/payment summaries. |

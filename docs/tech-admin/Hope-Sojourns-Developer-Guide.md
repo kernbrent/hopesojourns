@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 3.2
+Version 3.3
 
 Last reviewed: September 6, 2026
 
@@ -52,7 +52,9 @@ There is no top-level frontend package or compilation step. Source HTML, CSS, Ja
 | `/admin/trips/` | Administrator trip workspaces, catalogs, budgets, accounts, communications, and publishing controls |
 | `/admin/annual-summary/` | Printable annual contact summary separating charitable gifts from other payments |
 | `/cloudflare/interest-worker/src/trip-platform.ts` | Trip platform validation, persistence, public/private APIs, financial posting, and message delivery |
+| `/cloudflare/interest-worker/src/spreadsheet-reader.ts` and `trip-import.ts` | Bounded XLSX decoding plus trip-sheet/header normalization and dependency ordering |
 | `/cloudflare/build-test-site.mjs` | Creates the ignored `/site-dist/` Pages artifact and explicitly includes the public, admin, journey, trip-account, and actual-trip routes |
+| `/tools/build_trip_import_template.mjs` | Generates the canonical branded trip bulk-import workbook in the task output directory |
 | `/assets/` | Core website images and brand assets |
 | `/about/` | About page |
 | `/giving/` | Giving page and browser-side PayPal integration |
@@ -217,6 +219,7 @@ Current migrations:
 13. `0013_ledger_receipts.sql`
 
 14. `0014_trip_platform.sql`
+15. `0015_trip_bulk_imports.sql`
 Do not edit a migration that has already been applied to a shared environment. Add a new numbered migration.
 Migration `0011_unified_ledger.sql` creates `ledger_entries`, indexes its date, type, source, and linked-person fields, and backfills existing approved CSM `financial_transactions`. Apply it before deploying Worker code that reads or writes the unified ledger.
 Migration `0012_ledger_entry_management.sql` adds the optional `check_number` field. Apply it before deploying Worker or portal code that reads, writes, searches, imports, or exports check numbers.
@@ -321,10 +324,18 @@ An actual trip is a dated operational record in `trips`. Its optional `opportuni
 
 The administrator workspace is `/admin/trips/`. Its bootstrap endpoint returns trips plus shared People, Ministries, funding-source, cost-category, and public-opportunity lists. A trip workspace returns its content, interest records, members, organizations, accounts, costs, allocations, charges, support awards, payments, payment requests, invitation records, and message outbox. Create and update routes reuse the main administrator session, CSRF token, audit log, validation conventions, and no-store response headers.
 
-The trip interface labels read-only cards as summaries and identifies cards with labeled fields and Save buttons as entry forms. Trip workspace panels use `trip-admin-card`; do not reuse the public `trip-card` class because `/styles.css` gives public destination cards an absolute visual overlay, fixed minimum heights, grid spans, and hover transforms that can cover or resize form controls. The administrator UI contract test must continue to reject the public class token in `/admin/trips/index.html`. Core trip and public settings open through the shared trip dialog; backdrop clicks are intercepted and `closedby="closerequest"` permits only an intentional close request. `renderPrerequisiteGuidance()` checks the active People, Ministries, cost-category, funding-source, cost-item, and trip-account records. When a required catalog is empty, the affected card shows a **Please complete [prerequisite] before this [item]** note and disables its submit button. People and Ministry notes link to the corresponding main administrator workspace. Those cross-workspace links set a one-time navigation marker so the valid administrator session can be checked and reused without forcing another login. Team-member and connected-organization record cards provide Edit actions that repopulate their forms. Event listeners for independent forms, invitation creation, and invitation-link copying must be registered once during startup.
+The trip interface labels read-only cards as summaries and identifies cards with labeled fields and Save buttons as entry forms. Trip workspace panels use `trip-admin-card`; do not reuse the public `trip-card` class because `/styles.css` gives public destination cards an absolute visual overlay, fixed minimum heights, grid spans, and hover transforms that can cover or resize form controls. The administrator UI contract test must continue to reject the public class token in `/admin/trips/index.html`. Core trip and public settings open through the shared trip dialog; backdrop clicks are intercepted and `closedby="closerequest"` permits only an intentional close request. `renderPrerequisiteGuidance()` checks the active People, Ministries, cost-category, funding-source, cost-item, and trip-account records. When a required catalog is empty, the affected card shows a **Please complete [prerequisite] before this [item]** note and disables its submit button. People and Ministry notes link to the corresponding main administrator workspace. Those cross-workspace links set a one-time navigation marker so the valid administrator session can be checked and reused without forcing another login. The main response center begins in an authentication-loading state; it reveals the login form only after a direct visit or failed session check, eliminating the old login flash during trusted navigation. Both administrator surfaces use the same local-storage sidebar preference and expose a collapsible rail. Team-member and connected-organization record cards provide Edit actions that repopulate their forms. Event listeners for independent forms, invitation creation, and invitation-link copying must be registered once during startup.
 
 
-Guided setup is a presentation-layer helper, not stored trip data. `TRIP_GUIDED_HELP_KEY` saves only an on/off preference in local storage and defaults to enabled when no preference exists. `tripSetupSteps()` derives completion from the currently loaded workspace, and `renderSetupGuide()` displays the completed/total count, progress meter, next action, and full checklist. `openNextGuideStep()` either opens the trip editor or activates and focuses the relevant workspace form. Required prerequisite notices remain active when guided help is disabled.
+Guided setup is a presentation-layer helper, not stored trip data. `TRIP_GUIDED_HELP_KEY` saves only an on/off preference in local storage and defaults to enabled when no preference exists. `tripSetupSteps()` derives completion and true record dependencies from the currently loaded workspace, and `renderSetupGuide()` displays the completed/total count, progress meter, next action, and a clickable checklist. `openGuideStep()` opens any independent item immediately; blocked items raise the precise prerequisite in a transient live alert. `openNextGuideStep()` prefers the first incomplete item whose dependencies are currently met. Required prerequisite notices remain active when guided help is disabled.
+
+All password inputs in the main administrator, trip administrator, and traveler surfaces have accessible show/hide controls. Shared trip credentials are write-only: the Worker never returns a plaintext password. When `portal_login_id` exists, the browser locks and mutes the credential card until **Unlock credentials** is selected. A replacement requires a new password and the existing save route revokes all traveler sessions.
+
+Trip bulk import is a preview-first multipart route at `POST /admin/trips/:id/import`. It accepts only `.xlsx` files up to 3 MB and at most 200 populated rows. The bounded ZIP/XML reader rejects path traversal, encrypted or unsafe packages, excessive entries or decompressed bytes, formulas, unsupported files, duplicate Import Refs, and changed data that reuses an earlier ref. The supported sheets are Team, Partners, Content, Accounts, Budget, Allocations, Charges, Support, Payments, and Invites; Instructions and blank sheets are ignored. Import order resolves accounts before budget items, then allocations, charges, support, and payments. People are referenced by email; Ministries, cost categories, and funding sources by normalized name; dependent trip records by their workbook Import Ref.
+
+Migration `0015_trip_bulk_imports.sql` adds `trip_bulk_import_rows`. Its unique trip/entity/external-key constraint and SHA-256 content fingerprint make identical reruns safe while surfacing changed rows as conflicts. Commit reuses the ordinary trip save handlers so validation, ledger synchronization, invitation token creation, audit events, and CSRF controls remain centralized. A row failure stops later ready rows; an administrator may correct and rerun the same workbook, and prior successful rows are skipped. New secret invitation paths are returned once in the commit result.
+
+The canonical workbook is `/outputs/01a0775c-925e-7713-9822-42450cb2f4b6/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx`. Rebuild it with the bundled Node runtime, `NODE_PATH` set to the bundled modules directory, and `tools/build_trip_import_template.mjs`. The test-site build copies this one source workbook to `/site-dist/downloads/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx`; do not maintain a second source copy.
 Trip invitations are hashed bearer tokens. They preselect the actual trip and optional organization on `/interest/`, can expire or have a maximum use count, and are revealed only at creation. A successful interest form links the submission and Person to `trip_interests`; it does not silently confirm the traveler. Administrators review the interest and control the separate `trip_members.status` lifecycle.
 
 The shared traveler password is PBKDF2-SHA-256 derived with a random per-trip salt and 100,000 iterations. The plaintext password is never stored. Successful sign-in creates an HTTP-only, Secure, SameSite Strict session cookie scoped to the portal API. Changing the credential revokes all existing sessions. Failed logins are limited by the hash of the normalized login ID and client address; repeated failures create a temporary block, and old attempt rows are removed automatically. The shared portal never includes account balances or payment history.
@@ -356,6 +367,7 @@ Primary route families are:
 | `POST /admin/trip-platform/funding-sources`, `POST /admin/trip-platform/cost-categories` | Create or update administrator-managed catalogs |
 | `POST /admin/trips/:id/<resource>` | Save members, organizations, content, costs, allocations, accounts, charges, awards, payments, payment requests, invites, or messages |
 | `POST /admin/trips/:id/portal-credential` | Replace the shared credential and revoke sessions |
+| `POST /admin/trips/:id/import` | Preview or commit a formatted XLSX trip import |
 | `POST /admin/trips/:id/accounts/:accountId/access-links` | Revoke and replace a private account link |
 | `POST /admin/trips/:id/messages/:messageId/send` | Deliver one queued message only when live email is configured |
 | `GET /admin/trip-platform/annual-summary` | Return the two-part annual contact summary |
@@ -643,6 +655,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.3 | Documented no-flash cross-workspace navigation, collapsible administration rails, password reveal and credential-lock behavior, clickable dependency-aware setup guidance, the bounded XLSX importer, idempotency migration, and canonical workbook build/distribution flow. |
 | 2026-09-06 | 3.2 | Namespaced trip-administration cards separately from public destination cards and added a regression contract preventing the public overlay and grid styles from covering administrator forms. |
 | 2026-09-06 | 3.1 | Documented intentional session reuse between trip and main admin workspaces, trip form and summary distinctions, edit actions, prerequisites, optional progress-based guided help, universal dialog backdrop protection, and single-registration form wiring. |
 | 2026-09-06 | 3.0 | Added the complete actual-trip platform: opportunity linkage, admin workspaces, intake, shared and private portals, content publishing, extensible budgets and funding, central-ledger synchronization, account/payment/support workflows, annual summaries, message-delivery safeguards, and test-only deployment requirements. |

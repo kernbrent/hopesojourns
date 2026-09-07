@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-admin-build="2026-09-06.3">
+<html lang="en" data-admin-build="2026-09-06.4">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-06.2">
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-06.4">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -23,8 +23,22 @@
     </div>
   </header>
 
+  <button class="admin-sidebar-toggle" id="admin-sidebar-toggle" type="button" aria-controls="admin-global-sidebar" aria-expanded="true" hidden><span aria-hidden="true">&#8249;</span><span data-sidebar-toggle-label>Hide menu</span></button>
+  <aside class="admin-global-sidebar" id="admin-global-sidebar" aria-label="Administration areas" hidden>
+    <p class="admin-sidebar-title">Administration</p>
+    <nav>
+      <a href="#requests" data-admin-sidebar-view="requests"><span aria-hidden="true">&#9675;</span> Requests</a>
+      <a href="/admin/trips/"><span aria-hidden="true">&#10022;</span> Trips</a>
+      <a href="#ledger" data-admin-sidebar-view="ledger"><span aria-hidden="true">$</span> Organization finances</a>
+      <a href="#ministries" data-admin-sidebar-view="ministries"><span aria-hidden="true">&#9671;</span> Ministries</a>
+      <a href="#people" data-admin-sidebar-view="people"><span aria-hidden="true">&#9675;</span> People</a>
+    </nav>
+    <div class="admin-sidebar-note"><strong>One connected workspace</strong><span>Your signed-in session follows you between these areas.</span></div>
+  </aside>
+
   <main id="main" class="admin-main">
-    <section class="admin-login-shell" id="login-panel" aria-labelledby="login-title">
+    <section class="admin-auth-loading" id="admin-auth-loading" role="status"><img src="/assets/hope-sojourns-icon.png" alt="" width="48" height="48"><strong>Opening the response center...</strong></section>
+    <section class="admin-login-shell" id="login-panel" aria-labelledby="login-title" hidden>
       <div class="admin-login-intro">
         <p class="eyebrow">Hope Sojourns administration</p>
         <h1 id="login-title">Your response center.</h1>
@@ -561,6 +575,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=2026-09-06.3" defer></script>
+  <script src="/admin/admin.js?v=2026-09-06.4" defer></script>
 </body>
 </html>

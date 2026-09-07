@@ -8,9 +8,27 @@ function dateLabel(value) { if (!value) return ""; const date = new Date(`${valu
 function setStatus(message, type = "") { status.textContent = message; if (type) status.dataset.status = type; else status.removeAttribute("data-status"); }
 async function api(path, options = {}) { const response = await fetch(`${API_BASE}${path}`, { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...(options.body ? { "Content-Type": "application/json" } : {}) } }); let result = {}; try { result = await response.json(); } catch { result = {}; } if (!response.ok) throw new Error(result.error || "The traveler portal is not available."); return result; }
 
+function resetPasswordVisibility() {
+  const input = document.querySelector("#journey-password");
+  const button = document.querySelector("#journey-password-toggle");
+  input.type = "password";
+  button.setAttribute("aria-pressed", "false");
+  button.setAttribute("aria-label", "Show trip password");
+}
+
+document.querySelector("#journey-password-toggle").addEventListener("click", event => {
+  const input = document.querySelector("#journey-password");
+  const revealing = input.type === "password";
+  input.type = revealing ? "text" : "password";
+  event.currentTarget.setAttribute("aria-pressed", String(revealing));
+  event.currentTarget.setAttribute("aria-label", `${revealing ? "Hide" : "Show"} trip password`);
+  input.focus();
+});
+
 const labels = { overview: "Overview", devotional: "Daily devotionals", instruction: "Instructions", itinerary: "Itinerary", resource: "Resources", update: "Updates" };
 
 function render(data) {
+  resetPasswordVisibility();
   login.hidden = true;
   portal.hidden = false;
   document.querySelector("#journey-code").textContent = data.trip.code;

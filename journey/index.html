@@ -9,7 +9,7 @@
   <title>Traveler Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/journey/journey.css?v=2026-09-06.2">
+  <link rel="stylesheet" href="/journey/journey.css?v=2026-09-06.3">
 </head>
 <body class="journey-page">
   <a class="skip-link" href="#journey-main">Skip to trip information</a>
@@ -27,7 +27,7 @@
       <form class="journey-login-card" id="journey-login-form">
         <img src="/assets/hope-sojourns-icon.png" alt="" width="60" height="60">
         <label><span>Trip ID</span><input name="loginId" required maxlength="80" autocomplete="username"></label>
-        <label><span>Trip password</span><input name="password" type="password" required maxlength="128" autocomplete="current-password"></label>
+        <label><span>Trip password</span><div class="journey-password-field"><input id="journey-password" name="password" type="password" required maxlength="128" autocomplete="current-password"><button class="journey-password-toggle" id="journey-password-toggle" type="button" aria-controls="journey-password" aria-label="Show trip password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button></div></label>
         <button class="button" type="submit">Open my trip</button>
         <p class="journey-status" data-journey-status role="status" aria-live="polite"></p>
       </form>
@@ -46,6 +46,6 @@
       <aside class="journey-private-note"><strong>Looking for your balance?</strong><span>Financial details are never shared with the whole team. Use the private account link sent to your email, or contact your trip leader.</span></aside>
     </section>
   </main>
-  <script src="/journey/journey.js?v=2026-09-06.2" defer></script>
+  <script src="/journey/journey.js?v=2026-09-06.3" defer></script>
 </body>
 </html>

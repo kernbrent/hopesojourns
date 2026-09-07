@@ -7,6 +7,8 @@ import {
   secureEqual,
   type AdminEnv,
 } from "./admin";
+import { parseTripImportSheets, type TripImportEntity, type TripImportRow } from "./trip-import";
+import { excelDateValue, readSpreadsheet, SpreadsheetFileError, SPREADSHEET_MAX_FILE_BYTES } from "./spreadsheet-reader";
 
 const PORTAL_SESSION_HOURS = 12;
 const ACCOUNT_LINK_DAYS = 30;
@@ -1250,6 +1252,358 @@ async function privateAccountStatement(request: Request, env: AdminEnv, token: s
   }, 200, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
 }
 
+type TripImportLookups = {
+  people: Map<string, string>;
+  ministries: Map<string, string>;
+  categories: Map<string, string>;
+  sources: Map<string, string>;
+  importedIds: Map<string, string>;
+};
+
+type TripImportPreviewRow = {
+  sheet: string;
+  rowNumber: number;
+  entity: TripImportEntity;
+  externalKey: string;
+  status: "ready" | "already_loaded" | "conflict" | "error" | "imported" | "not_imported";
+  message: string;
+  fingerprint: string;
+};
+
+function importLookupKey(entity: TripImportEntity, externalKey: string): string {
+  return `${entity}:${externalKey.toLocaleLowerCase("en-US")}`;
+}
+
+function importValue(row: TripImportRow, header: string, required = false): string {
+  const value = row.values[header] ?? "";
+  if (required && !value) throw new AdminError(422, "IMPORT_VALUE_REQUIRED", `${header} is required.`);
+  return value;
+}
+
+function importBoolean(value: string, fallback = false): boolean {
+  if (!value) return fallback;
+  const normalized = value.toLocaleLowerCase("en-US");
+  if (["yes", "y", "true", "1"].includes(normalized)) return true;
+  if (["no", "n", "false", "0"].includes(normalized)) return false;
+  throw new AdminError(422, "INVALID_IMPORT_VALUE", `Use Yes or No instead of "${value}".`);
+}
+
+function importMasterId(map: Map<string, string>, value: string, label: string, optional = false): string | null {
+  if (!value && optional) return null;
+  if (!value) throw new AdminError(422, "IMPORT_REFERENCE_REQUIRED", `${label} is required.`);
+  const id = map.get(normalizeTripCatalogName(value));
+  if (!id) throw new AdminError(422, "IMPORT_REFERENCE_NOT_FOUND", `${label} "${value}" was not found. Create it first, then preview this spreadsheet again.`);
+  return id;
+}
+
+function importEntityId(lookups: TripImportLookups, entity: TripImportEntity, value: string, label: string, optional = false): string | null {
+  if (!value && optional) return null;
+  if (!value) throw new AdminError(422, "IMPORT_REFERENCE_REQUIRED", `${label} is required.`);
+  const id = lookups.importedIds.get(importLookupKey(entity, value));
+  if (!id) throw new AdminError(422, "IMPORT_REFERENCE_NOT_FOUND", `${label} "${value}" was not found in this workbook or an earlier import.`);
+  return id;
+}
+
+function importDate(row: TripImportRow, header: string, required = false): string {
+  const value = importValue(row, header, required);
+  return value ? excelDateValue(value) : "";
+}
+
+function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): JsonRecord {
+  const value = (header: string, required = false) => importValue(row, header, required);
+  const ministry = (header: string, optional = false) => importMasterId(lookups.ministries, value(header), header, optional);
+  const source = (header: string, optional = false) => importMasterId(lookups.sources, value(header), header, optional);
+  const account = (header: string, optional = false) => importEntityId(lookups, "account", value(header), header, optional);
+  const cost = (header: string, optional = false) => importEntityId(lookups, "cost", value(header), header, optional);
+  switch (row.entity) {
+    case "partner":
+      return {
+        ministryId: ministry("organization name"),
+        role: value("role", true),
+        notes: value("notes"),
+      };
+    case "member":
+      return {
+        personId: importMasterId(lookups.people, value("person email", true), "person email"),
+        ministryId: ministry("organization name", true),
+        role: value("role") || "traveler",
+        status: value("status") || "invited",
+        directoryVisible: importBoolean(value("directory visible"), true),
+        directoryEmailVisible: importBoolean(value("show email"), false),
+        directoryPhoneVisible: importBoolean(value("show phone"), false),
+        notes: value("notes"),
+      };
+    case "content":
+      return {
+        contentType: value("content type", true),
+        title: value("title", true),
+        content: value("content"),
+        eventDate: importDate(row, "event date"),
+        eventTime: value("event time"),
+        location: value("location"),
+        linkUrl: value("link url"),
+        visibility: value("visibility") || "travelers",
+        publicationStatus: value("publication status") || "draft",
+        sortOrder: value("sort order") || "0",
+      };
+    case "account":
+      return {
+        accountType: value("account type", true),
+        name: value("account name", true),
+        personId: importMasterId(lookups.people, value("person email"), "person email", true),
+        ministryId: ministry("organization name", true),
+        billingEmail: value("billing email"),
+        billingPhone: value("billing phone"),
+        financialAccess: value("financial access") || "private_link",
+        status: value("status") || "active",
+        notes: value("notes"),
+      };
+    case "cost":
+      return {
+        categoryId: importMasterId(lookups.categories, value("category name", true), "category name"),
+        description: value("description", true),
+        expenseScope: value("expense scope") || "trip",
+        accountId: account("account ref", true),
+        quantity: value("quantity") || "1",
+        estimatedUnitCost: value("estimated unit cost") || "0",
+        estimatedTotal: value("estimated total"),
+        actualTotal: value("actual total") || "0",
+        vendorName: value("vendor name"),
+        vendorMinistryId: ministry("vendor organization name", true),
+        settlementRoute: value("settlement route") || "through_hs",
+        paymentStatus: value("payment status") || "planned",
+        paymentMethod: value("payment method"),
+        externalReference: value("external reference"),
+        dueDate: importDate(row, "due date"),
+        paidDate: importDate(row, "paid date"),
+        notes: value("notes"),
+      };
+    case "allocation":
+      return {
+        costItemId: cost("budget item ref"),
+        fundingSourceId: source("funding source name"),
+        amount: value("amount", true),
+        status: value("status") || "planned",
+        notes: value("notes"),
+      };
+    case "charge":
+      return {
+        accountId: account("account ref"),
+        costItemId: cost("budget item ref", true),
+        title: value("title", true),
+        purpose: value("purpose") || "trip_payment",
+        amount: value("amount", true),
+        dueDate: importDate(row, "due date"),
+        status: value("status") || "open",
+        notes: value("notes"),
+      };
+    case "award":
+      return {
+        accountId: account("account ref"),
+        fundingSourceId: source("funding source name"),
+        awardType: value("award type", true),
+        amount: value("amount", true),
+        awardDate: importDate(row, "award date", true),
+        status: value("status") || "approved",
+        reason: value("reason"),
+      };
+    case "payment":
+      return {
+        accountId: account("account ref", true),
+        fundingSourceId: source("funding source name", true),
+        transactionDate: importDate(row, "transaction date", true),
+        amount: value("amount", true),
+        purpose: value("purpose") || "trip_payment",
+        paymentMethod: value("payment method", true),
+        settlementRoute: value("settlement route") || "through_hs",
+        status: value("status") || "received",
+        payerName: value("payer name"),
+        externalReference: value("external reference"),
+        sourceSystem: value("source system") || "import",
+        sourceTransactionId: value("source transaction id"),
+        charitableAmount: value("charitable amount") || "0",
+        chargeId: importEntityId(lookups, "charge", value("charge ref"), "charge ref", true),
+        appliedAmount: value("applied amount"),
+        notes: value("notes"),
+      };
+    case "invite":
+      return {
+        ministryId: ministry("organization name", true),
+        label: value("label"),
+        expiresAt: importDate(row, "expires date"),
+        maxUses: value("max uses"),
+      };
+  }
+}
+
+function importRequest(original: Request, payload: JsonRecord): Request {
+  const headers = new Headers(original.headers);
+  headers.set("Content-Type", "application/json");
+  headers.delete("Content-Length");
+  return new Request(original.url, { method: "POST", headers, body: JSON.stringify(payload) });
+}
+
+async function invokeTripImportRow(request: Request, env: AdminEnv, tripId: string, row: TripImportRow, payload: JsonRecord): Promise<Response> {
+  const handlers: Record<TripImportEntity, (request: Request, env: AdminEnv, tripId: string) => Promise<Response>> = {
+    partner: saveOrganization,
+    member: saveMember,
+    content: saveContent,
+    account: saveAccount,
+    cost: saveCostItem,
+    allocation: saveAllocation,
+    charge: saveCharge,
+    award: saveAward,
+    payment: savePayment,
+    invite: createInvite,
+  };
+  return handlers[row.entity](importRequest(request, payload), env, tripId);
+}
+
+function tripImportSummary(rows: TripImportPreviewRow[]): Record<string, number> {
+  return rows.reduce<Record<string, number>>((summary, row) => {
+    summary[row.status] = (summary[row.status] ?? 0) + 1;
+    return summary;
+  }, { total: rows.length });
+}
+
+async function importTripSpreadsheet(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  await requireTrip(env, tripId);
+  const mediaType = request.headers.get("content-type")?.split(";", 1)[0].trim().toLocaleLowerCase("en-US");
+  if (mediaType !== "multipart/form-data") throw new AdminError(415, "UNSUPPORTED_MEDIA_TYPE", "Upload the Excel template as a spreadsheet file.");
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > SPREADSHEET_MAX_FILE_BYTES + 128 * 1024) {
+    throw new AdminError(413, "FILE_TOO_LARGE", "Choose a spreadsheet smaller than 3 MB.");
+  }
+  const form = await request.formData();
+  const fileValue = form.get("file");
+  if (!fileValue || typeof fileValue === "string") throw new AdminError(422, "FILE_REQUIRED", "Choose a completed Hope Sojourns Excel template.");
+  const commit = form.get("commit") === "true";
+  let rows: TripImportRow[];
+  try {
+    const sheets = readSpreadsheet(fileValue.name, new Uint8Array(await fileValue.arrayBuffer()));
+    rows = parseTripImportSheets(sheets, 200);
+  } catch (error) {
+    if (error instanceof SpreadsheetFileError) throw new AdminError(error.status, error.code, error.message);
+    throw error;
+  }
+  if (!rows.length) throw new AdminError(422, "NO_IMPORT_ROWS", "Enter at least one row in the Team, Partners, Content, Budget, Allocations, Accounts, Charges, Support, Payments, or Invites sheet.");
+
+  const [existingResult, peopleResult, ministriesResult, categoriesResult, sourcesResult] = await Promise.all([
+    env.DB.prepare("SELECT entity_type, external_key, entity_id, content_fingerprint FROM trip_bulk_import_rows WHERE trip_id = ?1").bind(tripId).all<{
+      entity_type: TripImportEntity; external_key: string; entity_id: string | null; content_fingerprint: string;
+    }>(),
+    env.DB.prepare("SELECT id, email FROM people WHERE email IS NOT NULL AND contact_status != 'archived'").all<{ id: string; email: string }>(),
+    env.DB.prepare("SELECT id, name_normalized FROM ministries WHERE status != 'archived'").all<{ id: string; name_normalized: string }>(),
+    env.DB.prepare("SELECT id, name_normalized FROM trip_cost_categories WHERE status = 'active'").all<{ id: string; name_normalized: string }>(),
+    env.DB.prepare("SELECT id, name_normalized FROM trip_funding_sources WHERE status = 'active'").all<{ id: string; name_normalized: string }>(),
+  ]);
+  const existing = new Map(existingResult.results.map(item => [importLookupKey(item.entity_type, item.external_key), item]));
+  const importedIds = new Map<string, string>();
+  for (const item of existingResult.results) if (item.entity_id) importedIds.set(importLookupKey(item.entity_type, item.external_key), item.entity_id);
+  for (const row of rows) if (!existing.has(importLookupKey(row.entity, row.externalKey))) importedIds.set(importLookupKey(row.entity, row.externalKey), crypto.randomUUID());
+  const lookups: TripImportLookups = {
+    people: new Map(peopleResult.results.map(item => [normalizeTripCatalogName(item.email), item.id])),
+    ministries: new Map(ministriesResult.results.map(item => [item.name_normalized, item.id])),
+    categories: new Map(categoriesResult.results.map(item => [item.name_normalized, item.id])),
+    sources: new Map(sourcesResult.results.map(item => [item.name_normalized, item.id])),
+    importedIds,
+  };
+
+  const previewRows: TripImportPreviewRow[] = [];
+  for (const row of rows) {
+    const fingerprint = await hashText(JSON.stringify(row.values));
+    const prior = existing.get(importLookupKey(row.entity, row.externalKey));
+    if (prior) {
+      previewRows.push({
+        sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+        status: prior.content_fingerprint === fingerprint ? "already_loaded" : "conflict",
+        message: prior.content_fingerprint === fingerprint
+          ? "This exact row was already imported."
+          : "This Import Ref was used earlier with different values. Use a new Import Ref.",
+      });
+      continue;
+    }
+    try {
+      tripImportPayload(row, lookups);
+      previewRows.push({
+        sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+        status: "ready", message: "Ready to import.",
+      });
+    } catch (error) {
+      previewRows.push({
+        sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+        status: "error", message: error instanceof Error ? error.message : "This row is not valid.",
+      });
+    }
+  }
+
+  const blockers = previewRows.filter(row => row.status === "error" || row.status === "conflict");
+  if (!commit) {
+    return adminJson({
+      mode: "preview",
+      canCommit: blockers.length === 0 && previewRows.some(row => row.status === "ready"),
+      summary: tripImportSummary(previewRows),
+      rows: previewRows,
+    });
+  }
+  if (blockers.length) {
+    return adminJson({
+      mode: "preview",
+      canCommit: false,
+      error: "Resolve the highlighted spreadsheet rows before importing.",
+      summary: tripImportSummary(previewRows),
+      rows: previewRows,
+    }, 422);
+  }
+
+  const invitations: Array<{ label: string; path: string }> = [];
+  let stopped = false;
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    const preview = previewRows[index];
+    if (preview.status !== "ready") continue;
+    if (stopped) {
+      preview.status = "not_imported";
+      preview.message = "Not imported because an earlier row needs attention.";
+      continue;
+    }
+    try {
+      const payload = tripImportPayload(row, lookups);
+      const response = await invokeTripImportRow(request, env, tripId, row, payload);
+      const result = await response.json() as JsonRecord;
+      if (!response.ok) throw new AdminError(response.status, String(result.code ?? "IMPORT_ROW_FAILED"), String(result.error ?? "This row could not be imported."));
+      const entityId = typeof result.id === "string" ? result.id : tripId;
+      lookups.importedIds.set(importLookupKey(row.entity, row.externalKey), entityId);
+      await env.DB.prepare(`INSERT INTO trip_bulk_import_rows (
+        id, trip_id, entity_type, external_key, entity_id, content_fingerprint, source_file_name, source_sheet, source_row, created_at
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`).bind(
+        crypto.randomUUID(), tripId, row.entity, row.externalKey, entityId, preview.fingerprint,
+        fileValue.name.slice(0, 240), row.sheet.slice(0, 80), row.rowNumber, new Date().toISOString(),
+      ).run();
+      preview.status = "imported";
+      preview.message = "Imported successfully.";
+      if (row.entity === "invite" && typeof result.path === "string") invitations.push({ label: String(payload.label || row.externalKey), path: result.path });
+    } catch (error) {
+      preview.status = "error";
+      preview.message = error instanceof Error ? error.message : "This row could not be imported.";
+      stopped = true;
+    }
+  }
+  await auditStatement(env, "trip", tripId, "spreadsheet_imported", {
+    fileName: fileValue.name.slice(0, 240),
+    imported: previewRows.filter(row => row.status === "imported").length,
+  }).run();
+  return adminJson({
+    mode: "commit",
+    canCommit: false,
+    summary: tripImportSummary(previewRows),
+    rows: previewRows,
+    invitations,
+    message: stopped ? "Some rows were imported before a row needed attention. Correct it and import the same file again; completed rows will be skipped." : "Spreadsheet import complete.",
+  });
+}
+
 async function annualPersonSummary(request: Request, env: AdminEnv): Promise<Response> {
   await authenticate(request, env);
   const url = new URL(request.url);
@@ -1326,6 +1680,9 @@ async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Pr
 
   const portalCredential = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/portal-credential$/i);
   if (portalCredential && request.method === "POST") return updatePortalCredential(request, env, portalCredential[1]);
+
+  const spreadsheetImport = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/import$/i);
+  if (spreadsheetImport && request.method === "POST") return importTripSpreadsheet(request, env, spreadsheetImport[1]);
 
   const accountLink = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/accounts\/([0-9a-f-]{36})\/access-links$/i);
   if (accountLink && request.method === "POST") return createAccountLink(request, env, accountLink[1], accountLink[2]);

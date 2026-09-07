@@ -1,6 +1,7 @@
 const API_BASE = "/api/interest";
 const ADMIN_NAVIGATION_SESSION_KEY = "hope-sojourns-admin-navigation";
 const TRIP_GUIDED_HELP_KEY = "hope-sojourns-trip-guided-help";
+const ADMIN_SIDEBAR_KEY = "hope-sojourns-admin-sidebar-collapsed";
 
 const state = {
   csrfToken: "",
@@ -11,14 +12,18 @@ const state = {
   accountLinks: new Map(),
   guidedHelp: true,
   guideSteps: [],
+  guideAlertTimer: null,
+  importPreview: null,
 };
 
 const loginPanel = document.querySelector("#trip-admin-login");
+const authLoading = document.querySelector("#trip-auth-loading");
 const app = document.querySelector("#trip-admin-app");
 const pageStatus = document.querySelector("#trip-page-status");
 const tripListPanel = document.querySelector("#trip-list-panel");
 const tripWorkspace = document.querySelector("#trip-workspace");
 const tripDialog = document.querySelector("#trip-dialog");
+const importDialog = document.querySelector("#trip-import-dialog");
 
 function preventDialogBackdropDismissal() {
   document.querySelectorAll("dialog").forEach(dialog => dialog.setAttribute("closedby", "closerequest"));
@@ -31,6 +36,57 @@ function preventDialogBackdropDismissal() {
 
 function markAdminNavigation() {
   try { sessionStorage.setItem(ADMIN_NAVIGATION_SESSION_KEY, "true"); } catch { /* Storage is optional. */ }
+}
+
+function loadSidebarPreference() {
+  try { return localStorage.getItem(ADMIN_SIDEBAR_KEY) === "true"; } catch { return false; }
+}
+
+function setSidebarCollapsed(collapsed) {
+  document.body.classList.toggle("trip-sidebar-collapsed", collapsed);
+  const toggle = document.querySelector("#trip-sidebar-toggle");
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  toggle.querySelector("[data-sidebar-toggle-label]").textContent = collapsed ? "Show menu" : "Hide menu";
+  try { localStorage.setItem(ADMIN_SIDEBAR_KEY, String(collapsed)); } catch { /* Storage is optional. */ }
+}
+
+function initializeSidebar() {
+  setSidebarCollapsed(loadSidebarPreference());
+  document.querySelector("#trip-sidebar-toggle").addEventListener("click", () => {
+    setSidebarCollapsed(!document.body.classList.contains("trip-sidebar-collapsed"));
+  });
+}
+
+function resetPasswordVisibility(container) {
+  container.querySelectorAll("[data-password-toggle]").forEach(button => {
+    const input = document.querySelector(`#${button.getAttribute("aria-controls")}`);
+    if (!input) return;
+    input.type = "password";
+    button.setAttribute("aria-pressed", "false");
+    button.setAttribute("aria-label", button.getAttribute("aria-label").replace(/^Hide /, "Show "));
+  });
+}
+
+function initializePasswordToggles() {
+  document.querySelectorAll("[data-password-toggle]").forEach(button => {
+    button.addEventListener("click", () => {
+      const input = document.querySelector(`#${button.getAttribute("aria-controls")}`);
+      if (!input || input.disabled) return;
+      const revealing = input.type === "password";
+      input.type = revealing ? "text" : "password";
+      button.setAttribute("aria-pressed", String(revealing));
+      button.setAttribute("aria-label", button.getAttribute("aria-label").replace(revealing ? /^Show / : /^Hide /, revealing ? "Hide " : "Show "));
+      input.focus();
+    });
+  });
+}
+
+function showGuideAlert(message) {
+  const alert = document.querySelector("#trip-guide-alert");
+  alert.querySelector("span").textContent = message;
+  alert.hidden = false;
+  if (state.guideAlertTimer) window.clearTimeout(state.guideAlertTimer);
+  state.guideAlertTimer = window.setTimeout(() => { alert.hidden = true; }, 6_000);
 }
 
 preventDialogBackdropDismissal();
@@ -95,7 +151,7 @@ function setStatus(element, message, status = "") {
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set("Accept", "application/json");
-  if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (options.method && options.method !== "GET" && state.csrfToken) headers.set("X-CSRF-Token", state.csrfToken);
   const response = await fetch(`${API_BASE}${path}`, { credentials: "same-origin", ...options, headers });
   let result = {};
@@ -110,12 +166,14 @@ async function api(path, options = {}) {
 }
 
 function showLogin() {
+  authLoading.hidden = true;
   app.hidden = true;
   loginPanel.hidden = false;
   document.querySelector("#trip-admin-password")?.focus();
 }
 
 function showApp() {
+  authLoading.hidden = true;
   loginPanel.hidden = true;
   app.hidden = false;
 }
@@ -227,20 +285,29 @@ function tripSetupSteps() {
   if (!state.workspace) return [];
   const { trip } = state.workspace;
   return [
-    { done: Boolean(trip.start_date && trip.end_date), title: "Enter the travel dates", copy: "Add the start and end dates so every later deadline and itinerary item has a clear frame.", action: "edit" },
-    { done: Boolean(trip.opportunity_id), title: "Connect the public trip idea", copy: "Choose the broader public opportunity that should display this dated departure.", action: "edit" },
-    { done: state.workspace.organizations.length > 0, title: "Connect a partner organization", copy: "Add the church, ministry, logistics partner, or payer connected with this trip.", tab: "team", target: "#trip-organization-form" },
-    { done: state.workspace.members.some(item => item.status !== "withdrawn"), title: "Add the first traveler or leader", copy: "Choose an existing Person and set the role, status, organization, and directory permissions.", tab: "team", target: "#trip-member-form" },
-    { done: Boolean(trip.portal_login_id), title: "Set the traveler portal credentials", copy: "Create the one shared trip ID and password for common traveler information.", tab: "portal", target: "#trip-portal-form" },
-    { done: Boolean(trip.portal_enabled), title: "Enable traveler portal access", copy: "Use Edit trip to enable the portal after the shared credentials are ready.", action: "edit" },
-    { done: state.workspace.content.length > 0, title: "Add trip content", copy: "Start with an instruction, itinerary item, devotional, resource, update, or overview.", tab: "content", target: "#trip-content-form" },
-    { done: state.workspace.costs.some(item => item.payment_status !== "canceled"), title: "Build the trip budget", copy: "Enter the first expected cost, including who pays it and whether money moves through Hope Sojourns.", tab: "budget", target: "#trip-cost-form" },
-    { done: state.workspace.allocations.some(item => item.status !== "canceled"), title: "Assign funding responsibility", copy: "Allocate a trip cost to the traveler, Hope Sojourns, a church, a sponsor, or another funding source.", tab: "budget", target: "#trip-allocation-form" },
-    { done: state.workspace.accounts.some(item => item.status === "active"), title: "Create a trip account", copy: "Create the individual, family, group, organization, or sponsor account that will receive charges and payments.", tab: "accounts", target: "#trip-account-form" },
-    { done: state.workspace.charges.some(item => item.status !== "canceled"), title: "Add a payment plan charge", copy: "Record what the traveler, group, or organization is expected to pay and when it is due.", tab: "accounts", target: "#trip-charge-form" },
-    { done: state.workspace.invites.some(item => item.status === "active"), title: "Create a traveler invitation", copy: "Create a friendly private link that sends travelers to the correct interest form.", tab: "communications", target: "#trip-invite-form" },
-    { done: Boolean(trip.public_enabled && trip.interest_enabled), title: "Open the public trip for interest", copy: "Use Edit trip to make the dated trip visible and accept interest when its public information is ready.", action: "edit" },
+    { id: "dates", done: Boolean(trip.start_date && trip.end_date), title: "Enter the travel dates", copy: "Add the start and end dates so every later deadline and itinerary item has a clear frame.", action: "edit" },
+    { id: "opportunity", done: Boolean(trip.opportunity_id), title: "Connect the public trip idea", copy: "Choose the broader public opportunity that should display this dated departure.", action: "edit" },
+    { id: "organization", done: state.workspace.organizations.length > 0, title: "Connect a partner organization", copy: "Add the church, ministry, logistics partner, or payer connected with this trip.", tab: "team", target: "#trip-organization-form", requirements: () => state.bootstrap.ministries.some(item => item.status === "active") ? [] : ["an organization in Ministries"] },
+    { id: "member", done: state.workspace.members.some(item => item.status !== "withdrawn"), title: "Add the first traveler or leader", copy: "Choose an existing Person and set the role, status, organization, and directory permissions.", tab: "team", target: "#trip-member-form", requirements: () => state.bootstrap.people.some(item => item.contact_status === "active") ? [] : ["a person in People"] },
+    { id: "credentials", done: Boolean(trip.portal_login_id), title: "Set the traveler portal credentials", copy: "Create the one shared trip ID and password for common traveler information.", tab: "portal", target: "#trip-portal-form" },
+    { id: "portal", done: Boolean(trip.portal_enabled), title: "Enable traveler portal access", copy: "Use Edit trip to enable the portal after the shared credentials are ready.", action: "edit", requirements: () => trip.portal_login_id ? [] : ["traveler portal credentials"] },
+    { id: "content", done: state.workspace.content.length > 0, title: "Add trip content", copy: "Start with an instruction, itinerary item, devotional, resource, update, or overview.", tab: "content", target: "#trip-content-form" },
+    { id: "budget", done: state.workspace.costs.some(item => item.payment_status !== "canceled"), title: "Build the trip budget", copy: "Enter the first expected cost, including who pays it and whether money moves through Hope Sojourns.", tab: "budget", target: "#trip-cost-form", requirements: () => state.bootstrap.costCategories.some(item => item.status === "active") ? [] : ["a cost category in Setup lists"] },
+    { id: "allocation", done: state.workspace.allocations.some(item => item.status !== "canceled"), title: "Assign funding responsibility", copy: "Allocate a trip cost to the traveler, Hope Sojourns, a church, a sponsor, or another funding source.", tab: "budget", target: "#trip-allocation-form", requirements: () => [...(!state.workspace.costs.some(item => item.payment_status !== "canceled") ? ["a trip cost"] : []), ...(!state.bootstrap.fundingSources.some(item => item.status === "active") ? ["a funding source in Setup lists"] : [])] },
+    { id: "account", done: state.workspace.accounts.some(item => item.status === "active"), title: "Create a trip account", copy: "Create the individual, family, group, organization, or sponsor account that will receive charges and payments.", tab: "accounts", target: "#trip-account-form" },
+    { id: "charge", done: state.workspace.charges.some(item => item.status !== "canceled"), title: "Add a payment plan charge", copy: "Record what the traveler, group, or organization is expected to pay and when it is due.", tab: "accounts", target: "#trip-charge-form", requirements: () => state.workspace.accounts.some(item => item.status === "active") ? [] : ["a trip account"] },
+    { id: "invite", done: state.workspace.invites.some(item => item.status === "active"), title: "Create a traveler invitation", copy: "Create a friendly private link that sends travelers to the correct interest form.", tab: "communications", target: "#trip-invite-form" },
+    { id: "public", done: Boolean(trip.public_enabled && trip.interest_enabled), title: "Open the public trip for interest", copy: "Use Edit trip to make the dated trip visible and accept interest when its public information is ready.", action: "edit", requirements: () => [...(!(trip.start_date && trip.end_date) ? ["the travel dates"] : []), ...(!trip.opportunity_id ? ["the public trip idea"] : [])] },
   ];
+}
+
+function guideStepRequirements(step) {
+  return typeof step.requirements === "function" ? step.requirements() : [];
+}
+
+function nextAvailableGuideStep(steps) {
+  return steps.find(step => !step.done && guideStepRequirements(step).length === 0)
+    || steps.find(step => !step.done);
 }
 
 function renderSetupGuide() {
@@ -254,7 +321,7 @@ function renderSetupGuide() {
   const steps = tripSetupSteps();
   state.guideSteps = steps;
   const completed = steps.filter(step => step.done).length;
-  const next = steps.find(step => !step.done);
+  const next = nextAvailableGuideStep(steps);
   const progressText = `${completed} of ${steps.length} steps complete`;
   guide.hidden = false;
   document.querySelector("#trip-setup-guide-progress").textContent = progressText;
@@ -271,14 +338,31 @@ function renderSetupGuide() {
   const list = document.querySelector("#trip-setup-guide-list");
   list.replaceChildren();
   steps.forEach(step => {
-    const item = node("li", step.done ? "is-complete" : "", `${step.done ? "Complete: " : "To do: "}${step.title}`);
+    const requirements = guideStepRequirements(step);
+    const item = node("li", [step.done ? "is-complete" : "", requirements.length ? "is-blocked" : ""].filter(Boolean).join(" "));
+    const button = node("button", "trip-guide-step", `${step.done ? "Complete: " : "To do: "}${step.title}`);
+    button.type = "button";
+    button.addEventListener("click", () => openGuideStep(step));
+    item.append(button);
     list.append(item);
   });
 }
 
 function openNextGuideStep() {
-  const step = state.guideSteps.find(item => !item.done);
+  const step = nextAvailableGuideStep(state.guideSteps);
   if (!step) return;
+  openGuideStep(step);
+}
+
+function openGuideStep(step) {
+  const requirements = guideStepRequirements(step);
+  if (requirements.length) {
+    const dependency = requirements.length === 1
+      ? requirements[0]
+      : `${requirements.slice(0, -1).join(", ")} and ${requirements.at(-1)}`;
+    showGuideAlert(`Please complete ${dependency} before this step: ${step.title}.`);
+    return;
+  }
   if (step.action === "edit") {
     openTripDialog(state.workspace.trip);
     return;
@@ -377,6 +461,28 @@ function financeTotals() {
   return { operational, actual, externalCost, hsCost, hsIncome, externalFunding, adminRevenue };
 }
 
+function setPortalCredentialLocked(locked) {
+  const form = document.querySelector("#trip-portal-form");
+  const loginId = form.elements.loginId;
+  const password = form.elements.password;
+  const save = form.querySelector("[data-save-portal-credentials]");
+  const unlock = document.querySelector("#trip-portal-unlock");
+  const note = form.querySelector("[data-credential-locked-note]");
+  form.classList.toggle("is-locked", locked);
+  loginId.disabled = locked;
+  password.disabled = locked;
+  password.required = !locked;
+  form.querySelector('[data-password-toggle][aria-controls="trip-shared-password"]').disabled = locked;
+  save.hidden = locked;
+  save.textContent = state.workspace?.trip.portal_login_id ? "Update portal credentials" : "Set portal credentials";
+  unlock.hidden = !locked;
+  note.hidden = !locked;
+  if (locked) {
+    password.value = "";
+    resetPasswordVisibility(form);
+  }
+}
+
 function renderWorkspace() {
   const trip = state.workspace.trip;
   document.querySelector("#trip-workspace-code").textContent = trip.code;
@@ -393,6 +499,7 @@ function renderWorkspace() {
     ? `${trip.title} is public. ${trip.interest_enabled ? "Interest is open." : "Interest is currently closed."}`
     : `${trip.title} is still hidden from the public site.`;
   document.querySelector("#trip-portal-form").elements.loginId.value = trip.portal_login_id || trip.code;
+  setPortalCredentialLocked(Boolean(trip.portal_login_id));
 
   const totals = financeTotals();
   const summary = document.querySelector("#trip-summary-grid");
@@ -706,6 +813,114 @@ function openTripDialog(trip = null) {
   tripDialog.showModal();
 }
 
+function resetTripImport() {
+  document.querySelector("#trip-import-form").reset();
+  document.querySelector("#trip-import-results").hidden = true;
+  document.querySelector("#trip-import-summary").replaceChildren();
+  document.querySelector("#trip-import-table-shell").replaceChildren();
+  document.querySelector("#trip-import-commit").disabled = true;
+  setStatus(document.querySelector("#trip-import-status"), "");
+  state.importPreview = null;
+}
+
+function openTripImport() {
+  if (!state.tripId) {
+    showGuideAlert("Open or create a trip before importing its spreadsheet.");
+    return;
+  }
+  resetTripImport();
+  importDialog.showModal();
+  document.querySelector("#trip-import-file").focus();
+}
+
+function renderTripImportResult(result) {
+  state.importPreview = result;
+  const results = document.querySelector("#trip-import-results");
+  const summary = document.querySelector("#trip-import-summary");
+  const tableShell = document.querySelector("#trip-import-table-shell");
+  results.hidden = false;
+  summary.replaceChildren();
+  const labels = {
+    total: "Rows checked",
+    ready: "Ready",
+    imported: "Imported",
+    already_loaded: "Already loaded",
+    conflict: "Conflicts",
+    error: "Needs attention",
+    not_imported: "Not imported",
+  };
+  Object.entries(result.summary || {}).forEach(([key, value]) => {
+    if (!value && key !== "total") return;
+    const card = node("div", "trip-import-summary-card");
+    card.append(node("strong", "", value), node("span", "", labels[key] || titleCase(key)));
+    summary.append(card);
+  });
+  const table = node("table", "trip-import-table");
+  const head = node("thead");
+  const headRow = node("tr");
+  ["Sheet / row", "Type", "Import Ref", "Status", "Message"].forEach(label => headRow.append(node("th", "", label)));
+  head.append(headRow);
+  const body = node("tbody");
+  (result.rows || []).forEach(row => {
+    const tr = node("tr");
+    tr.dataset.status = row.status;
+    tr.append(
+      node("td", "", `${row.sheet} / ${row.rowNumber}`),
+      node("td", "", titleCase(row.entity)),
+      node("td", "", row.externalKey),
+      node("td", "", titleCase(row.status)),
+      node("td", "", row.message),
+    );
+    body.append(tr);
+  });
+  table.append(head, body);
+  tableShell.replaceChildren(table);
+  if (Array.isArray(result.invitations) && result.invitations.length) {
+    const invitations = node("section", "trip-import-invitations");
+    invitations.append(node("h3", "", "New invitation links"));
+    result.invitations.forEach(invite => {
+      const paragraph = node("p");
+      const link = node("a", "", invite.label || "Traveler invitation");
+      link.href = new URL(invite.path, window.location.origin).href;
+      link.textContent = link.href;
+      paragraph.append(link);
+      invitations.append(paragraph);
+    });
+    tableShell.append(invitations);
+  }
+  document.querySelector("#trip-import-commit").disabled = !result.canCommit;
+}
+
+async function sendTripImport(commit) {
+  const form = document.querySelector("#trip-import-form");
+  const file = form.elements.file.files[0];
+  const status = document.querySelector("#trip-import-status");
+  if (!file) {
+    setStatus(status, "Choose the completed Excel workbook first.", "error");
+    form.elements.file.focus();
+    return;
+  }
+  const data = new FormData();
+  data.set("file", file);
+  data.set("commit", String(commit));
+  const previewButton = document.querySelector("#trip-import-preview");
+  const commitButton = document.querySelector("#trip-import-commit");
+  previewButton.disabled = true;
+  commitButton.disabled = true;
+  setStatus(status, commit ? "Importing ready rows…" : "Checking the workbook…");
+  try {
+    const result = await api(`/admin/trips/${state.tripId}/import`, { method: "POST", body: data });
+    renderTripImportResult(result);
+    setStatus(status, result.message || (commit ? "Spreadsheet import complete." : result.canCommit ? "Preview complete. Ready rows can be imported." : "Preview complete. Review the rows below."), "success");
+    if (commit) await loadBootstrap(state.tripId);
+  } catch (error) {
+    setStatus(status, error.message, "error");
+  } finally {
+    previewButton.disabled = false;
+    if (state.importPreview?.canCommit) commitButton.disabled = false;
+  }
+}
+
 async function submitJsonForm(form, path, transform = value => value, after = "workspace") {
   const status = form.querySelector("[data-form-status]");
   const submit = form.querySelector('button[type="submit"]');
@@ -832,6 +1047,12 @@ function wireForms() {
     } catch (error) { setStatus(status, error.message, "error"); }
   });
 
+  document.querySelector("#trip-portal-unlock").addEventListener("click", () => {
+    setPortalCredentialLocked(false);
+    setStatus(document.querySelector("#trip-portal-form [data-form-status]"), "Credentials unlocked. Enter a new password to save changes.");
+    document.querySelector("#trip-portal-form").elements.loginId.focus();
+  });
+
   document.querySelectorAll("[data-cancel-edit]").forEach(button => button.addEventListener("click", () => {
     button.form.reset();
     button.hidden = true;
@@ -855,10 +1076,24 @@ document.querySelector("#trip-back").addEventListener("click", closeTrip);
 document.querySelector("#trip-refresh").addEventListener("click", () => loadBootstrap(state.tripId));
 document.querySelector(".trip-dialog-close").addEventListener("click", () => tripDialog.close());
 document.querySelector("[data-close-trip-dialog]").addEventListener("click", () => tripDialog.close());
+document.querySelector("#trip-guide-alert button").addEventListener("click", () => {
+  document.querySelector("#trip-guide-alert").hidden = true;
+  if (state.guideAlertTimer) window.clearTimeout(state.guideAlertTimer);
+});
+document.querySelectorAll("[data-open-trip-import]").forEach(button => button.addEventListener("click", openTripImport));
+document.querySelector("#trip-import-close").addEventListener("click", () => importDialog.close());
+document.querySelector("#trip-import-reset").addEventListener("click", resetTripImport);
+document.querySelector("#trip-import-form").addEventListener("submit", event => {
+  event.preventDefault();
+  sendTripImport(false);
+});
+document.querySelector("#trip-import-commit").addEventListener("click", () => sendTripImport(true));
 document.querySelector("#trip-admin-signout").addEventListener("click", async () => {
   try { await api("/admin/logout", { method: "POST", body: "{}" }); } finally { state.csrfToken = ""; showLogin(); }
 });
 
+initializeSidebar();
+initializePasswordToggles();
 initializeGuidedHelp();
 setupTabs();
 wireForms();

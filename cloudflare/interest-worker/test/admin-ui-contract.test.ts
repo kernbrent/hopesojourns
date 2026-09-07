@@ -10,6 +10,8 @@ const publicStyles = readFileSync(resolve(testDirectory, "../../../styles.css"),
 const tripScript = readFileSync(resolve(testDirectory, "../../../admin/trips/trips.js"), "utf8");
 const tripPage = readFileSync(resolve(testDirectory, "../../../admin/trips/index.html"), "utf8");
 const tripStyles = readFileSync(resolve(testDirectory, "../../../admin/trips/trips.css"), "utf8");
+const journeyPage = readFileSync(resolve(testDirectory, "../../../journey/index.html"), "utf8");
+const journeyScript = readFileSync(resolve(testDirectory, "../../../journey/journey.js"), "utf8");
 
 describe("Admin Portal sign-in contract", () => {
   it("requires manual sign-in on direct visits but resumes intentional trip-workspace navigation", () => {
@@ -44,6 +46,46 @@ describe("Admin Portal sign-in contract", () => {
     expect(tripScript).toContain("localStorage.setItem(TRIP_GUIDED_HELP_KEY");
     expect(tripScript).toContain("steps complete");
     expect(tripScript).toContain("openNextGuideStep");
+    expect(tripScript).toContain("openGuideStep(step)");
+    expect(tripScript).toContain("Please complete");
+    expect(tripPage).toContain('id="trip-guide-alert"');
+  });
+
+  it("lets administrators reveal every password without weakening saved-password support", () => {
+    expect((adminPage.match(/type="password"/g) || []).length).toBe((adminPage.match(/data-password-toggle/g) || []).length);
+    expect((tripPage.match(/type="password"/g) || []).length).toBe((tripPage.match(/data-password-toggle/g) || []).length);
+    expect((journeyPage.match(/type="password"/g) || []).length).toBe(1);
+    expect(journeyPage).toContain('id="journey-password-toggle"');
+    expect(journeyScript).toContain('input.type = revealing ? "text" : "password"');
+  });
+
+  it("locks saved trip credentials until the administrator deliberately unlocks them", () => {
+    expect(tripPage).toContain('id="trip-portal-unlock"');
+    expect(tripPage).toContain("Credentials are protected.");
+    expect(tripScript).toContain("setPortalCredentialLocked(Boolean(trip.portal_login_id))");
+    expect(tripScript).toContain("Credentials unlocked. Enter a new password");
+    expect(tripStyles).toContain(".trip-credential-card.is-locked");
+  });
+
+  it("provides persistent slide-out administration menus without a sign-in flash", () => {
+    expect(adminPage).toContain('id="admin-sidebar-toggle"');
+    expect(adminPage).toContain('id="admin-auth-loading"');
+    expect(adminPage).toContain('id="login-panel" aria-labelledby="login-title" hidden');
+    expect(adminScript).toContain("initializeAdminSidebar()");
+    expect(tripPage).toContain('id="trip-sidebar-toggle"');
+    expect(tripPage).toContain('id="trip-auth-loading"');
+    expect(tripPage).toContain('id="trip-admin-login" aria-labelledby="trip-admin-login-title" hidden');
+    expect(tripScript).toContain("initializeSidebar()");
+    expect(tripScript).toContain("authLoading.hidden = true");
+  });
+
+  it("offers preview-first spreadsheet imports from the applicable trip workspaces", () => {
+    expect(tripPage.match(/data-open-trip-import/g)).toHaveLength(4);
+    expect(tripPage).toContain("Hope-Sojourns-Trip-Bulk-Import-Template.xlsx");
+    expect(tripPage).toContain('id="trip-import-preview"');
+    expect(tripPage).toContain('id="trip-import-commit"');
+    expect(tripScript).toContain("sendTripImport(false)");
+    expect(tripScript).toContain("sendTripImport(true)");
   });
 
   it("scopes public trip-card overlays away from admin form cards", () => {

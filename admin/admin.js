@@ -8,6 +8,7 @@ const ADMIN_BUILD = document.documentElement.dataset.adminBuild || "";
 const ADMIN_UPDATE_ATTEMPT_KEY = "hope-sojourns-admin-update-attempt";
 const ADMIN_REMEMBER_ME_PREFERENCE_KEY = "hope-sojourns-admin-remember-me";
 const ADMIN_NAVIGATION_SESSION_KEY = "hope-sojourns-admin-navigation";
+const ADMIN_SIDEBAR_KEY = "hope-sojourns-admin-sidebar-collapsed";
 const ADMIN_RESUME_REFRESH_AFTER_MS = 60_000;
 
 function preventDialogBackdropDismissal() {
@@ -43,6 +44,9 @@ if (adminEnvironmentNote) {
 
 const loginPanel = document.querySelector("#login-panel");
 const dashboardPanel = document.querySelector("#dashboard-panel");
+const authLoadingPanel = document.querySelector("#admin-auth-loading");
+const globalSidebar = document.querySelector("#admin-global-sidebar");
+const globalSidebarToggle = document.querySelector("#admin-sidebar-toggle");
 const loginForm = document.querySelector("#admin-login-form");
 const passwordInput = document.querySelector("#admin-password");
 const loginStatus = document.querySelector("#login-status");
@@ -422,6 +426,10 @@ function saveRememberMePreference(rememberMe) {
 
 function showLogin(message = "") {
   state.csrfToken = "";
+  document.body.classList.remove("admin-authenticated");
+  authLoadingPanel.hidden = true;
+  globalSidebar.hidden = true;
+  globalSidebarToggle.hidden = true;
   dashboardPanel.hidden = true;
   loginPanel.hidden = false;
   loginStatus.textContent = message;
@@ -440,6 +448,7 @@ function showLogin(message = "") {
 
 function requestedAdminView() {
   const viewsByHash = {
+    "#requests": "requests",
     "#ledger": "ledger",
     "#ministries": "ministries",
     "#people": "people",
@@ -459,11 +468,48 @@ function consumeAdminNavigationIntent() {
 
 function showDashboard(session) {
   state.csrfToken = session.csrfToken;
+  document.body.classList.add("admin-authenticated");
+  authLoadingPanel.hidden = true;
+  globalSidebar.hidden = false;
+  globalSidebarToggle.hidden = false;
   loginPanel.hidden = true;
   dashboardPanel.hidden = false;
   loginStatus.textContent = "";
   document.querySelector("#dashboard-title").focus?.();
   switchView(requestedAdminView());
+}
+
+function loadSidebarPreference() {
+  try { return localStorage.getItem(ADMIN_SIDEBAR_KEY) === "true"; } catch { return false; }
+}
+
+function setSidebarCollapsed(collapsed) {
+  document.body.classList.toggle("admin-sidebar-collapsed", collapsed);
+  globalSidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+  globalSidebarToggle.querySelector("[data-sidebar-toggle-label]").textContent = collapsed ? "Show menu" : "Hide menu";
+  try { localStorage.setItem(ADMIN_SIDEBAR_KEY, String(collapsed)); } catch { /* Storage is optional. */ }
+}
+
+function initializeAdminSidebar() {
+  setSidebarCollapsed(loadSidebarPreference());
+  globalSidebarToggle.addEventListener("click", () => setSidebarCollapsed(!document.body.classList.contains("admin-sidebar-collapsed")));
+  globalSidebar.querySelectorAll("[data-admin-sidebar-view]").forEach(link => {
+    link.addEventListener("click", event => {
+      event.preventDefault();
+      const view = link.dataset.adminSidebarView;
+      window.history.replaceState(null, "", link.getAttribute("href"));
+      switchView(view, true);
+    });
+  });
+}
+
+function updateSidebarSelection(view) {
+  globalSidebar.querySelectorAll("[data-admin-sidebar-view]").forEach(link => {
+    const active = link.dataset.adminSidebarView === view;
+    link.classList.toggle("is-active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
 }
 
 function statusPill(status) {
@@ -2239,6 +2285,7 @@ function switchView(view, focusTab = false) {
   };
   recordsTitle.textContent = titles[view];
   mobileWorkspaceSelect.value = view;
+  updateSidebarSelection(view);
   if (focusTab) tabs[view].focus();
   loadRecords();
 }
@@ -3867,6 +3914,8 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshAdminAfterResume();
 });
 
+initializeAdminSidebar();
+
 (async function startPortal() {
   try {
     if (await checkForAdminPortalUpdate()) return;
@@ -3879,11 +3928,9 @@ document.addEventListener("visibilitychange", () => {
       showDashboard(result);
       return;
     } catch {
-      restoreRememberMePreference();
-      passwordInput.focus();
+      showLogin("Your session ended. Sign in again.");
       return;
     }
   }
-  restoreRememberMePreference();
-  passwordInput.focus();
+  showLogin();
 })();
