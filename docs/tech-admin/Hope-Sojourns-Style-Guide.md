@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 3.3
+Version 3.4
 
 Last reviewed: September 6, 2026
 
@@ -333,6 +333,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Cost records should show estimate, actual total, settlement route, payment status, vendor, and funding allocations together. State plainly that a paid Hope Sojourns cost enters the central ledger and that externally settled costs do not.
 - Interest-form submissions remain a visible prospect list until an administrator changes the separate team-member status. Invitation records show label, organization, use count, expiration, and status without re-exposing their secret token.
 - The shared traveler portal uses one trip login ID and password for common information. Its sign-in screen should feel calm and welcoming while plainly explaining shared access. Never show charges, balances, payment history, private links, internal notes, or non-opted-in directory fields there.
+- State explicitly that the traveler sign-in does not use a personal email address. Disable repeat submission while opening, announce a slower request, stop stalled requests with a useful retry message, briefly retry the session handoff, and clear the working message after success.
 - Within the shared portal, group content by practical purpose: devotionals, itinerary, instructions, resources, updates, and team. Use date and time labels where relevant, preserve multiline content, and keep exact operational details out of public content.
 - Individual, family, group, organization, and sponsor finances belong on the private account statement. Lead with charges, payments, support credits, and remaining balance; follow with itemized records and payment requests. Make the page printable, low-chrome, and explicit that the link is private.
 - Public actual-trip pages show only an approved summary, dates, location, interest action, and Public plus Published content. On the evergreen opportunity page, actual departures appear as dated action cards without replacing the broader opportunity story.
@@ -470,6 +471,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.4 | Clarified traveler sign-in identity and required bounded, announced, recoverable session-opening behavior. |
 | 2026-09-06 | 3.3 | Added persistent slide-out administration rails, no-flash session loading, accessible password reveal controls, locked shared credentials, dependency-aware clickable setup steps, and preview-first trip spreadsheet imports. |
 | 2026-09-06 | 3.2 | Separated neutral trip-administration cards from the public trip-card overlay and grid treatment so every administrator form remains readable, correctly sized, and interactive. |
 | 2026-09-06 | 3.1 | Distinguished trip summary cards from editable forms, added clear edit paths, selection prerequisites, and optional progress-based guided help, and applied the no-backdrop-dismiss rule explicitly to trip administration. |

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-journey-build="2026-09-06.4">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Traveler Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/journey/journey.css?v=2026-09-06.3">
+  <link rel="stylesheet" href="/journey/journey.css?v=2026-09-06.4">
 </head>
 <body class="journey-page">
   <a class="skip-link" href="#journey-main">Skip to trip information</a>
@@ -22,9 +22,9 @@
       <div class="journey-login-copy">
         <p class="eyebrow">Your journey starts here</p>
         <h1 id="journey-login-title">Welcome, traveler.</h1>
-        <p>Enter the shared Trip ID and password provided by your Hope Sojourns leader.</p>
+        <p id="journey-login-help">Enter the shared Trip ID and trip password provided by your Hope Sojourns leader. Your personal email address is not used on this screen.</p>
       </div>
-      <form class="journey-login-card" id="journey-login-form">
+      <form class="journey-login-card" id="journey-login-form" aria-describedby="journey-login-help">
         <img src="/assets/hope-sojourns-icon.png" alt="" width="60" height="60">
         <label><span>Trip ID</span><input name="loginId" required maxlength="80" autocomplete="username"></label>
         <label><span>Trip password</span><div class="journey-password-field"><input id="journey-password" name="password" type="password" required maxlength="128" autocomplete="current-password"><button class="journey-password-toggle" id="journey-password-toggle" type="button" aria-controls="journey-password" aria-label="Show trip password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button></div></label>
@@ -46,6 +46,6 @@
       <aside class="journey-private-note"><strong>Looking for your balance?</strong><span>Financial details are never shared with the whole team. Use the private account link sent to your email, or contact your trip leader.</span></aside>
     </section>
   </main>
-  <script src="/journey/journey.js?v=2026-09-06.3" defer></script>
+  <script src="/journey/journey.js?v=2026-09-06.4" defer></script>
 </body>
 </html>

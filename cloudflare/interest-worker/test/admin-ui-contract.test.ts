@@ -59,6 +59,16 @@ describe("Admin Portal sign-in contract", () => {
     expect(journeyScript).toContain('input.type = revealing ? "text" : "password"');
   });
 
+  it("keeps traveler sign-in responsive through the session handoff", () => {
+    expect(journeyPage).toContain('data-journey-build="2026-09-06.4"');
+    expect(journeyPage).toContain("Your personal email address is not used on this screen.");
+    expect(journeyScript).toContain("const REQUEST_TIMEOUT_MS = 15_000");
+    expect(journeyScript).toContain("const SESSION_RETRY_DELAYS = [300, 800]");
+    expect(journeyScript).toContain("setLoginBusy(form, true)");
+    expect(journeyScript).toContain("Still opening your trip.");
+    expect(journeyScript).toContain('setStatus("");');
+  });
+
   it("locks saved trip credentials until the administrator deliberately unlocks them", () => {
     expect(tripPage).toContain('id="trip-portal-unlock"');
     expect(tripPage).toContain("Credentials are protected.");

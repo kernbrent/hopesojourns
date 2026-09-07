@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 3.3
+Version 3.4
 
 Last reviewed: September 6, 2026
 
@@ -340,6 +340,8 @@ Trip invitations are hashed bearer tokens. They preselect the actual trip and op
 
 The shared traveler password is PBKDF2-SHA-256 derived with a random per-trip salt and 100,000 iterations. The plaintext password is never stored. Successful sign-in creates an HTTP-only, Secure, SameSite Strict session cookie scoped to the portal API. Changing the credential revokes all existing sessions. Failed logins are limited by the hash of the normalized login ID and client address; repeated failures create a temporary block, and old attempt rows are removed automatically. The shared portal never includes account balances or payment history.
 
+The traveler sign-in uses the shared Trip ID and trip password, not the traveler's email address. The client disables repeat submission while the portal opens, applies a 15-second request timeout, announces a longer-than-expected request after four seconds, and briefly retries the session lookup after a successful credential exchange. A successful render clears the working message; a stalled or rejected request returns the form to an actionable error state without clearing the entered password.
+
 Private financial access uses random account tokens whose hashes, expiration, revocation, and last-used time are stored in D1. Creating a replacement link revokes the prior active link. Because these links expose financial information, distribute them directly to the intended account contact and do not place them in the shared traveler portal or public pages.
 
 The trip financial model separates obligation, cash, and responsibility:
@@ -655,6 +657,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.4 | Documented the traveler sign-in identity model, bounded request handling, session-handoff retry, and visible recovery behavior. |
 | 2026-09-06 | 3.3 | Documented no-flash cross-workspace navigation, collapsible administration rails, password reveal and credential-lock behavior, clickable dependency-aware setup guidance, the bounded XLSX importer, idempotency migration, and canonical workbook build/distribution flow. |
 | 2026-09-06 | 3.2 | Namespaced trip-administration cards separately from public destination cards and added a regression contract preventing the public overlay and grid styles from covering administrator forms. |
 | 2026-09-06 | 3.1 | Documented intentional session reuse between trip and main admin workspaces, trip form and summary distinctions, edit actions, prerequisites, optional progress-based guided help, universal dialog backdrop protection, and single-registration form wiring. |
