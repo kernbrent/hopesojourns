@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateTripAccountBalance,
+  handleTripPublicRequest,
   normalizeTripCatalogName,
   validateTripInput,
 } from "../src/trip-platform";
@@ -53,5 +54,33 @@ describe("trip finance helpers", () => {
   it("calculates an account balance after payments and approved coverage", () => {
     expect(calculateTripAccountBalance({ charges: 2_000, payments: 500, awards: 1_500 })).toBe(0);
     expect(calculateTripAccountBalance({ charges: 1_250.45, payments: 400.1, awards: 200 })).toBe(650.35);
+  });
+});
+
+describe("trip portal error responses", () => {
+  it("preserves a friendly credential error instead of leaking it to the outer service handler", async () => {
+    const statement = {
+      bind: () => statement,
+      first: async () => null,
+      run: async () => ({ success: true }),
+    };
+    const env = {
+      DB: {
+        prepare: () => statement,
+        batch: async () => [],
+      },
+    };
+    const request = new Request("https://test.hopesojourns.com/api/interest/portal/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ loginId: "TRIP-TEST", password: "not-the-password" }),
+    });
+
+    const response = await handleTripPublicRequest(request, env as never, "/portal/login");
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "PORTAL_LOGIN_FAILED",
+      error: "The Trip ID or password was not recognized.",
+    });
   });
 });

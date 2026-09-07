@@ -1727,14 +1727,14 @@ export async function handleTripAdminRequest(request: Request, env: AdminEnv, pa
 
 export async function handleTripPublicRequest(request: Request, env: AdminEnv, path: string): Promise<Response> {
   try {
-    if (request.method === "GET" && path === "/public/trips") return listPublicTrips(env, request);
+    if (request.method === "GET" && path === "/public/trips") return await listPublicTrips(env, request);
     const publicMatch = path.match(/^\/public\/trips\/([a-z0-9-]+)$/);
-    if (request.method === "GET" && publicMatch) return publicTrip(env, publicMatch[1]);
-    if (request.method === "POST" && path === "/portal/login") return portalLogin(request, env);
-    if (request.method === "GET" && path === "/portal/session") return portalSession(request, env);
-    if (request.method === "POST" && path === "/portal/logout") return portalLogout(request, env);
+    if (request.method === "GET" && publicMatch) return await publicTrip(env, publicMatch[1]);
+    if (request.method === "POST" && path === "/portal/login") return await portalLogin(request, env);
+    if (request.method === "GET" && path === "/portal/session") return await portalSession(request, env);
+    if (request.method === "POST" && path === "/portal/logout") return await portalLogout(request, env);
     const accountMatch = path.match(/^\/private-account\/([A-Za-z0-9_-]{40,100})$/);
-    if (request.method === "GET" && accountMatch) return privateAccountStatement(request, env, accountMatch[1]);
+    if (request.method === "GET" && accountMatch) return await privateAccountStatement(request, env, accountMatch[1]);
     throw new AdminError(404, "NOT_FOUND", "Not found.");
   } catch (error) {
     if (error instanceof AdminError) return adminJson({ error: error.message, code: error.code }, error.status, error.headers);
