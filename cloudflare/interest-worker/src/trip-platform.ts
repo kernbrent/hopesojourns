@@ -1450,19 +1450,19 @@ async function exportTripSpreadsheet(request: Request, env: AdminEnv, tripId: st
       COALESCE((SELECT group_concat(ordered.contact_type, '; ') FROM (
         SELECT ct.contact_type FROM contact_types ct WHERE ct.person_id = p.id ORDER BY ct.contact_type
       ) ordered), '') AS contact_types
-      FROM people p WHERE p.id IN (
-        SELECT person_id FROM trip_members WHERE trip_id = ?1
-        UNION SELECT person_id FROM trip_accounts WHERE trip_id = ?1 AND person_id IS NOT NULL
-        UNION SELECT entity_id FROM trip_bulk_import_rows WHERE trip_id = ?1 AND entity_type = 'person' AND entity_id IS NOT NULL
-      ) ORDER BY p.last_name_normalized, p.first_name_normalized`).bind(tripId).all(),
-    env.DB.prepare(`SELECT m.* FROM ministries m WHERE m.id IN (
-      SELECT ministry_id FROM trip_organizations WHERE trip_id = ?1
-      UNION SELECT ministry_id FROM trip_members WHERE trip_id = ?1 AND ministry_id IS NOT NULL
-      UNION SELECT ministry_id FROM trip_accounts WHERE trip_id = ?1 AND ministry_id IS NOT NULL
-      UNION SELECT vendor_ministry_id FROM trip_cost_items WHERE trip_id = ?1 AND vendor_ministry_id IS NOT NULL
-      UNION SELECT ministry_id FROM trip_invites WHERE trip_id = ?1 AND ministry_id IS NOT NULL
-      UNION SELECT entity_id FROM trip_bulk_import_rows WHERE trip_id = ?1 AND entity_type = 'ministry' AND entity_id IS NOT NULL
-    ) ORDER BY m.name_normalized`).bind(tripId).all(),
+      FROM people p WHERE
+        EXISTS (SELECT 1 FROM trip_members tm WHERE tm.trip_id = ?1 AND tm.person_id = p.id)
+        OR EXISTS (SELECT 1 FROM trip_accounts ta WHERE ta.trip_id = ?1 AND ta.person_id = p.id)
+        OR EXISTS (SELECT 1 FROM trip_bulk_import_rows bi WHERE bi.trip_id = ?1 AND bi.entity_type = 'person' AND bi.entity_id = p.id)
+      ORDER BY p.last_name_normalized, p.first_name_normalized`).bind(tripId).all(),
+    env.DB.prepare(`SELECT m.* FROM ministries m WHERE
+      EXISTS (SELECT 1 FROM trip_organizations org WHERE org.trip_id = ?1 AND org.ministry_id = m.id)
+      OR EXISTS (SELECT 1 FROM trip_members tm WHERE tm.trip_id = ?1 AND tm.ministry_id = m.id)
+      OR EXISTS (SELECT 1 FROM trip_accounts ta WHERE ta.trip_id = ?1 AND ta.ministry_id = m.id)
+      OR EXISTS (SELECT 1 FROM trip_cost_items cost WHERE cost.trip_id = ?1 AND cost.vendor_ministry_id = m.id)
+      OR EXISTS (SELECT 1 FROM trip_invites invite WHERE invite.trip_id = ?1 AND invite.ministry_id = m.id)
+      OR EXISTS (SELECT 1 FROM trip_bulk_import_rows bi WHERE bi.trip_id = ?1 AND bi.entity_type = 'ministry' AND bi.entity_id = m.id)
+      ORDER BY m.name_normalized`).bind(tripId).all(),
     env.DB.prepare(`SELECT o.*, m.name AS ministry_name FROM trip_organizations o JOIN ministries m ON m.id = o.ministry_id
       WHERE o.trip_id = ?1 ORDER BY m.name_normalized, o.role`).bind(tripId).all(),
     env.DB.prepare(`SELECT tm.*, p.email AS person_email, m.name AS ministry_name FROM trip_members tm
