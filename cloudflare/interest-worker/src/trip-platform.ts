@@ -8,7 +8,8 @@ import {
   type AdminEnv,
 } from "./admin";
 import { parseTripImportSheets, type TripImportEntity, type TripImportRow } from "./trip-import";
-import { excelDateValue, readSpreadsheet, SpreadsheetFileError, SPREADSHEET_MAX_FILE_BYTES } from "./spreadsheet-reader";
+import { excelDateValue, normalizeSpreadsheetLabel, readSpreadsheet, SpreadsheetFileError, SPREADSHEET_MAX_FILE_BYTES } from "./spreadsheet-reader";
+import { buildTripWorkbook, type TripWorkbookSheet } from "./trip-xlsx";
 
 const PORTAL_SESSION_HOURS = 12;
 const ACCOUNT_LINK_DAYS = 30;
@@ -40,6 +41,7 @@ const PAYMENT_STATUSES = new Set(["pending", "received", "refunded", "voided"]);
 const SOURCE_SYSTEMS = new Set(["manual", "csm", "paypal", "venmo", "import", "other"]);
 const REQUEST_STATUSES = new Set(["draft", "ready", "sent", "partially_paid", "paid", "canceled"]);
 const MESSAGE_TYPES = new Set(["invitation", "payment_request", "statement", "trip_update", "other"]);
+const CONTACT_TYPES = new Set(["prospective_traveler", "traveler", "leader", "donor", "ministry_contact", "staff", "volunteer", "other"]);
 
 type JsonRecord = Record<string, unknown>;
 
@@ -554,34 +556,150 @@ async function saveContent(request: Request, env: AdminEnv, tripId: string): Pro
   return adminJson({ id }, existingId ? 200 : 201);
 }
 
+function importedContactTypes(value: unknown): string[] {
+  const requested = Array.isArray(value) ? value : [];
+  const selected = [...new Set(requested.filter((item): item is string => typeof item === "string").map(item => item.trim()).filter(Boolean))];
+  if (selected.some(item => !CONTACT_TYPES.has(item))) throw new AdminError(422, "INVALID_CONTACT_TYPE", "Choose valid contact types.");
+  return selected.length ? selected : ["traveler"];
+}
+
+async function saveImportedPerson(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
+  const session = await authenticate(request, env, true);
+  await requireTrip(env, tripId);
+  const body = await readAdminJson(request);
+  const existingId = uuid(body.id, "person", true);
+  const id = existingId ?? crypto.randomUUID();
+  const firstName = text(body.firstName, "First name", 80);
+  const lastName = text(body.lastName, "Last name", 80);
+  const emailAddress = email(body.email, "email", false)!;
+  const phoneNumber = optionalText(body.phone, "phone", 40);
+  if (phoneNumber && !/^\+?[0-9().\-\s]{7,40}$/.test(phoneNumber)) throw new AdminError(422, "INVALID_PHONE", "Enter a valid phone number.");
+  const preference = choice(body.contactPreference, "contact preference", new Set(["email", "phone"]), "email");
+  if (preference === "phone" && !phoneNumber) throw new AdminError(422, "PHONE_REQUIRED", "Enter a phone number when Phone is the preferred contact method.");
+  const status = choice(body.contactStatus, "contact status", new Set(["active", "inactive"]), "active");
+  const contactTypes = importedContactTypes(body.contactTypes);
+  const now = new Date().toISOString();
+  const values = [
+    firstName, lastName, normalizeTripCatalogName(firstName), normalizeTripCatalogName(lastName),
+    emailAddress, emailAddress.toLocaleLowerCase("en-US"), phoneNumber, phoneNumber?.replace(/\D/g, "") ?? null,
+    preference, optionalText(body.fieldOfStudy, "School, field, or specialty", 160),
+    optionalText(body.preferredName, "Preferred name", 80), optionalText(body.addressLine1, "Address line 1", 160),
+    optionalText(body.addressLine2, "Address line 2", 160), optionalText(body.city, "City", 100),
+    optionalText(body.region, "State, province, or region", 100), optionalText(body.postalCode, "Postal code", 30),
+    optionalText(body.country, "Country", 100), optionalText(body.organization, "Organization", 160),
+    url(body.website, "Website"), optionalText(body.notes, "Notes", 5_000, true), status, now,
+  ] as const;
+  const statements: D1PreparedStatement[] = [];
+  if (existingId) {
+    statements.push(env.DB.prepare(`UPDATE people SET first_name = ?1, last_name = ?2, first_name_normalized = ?3,
+      last_name_normalized = ?4, email = ?5, email_normalized = ?6, phone = ?7, phone_normalized = ?8,
+      contact_preference = ?9, field_of_study = ?10, preferred_name = ?11, address_line_1 = ?12,
+      address_line_2 = ?13, city = ?14, region = ?15, postal_code = ?16, country = ?17, organization = ?18,
+      website = ?19, notes = ?20, contact_status = ?21, updated_at = ?22 WHERE id = ?23`).bind(...values, id));
+    statements.push(env.DB.prepare("DELETE FROM contact_types WHERE person_id = ?1").bind(id));
+  } else {
+    statements.push(env.DB.prepare(`INSERT INTO people (
+      id, first_name, last_name, first_name_normalized, last_name_normalized, email, email_normalized,
+      phone, phone_normalized, contact_preference, field_of_study, preferred_name, address_line_1,
+      address_line_2, city, region, postal_code, country, organization, website, notes, record_source,
+      contact_status, created_at, updated_at
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
+      ?18, ?19, ?20, ?21, 'manual', ?22, ?23, ?23)`).bind(id, ...values.slice(0, 21), now));
+  }
+  statements.push(...contactTypes.map(contactType => env.DB.prepare(
+    "INSERT INTO contact_types (person_id, contact_type, created_at) VALUES (?1, ?2, ?3)",
+  ).bind(id, contactType, now)));
+  statements.push(auditStatement(env, "person", id, existingId ? "contact_updated_from_trip_workbook" : "contact_created_from_trip_workbook", { tripId, sessionId: session.id }));
+  try {
+    const results = await env.DB.batch(statements);
+    if (existingId && Number(results[0]?.meta.changes ?? 0) !== 1) throw new AdminError(404, "PERSON_NOT_FOUND", "That person could not be found.");
+  } catch (error) {
+    if (error instanceof AdminError) throw error;
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) throw new AdminError(409, "CONTACT_EXISTS", "A contact with this name and email already exists.");
+    throw error;
+  }
+  return adminJson({ id }, existingId ? 200 : 201);
+}
+
+async function saveImportedMinistry(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
+  const session = await authenticate(request, env, true);
+  await requireTrip(env, tripId);
+  const body = await readAdminJson(request);
+  const existingId = uuid(body.id, "ministry", true);
+  const id = existingId ?? crypto.randomUUID();
+  const name = text(body.name, "Organization name", 160);
+  const status = choice(body.status, "status", new Set(["active", "inactive"]), "active");
+  const now = new Date().toISOString();
+  const values = [
+    name, normalizeTripCatalogName(name), optionalText(body.description, "Description", 2_000, true),
+    optionalText(body.addressLine1, "Address line 1", 160), optionalText(body.addressLine2, "Address line 2", 160),
+    optionalText(body.city, "City", 100), optionalText(body.region, "State, province, or region", 100),
+    optionalText(body.postalCode, "Postal code", 30), optionalText(body.country, "Country", 100),
+    email(body.email, "email"), optionalText(body.phone, "phone", 40), url(body.website, "Website"),
+    optionalText(body.notes, "Notes", 5_000, true), status, now,
+  ] as const;
+  const statement = existingId
+    ? env.DB.prepare(`UPDATE ministries SET name = ?1, name_normalized = ?2, description = ?3,
+      address_line_1 = ?4, address_line_2 = ?5, city = ?6, region = ?7, postal_code = ?8, country = ?9,
+      email = ?10, phone = ?11, website = ?12, notes = ?13, status = ?14, updated_at = ?15 WHERE id = ?16`).bind(...values, id)
+    : env.DB.prepare(`INSERT INTO ministries (
+      id, name, name_normalized, description, address_line_1, address_line_2, city, region, postal_code,
+      country, email, phone, website, notes, status, created_at, updated_at
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?16)`).bind(id, ...values.slice(0, 14), now);
+  try {
+    const result = await statement.run();
+    if (existingId && !result.meta.changes) throw new AdminError(404, "MINISTRY_NOT_FOUND", "That ministry could not be found.");
+  } catch (error) {
+    if (error instanceof AdminError) throw error;
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) throw new AdminError(409, "MINISTRY_EXISTS", "A ministry with that name already exists.");
+    throw error;
+  }
+  await auditStatement(env, "ministry", id, existingId ? "updated_from_trip_workbook" : "created_from_trip_workbook", { tripId, sessionId: session.id }).run();
+  return adminJson({ id }, existingId ? 200 : 201);
+}
+
 async function saveOrganization(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
   await authenticate(request, env, true);
   await requireTrip(env, tripId);
   const body = await readAdminJson(request);
+  const existingMinistryId = uuid(body.id, "existing organization", true);
   const ministryId = uuid(body.ministryId, "organization")!;
   const role = text(body.role, "Organization role", 100);
+  const originalRole = existingMinistryId ? text(body.originalRole, "Original organization role", 100) : null;
   const now = new Date().toISOString();
-  await env.DB.batch([
+  const statements: D1PreparedStatement[] = [];
+  if (existingMinistryId && originalRole) {
+    statements.push(env.DB.prepare("DELETE FROM trip_organizations WHERE trip_id = ?1 AND ministry_id = ?2 AND role = ?3").bind(
+      tripId, existingMinistryId, originalRole,
+    ));
+  }
+  statements.push(
     env.DB.prepare(`INSERT INTO trip_organizations (trip_id, ministry_id, role, notes, created_at, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, ?5)
       ON CONFLICT (trip_id, ministry_id, role) DO UPDATE SET notes = excluded.notes, updated_at = excluded.updated_at`).bind(
       tripId, ministryId, role, optionalText(body.notes, "Notes", 1_000, true), now,
     ),
     auditStatement(env, "trip", tripId, "organization_linked", { ministryId, role }),
-  ]);
-  return adminJson({ ok: true });
+  );
+  await env.DB.batch(statements);
+  return adminJson({ ok: true, id: ministryId });
 }
 
 async function saveMember(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
   await authenticate(request, env, true);
   await requireTrip(env, tripId);
   const body = await readAdminJson(request);
+  const existingPersonId = uuid(body.id, "existing person", true);
   const personId = uuid(body.personId, "person")!;
   const ministryId = uuid(body.ministryId, "organization", true);
   const role = choice(body.role, "member role", MEMBER_ROLES, "traveler");
   const status = choice(body.status, "member status", MEMBER_STATUSES, "invited");
   const now = new Date().toISOString();
-  await env.DB.batch([
+  const statements: D1PreparedStatement[] = [];
+  if (existingPersonId && existingPersonId !== personId) {
+    statements.push(env.DB.prepare("DELETE FROM trip_members WHERE trip_id = ?1 AND person_id = ?2").bind(tripId, existingPersonId));
+  }
+  statements.push(
     env.DB.prepare(`INSERT INTO trip_members (
       trip_id, person_id, ministry_id, role, status, directory_visible, directory_email_visible,
       directory_phone_visible, notes, created_at, updated_at
@@ -597,8 +715,9 @@ async function saveMember(request: Request, env: AdminEnv, tripId: string): Prom
       personId, role === "leader" ? "leader" : "traveler", now,
     ),
     auditStatement(env, "trip", tripId, "member_saved", { personId, role, status }),
-  ]);
-  return adminJson({ ok: true });
+  );
+  await env.DB.batch(statements);
+  return adminJson({ ok: true, id: personId });
 }
 
 async function saveAccount(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
@@ -956,16 +1075,28 @@ async function createInvite(request: Request, env: AdminEnv, tripId: string): Pr
   await authenticate(request, env, true);
   const trip = await requireTrip(env, tripId);
   const body = await readAdminJson(request);
-  const token = randomToken(24);
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const existingId = uuid(body.id, "invitation", true);
+  const ministryId = uuid(body.ministryId, "organization", true);
+  const label = optionalText(body.label, "Invite label", 160);
   const expiresAt = date(body.expiresAt, "expiration date");
   const maxUses = optionalInteger(body.maxUses, "maximum uses");
+  const now = new Date().toISOString();
+  if (existingId) {
+    const result = await env.DB.prepare(`UPDATE trip_invites SET ministry_id = ?1, label = ?2, expires_at = ?3,
+      max_uses = ?4, updated_at = ?5 WHERE id = ?6 AND trip_id = ?7`).bind(
+      ministryId, label, expiresAt, maxUses, now, existingId, tripId,
+    ).run();
+    if (!result.meta.changes) throw new AdminError(404, "INVITE_NOT_FOUND", "That invitation could not be found.");
+    await auditStatement(env, "trip_invite", existingId, "updated", { tripId, expiresAt, maxUses }).run();
+    return adminJson({ id: existingId }, 200);
+  }
+  const token = randomToken(24);
+  const id = crypto.randomUUID();
   await env.DB.batch([
     env.DB.prepare(`INSERT INTO trip_invites (
       id, trip_id, ministry_id, label, token_hash, expires_at, max_uses, status, created_at, updated_at
     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'active', ?8, ?8)`).bind(
-      id, tripId, uuid(body.ministryId, "organization", true), optionalText(body.label, "Invite label", 160),
+      id, tripId, ministryId, label,
       await hashText(token), expiresAt, maxUses, now,
     ),
     auditStatement(env, "trip_invite", id, "created", { tripId, expiresAt, maxUses }),
@@ -1252,6 +1383,236 @@ async function privateAccountStatement(request: Request, env: AdminEnv, token: s
   }, 200, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
 }
 
+const WORKBOOK_META_HEADERS = ["Record ID", "Original Updated At", "Original Fingerprint"];
+const TRIP_WORKBOOK_HEADERS = {
+  People: ["Import Ref", "First Name", "Preferred Name", "Last Name", "Email", "Phone", "Contact Preference", "Contact Status", "Contact Types", "Organization", "Address Line 1", "Address Line 2", "City", "State Province Region", "Postal Code", "Country", "Website", "School Field Specialty", "Notes", ...WORKBOOK_META_HEADERS],
+  Ministries: ["Import Ref", "Organization Name", "Description", "Address Line 1", "Address Line 2", "City", "State Province Region", "Postal Code", "Country", "Email", "Phone", "Website", "Notes", "Status", ...WORKBOOK_META_HEADERS],
+  Team: ["Import Ref", "Person Email", "Organization Name", "Role", "Status", "Directory Visible", "Show Email", "Show Phone", "Notes", ...WORKBOOK_META_HEADERS],
+  Partners: ["Import Ref", "Organization Name", "Role", "Notes", "Original Role", ...WORKBOOK_META_HEADERS],
+  Content: ["Import Ref", "Content Type", "Title", "Content", "Event Date", "Event Time", "Location", "Link URL", "Visibility", "Publication Status", "Sort Order", ...WORKBOOK_META_HEADERS],
+  Accounts: ["Import Ref", "Account Type", "Account Name", "Person Email", "Organization Name", "Billing Email", "Billing Phone", "Financial Access", "Status", "Notes", ...WORKBOOK_META_HEADERS],
+  Budget: ["Import Ref", "Category Name", "Description", "Expense Scope", "Account Ref", "Quantity", "Estimated Unit Cost", "Estimated Total", "Actual Total", "Vendor Name", "Vendor Organization Name", "Settlement Route", "Payment Status", "Payment Method", "External Reference", "Due Date", "Paid Date", "Notes", ...WORKBOOK_META_HEADERS],
+  Allocations: ["Import Ref", "Budget Item Ref", "Funding Source Name", "Amount", "Status", "Notes", ...WORKBOOK_META_HEADERS],
+  Charges: ["Import Ref", "Account Ref", "Budget Item Ref", "Title", "Purpose", "Amount", "Due Date", "Status", "Notes", ...WORKBOOK_META_HEADERS],
+  Support: ["Import Ref", "Account Ref", "Funding Source Name", "Award Type", "Amount", "Award Date", "Status", "Reason", ...WORKBOOK_META_HEADERS],
+  Payments: ["Import Ref", "Account Ref", "Funding Source Name", "Transaction Date", "Amount", "Purpose", "Payment Method", "Settlement Route", "Status", "Payer Name", "External Reference", "Source System", "Source Transaction ID", "Charitable Amount", "Charge Ref", "Applied Amount", "Notes", ...WORKBOOK_META_HEADERS],
+  Invites: ["Import Ref", "Organization Name", "Label", "Expires Date", "Max Uses", ...WORKBOOK_META_HEADERS],
+} as const;
+
+function workbookValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
+function workbookFlag(value: unknown): string {
+  return Number(value) === 1 ? "Yes" : "No";
+}
+
+async function exportedWorkbookRow(
+  headers: readonly string[],
+  cells: Array<unknown>,
+  recordId: string,
+  updatedAt: string,
+): Promise<Array<string>> {
+  const values = [...cells.map(workbookValue), recordId, updatedAt];
+  const normalized: Record<string, string> = {};
+  headers.slice(0, -1).forEach((header, index) => {
+    normalized[normalizeSpreadsheetLabel(header)] = values[index] ?? "";
+  });
+  return [...values, await hashText(JSON.stringify(normalized))];
+}
+
+function exportedImportRef(
+  imported: Map<string, string>,
+  entity: TripImportEntity,
+  id: string,
+  suffix = "",
+): string {
+  const mapped = imported.get(`${entity}:${id}`);
+  if (mapped && entity !== "partner" && entity !== "member") return mapped;
+  const extra = suffix ? `-${suffix.normalize("NFKC").toLocaleLowerCase("en-US").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24)}` : "";
+  return `${entity}-${id}${extra}`.slice(0, 80);
+}
+
+function resultRows(result: D1Result<unknown>): JsonRecord[] {
+  return result.results as JsonRecord[];
+}
+
+async function exportTripSpreadsheet(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
+  await authenticate(request, env);
+  const trip = await requireTrip(env, tripId);
+  const [
+    importedResult, peopleResult, ministriesResult, partnersResult, membersResult, contentResult, accountsResult,
+    costsResult, allocationsResult, chargesResult, awardsResult, paymentsResult, invitesResult,
+  ] = await Promise.all([
+    env.DB.prepare("SELECT entity_type, external_key, entity_id FROM trip_bulk_import_rows WHERE trip_id = ?1 AND entity_id IS NOT NULL ORDER BY created_at").bind(tripId).all(),
+    env.DB.prepare(`SELECT p.*,
+      COALESCE((SELECT group_concat(ordered.contact_type, '; ') FROM (
+        SELECT ct.contact_type FROM contact_types ct WHERE ct.person_id = p.id ORDER BY ct.contact_type
+      ) ordered), '') AS contact_types
+      FROM people p WHERE p.id IN (
+        SELECT person_id FROM trip_members WHERE trip_id = ?1
+        UNION SELECT person_id FROM trip_accounts WHERE trip_id = ?1 AND person_id IS NOT NULL
+        UNION SELECT entity_id FROM trip_bulk_import_rows WHERE trip_id = ?1 AND entity_type = 'person' AND entity_id IS NOT NULL
+      ) ORDER BY p.last_name_normalized, p.first_name_normalized`).bind(tripId).all(),
+    env.DB.prepare(`SELECT m.* FROM ministries m WHERE m.id IN (
+      SELECT ministry_id FROM trip_organizations WHERE trip_id = ?1
+      UNION SELECT ministry_id FROM trip_members WHERE trip_id = ?1 AND ministry_id IS NOT NULL
+      UNION SELECT ministry_id FROM trip_accounts WHERE trip_id = ?1 AND ministry_id IS NOT NULL
+      UNION SELECT vendor_ministry_id FROM trip_cost_items WHERE trip_id = ?1 AND vendor_ministry_id IS NOT NULL
+      UNION SELECT ministry_id FROM trip_invites WHERE trip_id = ?1 AND ministry_id IS NOT NULL
+      UNION SELECT entity_id FROM trip_bulk_import_rows WHERE trip_id = ?1 AND entity_type = 'ministry' AND entity_id IS NOT NULL
+    ) ORDER BY m.name_normalized`).bind(tripId).all(),
+    env.DB.prepare(`SELECT o.*, m.name AS ministry_name FROM trip_organizations o JOIN ministries m ON m.id = o.ministry_id
+      WHERE o.trip_id = ?1 ORDER BY m.name_normalized, o.role`).bind(tripId).all(),
+    env.DB.prepare(`SELECT tm.*, p.email AS person_email, m.name AS ministry_name FROM trip_members tm
+      JOIN people p ON p.id = tm.person_id LEFT JOIN ministries m ON m.id = tm.ministry_id
+      WHERE tm.trip_id = ?1 ORDER BY p.last_name_normalized, p.first_name_normalized`).bind(tripId).all(),
+    env.DB.prepare("SELECT * FROM trip_content WHERE trip_id = ?1 ORDER BY content_type, event_date, sort_order, title").bind(tripId).all(),
+    env.DB.prepare(`SELECT a.*, p.email AS person_email, m.name AS ministry_name FROM trip_accounts a
+      LEFT JOIN people p ON p.id = a.person_id LEFT JOIN ministries m ON m.id = a.ministry_id
+      WHERE a.trip_id = ?1 ORDER BY a.name`).bind(tripId).all(),
+    env.DB.prepare(`SELECT c.*, cc.name AS category_name, m.name AS vendor_ministry_name FROM trip_cost_items c
+      JOIN trip_cost_categories cc ON cc.id = c.category_id LEFT JOIN ministries m ON m.id = c.vendor_ministry_id
+      WHERE c.trip_id = ?1 ORDER BY cc.sort_order, c.created_at`).bind(tripId).all(),
+    env.DB.prepare(`SELECT a.*, fs.name AS funding_source_name FROM trip_cost_allocations a
+      JOIN trip_cost_items c ON c.id = a.cost_item_id JOIN trip_funding_sources fs ON fs.id = a.funding_source_id
+      WHERE c.trip_id = ?1 ORDER BY a.created_at`).bind(tripId).all(),
+    env.DB.prepare("SELECT * FROM trip_charges WHERE trip_id = ?1 ORDER BY due_date, created_at").bind(tripId).all(),
+    env.DB.prepare(`SELECT a.*, fs.name AS funding_source_name FROM trip_coverage_awards a
+      JOIN trip_funding_sources fs ON fs.id = a.funding_source_id WHERE a.trip_id = ?1 ORDER BY a.award_date, a.created_at`).bind(tripId).all(),
+    env.DB.prepare(`SELECT p.*, fs.name AS funding_source_name,
+      (SELECT pa.charge_id FROM trip_payment_applications pa WHERE pa.payment_id = p.id ORDER BY pa.created_at LIMIT 1) AS charge_id,
+      (SELECT pa.amount FROM trip_payment_applications pa WHERE pa.payment_id = p.id ORDER BY pa.created_at LIMIT 1) AS applied_amount
+      FROM trip_payments p LEFT JOIN trip_funding_sources fs ON fs.id = p.funding_source_id
+      WHERE p.trip_id = ?1 ORDER BY p.transaction_date, p.created_at`).bind(tripId).all(),
+    env.DB.prepare(`SELECT i.*, m.name AS ministry_name FROM trip_invites i LEFT JOIN ministries m ON m.id = i.ministry_id
+      WHERE i.trip_id = ?1 ORDER BY i.created_at`).bind(tripId).all(),
+  ]);
+  const imported = new Map<string, string>();
+  for (const row of resultRows(importedResult)) {
+    if (row.entity_id && !imported.has(`${row.entity_type}:${row.entity_id}`)) {
+      imported.set(`${row.entity_type}:${row.entity_id}`, workbookValue(row.external_key));
+    }
+  }
+  const ref = (entity: TripImportEntity, id: unknown, suffix = "") =>
+    id ? exportedImportRef(imported, entity, workbookValue(id), suffix) : "";
+
+  const people = await Promise.all(resultRows(peopleResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.People,
+    [ref("person", row.id), row.first_name, row.preferred_name, row.last_name, row.email, row.phone,
+      row.contact_preference, row.contact_status, row.contact_types, row.organization, row.address_line_1,
+      row.address_line_2, row.city, row.region, row.postal_code, row.country, row.website, row.field_of_study, row.notes],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const ministries = await Promise.all(resultRows(ministriesResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Ministries,
+    [ref("ministry", row.id), row.name, row.description, row.address_line_1, row.address_line_2, row.city,
+      row.region, row.postal_code, row.country, row.email, row.phone, row.website, row.notes, row.status],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const partners = await Promise.all(resultRows(partnersResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Partners,
+    [ref("partner", row.ministry_id, workbookValue(row.role)), row.ministry_name, row.role, row.notes, row.role],
+    workbookValue(row.ministry_id), workbookValue(row.updated_at),
+  )));
+  const members = await Promise.all(resultRows(membersResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Team,
+    [ref("member", row.person_id), row.person_email, row.ministry_name, row.role, row.status,
+      workbookFlag(row.directory_visible), workbookFlag(row.directory_email_visible), workbookFlag(row.directory_phone_visible), row.notes],
+    workbookValue(row.person_id), workbookValue(row.updated_at),
+  )));
+  const content = await Promise.all(resultRows(contentResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Content,
+    [ref("content", row.id), row.content_type, row.title, row.content, row.event_date, row.event_time, row.location,
+      row.link_url, row.visibility, row.publication_status, row.sort_order],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const accounts = await Promise.all(resultRows(accountsResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Accounts,
+    [ref("account", row.id), row.account_type, row.name, row.person_email, row.ministry_name, row.billing_email,
+      row.billing_phone, row.financial_access, row.status, row.notes],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const costs = await Promise.all(resultRows(costsResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Budget,
+    [ref("cost", row.id), row.category_name, row.description, row.expense_scope, ref("account", row.account_id),
+      row.quantity, row.estimated_unit_cost, row.estimated_total, row.actual_total, row.vendor_name,
+      row.vendor_ministry_name, row.settlement_route, row.payment_status, row.payment_method, row.external_reference,
+      row.due_date, row.paid_date, row.notes],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const allocations = await Promise.all(resultRows(allocationsResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Allocations,
+    [ref("allocation", row.id), ref("cost", row.cost_item_id), row.funding_source_name, row.amount, row.status, row.notes],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const charges = await Promise.all(resultRows(chargesResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Charges,
+    [ref("charge", row.id), ref("account", row.account_id), ref("cost", row.cost_item_id), row.title, row.purpose,
+      row.amount, row.due_date, row.status, row.notes],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const awards = await Promise.all(resultRows(awardsResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Support,
+    [ref("award", row.id), ref("account", row.account_id), row.funding_source_name, row.award_type, row.amount,
+      row.award_date, row.status, row.reason],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const payments = await Promise.all(resultRows(paymentsResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Payments,
+    [ref("payment", row.id), ref("account", row.account_id), row.funding_source_name, row.transaction_date, row.amount,
+      row.purpose, row.payment_method, row.settlement_route, row.status, row.payer_name, row.external_reference,
+      row.source_system, row.source_transaction_id, row.charitable_amount, ref("charge", row.charge_id), row.applied_amount, row.notes],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+  const invites = await Promise.all(resultRows(invitesResult).map(row => exportedWorkbookRow(
+    TRIP_WORKBOOK_HEADERS.Invites,
+    [ref("invite", row.id), row.ministry_name, row.label, row.expires_at, row.max_uses],
+    workbookValue(row.id), workbookValue(row.updated_at),
+  )));
+
+  const instructions: TripWorkbookSheet = {
+    name: "Instructions",
+    purpose: `Current trip data for ${trip.code}: ${trip.title}. Edit existing rows or add new rows, then upload this workbook for preview.`,
+    guidance: "Do not change gray metadata columns. Preview always shows Create, Update, Unchanged, or Blocked before saving.",
+    headers: ["Step", "What to do", "", "Important rule", "Details", "Example"],
+    rows: [
+      ["1", "Edit current rows or add new rows on any sheet.", "", "People and ministries", "Add them on the People and Ministries sheets before referencing them elsewhere.", "traveler@example.org"],
+      ["2", "Keep sheet names and row 4 headers unchanged.", "", "Existing rows", "Never change Record ID, Original Updated At, Original Fingerprint, or Original Role.", "Leave metadata alone"],
+      ["3", "Use a unique Import Ref for each new row.", "", "References", "Account Ref, Budget Item Ref, and Charge Ref must match another row's Import Ref.", "cost-airfare-01"],
+      ["4", "Upload and choose Preview import.", "", "Safe updates", "Stale rows are blocked if the portal changed after this download.", "Download fresh copy"],
+      ["5", "Review Create, Update, Unchanged, and Blocked.", "", "Payments", "Existing payments are audit records and cannot be rewritten; add a correcting row.", "New correction row"],
+      ["6", "Choose Import ready rows only after review.", "", "Security", "Never place passwords, card data, bank data, or invitation links here.", "No passwords"],
+    ],
+  };
+  const sheet = (name: keyof typeof TRIP_WORKBOOK_HEADERS, purpose: string, rows: Array<Array<string>>): TripWorkbookSheet => ({
+    name, purpose, headers: [...TRIP_WORKBOOK_HEADERS[name]], rows,
+  });
+  const sheets: TripWorkbookSheet[] = [
+    instructions,
+    sheet("People", "Create or safely update the trip's traveler and leader contact records.", people),
+    sheet("Ministries", "Create or safely update churches, ministries, payers, and logistics partners used by this trip.", ministries),
+    sheet("Team", "Connect people to this trip. People listed on the People sheet can be referenced in the same upload.", members),
+    sheet("Partners", "Connect ministries, churches, payers, or logistics partners to this trip.", partners),
+    sheet("Content", "Maintain itinerary entries, devotionals, instructions, resources, updates, and overview content.", content),
+    sheet("Accounts", "Maintain traveler, family, group, organization, or sponsor accounts.", accounts),
+    sheet("Budget", "Maintain everything being paid for and who or what covers it.", costs),
+    sheet("Allocations", "Maintain funding-source allocations for Budget rows.", allocations),
+    sheet("Charges", "Maintain amounts owed by traveler, group, or organization accounts.", charges),
+    sheet("Support", "Maintain leader coverage, scholarships, sponsor credits, fee waivers, and other support.", awards),
+    sheet("Payments", "Review existing payments and add new payments or corrections. Existing payment rows are immutable.", payments),
+    sheet("Invites", "Maintain friendly private interest-link settings. Invitation secrets are never exported.", invites),
+  ];
+  const bytes = buildTripWorkbook(sheets);
+  const safeCode = trip.code.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "") || "Trip";
+  return new Response(new Uint8Array(bytes).buffer, { status: 200, headers: {
+    "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": `attachment; filename="Hope-Sojourns-${safeCode}-Trip-Workbook.xlsx"`,
+    "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+  } });
+}
+
 type TripImportLookups = {
   people: Map<string, string>;
   ministries: Map<string, string>;
@@ -1266,6 +1627,7 @@ type TripImportPreviewRow = {
   entity: TripImportEntity;
   externalKey: string;
   status: "ready" | "already_loaded" | "conflict" | "error" | "imported" | "not_imported";
+  action: "create" | "update" | "unchanged" | "blocked";
   message: string;
   fingerprint: string;
 };
@@ -1286,6 +1648,19 @@ function importBoolean(value: string, fallback = false): boolean {
   if (["yes", "y", "true", "1"].includes(normalized)) return true;
   if (["no", "n", "false", "0"].includes(normalized)) return false;
   throw new AdminError(422, "INVALID_IMPORT_VALUE", `Use Yes or No instead of "${value}".`);
+}
+
+function importList(value: string): string[] {
+  return [...new Set(value.split(/[;,\n]+/).map(item => item.normalize("NFKC").trim().toLocaleLowerCase("en-US")).filter(Boolean))];
+}
+
+function importRecordId(row: TripImportRow): string | null {
+  const value = importValue(row, "record id");
+  return value ? uuid(value, "Record ID") : null;
+}
+
+function importFingerprintValues(values: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(values).filter(([key]) => key !== "original fingerprint"));
 }
 
 function importMasterId(map: Map<string, string>, value: string, label: string, optional = false): string | null {
@@ -1311,19 +1686,62 @@ function importDate(row: TripImportRow, header: string, required = false): strin
 
 function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): JsonRecord {
   const value = (header: string, required = false) => importValue(row, header, required);
+  const id = importRecordId(row) ?? undefined;
   const ministry = (header: string, optional = false) => importMasterId(lookups.ministries, value(header), header, optional);
   const source = (header: string, optional = false) => importMasterId(lookups.sources, value(header), header, optional);
   const account = (header: string, optional = false) => importEntityId(lookups, "account", value(header), header, optional);
   const cost = (header: string, optional = false) => importEntityId(lookups, "cost", value(header), header, optional);
   switch (row.entity) {
+    case "person":
+      return {
+        id,
+        firstName: value("first name", true),
+        preferredName: value("preferred name"),
+        lastName: value("last name", true),
+        email: value("email", true),
+        phone: value("phone"),
+        contactPreference: value("contact preference") || "email",
+        contactStatus: value("contact status") || "active",
+        contactTypes: importList(value("contact types") || "traveler"),
+        organization: value("organization"),
+        addressLine1: value("address line 1"),
+        addressLine2: value("address line 2"),
+        city: value("city"),
+        region: value("state province region"),
+        postalCode: value("postal code"),
+        country: value("country"),
+        website: value("website"),
+        fieldOfStudy: value("school field specialty"),
+        notes: value("notes"),
+      };
+    case "ministry":
+      return {
+        id,
+        name: value("organization name", true),
+        description: value("description"),
+        addressLine1: value("address line 1"),
+        addressLine2: value("address line 2"),
+        city: value("city"),
+        region: value("state province region"),
+        postalCode: value("postal code"),
+        country: value("country"),
+        email: value("email"),
+        phone: value("phone"),
+        website: value("website"),
+        notes: value("notes"),
+        status: value("status") || "active",
+      };
     case "partner":
       return {
+        id,
         ministryId: ministry("organization name"),
         role: value("role", true),
+        originalRole: value("original role") || value("role", true),
         notes: value("notes"),
       };
     case "member":
       return {
+        id,
         personId: importMasterId(lookups.people, value("person email", true), "person email"),
         ministryId: ministry("organization name", true),
         role: value("role") || "traveler",
@@ -1335,6 +1753,7 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       };
     case "content":
       return {
+        id,
         contentType: value("content type", true),
         title: value("title", true),
         content: value("content"),
@@ -1348,6 +1767,7 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       };
     case "account":
       return {
+        id,
         accountType: value("account type", true),
         name: value("account name", true),
         personId: importMasterId(lookups.people, value("person email"), "person email", true),
@@ -1360,6 +1780,7 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       };
     case "cost":
       return {
+        id,
         categoryId: importMasterId(lookups.categories, value("category name", true), "category name"),
         description: value("description", true),
         expenseScope: value("expense scope") || "trip",
@@ -1380,6 +1801,7 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       };
     case "allocation":
       return {
+        id,
         costItemId: cost("budget item ref"),
         fundingSourceId: source("funding source name"),
         amount: value("amount", true),
@@ -1388,6 +1810,7 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       };
     case "charge":
       return {
+        id,
         accountId: account("account ref"),
         costItemId: cost("budget item ref", true),
         title: value("title", true),
@@ -1399,6 +1822,7 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       };
     case "award":
       return {
+        id,
         accountId: account("account ref"),
         fundingSourceId: source("funding source name"),
         awardType: value("award type", true),
@@ -1409,6 +1833,7 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       };
     case "payment":
       return {
+        id,
         accountId: account("account ref", true),
         fundingSourceId: source("funding source name", true),
         transactionDate: importDate(row, "transaction date", true),
@@ -1428,6 +1853,7 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       };
     case "invite":
       return {
+        id,
         ministryId: ministry("organization name", true),
         label: value("label"),
         expiresAt: importDate(row, "expires date"),
@@ -1445,6 +1871,8 @@ function importRequest(original: Request, payload: JsonRecord): Request {
 
 async function invokeTripImportRow(request: Request, env: AdminEnv, tripId: string, row: TripImportRow, payload: JsonRecord): Promise<Response> {
   const handlers: Record<TripImportEntity, (request: Request, env: AdminEnv, tripId: string) => Promise<Response>> = {
+    person: saveImportedPerson,
+    ministry: saveImportedMinistry,
     partner: saveOrganization,
     member: saveMember,
     content: saveContent,
@@ -1464,6 +1892,49 @@ function tripImportSummary(rows: TripImportPreviewRow[]): Record<string, number>
     summary[row.status] = (summary[row.status] ?? 0) + 1;
     return summary;
   }, { total: rows.length });
+}
+
+const TRIP_IMPORT_SNAPSHOT_QUERIES: Record<TripImportEntity, { select: string; tripScoped: boolean }> = {
+  person: { select: "SELECT id, updated_at FROM people WHERE id IN (__IDS__)", tripScoped: false },
+  ministry: { select: "SELECT id, updated_at FROM ministries WHERE id IN (__IDS__)", tripScoped: false },
+  partner: { select: "SELECT ministry_id AS id, role, updated_at FROM trip_organizations WHERE trip_id = ?1 AND ministry_id IN (__IDS__)", tripScoped: true },
+  member: { select: "SELECT person_id AS id, updated_at FROM trip_members WHERE trip_id = ?1 AND person_id IN (__IDS__)", tripScoped: true },
+  content: { select: "SELECT id, updated_at FROM trip_content WHERE trip_id = ?1 AND id IN (__IDS__)", tripScoped: true },
+  account: { select: "SELECT id, updated_at FROM trip_accounts WHERE trip_id = ?1 AND id IN (__IDS__)", tripScoped: true },
+  cost: { select: "SELECT id, updated_at FROM trip_cost_items WHERE trip_id = ?1 AND id IN (__IDS__)", tripScoped: true },
+  allocation: { select: "SELECT a.id, a.updated_at FROM trip_cost_allocations a JOIN trip_cost_items c ON c.id = a.cost_item_id WHERE c.trip_id = ?1 AND a.id IN (__IDS__)", tripScoped: true },
+  charge: { select: "SELECT id, updated_at FROM trip_charges WHERE trip_id = ?1 AND id IN (__IDS__)", tripScoped: true },
+  award: { select: "SELECT id, updated_at FROM trip_coverage_awards WHERE trip_id = ?1 AND id IN (__IDS__)", tripScoped: true },
+  payment: { select: "SELECT id, updated_at FROM trip_payments WHERE trip_id = ?1 AND id IN (__IDS__)", tripScoped: true },
+  invite: { select: "SELECT id, updated_at FROM trip_invites WHERE trip_id = ?1 AND id IN (__IDS__)", tripScoped: true },
+};
+
+async function loadTripImportSnapshots(env: AdminEnv, tripId: string, rows: TripImportRow[]): Promise<Map<string, string>> {
+  const grouped = new Map<TripImportEntity, string[]>();
+  for (const row of rows) {
+    const id = row.values["record id"] ?? "";
+    if (!/^[0-9a-f-]{36}$/i.test(id)) continue;
+    const ids = grouped.get(row.entity) ?? [];
+    if (!ids.includes(id)) ids.push(id);
+    grouped.set(row.entity, ids);
+  }
+  const snapshots = new Map<string, string>();
+  for (const [entity, ids] of grouped) {
+    const spec = TRIP_IMPORT_SNAPSHOT_QUERIES[entity];
+    for (let offset = 0; offset < ids.length; offset += 50) {
+      const chunk = ids.slice(offset, offset + 50);
+      const start = spec.tripScoped ? 2 : 1;
+      const placeholders = chunk.map((_, index) => `?${start + index}`).join(", ");
+      const query = spec.select.replace("__IDS__", placeholders);
+      const bindings = spec.tripScoped ? [tripId, ...chunk] : chunk;
+      const result = await env.DB.prepare(query).bind(...bindings).all<{ id: string; updated_at: string; role?: string }>();
+      for (const record of result.results) {
+        const suffix = entity === "partner" ? `:${normalizeTripCatalogName(record.role ?? "")}` : "";
+        snapshots.set(`${entity}:${record.id}${suffix}`, record.updated_at);
+      }
+    }
+  }
+  return snapshots;
 }
 
 async function importTripSpreadsheet(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
@@ -1487,9 +1958,9 @@ async function importTripSpreadsheet(request: Request, env: AdminEnv, tripId: st
     if (error instanceof SpreadsheetFileError) throw new AdminError(error.status, error.code, error.message);
     throw error;
   }
-  if (!rows.length) throw new AdminError(422, "NO_IMPORT_ROWS", "Enter at least one row in the Team, Partners, Content, Budget, Allocations, Accounts, Charges, Support, Payments, or Invites sheet.");
+  if (!rows.length) throw new AdminError(422, "NO_IMPORT_ROWS", "Enter at least one row in People, Ministries, Team, Partners, Content, Budget, Allocations, Accounts, Charges, Support, Payments, or Invites.");
 
-  const [existingResult, peopleResult, ministriesResult, categoriesResult, sourcesResult] = await Promise.all([
+  const [existingResult, peopleResult, ministriesResult, categoriesResult, sourcesResult, snapshots] = await Promise.all([
     env.DB.prepare("SELECT entity_type, external_key, entity_id, content_fingerprint FROM trip_bulk_import_rows WHERE trip_id = ?1").bind(tripId).all<{
       entity_type: TripImportEntity; external_key: string; entity_id: string | null; content_fingerprint: string;
     }>(),
@@ -1497,11 +1968,16 @@ async function importTripSpreadsheet(request: Request, env: AdminEnv, tripId: st
     env.DB.prepare("SELECT id, name_normalized FROM ministries WHERE status != 'archived'").all<{ id: string; name_normalized: string }>(),
     env.DB.prepare("SELECT id, name_normalized FROM trip_cost_categories WHERE status = 'active'").all<{ id: string; name_normalized: string }>(),
     env.DB.prepare("SELECT id, name_normalized FROM trip_funding_sources WHERE status = 'active'").all<{ id: string; name_normalized: string }>(),
+    loadTripImportSnapshots(env, tripId, rows),
   ]);
   const existing = new Map(existingResult.results.map(item => [importLookupKey(item.entity_type, item.external_key), item]));
   const importedIds = new Map<string, string>();
   for (const item of existingResult.results) if (item.entity_id) importedIds.set(importLookupKey(item.entity_type, item.external_key), item.entity_id);
-  for (const row of rows) if (!existing.has(importLookupKey(row.entity, row.externalKey))) importedIds.set(importLookupKey(row.entity, row.externalKey), crypto.randomUUID());
+  for (const row of rows) {
+    if (existing.has(importLookupKey(row.entity, row.externalKey))) continue;
+    const recordId = row.values["record id"];
+    importedIds.set(importLookupKey(row.entity, row.externalKey), /^[0-9a-f-]{36}$/i.test(recordId) ? recordId : crypto.randomUUID());
+  }
   const lookups: TripImportLookups = {
     people: new Map(peopleResult.results.map(item => [normalizeTripCatalogName(item.email), item.id])),
     ministries: new Map(ministriesResult.results.map(item => [item.name_normalized, item.id])),
@@ -1512,28 +1988,74 @@ async function importTripSpreadsheet(request: Request, env: AdminEnv, tripId: st
 
   const previewRows: TripImportPreviewRow[] = [];
   for (const row of rows) {
-    const fingerprint = await hashText(JSON.stringify(row.values));
+    const fingerprint = await hashText(JSON.stringify(importFingerprintValues(row.values)));
     const prior = existing.get(importLookupKey(row.entity, row.externalKey));
-    if (prior) {
-      previewRows.push({
-        sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
-        status: prior.content_fingerprint === fingerprint ? "already_loaded" : "conflict",
-        message: prior.content_fingerprint === fingerprint
-          ? "This exact row was already imported."
-          : "This Import Ref was used earlier with different values. Use a new Import Ref.",
-      });
-      continue;
-    }
+    const originalUpdatedAt = row.values["original updated at"] ?? "";
+    const originalFingerprint = row.values["original fingerprint"] ?? "";
     try {
-      tripImportPayload(row, lookups);
-      previewRows.push({
-        sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
-        status: "ready", message: "Ready to import.",
-      });
+      const payload = tripImportPayload(row, lookups);
+      const recordId = importRecordId(row);
+      if (recordId) {
+        const suffix = row.entity === "partner" ? `:${normalizeTripCatalogName(row.values["original role"] || row.values.role || "")}` : "";
+        const currentUpdatedAt = snapshots.get(`${row.entity}:${recordId}${suffix}`);
+        if (!currentUpdatedAt) throw new AdminError(422, "IMPORT_RECORD_NOT_FOUND", "This exported record no longer exists in this trip.");
+        if (!originalUpdatedAt || !originalFingerprint) throw new AdminError(422, "IMPORT_METADATA_REQUIRED", "Keep the exported Record ID, Original Updated At, and Original Fingerprint cells unchanged.");
+        if (currentUpdatedAt !== originalUpdatedAt) {
+          if (prior?.content_fingerprint === fingerprint) {
+            previewRows.push({
+              sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+              status: "already_loaded", action: "unchanged", message: "This exact update was already imported.",
+            });
+            continue;
+          }
+          previewRows.push({
+            sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+            status: "conflict", action: "blocked",
+            message: "This record changed in the portal after the workbook was downloaded. Download a fresh workbook and apply the edit again.",
+          });
+          continue;
+        }
+        if (fingerprint === originalFingerprint) {
+          previewRows.push({
+            sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+            status: "already_loaded", action: "unchanged", message: "No changes detected.",
+          });
+          continue;
+        }
+        if (row.entity === "payment") {
+          previewRows.push({
+            sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+            status: "conflict", action: "blocked",
+            message: "Existing payments cannot be rewritten. Leave this row unchanged and add a new correction or reversal row.",
+          });
+          continue;
+        }
+        previewRows.push({
+          sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+          status: "ready", action: "update", message: "Ready to update the existing record.",
+        });
+      } else if (prior) {
+        previewRows.push({
+          sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+          status: prior.content_fingerprint === fingerprint ? "already_loaded" : "conflict",
+          action: prior.content_fingerprint === fingerprint ? "unchanged" : "blocked",
+          message: prior.content_fingerprint === fingerprint
+            ? "This exact row was already imported."
+            : "This Import Ref was used earlier with different values. Download the current trip workbook before editing an existing row.",
+        });
+      } else {
+        previewRows.push({
+          sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
+          status: "ready", action: "create", message: "Ready to create a new record.",
+        });
+      }
+      const futureId = importedIds.get(importLookupKey(row.entity, row.externalKey));
+      if (futureId && row.entity === "person") lookups.people.set(normalizeTripCatalogName(String(payload.email)), futureId);
+      if (futureId && row.entity === "ministry") lookups.ministries.set(normalizeTripCatalogName(String(payload.name)), futureId);
     } catch (error) {
       previewRows.push({
         sheet: row.sheet, rowNumber: row.rowNumber, entity: row.entity, externalKey: row.externalKey, fingerprint,
-        status: "error", message: error instanceof Error ? error.message : "This row is not valid.",
+        status: "error", action: "blocked", message: error instanceof Error ? error.message : "This row is not valid.",
       });
     }
   }
@@ -1575,14 +2097,19 @@ async function importTripSpreadsheet(request: Request, env: AdminEnv, tripId: st
       if (!response.ok) throw new AdminError(response.status, String(result.code ?? "IMPORT_ROW_FAILED"), String(result.error ?? "This row could not be imported."));
       const entityId = typeof result.id === "string" ? result.id : tripId;
       lookups.importedIds.set(importLookupKey(row.entity, row.externalKey), entityId);
+      if (row.entity === "person") lookups.people.set(normalizeTripCatalogName(String(payload.email)), entityId);
+      if (row.entity === "ministry") lookups.ministries.set(normalizeTripCatalogName(String(payload.name)), entityId);
       await env.DB.prepare(`INSERT INTO trip_bulk_import_rows (
         id, trip_id, entity_type, external_key, entity_id, content_fingerprint, source_file_name, source_sheet, source_row, created_at
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`).bind(
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+      ON CONFLICT (trip_id, entity_type, external_key) DO UPDATE SET entity_id = excluded.entity_id,
+        content_fingerprint = excluded.content_fingerprint, source_file_name = excluded.source_file_name,
+        source_sheet = excluded.source_sheet, source_row = excluded.source_row, created_at = excluded.created_at`).bind(
         crypto.randomUUID(), tripId, row.entity, row.externalKey, entityId, preview.fingerprint,
         fileValue.name.slice(0, 240), row.sheet.slice(0, 80), row.rowNumber, new Date().toISOString(),
       ).run();
       preview.status = "imported";
-      preview.message = "Imported successfully.";
+      preview.message = preview.action === "update" ? "Updated successfully." : "Created successfully.";
       if (row.entity === "invite" && typeof result.path === "string") invitations.push({ label: String(payload.label || row.externalKey), path: result.path });
     } catch (error) {
       preview.status = "error";
@@ -1683,6 +2210,8 @@ async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Pr
 
   const spreadsheetImport = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/import$/i);
   if (spreadsheetImport && request.method === "POST") return importTripSpreadsheet(request, env, spreadsheetImport[1]);
+  const spreadsheetExport = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/export$/i);
+  if (spreadsheetExport && request.method === "GET") return exportTripSpreadsheet(request, env, spreadsheetExport[1]);
 
   const accountLink = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/accounts\/([0-9a-f-]{36})\/access-links$/i);
   if (accountLink && request.method === "POST") return createAccountLink(request, env, accountLink[1], accountLink[2]);

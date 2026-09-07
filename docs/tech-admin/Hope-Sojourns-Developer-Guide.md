@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 3.4
+Version 3.5
 
-Last reviewed: September 6, 2026
+Last reviewed: September 7, 2026
 
 ## 1. Purpose and operating rules
 
@@ -53,6 +53,7 @@ There is no top-level frontend package or compilation step. Source HTML, CSS, Ja
 | `/admin/annual-summary/` | Printable annual contact summary separating charitable gifts from other payments |
 | `/cloudflare/interest-worker/src/trip-platform.ts` | Trip platform validation, persistence, public/private APIs, financial posting, and message delivery |
 | `/cloudflare/interest-worker/src/spreadsheet-reader.ts` and `trip-import.ts` | Bounded XLSX decoding plus trip-sheet/header normalization and dependency ordering |
+| `/cloudflare/interest-worker/src/trip-xlsx.ts` | Worker-safe generation of the current-trip XLSX download without exposing secrets |
 | `/cloudflare/build-test-site.mjs` | Creates the ignored `/site-dist/` Pages artifact and explicitly includes the public, admin, journey, trip-account, and actual-trip routes |
 | `/tools/build_trip_import_template.mjs` | Generates the canonical branded trip bulk-import workbook in the task output directory |
 | `/assets/` | Core website images and brand assets |
@@ -331,9 +332,11 @@ Guided setup is a presentation-layer helper, not stored trip data. `TRIP_GUIDED_
 
 All password inputs in the main administrator, trip administrator, and traveler surfaces have accessible show/hide controls. Shared trip credentials are write-only: the Worker never returns a plaintext password. When `portal_login_id` exists, the browser locks and mutes the credential card until **Unlock credentials** is selected. A replacement requires a new password and the existing save route revokes all traveler sessions.
 
-Trip bulk import is a preview-first multipart route at `POST /admin/trips/:id/import`. It accepts only `.xlsx` files up to 3 MB and at most 200 populated rows. The bounded ZIP/XML reader rejects path traversal, encrypted or unsafe packages, excessive entries or decompressed bytes, formulas, unsupported files, duplicate Import Refs, and changed data that reuses an earlier ref. The supported sheets are Team, Partners, Content, Accounts, Budget, Allocations, Charges, Support, Payments, and Invites; Instructions and blank sheets are ignored. Import order resolves accounts before budget items, then allocations, charges, support, and payments. People are referenced by email; Ministries, cost categories, and funding sources by normalized name; dependent trip records by their workbook Import Ref.
+Trip bulk import is a preview-first multipart route at `POST /admin/trips/:id/import`. It accepts only `.xlsx` files up to 3 MB and at most 200 populated rows. The bounded ZIP/XML reader rejects path traversal, encrypted or unsafe packages, excessive entries or decompressed bytes, formulas, unsupported files, duplicate Import Refs, and unsafe changed-data reuse. The supported data sheets are People, Ministries, Team, Partners, Content, Accounts, Budget, Allocations, Charges, Support, Payments, and Invites; Instructions and blank sheets are ignored. Dependency order creates or updates People and Ministries first, then partner and team links, followed by content, accounts, budget items, allocations, charges, support, payments, and invitations. This permits a new person or ministry to be referenced elsewhere in the same workbook. People are referenced by email; Ministries, cost categories, and funding sources by normalized name; dependent trip records by their workbook Import Ref. Cost categories and funding sources remain administrator-managed setup lists and must already exist.
 
-Migration `0015_trip_bulk_imports.sql` adds `trip_bulk_import_rows`. Its unique trip/entity/external-key constraint and SHA-256 content fingerprint make identical reruns safe while surfacing changed rows as conflicts. Commit reuses the ordinary trip save handlers so validation, ledger synchronization, invitation token creation, audit events, and CSRF controls remain centralized. A row failure stops later ready rows; an administrator may correct and rerun the same workbook, and prior successful rows are skipped. New secret invitation paths are returned once in the commit result.
+`GET /admin/trips/:id/export` builds a current-trip workbook directly from D1. Existing rows include pale metadata columns for Record ID, Original Updated At, and Original Fingerprint; partner rows also include Original Role because role is part of that relationship's key. Administrators may edit ordinary cells, add rows, and upload the same workbook. Preview labels every row as Create, Update, Unchanged, or Blocked. Update rows require the original metadata and are blocked when the portal record changed after download, so a stale workbook cannot silently overwrite newer work. Existing payments are immutable audit records and must remain unchanged; corrections are entered as new rows. Invitation tokens and private links are never exported.
+
+Migration `0015_trip_bulk_imports.sql` adds `trip_bulk_import_rows`. Its unique trip/entity/external-key constraint and SHA-256 content fingerprint make identical reruns safe while surfacing conflicting reuse. The current-trip export reuses a prior Import Ref when available and otherwise generates a deterministic trip-workbook reference. People and Ministries introduced for the trip remain in later exports even when a partially completed setup has not linked them to another trip record yet. Commit reuses the ordinary trip save handlers so validation, ledger synchronization, invitation token creation, audit events, and CSRF controls remain centralized. A row failure stops later ready rows; an administrator may correct and rerun the same workbook, and prior successful rows are skipped. New secret invitation paths are returned once in the commit result.
 
 The canonical workbook is `/outputs/01a0775c-925e-7713-9822-42450cb2f4b6/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx`. Rebuild it with the bundled Node runtime, `NODE_PATH` set to the bundled modules directory, and `tools/build_trip_import_template.mjs`. The test-site build copies this one source workbook to `/site-dist/downloads/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx`; do not maintain a second source copy.
 Trip invitations are hashed bearer tokens. They preselect the actual trip and optional organization on `/interest/`, can expire or have a maximum use count, and are revealed only at creation. A successful interest form links the submission and Person to `trip_interests`; it does not silently confirm the traveler. Administrators review the interest and control the separate `trip_members.status` lifecycle.
@@ -370,6 +373,7 @@ Primary route families are:
 | `POST /admin/trips/:id/<resource>` | Save members, organizations, content, costs, allocations, accounts, charges, awards, payments, payment requests, invites, or messages |
 | `POST /admin/trips/:id/portal-credential` | Replace the shared credential and revoke sessions |
 | `POST /admin/trips/:id/import` | Preview or commit a formatted XLSX trip import |
+| `GET /admin/trips/:id/export` | Download the current trip as a safe round-trip XLSX workbook |
 | `POST /admin/trips/:id/accounts/:accountId/access-links` | Revoke and replace a private account link |
 | `POST /admin/trips/:id/messages/:messageId/send` | Deliver one queued message only when live email is configured |
 | `GET /admin/trip-platform/annual-summary` | Return the two-part annual contact summary |
@@ -657,6 +661,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-07 | 3.5 | Added People and Ministries as same-workbook creation stages, current-trip workbook export, optimistic update metadata, explicit preview actions, immutable payment handling, and secret-free invitation export. |
 | 2026-09-06 | 3.4 | Documented the traveler sign-in identity model, bounded request handling, session-handoff retry, and visible recovery behavior. |
 | 2026-09-06 | 3.3 | Documented no-flash cross-workspace navigation, collapsible administration rails, password reveal and credential-lock behavior, clickable dependency-aware setup guidance, the bounded XLSX importer, idempotency migration, and canonical workbook build/distribution flow. |
 | 2026-09-06 | 3.2 | Namespaced trip-administration cards separately from public destination cards and added a regression contract preventing the public overlay and grid styles from covering administrator forms. |

@@ -829,6 +829,7 @@ function openTripImport() {
     return;
   }
   resetTripImport();
+  document.querySelector("#trip-export-link").href = `${API_BASE}/admin/trips/${encodeURIComponent(state.tripId)}/export`;
   importDialog.showModal();
   document.querySelector("#trip-import-file").focus();
 }
@@ -858,7 +859,7 @@ function renderTripImportResult(result) {
   const table = node("table", "trip-import-table");
   const head = node("thead");
   const headRow = node("tr");
-  ["Sheet / row", "Type", "Import Ref", "Status", "Message"].forEach(label => headRow.append(node("th", "", label)));
+  ["Sheet / row", "Type", "Import Ref", "Action", "Status", "Message"].forEach(label => headRow.append(node("th", "", label)));
   head.append(headRow);
   const body = node("tbody");
   (result.rows || []).forEach(row => {
@@ -868,6 +869,7 @@ function renderTripImportResult(result) {
       node("td", "", `${row.sheet} / ${row.rowNumber}`),
       node("td", "", titleCase(row.entity)),
       node("td", "", row.externalKey),
+      node("td", "", titleCase(row.action || "blocked")),
       node("td", "", titleCase(row.status)),
       node("td", "", row.message),
     );

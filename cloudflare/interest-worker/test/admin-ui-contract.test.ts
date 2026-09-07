@@ -96,8 +96,10 @@ describe("Admin Portal sign-in contract", () => {
     expect(tripPage).toContain("Hope-Sojourns-Trip-Bulk-Import-Template.xlsx");
     expect(tripPage).toContain('id="trip-import-preview"');
     expect(tripPage).toContain('id="trip-import-commit"');
+    expect(tripPage).toContain('id="trip-export-link"');
     expect(tripScript).toContain("sendTripImport(false)");
     expect(tripScript).toContain("sendTripImport(true)");
+    expect(tripScript).toContain("/export");
   });
 
   it("scopes public trip-card overlays away from admin form cards", () => {

@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 3.4
+Version 3.5
 
-Last reviewed: September 6, 2026
+Last reviewed: September 7, 2026
 
 ## 1. Purpose
 
@@ -323,7 +323,8 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Provide the same persistent, collapsible administration rail in the main response center and trip management. Remember its open or closed state in that browser, place the collapse control at the rail edge, and change it to a slide-over menu at narrower widths. A valid cross-workspace session should show a neutral loading state while it is checked, never a momentary login form.
 - Every password input needs an adjacent eye control with an accessible Show/Hide label. Revealing text is temporary; reset it to masked after sign-in, sign-out, successful save, or a return to a protected state.
 - After a shared trip login has been created, render its credential card as visibly locked and muted. Disable both fields, hide the save action, and expose one explicit **Unlock credentials** action. Unlocking requires entry of a new password; saving revokes prior traveler sessions and returns the card to its locked state.
-- Offer a spreadsheet-import callout wherever administrators manage trip content, budgets, accounts, payments, support, or invitations. The modal must lead with a downloadable formatted workbook, require a preview before commit, show row-by-row Ready, Already loaded, Conflict, and Needs attention states, and preserve the selected file while corrections are reviewed.
+- Offer a spreadsheet-import callout wherever administrators manage trip content, budgets, accounts, payments, support, or invitations. The modal must offer both a clean starter template and **Download this trip's workbook**, require a preview before commit, show row-by-row Create, Update, Unchanged, or Blocked actions beside the detailed status, and preserve the selected file while corrections are reviewed.
+- Put People and Ministries first in the workbook workflow so one upload can create those records before Team, Partners, Accounts, or other dependent rows reference them. In exported trip workbooks, visually mute the protected metadata columns and plainly tell administrators not to change Record ID, Original Updated At, Original Fingerprint, or Original Role. Block stale edits with a brief instruction to download a fresh copy; never export invitation secrets or private links, and treat existing payment rows as read-only audit records.
 - Keep dense setup forms inside cards or disclosures and keep saved records visually separate beneath them. Buttons must use direct verbs such as **Save cost**, **Record payment**, **Add coverage**, **Create request**, and **Create invitation**.
 - Keep administrator cards visually and technically separate from the cinematic public trip cards. Trip administration uses the neutral `trip-admin-card` component; the public `trip-card` component includes image overlays, fixed visual heights, and hover movement that must never cover or resize an administrator form.
 - When an action depends on another record, place a visible note inside that card using **Please complete [prerequisite] before this [item]** and disable only the unavailable action. Link to another administrator workspace when that is where the prerequisite is created. Saved team-member and organization cards must provide an **Edit** action that returns the administrator to the populated form.
@@ -471,6 +472,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-07 | 3.5 | Added clean and current-trip workbook choices, same-upload People and Ministries creation, protected metadata styling, explicit Create/Update/Unchanged/Blocked preview actions, and immutable secret/payment guidance. |
 | 2026-09-06 | 3.4 | Clarified traveler sign-in identity and required bounded, announced, recoverable, single-view session-opening behavior. |
 | 2026-09-06 | 3.3 | Added persistent slide-out administration rails, no-flash session loading, accessible password reveal controls, locked shared credentials, dependency-aware clickable setup steps, and preview-first trip spreadsheet imports. |
 | 2026-09-06 | 3.2 | Separated neutral trip-administration cards from the public trip-card overlay and grid treatment so every administrator form remains readable, correctly sized, and interactive. |

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-trip-admin-build="2026-09-06.6">
+<html lang="en" data-trip-admin-build="2026-09-07.1">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Trips | Hope Sojourns Administration</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-06.6">
+  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-07.1">
 </head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
@@ -320,8 +320,8 @@
   <dialog class="trip-dialog trip-import-dialog" id="trip-import-dialog" aria-labelledby="trip-import-title" closedby="closerequest">
     <div class="trip-dialog-card trip-import-shell">
       <div class="trip-dialog-heading"><div><p class="eyebrow">Bulk trip setup</p><h2 id="trip-import-title">Import a trip spreadsheet</h2></div><button class="trip-dialog-close" id="trip-import-close" type="button" aria-label="Close trip spreadsheet import">&times;</button></div>
-      <p>One workbook can add team members, partners, content, budget items, funding allocations, accounts, charges, support credits, payments, and invitations. Blank sheets are safely ignored.</p>
-      <p><a class="trip-button trip-button-outline" href="/downloads/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx" download>Download the formatted template</a></p>
+      <p>One workbook can create people and ministries first, then add or update team members, partners, content, budgets, accounts, payments, and invitations. Blank sheets are safely ignored.</p>
+      <div class="trip-dialog-actions"><a class="trip-button trip-button-outline" href="/downloads/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx" download>Download a blank template</a><a class="trip-button trip-button-primary" id="trip-export-link" href="#" download>Download this trip's workbook</a></div>
       <form class="trip-form" id="trip-import-form">
         <label><span>Completed Excel workbook</span><input id="trip-import-file" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>
         <div class="trip-dialog-actions"><button class="trip-button trip-button-quiet" id="trip-import-reset" type="button">Choose another file</button><button class="trip-button trip-button-outline" id="trip-import-preview" type="submit">Preview import</button><button class="trip-button trip-button-primary" id="trip-import-commit" type="button" disabled>Import ready rows</button></div>
@@ -337,6 +337,6 @@
   <div class="trip-guide-alert" id="trip-guide-alert" role="alert" hidden><span></span><button type="button" aria-label="Dismiss setup message">&times;</button></div>
 
   <template id="trip-record-template"><article class="trip-record"><div class="trip-record-main"></div><div class="trip-record-actions"></div></article></template>
-  <script src="/admin/trips/trips.js?v=2026-09-06.6" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-07.1" defer></script>
 </body>
 </html>

@@ -37,6 +37,10 @@ function columnName(index) {
 }
 
 function addDataSheet({ name, purpose, headers, widths = {}, validations = {}, formats = {} }) {
+  const metadataHeaders = name === "Partners"
+    ? ["Original Role", "Record ID", "Original Updated At", "Original Fingerprint"]
+    : ["Record ID", "Original Updated At", "Original Fingerprint"];
+  headers = [...headers, ...metadataHeaders];
   const sheet = workbook.worksheets.add(name);
   const lastColumn = columnName(headers.length - 1);
   sheet.showGridLines = false;
@@ -46,7 +50,7 @@ function addDataSheet({ name, purpose, headers, widths = {}, validations = {}, f
   sheet.mergeCells(`A2:${lastColumn}2`);
   sheet.getRange("A2").values = [[purpose]];
   sheet.mergeCells(`A3:${lastColumn}3`);
-  sheet.getRange("A3").values = [["Enter one item per row. Import Ref must be unique on this sheet and should never be reused for changed data."]];
+  sheet.getRange("A3").values = [["Enter one item per row. Leave the gray metadata columns blank for new rows and unchanged for exported rows."]];
   sheet.getRange(`A4:${lastColumn}4`).values = [headers];
   sheet.getRange(`A1:${lastColumn}104`).format.font = { name: font, size: 10, color: colors.ink };
   sheet.getRange(`A1:${lastColumn}1`).format = {
@@ -90,6 +94,11 @@ function addDataSheet({ name, purpose, headers, widths = {}, validations = {}, f
     if (formats[header]) sheet.getRange(`${col}5:${col}104`).format.numberFormat = formats[header];
     if (validations[header]) sheet.getRange(`${col}5:${col}104`).dataValidation = { rule: { type: "list", values: validations[header] } };
   });
+  const metadataStart = headers.length - metadataHeaders.length;
+  for (let index = metadataStart; index < headers.length; index += 1) {
+    const col = columnName(index);
+    sheet.getRange(`${col}5:${col}104`).format.fill = colors.pale;
+  }
   sheet.freezePanes.freezeRows(4);
   const table = sheet.tables.add(`A4:${lastColumn}104`, true, `Hs${name.replace(/[^A-Za-z0-9]/g, "")}Import`);
   table.style = "TableStyleMedium4";
@@ -109,9 +118,9 @@ instructions.getRange("A2:F2").format = { fill: colors.pale, font: { name: font,
 instructions.getRange("A4:B4").values = [["Step", "What to do"]];
 instructions.getRange("A5:B10").values = [
   ["1", "Create the trip in the Hope Sojourns Admin Portal."],
-  ["2", "Create any missing people, ministries, cost categories, and funding sources before importing."],
-  ["3", "Complete only the sheets you need. Keep the exact sheet names and row 4 headers."],
-  ["4", "Use a unique Import Ref for every populated row. Use cross-sheet refs for Accounts, Budget items, and Charges."],
+  ["2", "Add missing contacts on People and missing organizations on Ministries. They can be referenced elsewhere in this same upload."],
+  ["3", "Complete only the sheets you need. Keep the exact sheet names and row 4 headers. Leave metadata blank for new rows."],
+  ["4", "Use a unique Import Ref for every new row. Use cross-sheet refs for Accounts, Budget items, and Charges."],
   ["5", "Upload the workbook and choose Preview import. Nothing is saved during preview."],
   ["6", "When all rows are ready, choose Import ready rows. Re-uploading an unchanged row safely skips it."],
 ];
@@ -119,7 +128,7 @@ instructions.getRange("D4:F4").values = [["Important rule", "Details", "Example"
 instructions.getRange("D5:F10").values = [
   ["Import Ref", "3–80 letters, numbers, periods, underscores, or hyphens.", "acct-jane-doe"],
   ["References", "Account Ref, Budget Item Ref, and Charge Ref must match an Import Ref on the named source sheet.", "cost-airfare-01"],
-  ["Existing records", "Person Email, Organization Name, Category Name, and Funding Source Name must already exist in the Admin Portal.", "traveler@example.org"],
+  ["People and ministries", "Create them in this workbook first. Category Name and Funding Source Name still come from the Admin Portal.", "traveler@example.org"],
   ["Dates", "Enter real Excel dates or YYYY-MM-DD.", "2027-07-10"],
   ["Yes / No", "Use Yes or No in visibility columns.", "Yes"],
   ["Security", "Never put passwords, card data, bank data, or invitation links into this workbook.", "No passwords"],
@@ -139,15 +148,30 @@ instructions.getRange("A5:F10").format.rowHeight = 38;
 instructions.freezePanes.freezeRows(2);
 
 addDataSheet({
+  name: "People",
+  purpose: "Create new traveler and leader contacts. Existing trip contacts appear here when you download a trip workbook.",
+  headers: ["Import Ref", "First Name", "Preferred Name", "Last Name", "Email", "Phone", "Contact Preference", "Contact Status", "Contact Types", "Organization", "Address Line 1", "Address Line 2", "City", "State Province Region", "Postal Code", "Country", "Website", "School Field Specialty", "Notes"],
+  widths: { "Import Ref": 20, "First Name": 18, "Preferred Name": 18, "Last Name": 20, Email: 28, Phone: 18, "Contact Types": 26, Organization: 26, Notes: 36 },
+  validations: { "Contact Preference": ["email", "phone"], "Contact Status": ["active", "inactive"] },
+});
+addDataSheet({
+  name: "Ministries",
+  purpose: "Create churches, ministries, payers, and logistics partners. Existing trip organizations appear here in a downloaded trip workbook.",
+  headers: ["Import Ref", "Organization Name", "Description", "Address Line 1", "Address Line 2", "City", "State Province Region", "Postal Code", "Country", "Email", "Phone", "Website", "Notes", "Status"],
+  widths: { "Import Ref": 20, "Organization Name": 30, Description: 34, Email: 28, Website: 30, Notes: 36 },
+  validations: { Status: ["active", "inactive"] },
+});
+
+addDataSheet({
   name: "Team",
-  purpose: "Connect existing people to this trip. Person Email must match an active contact in the People workspace.",
+  purpose: "Connect people to this trip. Person Email may match the People sheet in this same workbook.",
   headers: ["Import Ref", "Person Email", "Organization Name", "Role", "Status", "Directory Visible", "Show Email", "Show Phone", "Notes"],
   widths: { "Import Ref": 20, "Person Email": 28, "Organization Name": 25 },
   validations: { Role: ["traveler", "leader", "staff", "host", "other"], Status: ["interested", "invited", "applied", "approved", "confirmed", "waitlisted", "withdrawn"], "Directory Visible": ["Yes", "No"], "Show Email": ["Yes", "No"], "Show Phone": ["Yes", "No"] },
 });
 addDataSheet({
   name: "Partners",
-  purpose: "Connect existing ministries, churches, payers, or logistics partners to the trip.",
+  purpose: "Connect ministries, churches, payers, or logistics partners. Organization Name may match the Ministries sheet in this workbook.",
   headers: ["Import Ref", "Organization Name", "Role", "Notes"],
   widths: { "Import Ref": 20, "Organization Name": 28, Role: 28, Notes: 36 },
 });
@@ -214,10 +238,10 @@ addDataSheet({
   formats: { "Expires Date": "yyyy-mm-dd", "Max Uses": "0" },
 });
 
-for (const name of ["Instructions", "Team", "Partners", "Content", "Accounts", "Budget", "Allocations", "Charges", "Support", "Payments", "Invites"]) {
+for (const name of ["Instructions", "People", "Ministries", "Team", "Partners", "Content", "Accounts", "Budget", "Allocations", "Charges", "Support", "Payments", "Invites"]) {
   const preview = await workbook.render({ sheetName: name, autoCrop: "all", scale: 1, format: "png" });
   await fs.writeFile(path.join(previewDir, `${name.toLowerCase()}.png`), new Uint8Array(await preview.arrayBuffer()));
 }
 const output = await SpreadsheetFile.exportXlsx(workbook);
 await output.save(outputPath);
-console.log(JSON.stringify({ outputPath, previewDir, sheets: 11 }));
+console.log(JSON.stringify({ outputPath, previewDir, sheets: 13 }));

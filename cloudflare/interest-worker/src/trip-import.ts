@@ -6,6 +6,8 @@ import {
 } from "./spreadsheet-reader";
 
 export type TripImportEntity =
+  | "person"
+  | "ministry"
   | "partner"
   | "member"
   | "content"
@@ -26,6 +28,8 @@ export type TripImportRow = {
 };
 
 const SHEETS = new Map<string, TripImportEntity>([
+  ["people", "person"],
+  ["ministries", "ministry"],
   ["partners", "partner"],
   ["team", "member"],
   ["content", "content"],
@@ -39,10 +43,12 @@ const SHEETS = new Map<string, TripImportEntity>([
 ]);
 
 export const TRIP_IMPORT_ENTITY_ORDER: TripImportEntity[] = [
-  "partner", "member", "content", "account", "cost", "allocation", "charge", "award", "payment", "invite",
+  "person", "ministry", "partner", "member", "content", "account", "cost", "allocation", "charge", "award", "payment", "invite",
 ];
 
 const REQUIRED_HEADERS: Record<TripImportEntity, string[]> = {
+  person: ["import ref", "first name", "last name", "email", "contact status"],
+  ministry: ["import ref", "organization name", "status"],
   partner: ["import ref", "organization name", "role"],
   member: ["import ref", "person email", "role", "status"],
   content: ["import ref", "content type", "title", "visibility", "publication status"],
