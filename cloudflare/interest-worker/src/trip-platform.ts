@@ -30,6 +30,8 @@ const ACCOUNT_TYPES = new Set(["individual", "family", "group", "organization", 
 const FINANCIAL_ACCESS = new Set(["private_link", "email_only", "disabled"]);
 const COST_SCOPES = new Set(["trip", "group", "individual"]);
 const COST_STATUSES = new Set(["planned", "committed", "partially_paid", "paid", "canceled"]);
+const COST_CALCULATION_METHODS = new Set(["fixed", "per_traveler", "percentage_of_individual"]);
+const PERCENTAGE_FEE_CATEGORY_KEYS = new Set(["hs_leadership", "hs_administration"]);
 const ALLOCATION_STATUSES = new Set(["planned", "confirmed", "paid", "canceled"]);
 const SETTLEMENT_ROUTES = new Set(["through_hs", "external"]);
 const CHARGE_PURPOSES = new Set(["trip_payment", "admin_fee", "other"]);
@@ -75,6 +77,15 @@ type TripRow = {
   portal_password_hash: string | null;
   portal_password_salt: string | null;
   portal_password_iterations: number | null;
+  paying_traveler_count: number;
+  budget_completed_at: string | null;
+};
+
+export type TripBudgetCalculationInput = {
+  calculationMethod: string;
+  quantity: number;
+  estimatedUnitCost: number;
+  percentageRate?: number | null;
 };
 
 type TripAccountRow = {
@@ -288,11 +299,50 @@ function portalCookie(token: string, maxAge: number): string {
 async function requireTrip(env: AdminEnv, tripId: string): Promise<TripRow> {
   const trip = await env.DB.prepare(
     `SELECT id, code, slug, title, opportunity_id, portal_enabled, portal_login_id,
-            portal_password_hash, portal_password_salt, portal_password_iterations
+            portal_password_hash, portal_password_salt, portal_password_iterations,
+            paying_traveler_count, budget_completed_at
      FROM trips WHERE id = ?1`,
   ).bind(tripId).first<TripRow>();
   if (!trip) throw new AdminError(404, "TRIP_NOT_FOUND", "That trip could not be found.");
   return trip;
+}
+
+type BudgetCostRow = {
+  id: string;
+  calculation_method: string;
+  quantity: number;
+  estimated_unit_cost: number;
+  percentage_rate: number | null;
+  payment_status: string;
+};
+
+async function recalculateTripBudget(
+  env: AdminEnv,
+  tripId: string,
+  payingTravelerCount: number,
+  updatedAt: string,
+): Promise<void> {
+  const result = await env.DB.prepare(
+    `SELECT id, calculation_method, quantity, estimated_unit_cost, percentage_rate, payment_status
+     FROM trip_cost_items WHERE trip_id = ?1`,
+  ).bind(tripId).all<BudgetCostRow>();
+  const individualBaseSubtotal = roundedMoney(result.results
+    .filter(item => item.payment_status !== "canceled" && item.calculation_method === "per_traveler")
+    .reduce((sum, item) => sum + Number(item.quantity) * Number(item.estimated_unit_cost), 0));
+  const statements = result.results
+    .filter(item => item.calculation_method !== "fixed")
+    .map(item => {
+      const estimate = calculateTripBudgetEstimate({
+        calculationMethod: item.calculation_method,
+        quantity: Number(item.quantity),
+        estimatedUnitCost: Number(item.estimated_unit_cost),
+        percentageRate: item.percentage_rate,
+      }, payingTravelerCount, individualBaseSubtotal);
+      return env.DB.prepare(
+        "UPDATE trip_cost_items SET estimated_unit_cost = ?1, estimated_total = ?2, updated_at = ?3 WHERE id = ?4 AND trip_id = ?5",
+      ).bind(estimate.estimatedUnitCost, estimate.estimatedTotal, updatedAt, item.id, tripId);
+    });
+  if (statements.length) await env.DB.batch(statements);
 }
 
 async function requireAccount(env: AdminEnv, tripId: string, accountId: string): Promise<TripAccountRow> {
@@ -554,6 +604,44 @@ async function saveContent(request: Request, env: AdminEnv, tripId: string): Pro
   if (existingId && !result.meta.changes) throw new AdminError(404, "CONTENT_NOT_FOUND", "That content item could not be found.");
   await auditStatement(env, "trip_content", id, existingId ? "updated" : "created", { tripId, title: values.title, visibility: values.visibility }).run();
   return adminJson({ id }, existingId ? 200 : 201);
+}
+
+function percentage(value: unknown, field: string): number {
+  const rate = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+    throw new AdminError(422, "INVALID_FIELD", `${field} must be between 0 and 100.`);
+  }
+  return Math.round(rate * 1000) / 1000;
+}
+
+function positiveInteger(value: unknown, field: string): number {
+  const number = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(number) || number < 1 || number > 100_000) {
+    throw new AdminError(422, "INVALID_FIELD", `${field} must be a whole number between 1 and 100,000.`);
+  }
+  return number;
+}
+
+function roundedMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+export function calculateTripBudgetEstimate(
+  item: TripBudgetCalculationInput,
+  payingTravelerCount: number,
+  individualBaseSubtotal: number,
+): { estimatedUnitCost: number; estimatedTotal: number } {
+  const count = positiveInteger(payingTravelerCount, "Paying traveler count");
+  if (item.calculationMethod === "percentage_of_individual") {
+    const rate = percentage(item.percentageRate, "Percentage rate");
+    const each = roundedMoney(individualBaseSubtotal * rate / 100);
+    return { estimatedUnitCost: each, estimatedTotal: roundedMoney(each * count) };
+  }
+  const each = roundedMoney(item.quantity * item.estimatedUnitCost);
+  return {
+    estimatedUnitCost: item.estimatedUnitCost,
+    estimatedTotal: item.calculationMethod === "per_traveler" ? roundedMoney(each * count) : each,
+  };
 }
 
 function importedContactTypes(value: unknown): string[] {
@@ -828,10 +916,30 @@ async function saveCostItem(request: Request, env: AdminEnv, tripId: string): Pr
   const existingId = uuid(body.id, "cost item", true);
   const id = existingId ?? crypto.randomUUID();
   const existingCost = existingId ? await env.DB.prepare("SELECT ledger_entry_id FROM trip_cost_items WHERE id = ?1 AND trip_id = ?2").bind(existingId, tripId).first<{ ledger_entry_id: string | null }>() : null;
-  const quantity = positiveNumber(body.quantity, "Quantity");
-  const unit = money(body.estimatedUnitCost ?? 0, "Estimated unit cost", true);
+  const categoryId = recordId(body.categoryId, "cost category")!;
+  const category = await env.DB.prepare(
+    "SELECT id, system_key FROM trip_cost_categories WHERE id = ?1 AND status = 'active'",
+  ).bind(categoryId).first<{ id: string; system_key: string | null }>();
+  if (!category) throw new AdminError(422, "COST_CATEGORY_NOT_FOUND", "Choose an active cost category.");
+  const calculationMethod = choice(body.calculationMethod, "calculation method", COST_CALCULATION_METHODS, "fixed");
+  if (calculationMethod === "percentage_of_individual" && !PERCENTAGE_FEE_CATEGORY_KEYS.has(category.system_key ?? "")) {
+    throw new AdminError(422, "PERCENTAGE_CATEGORY_REQUIRED", "Percentage budgeting is available only for Hope Sojourns Leadership Expenses and Administration / Overhead.");
+  }
+  const percentageRate = calculationMethod === "percentage_of_individual" ? percentage(body.percentageRate, "Percentage rate") : null;
+  const quantity = calculationMethod === "percentage_of_individual" ? 1 : positiveNumber(body.quantity, "Quantity");
+  const unit = calculationMethod === "percentage_of_individual" ? 0 : money(body.estimatedUnitCost ?? 0, "Estimated unit cost", true);
+  const expenseScope = calculationMethod === "fixed"
+    ? choice(body.expenseScope, "expense scope", COST_SCOPES, "trip")
+    : "individual";
   const suppliedEstimatedTotal = body.estimatedTotal === undefined || body.estimatedTotal === "" ? null : money(body.estimatedTotal, "Estimated total", true);
-  const estimatedTotal = suppliedEstimatedTotal ?? Math.round(quantity * unit * 100) / 100;
+  const calculated = calculateTripBudgetEstimate(
+    { calculationMethod, quantity, estimatedUnitCost: unit, percentageRate },
+    trip.paying_traveler_count,
+    0,
+  );
+  const estimatedTotal = calculationMethod === "fixed" && suppliedEstimatedTotal !== null
+    ? suppliedEstimatedTotal
+    : calculated.estimatedTotal;
   const actualTotal = money(body.actualTotal ?? 0, "Actual total", true);
   const settlementRoute = choice(body.settlementRoute, "settlement route", SETTLEMENT_ROUTES, "through_hs");
   const paymentStatus = choice(body.paymentStatus, "payment status", COST_STATUSES, "planned");
@@ -839,9 +947,9 @@ async function saveCostItem(request: Request, env: AdminEnv, tripId: string): Pr
   if (settlementRoute === "through_hs" && paymentStatus === "paid" && actualTotal > 0 && !paidDate) throw new AdminError(422, "PAID_DATE_REQUIRED", "Enter the date Hope Sojourns paid this expense.");
   const now = new Date().toISOString();
   const values = [
-    recordId(body.categoryId, "cost category")!, text(body.description, "Description", 240),
-    choice(body.expenseScope, "expense scope", COST_SCOPES, "trip"), uuid(body.accountId, "trip account", true),
-    quantity, unit, estimatedTotal, actualTotal, optionalText(body.vendorName, "Vendor", 180),
+    categoryId, text(body.description, "Description", 240),
+    expenseScope, uuid(body.accountId, "trip account", true),
+    calculationMethod, percentageRate, quantity, unit, estimatedTotal, actualTotal, optionalText(body.vendorName, "Vendor", 180),
     uuid(body.vendorMinistryId, "vendor organization", true), settlementRoute,
     paymentStatus, optionalText(body.paymentMethod, "Payment method", 80),
     optionalText(body.externalReference, "Reference", 160), date(body.dueDate, "due date"), paidDate,
@@ -849,22 +957,56 @@ async function saveCostItem(request: Request, env: AdminEnv, tripId: string): Pr
   ] as const;
   const statement = existingId
     ? env.DB.prepare(`UPDATE trip_cost_items SET category_id = ?1, description = ?2, expense_scope = ?3,
-      account_id = ?4, quantity = ?5, estimated_unit_cost = ?6, estimated_total = ?7, actual_total = ?8,
-      vendor_name = ?9, vendor_ministry_id = ?10, settlement_route = ?11, payment_status = ?12,
-      payment_method = ?13, external_reference = ?14, due_date = ?15, paid_date = ?16,
-      ledger_entry_id = ?17, notes = ?18, updated_at = ?19 WHERE id = ?20 AND trip_id = ?21`).bind(...values, id, tripId)
+      account_id = ?4, calculation_method = ?5, percentage_rate = ?6, quantity = ?7,
+      estimated_unit_cost = ?8, estimated_total = ?9, actual_total = ?10,
+      vendor_name = ?11, vendor_ministry_id = ?12, settlement_route = ?13, payment_status = ?14,
+      payment_method = ?15, external_reference = ?16, due_date = ?17, paid_date = ?18,
+      ledger_entry_id = ?19, notes = ?20, updated_at = ?21 WHERE id = ?22 AND trip_id = ?23`).bind(...values, id, tripId)
     : env.DB.prepare(`INSERT INTO trip_cost_items (
-      id, trip_id, category_id, description, expense_scope, account_id, quantity, estimated_unit_cost,
-      estimated_total, actual_total, vendor_name, vendor_ministry_id, settlement_route, payment_status,
-      payment_method, external_reference, due_date, paid_date, ledger_entry_id, notes, created_at, updated_at
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?21)`).bind(
-      id, tripId, ...values.slice(0, 18), now,
+      id, trip_id, category_id, description, expense_scope, account_id, calculation_method, percentage_rate,
+      quantity, estimated_unit_cost, estimated_total, actual_total, vendor_name, vendor_ministry_id,
+      settlement_route, payment_status, payment_method, external_reference, due_date, paid_date,
+      ledger_entry_id, notes, created_at, updated_at
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?23)`).bind(
+      id, tripId, ...values.slice(0, 20), now,
     );
   const result = await statement.run();
   if (existingId && !result.meta.changes) throw new AdminError(404, "COST_NOT_FOUND", "That cost item could not be found.");
-  await auditStatement(env, "trip_cost_item", id, existingId ? "updated" : "created", { tripId, estimatedTotal, actualTotal }).run();
+  await env.DB.prepare("UPDATE trips SET budget_completed_at = NULL, updated_at = ?1 WHERE id = ?2").bind(now, tripId).run();
+  await recalculateTripBudget(env, tripId, trip.paying_traveler_count, now);
+  await auditStatement(env, "trip_cost_item", id, existingId ? "updated" : "created", {
+    tripId, calculationMethod, percentageRate, estimatedTotal, actualTotal,
+  }).run();
   await syncPaidTripCostLedger(env, tripId, trip.code, id, session.id);
   return adminJson({ id }, existingId ? 200 : 201);
+}
+
+async function updateBudgetPlan(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
+  await authenticate(request, env, true);
+  const trip = await requireTrip(env, tripId);
+  const body = await readAdminJson(request);
+  const action = choice(body.action, "budget action", new Set(["save", "complete", "reopen"]), "save");
+  const payingTravelerCount = positiveInteger(body.payingTravelerCount ?? trip.paying_traveler_count, "Paying traveler count");
+  if (action === "complete") {
+    const activeCost = await env.DB.prepare(
+      "SELECT id FROM trip_cost_items WHERE trip_id = ?1 AND payment_status != 'canceled' LIMIT 1",
+    ).bind(tripId).first();
+    if (!activeCost) {
+      throw new AdminError(422, "BUDGET_COST_REQUIRED", "Add at least one active budget item before finishing the budget.");
+    }
+  }
+  const now = new Date().toISOString();
+  await recalculateTripBudget(env, tripId, payingTravelerCount, now);
+  const budgetCompletedAt = action === "complete" ? now : null;
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE trips SET paying_traveler_count = ?1, budget_completed_at = ?2, updated_at = ?3 WHERE id = ?4",
+    ).bind(payingTravelerCount, budgetCompletedAt, now, tripId),
+    auditStatement(env, "trip", tripId, action === "complete" ? "budget_completed" : action === "reopen" ? "budget_reopened" : "budget_settings_updated", {
+      payingTravelerCount,
+    }),
+  ]);
+  return adminJson({ payingTravelerCount, budgetCompletedAt });
 }
 
 async function saveAllocation(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
@@ -1177,7 +1319,7 @@ async function sendTripMessage(request: Request, env: AdminEnv, tripId: string, 
 
 async function deleteTripResource(request: Request, env: AdminEnv, tripId: string, resource: string, id: string): Promise<Response> {
   await authenticate(request, env, true);
-  await requireTrip(env, tripId);
+  const trip = await requireTrip(env, tripId);
   const allowed: Record<string, { table: string; audit: string }> = {
     content: { table: "trip_content", audit: "trip_content" },
     "cost-items": { table: "trip_cost_items", audit: "trip_cost_item" },
@@ -1193,6 +1335,11 @@ async function deleteTripResource(request: Request, env: AdminEnv, tripId: strin
     : resource === "accounts" ? "trip_id = ?2" : "trip_id = ?2";
   const result = await env.DB.prepare(`DELETE FROM ${selected.table} WHERE id = ?1 AND ${ownership}`).bind(id, tripId).run();
   if (!result.meta.changes) throw new AdminError(404, "RECORD_NOT_FOUND", "That record could not be found.");
+  if (resource === "cost-items") {
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE trips SET budget_completed_at = NULL, updated_at = ?1 WHERE id = ?2").bind(now, tripId).run();
+    await recalculateTripBudget(env, tripId, trip.paying_traveler_count, now);
+  }
   await auditStatement(env, selected.audit, id, "deleted", { tripId }).run();
   return adminJson({ ok: true });
 }
@@ -1391,7 +1538,7 @@ const TRIP_WORKBOOK_HEADERS = {
   Partners: ["Import Ref", "Organization Name", "Role", "Notes", "Original Role", ...WORKBOOK_META_HEADERS],
   Content: ["Import Ref", "Content Type", "Title", "Content", "Event Date", "Event Time", "Location", "Link URL", "Visibility", "Publication Status", "Sort Order", ...WORKBOOK_META_HEADERS],
   Accounts: ["Import Ref", "Account Type", "Account Name", "Person Email", "Organization Name", "Billing Email", "Billing Phone", "Financial Access", "Status", "Notes", ...WORKBOOK_META_HEADERS],
-  Budget: ["Import Ref", "Category Name", "Description", "Expense Scope", "Account Ref", "Quantity", "Estimated Unit Cost", "Estimated Total", "Actual Total", "Vendor Name", "Vendor Organization Name", "Settlement Route", "Payment Status", "Payment Method", "External Reference", "Due Date", "Paid Date", "Notes", ...WORKBOOK_META_HEADERS],
+  Budget: ["Import Ref", "Category Name", "Description", "Expense Scope", "Account Ref", "Calculation Method", "Percentage Rate", "Quantity", "Estimated Unit Cost", "Estimated Total", "Actual Total", "Vendor Name", "Vendor Organization Name", "Settlement Route", "Payment Status", "Payment Method", "External Reference", "Due Date", "Paid Date", "Notes", ...WORKBOOK_META_HEADERS],
   Allocations: ["Import Ref", "Budget Item Ref", "Funding Source Name", "Amount", "Status", "Notes", ...WORKBOOK_META_HEADERS],
   Charges: ["Import Ref", "Account Ref", "Budget Item Ref", "Title", "Purpose", "Amount", "Due Date", "Status", "Notes", ...WORKBOOK_META_HEADERS],
   Support: ["Import Ref", "Account Ref", "Funding Source Name", "Award Type", "Amount", "Award Date", "Status", "Reason", ...WORKBOOK_META_HEADERS],
@@ -1537,7 +1684,7 @@ async function exportTripSpreadsheet(request: Request, env: AdminEnv, tripId: st
   const costs = await Promise.all(resultRows(costsResult).map(row => exportedWorkbookRow(
     TRIP_WORKBOOK_HEADERS.Budget,
     [ref("cost", row.id), row.category_name, row.description, row.expense_scope, ref("account", row.account_id),
-      row.quantity, row.estimated_unit_cost, row.estimated_total, row.actual_total, row.vendor_name,
+      row.calculation_method, row.percentage_rate, row.quantity, row.estimated_unit_cost, row.estimated_total, row.actual_total, row.vendor_name,
       row.vendor_ministry_name, row.settlement_route, row.payment_status, row.payment_method, row.external_reference,
       row.due_date, row.paid_date, row.notes],
     workbookValue(row.id), workbookValue(row.updated_at),
@@ -1785,6 +1932,8 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
         description: value("description", true),
         expenseScope: value("expense scope") || "trip",
         accountId: account("account ref", true),
+        calculationMethod: value("calculation method") || "fixed",
+        percentageRate: value("percentage rate"),
         quantity: value("quantity") || "1",
         estimatedUnitCost: value("estimated unit cost") || "0",
         estimatedTotal: value("estimated total"),
@@ -2207,6 +2356,9 @@ async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Pr
 
   const portalCredential = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/portal-credential$/i);
   if (portalCredential && request.method === "POST") return updatePortalCredential(request, env, portalCredential[1]);
+
+  const budgetPlan = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/budget-plan$/i);
+  if (budgetPlan && request.method === "POST") return updateBudgetPlan(request, env, budgetPlan[1]);
 
   const spreadsheetImport = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/import$/i);
   if (spreadsheetImport && request.method === "POST") return importTripSpreadsheet(request, env, spreadsheetImport[1]);

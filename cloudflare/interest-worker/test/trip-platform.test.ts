@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateTripAccountBalance,
+  calculateTripBudgetEstimate,
   handleTripPublicRequest,
   normalizeTripCatalogName,
   validateTripInput,
@@ -54,6 +55,20 @@ describe("trip finance helpers", () => {
   it("calculates an account balance after payments and approved coverage", () => {
     expect(calculateTripAccountBalance({ charges: 2_000, payments: 500, awards: 1_500 })).toBe(0);
     expect(calculateTripAccountBalance({ charges: 1_250.45, payments: 400.1, awards: 200 })).toBe(650.35);
+  });
+
+  it("multiplies individual expenses by paying travelers and derives percentage fees without compounding", () => {
+    expect(calculateTripBudgetEstimate({
+      calculationMethod: "per_traveler",
+      quantity: 7,
+      estimatedUnitCost: 25,
+    }, 12, 0)).toEqual({ estimatedUnitCost: 25, estimatedTotal: 2_100 });
+    expect(calculateTripBudgetEstimate({
+      calculationMethod: "percentage_of_individual",
+      quantity: 1,
+      estimatedUnitCost: 0,
+      percentageRate: 10,
+    }, 12, 1_500)).toEqual({ estimatedUnitCost: 150, estimatedTotal: 1_800 });
   });
 });
 

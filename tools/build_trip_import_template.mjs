@@ -192,11 +192,11 @@ addDataSheet({
 });
 addDataSheet({
   name: "Budget",
-  purpose: "Enter everything being paid for and who it relates to. Category Name must already exist. Account Ref is optional.",
-  headers: ["Import Ref", "Category Name", "Description", "Expense Scope", "Account Ref", "Quantity", "Estimated Unit Cost", "Estimated Total", "Actual Total", "Vendor Name", "Vendor Organization Name", "Settlement Route", "Payment Status", "Payment Method", "External Reference", "Due Date", "Paid Date", "Notes"],
-  widths: { "Import Ref": 20, "Category Name": 22, Description: 32, "Account Ref": 20, "Vendor Name": 24, "Vendor Organization Name": 26, Notes: 32 },
-  validations: { "Expense Scope": ["trip", "group", "individual"], "Settlement Route": ["through_hs", "external"], "Payment Status": ["planned", "committed", "partially_paid", "paid", "canceled"] },
-  formats: { Quantity: "0.00", "Estimated Unit Cost": "$#,##0.00", "Estimated Total": "$#,##0.00", "Actual Total": "$#,##0.00", "Due Date": "yyyy-mm-dd", "Paid Date": "yyyy-mm-dd" },
+  purpose: "Enter every cost. Use per_traveler for an individual's expense, fixed for a one-time trip cost, or percentage_of_individual for HS Leadership/Admin fees.",
+  headers: ["Import Ref", "Category Name", "Description", "Expense Scope", "Account Ref", "Calculation Method", "Percentage Rate", "Quantity", "Estimated Unit Cost", "Estimated Total", "Actual Total", "Vendor Name", "Vendor Organization Name", "Settlement Route", "Payment Status", "Payment Method", "External Reference", "Due Date", "Paid Date", "Notes"],
+  widths: { "Import Ref": 20, "Category Name": 22, Description: 32, "Account Ref": 20, "Calculation Method": 25, "Percentage Rate": 18, "Vendor Name": 24, "Vendor Organization Name": 26, Notes: 32 },
+  validations: { "Expense Scope": ["trip", "group", "individual"], "Calculation Method": ["fixed", "per_traveler", "percentage_of_individual"], "Settlement Route": ["through_hs", "external"], "Payment Status": ["planned", "committed", "partially_paid", "paid", "canceled"] },
+  formats: { "Percentage Rate": "0.000", Quantity: "0.00", "Estimated Unit Cost": "$#,##0.00", "Estimated Total": "$#,##0.00", "Actual Total": "$#,##0.00", "Due Date": "yyyy-mm-dd", "Paid Date": "yyyy-mm-dd" },
 });
 addDataSheet({
   name: "Allocations",

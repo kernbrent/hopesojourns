@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 3.5
+Version 3.6
 
 Last reviewed: September 7, 2026
 
@@ -326,6 +326,10 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Offer a spreadsheet-import callout wherever administrators manage trip content, budgets, accounts, payments, support, or invitations. The modal must offer both a clean starter template and **Download this trip's workbook**, require a preview before commit, show row-by-row Create, Update, Unchanged, or Blocked actions beside the detailed status, and preserve the selected file while corrections are reviewed.
 - Put People and Ministries first in the workbook workflow so one upload can create those records before Team, Partners, Accounts, or other dependent rows reference them. In exported trip workbooks, visually mute the protected metadata columns and plainly tell administrators not to change Record ID, Original Updated At, Original Fingerprint, or Original Role. Block stale edits with a brief instruction to download a fresh copy; never export invitation secrets or private links, and treat existing payment rows as read-only audit records.
 - Keep dense setup forms inside cards or disclosures and keep saved records visually separate beneath them. Buttons must use direct verbs such as **Save cost**, **Record payment**, **Add coverage**, **Create request**, and **Create invitation**.
+- Show saved budget items as a slim native-disclosure register. The collapsed row identifies the category, description, calculation, total, and status; each row can expand independently, and an **Expand all items** control may open or close the full register.
+- Treat **Finish budget** as an explicit workflow decision, not a side effect of entering one cost. Show whether the budget is in progress or finished and visibly reopen it whenever budget inputs change.
+- Present the budget as one traveler's base expenses multiplied by the paying-traveler count, plus percentage-based Hope Sojourns leadership/administration fees and fixed trip-wide costs. Keep covered leaders and scholarship recipients out of the paying-traveler multiplier while preserving their support-credit and funding records.
+- Put a small question-mark help trigger beside every Budget and Accounts & Payments field heading. Each help message states both what belongs in the field and why the business needs it. These small non-modal help popovers are the one intentional click-away exception: clicking outside dismisses them. A large page explanation remains a semantic dialog and follows the global intentional-close rule.
 - Keep administrator cards visually and technically separate from the cinematic public trip cards. Trip administration uses the neutral `trip-admin-card` component; the public `trip-card` component includes image overlays, fixed visual heights, and hover movement that must never cover or resize an administrator form.
 - When an action depends on another record, place a visible note inside that card using **Please complete [prerequisite] before this [item]** and disable only the unavailable action. Link to another administrator workspace when that is where the prerequisite is created. Saved team-member and organization cards must provide an **Edit** action that returns the administrator to the populated form.
 - Use friendly **payment request**, **balance notice**, or **status** language in participant communication. Do not use **invoice** unless a later legal or accounting decision specifically requires it.
@@ -333,6 +337,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Present support for a leader or scholarship recipient as a named support credit with its funding source. Do not visually disguise coverage as a traveler payment.
 - Cost records should show estimate, actual total, settlement route, payment status, vendor, and funding allocations together. State plainly that a paid Hope Sojourns cost enters the central ledger and that externally settled costs do not.
 - Interest-form submissions remain a visible prospect list until an administrator changes the separate team-member status. Invitation records show label, organization, use count, expiration, and status without re-exposing their secret token.
+- Describe Invitations plainly as application/interest links for prospective travelers. Never imply that an invitation opens the approved traveler's shared portal; distribute the separate Trip ID and password only after approval.
 - The shared traveler portal uses one trip login ID and password for common information. Its sign-in screen should feel calm and welcoming while plainly explaining shared access. Never show charges, balances, payment history, private links, internal notes, or non-opted-in directory fields there.
 - State explicitly that the traveler sign-in does not use a personal email address. Disable repeat submission while opening, announce a slower request, stop stalled requests with a useful retry message, briefly retry the session handoff, and replace the sign-in view with the trip portal after success.
 - Within the shared portal, group content by practical purpose: devotionals, itinerary, instructions, resources, updates, and team. Use date and time labels where relevant, preserve multiline content, and keep exact operational details out of public content.
@@ -472,6 +477,7 @@ Only the third case should create a new standard. Update `/styles.css`, `/COLOR-
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-07 | 3.6 | Added compact expandable budget records, explicit budget-finish status, paying-traveler and fee-percentage presentation, What/Why field help, the field-popover click-away exception, and invitation-purpose language. |
 | 2026-09-07 | 3.5 | Added clean and current-trip workbook choices, same-upload People and Ministries creation, protected metadata styling, explicit Create/Update/Unchanged/Blocked preview actions, and immutable secret/payment guidance. |
 | 2026-09-06 | 3.4 | Clarified traveler sign-in identity and required bounded, announced, recoverable, single-view session-opening behavior. |
 | 2026-09-06 | 3.3 | Added persistent slide-out administration rails, no-flash session loading, accessible password reveal controls, locked shared credentials, dependency-aware clickable setup steps, and preview-first trip spreadsheet imports. |

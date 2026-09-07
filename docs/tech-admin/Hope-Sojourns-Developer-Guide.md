@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 3.5
+Version 3.6
 
 Last reviewed: September 7, 2026
 
@@ -221,12 +221,15 @@ Current migrations:
 
 14. `0014_trip_platform.sql`
 15. `0015_trip_bulk_imports.sql`
+16. `0016_trip_budget_planning.sql`
 Do not edit a migration that has already been applied to a shared environment. Add a new numbered migration.
 Migration `0011_unified_ledger.sql` creates `ledger_entries`, indexes its date, type, source, and linked-person fields, and backfills existing approved CSM `financial_transactions`. Apply it before deploying Worker code that reads or writes the unified ledger.
 Migration `0012_ledger_entry_management.sql` adds the optional `check_number` field. Apply it before deploying Worker or portal code that reads, writes, searches, imports, or exports check numbers.
 Migration `0013_ledger_receipts.sql` creates receipt metadata with a cascading relationship to `ledger_entries`. Apply it and provision the environment's private R2 bucket before deploying Worker code that lists or stores receipts.
 
 Migration `0014_trip_platform.sql` creates the actual-trip, content, organization, team, cost, allocation, account, charge, support-credit, payment, payment-request, private-link, portal-session, portal-rate-limit, invitation, interest, and email-outbox tables. It also adds trip, purpose, charitable-amount, account, and funding-source dimensions to `ledger_entries` and seeds editable funding-source and cost-category catalogs. Apply it before deploying the trip platform Worker or pages.
+
+Migration `0016_trip_budget_planning.sql` adds the paying-traveler multiplier and explicit budget-completion time to `trips`, plus calculation method and percentage rate to `trip_cost_items`. Apply it before deploying code that reads or writes the budget-planning fields.
 
 
 
@@ -330,6 +333,10 @@ The trip interface labels read-only cards as summaries and identifies cards with
 
 Guided setup is a presentation-layer helper, not stored trip data. `TRIP_GUIDED_HELP_KEY` saves only an on/off preference in local storage and defaults to enabled when no preference exists. `tripSetupSteps()` derives completion and true record dependencies from the currently loaded workspace, and `renderSetupGuide()` displays the completed/total count, progress meter, next action, and a clickable checklist. `openGuideStep()` opens any independent item immediately; blocked items raise the precise prerequisite in a transient live alert. `openNextGuideStep()` prefers the first incomplete item whose dependencies are currently met. Required prerequisite notices remain active when guided help is disabled.
 
+The budget step is complete only when the administrator selects **Finish budget**. Saving a cost, changing the paying-traveler count, deleting a cost, or importing budget changes clears `budget_completed_at`; the administrator must review the recalculated totals and finish the step again. The budget register uses native `details` disclosures so saved items remain compact while one item or all items can be expanded without opening an edit form.
+
+Budget and Accounts & Payments labels receive contextual What/Why help from the frontend field-help map. These small non-modal popovers are the intentional click-away exception: a click outside the help trigger and popover dismisses only that help text. Full semantic dialogs, including the Accounts & Payments page guide, continue to require an explicit close action and must never close on a backdrop click.
+
 All password inputs in the main administrator, trip administrator, and traveler surfaces have accessible show/hide controls. Shared trip credentials are write-only: the Worker never returns a plaintext password. When `portal_login_id` exists, the browser locks and mutes the credential card until **Unlock credentials** is selected. A replacement requires a new password and the existing save route revokes all traveler sessions.
 
 Trip bulk import is a preview-first multipart route at `POST /admin/trips/:id/import`. It accepts only `.xlsx` files up to 3 MB and at most 200 populated rows. The bounded ZIP/XML reader rejects path traversal, encrypted or unsafe packages, excessive entries or decompressed bytes, formulas, unsupported files, duplicate Import Refs, and unsafe changed-data reuse. The supported data sheets are People, Ministries, Team, Partners, Content, Accounts, Budget, Allocations, Charges, Support, Payments, and Invites; Instructions and blank sheets are ignored. Dependency order creates or updates People and Ministries first, then partner and team links, followed by content, accounts, budget items, allocations, charges, support, payments, and invitations. This permits a new person or ministry to be referenced elsewhere in the same workbook. People are referenced by email; Ministries, cost categories, and funding sources by normalized name; dependent trip records by their workbook Import Ref. Cost categories and funding sources remain administrator-managed setup lists and must already exist.
@@ -338,8 +345,11 @@ Trip bulk import is a preview-first multipart route at `POST /admin/trips/:id/im
 
 Migration `0015_trip_bulk_imports.sql` adds `trip_bulk_import_rows`. Its unique trip/entity/external-key constraint and SHA-256 content fingerprint make identical reruns safe while surfacing conflicting reuse. The current-trip export reuses a prior Import Ref when available and otherwise generates a deterministic trip-workbook reference. People and Ministries introduced for the trip remain in later exports even when a partially completed setup has not linked them to another trip record yet. Commit reuses the ordinary trip save handlers so validation, ledger synchronization, invitation token creation, audit events, and CSRF controls remain centralized. A row failure stops later ready rows; an administrator may correct and rerun the same workbook, and prior successful rows are skipped. New secret invitation paths are returned once in the commit result.
 
+The Budget worksheet includes Calculation Method and Percentage Rate. Supported methods are `fixed`, `per_traveler`, and `percentage_of_individual`. A blank method in an older workbook remains `fixed` for backward compatibility. Percentage calculations are permitted only for the seeded Hope Sojourns Leadership Expenses and Administration / Overhead categories.
+
 The canonical workbook is `/outputs/01a0775c-925e-7713-9822-42450cb2f4b6/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx`. Rebuild it with the bundled Node runtime, `NODE_PATH` set to the bundled modules directory, and `tools/build_trip_import_template.mjs`. The test-site build copies this one source workbook to `/site-dist/downloads/Hope-Sojourns-Trip-Bulk-Import-Template.xlsx`; do not maintain a second source copy.
-Trip invitations are hashed bearer tokens. They preselect the actual trip and optional organization on `/interest/`, can expire or have a maximum use count, and are revealed only at creation. A successful interest form links the submission and Person to `trip_interests`; it does not silently confirm the traveler. Administrators review the interest and control the separate `trip_members.status` lifecycle.
+
+Trip invitations are hashed bearer tokens. They invite someone to apply or express interest in one actual trip; they are not traveler-portal credentials. They preselect the actual trip and optional organization on `/interest/`, can expire or have a maximum use count, and are revealed only at creation. A successful interest form links the submission and Person to `trip_interests`; it does not silently confirm the traveler. Administrators review the interest and control the separate `trip_members.status` lifecycle. Approved travelers receive the trip's separate shared ID and password.
 
 The shared traveler password is PBKDF2-SHA-256 derived with a random per-trip salt and 100,000 iterations. The plaintext password is never stored. Successful sign-in creates an HTTP-only, Secure, SameSite Strict session cookie scoped to the portal API. Changing the credential revokes all existing sessions. Failed logins are limited by the hash of the normalized login ID and client address; repeated failures create a temporary block, and old attempt rows are removed automatically. The shared portal never includes account balances or payment history.
 
@@ -351,7 +361,8 @@ The trip financial model separates obligation, cash, and responsibility:
 
 - `trip_cost_categories` is an administrator-extensible list seeded with airfare, ground transportation, lodging, meals, onsite ministry donation, insurance, visas and fees, supplies, Hope Sojourns leadership, Hope Sojourns administration, contingency, and other.
 - `trip_funding_sources` is an administrator-extensible list seeded with traveler, Hope Sojourns general, leader-support and scholarship funds, church or ministry sponsor, individual sponsor, external partner, grant, and other. A custom source may link to a Person or Ministry.
-- `trip_cost_items` records estimates, actual totals, vendor, scope, dates, payment status, and whether settlement occurred through Hope Sojourns or externally. `trip_cost_allocations` records who covered each cost and supports split funding.
+- `trip_cost_items` records estimates, actual totals, vendor, scope, dates, payment status, calculation method, and whether settlement occurred through Hope Sojourns or externally. `trip_cost_allocations` records who covered each cost and supports split funding.
+- `per_traveler` costs represent one paying traveler's quantity times unit cost and are multiplied by `trips.paying_traveler_count`. Their per-person subtotal is the individual base. `percentage_of_individual` is restricted to the Hope Sojourns leadership and administration categories, applies its percentage to that base, and then multiplies the fee by paying travelers. Percentage fees are excluded from the base, so fees do not compound. `fixed` costs are included once. Covered leaders and scholarship recipients may remain trip members without being included in the paying-traveler count.
 - A paid cost settled through Hope Sojourns automatically creates or updates one linked `ledger_entries` expense with purpose `trip_expense`. Editing that cost keeps the ledger row synchronized. Changing it to external settlement or a non-paid state removes only its automatic ledger posting. Externally paid costs remain in operational trip totals but never inflate Hope Sojourns cash expenses.
 - `trip_accounts` supports individual, family, group, organization, and sponsor rollups. Multiple dated `trip_charges` provide installment plans; `trip_payment_requests` provide friendly balance notices instead of invoice language.
 - `trip_coverage_awards` records leader support, scholarships, sponsor credits, fee waivers, and other approved coverage without pretending cash was received from the traveler.
@@ -372,6 +383,7 @@ Primary route families are:
 | `POST /admin/trip-platform/funding-sources`, `POST /admin/trip-platform/cost-categories` | Create or update administrator-managed catalogs |
 | `POST /admin/trips/:id/<resource>` | Save members, organizations, content, costs, allocations, accounts, charges, awards, payments, payment requests, invites, or messages |
 | `POST /admin/trips/:id/portal-credential` | Replace the shared credential and revoke sessions |
+| `POST /admin/trips/:id/budget-plan` | Save the paying-traveler multiplier, finish the budget, or reopen it |
 | `POST /admin/trips/:id/import` | Preview or commit a formatted XLSX trip import |
 | `GET /admin/trips/:id/export` | Download the current trip as a safe round-trip XLSX workbook |
 | `POST /admin/trips/:id/accounts/:accountId/access-links` | Revoke and replace a private account link |
@@ -661,6 +673,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-07 | 3.6 | Added per-traveler and percentage budget calculations, paying-traveler multiplier, explicit budget completion, compact expandable budget records, contextual financial help, and clarified that invitations are for trip interest rather than traveler portal access. |
 | 2026-09-07 | 3.5 | Added People and Ministries as same-workbook creation stages, current-trip workbook export, optimistic update metadata, explicit preview actions, immutable payment handling, and secret-free invitation export. |
 | 2026-09-06 | 3.4 | Documented the traveler sign-in identity model, bounded request handling, session-handoff retry, and visible recovery behavior. |
 | 2026-09-06 | 3.3 | Documented no-flash cross-workspace navigation, collapsible administration rails, password reveal and credential-lock behavior, clickable dependency-aware setup guidance, the bounded XLSX importer, idempotency migration, and canonical workbook build/distribution flow. |

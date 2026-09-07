@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-trip-admin-build="2026-09-07.1">
+<html lang="en" data-trip-admin-build="2026-09-07.2">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Trips | Hope Sojourns Administration</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-07.1">
+  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-07.2">
 </head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
@@ -219,6 +219,19 @@
 
         <section class="trip-tab-panel" data-trip-panel="budget" hidden>
           <aside class="trip-import-callout"><div><strong>Building a full budget or funding plan?</strong><span>Import costs and allocations together from the formatted trip workbook, or enter them manually below.</span></div><button class="trip-button trip-button-outline" type="button" data-open-trip-import>Import spreadsheet</button></aside>
+          <section class="trip-budget-plan trip-admin-card" aria-labelledby="trip-budget-plan-title">
+            <div>
+              <p class="eyebrow">Budget multiplier</p>
+              <h3 id="trip-budget-plan-title">Plan from one traveler to the whole team</h3>
+              <p>Enter individual expenses as <strong>Per paying traveler</strong>. Hope Sojourns Leadership and Administration fees may be percentages of that individual base. Fixed trip costs are added once.</p>
+            </div>
+            <form class="trip-form trip-budget-plan-form" id="trip-budget-plan-form">
+              <label><span>Paying travelers</span><input name="payingTravelerCount" type="number" min="1" max="100000" step="1" required></label>
+              <div class="trip-card-actions"><button class="trip-button trip-button-outline" type="submit" data-budget-action="save">Save traveler count</button><button class="trip-button trip-button-primary" type="button" id="trip-budget-complete">Finish budget</button><button class="trip-button trip-button-outline" type="button" id="trip-budget-reopen" hidden>Reopen budget</button></div>
+              <p class="trip-budget-completion" id="trip-budget-completion" role="status"></p>
+              <p class="trip-form-status" data-form-status></p>
+            </form>
+          </section>
           <div class="trip-finance-summary" id="trip-budget-summary"></div>
           <div class="trip-two-column trip-align-start">
             <form class="trip-admin-card trip-form" id="trip-cost-form">
@@ -227,7 +240,8 @@
               <p class="trip-prerequisite" data-prerequisite="cost" hidden></p>
               <label><span>Category</span><select name="categoryId" required></select></label>
               <label><span>Description</span><input name="description" required maxlength="240" placeholder="Round-trip airfare"></label>
-              <div class="trip-form-row"><label><span>Scope</span><select name="expenseScope"><option value="trip">Entire trip</option><option value="group">Group</option><option value="individual">Individual</option></select></label><label><span>Related account</span><select name="accountId"></select></label></div>
+              <div class="trip-form-row"><label><span>Scope</span><select name="expenseScope"><option value="trip">Entire trip</option><option value="group">Group</option><option value="individual" selected>Individual</option></select></label><label><span>Related account</span><select name="accountId"></select></label></div>
+              <div class="trip-form-row"><label><span>Calculation</span><select name="calculationMethod"><option value="per_traveler">Per paying traveler</option><option value="fixed">Fixed trip or group cost</option><option value="percentage_of_individual">Percentage of individual base</option></select></label><label data-percentage-field hidden><span>Percentage rate</span><input name="percentageRate" type="number" min="0" max="100" step="0.001" placeholder="10"></label></div>
               <div class="trip-form-row"><label><span>Quantity</span><input name="quantity" type="number" min="0.01" step="0.01" value="1"></label><label><span>Estimated each</span><input name="estimatedUnitCost" type="number" min="0" step="0.01" value="0"></label></div>
               <div class="trip-form-row"><label><span>Estimated total</span><input name="estimatedTotal" type="number" min="0" step="0.01"></label><label><span>Actual total</span><input name="actualTotal" type="number" min="0" step="0.01" value="0"></label></div>
               <label><span>Vendor or payee</span><input name="vendorName" maxlength="180"></label>
@@ -250,11 +264,13 @@
               <button class="trip-button trip-button-primary" type="submit">Save allocation</button><p class="trip-form-status" data-form-status></p>
             </form>
           </div>
-          <div class="trip-record-list" id="trip-cost-list"></div>
+          <div class="trip-record-list-heading"><div><p class="eyebrow">Budget register</p><h3>Budget items</h3></div><button class="trip-button trip-button-outline" id="trip-budget-expand-all" type="button">Expand all items</button></div>
+          <div class="trip-record-list trip-budget-record-list" id="trip-cost-list"></div>
         </section>
 
         <section class="trip-tab-panel" data-trip-panel="accounts" hidden>
           <aside class="trip-import-callout"><div><strong>Setting up several traveler or group accounts?</strong><span>Import accounts, charges, support credits, and payments together, or enter each item manually below.</span></div><button class="trip-button trip-button-outline" type="button" data-open-trip-import>Import spreadsheet</button></aside>
+          <aside class="trip-page-help-callout"><div><strong>Need help with the financial workflow?</strong><span>See how accounts, charges, support, payments, requests, and private statements work together.</span></div><button class="trip-button trip-button-outline" id="trip-accounts-help-open" type="button">Explain this page</button></aside>
           <div class="trip-finance-summary" id="trip-account-summary"></div>
           <details class="trip-form-disclosure" open><summary>Create or update an account</summary><form class="trip-form trip-inline-form" id="trip-account-form"><input name="id" type="hidden"><p class="trip-prerequisite" data-prerequisite="account" hidden></p><label><span>Account name</span><input name="name" required maxlength="180"></label><label><span>Type</span><select name="accountType"><option value="individual">Individual</option><option value="family">Family</option><option value="group">Group</option><option value="organization">Organization</option><option value="sponsor">Sponsor</option></select></label><label><span>Person</span><select name="personId"></select></label><label><span>Organization</span><select name="ministryId"></select></label><label><span>Billing email</span><input name="billingEmail" type="email"></label><label><span>Financial access</span><select name="financialAccess"><option value="private_link">Private link</option><option value="email_only">Statements by email</option><option value="disabled">Disabled</option></select></label><label><span>Status</span><select name="status"><option value="active">Active</option><option value="closed">Closed</option><option value="canceled">Canceled</option></select></label><button class="trip-button trip-button-primary" type="submit">Save account</button><p class="trip-form-status" data-form-status></p></form></details>
           <div class="trip-account-actions">
@@ -269,6 +285,7 @@
 
         <section class="trip-tab-panel" data-trip-panel="communications" hidden>
           <aside class="trip-import-callout"><div><strong>Preparing several traveler invitations?</strong><span>Import invitation rows from the trip workbook, or create one private link at a time below.</span></div><button class="trip-button trip-button-outline" type="button" data-open-trip-import>Import spreadsheet</button></aside>
+          <aside class="trip-page-help-callout"><div><strong>What does an invitation do?</strong><span>An invitation link takes someone to the interest/application form for this specific trip. It does not open the traveler portal. Share the separate Trip ID and password only with approved travelers.</span></div></aside>
           <div class="trip-two-column trip-align-start">
             <form class="trip-admin-card trip-form" id="trip-invite-form"><p class="eyebrow">Friendly traveler intake</p><h3>Create an invitation link</h3><label><span>Invitation label</span><input name="label" maxlength="160" placeholder="One Creation team"></label><label><span>Preselected organization</span><select name="ministryId"></select></label><div class="trip-form-row"><label><span>Expires</span><input name="expiresAt" type="date"></label><label><span>Maximum uses</span><input name="maxUses" type="number" min="1"></label></div><button class="trip-button trip-button-primary" type="submit">Create invitation</button><p class="trip-form-status" data-form-status></p><div class="trip-invite-result" id="trip-invite-result" hidden><label><span>Share this private link</span><input id="trip-invite-link" type="url" readonly></label><button class="trip-button trip-button-outline" id="trip-copy-invite" type="button">Copy link</button><small>This secret link is shown only when it is created.</small></div></form>
             <form class="trip-admin-card trip-form" id="trip-message-form"><p class="eyebrow">Safe email outbox</p><h3>Prepare a message</h3><label><span>Recipient email</span><input name="recipientEmail" type="email" required></label><label><span>Message type</span><select name="messageType"><option value="invitation">Invitation</option><option value="payment_request">Payment request</option><option value="statement">Statement</option><option value="trip_update">Trip update</option><option value="other">Other</option></select></label><label><span>Subject</span><input name="subject" required maxlength="200"></label><label><span>Message</span><textarea name="bodyText" rows="7" required></textarea></label><label class="trip-check"><input name="queue" type="checkbox"><span>Queue for automatic delivery when email service is enabled</span></label><button class="trip-button trip-button-primary" type="submit">Save message</button><p class="trip-form-status" data-form-status></p></form>
@@ -334,9 +351,25 @@
     </div>
   </dialog>
 
+  <dialog class="trip-dialog trip-help-dialog" id="trip-accounts-help-dialog" aria-labelledby="trip-accounts-help-title" closedby="closerequest">
+    <article class="trip-dialog-card">
+      <div class="trip-dialog-heading"><div><p class="eyebrow">Financial workflow guide</p><h2 id="trip-accounts-help-title">How Accounts &amp; Payments works</h2></div><button class="trip-dialog-close" id="trip-accounts-help-close" type="button" aria-label="Close financial workflow guide">&times;</button></div>
+      <p>This page answers two different questions: <strong>what is owed</strong> and <strong>how it was satisfied</strong>. Keeping those records separate makes partial payments, scholarships, leader support, external settlement, and statements understandable.</p>
+      <div class="trip-help-category-list">
+        <section><h3>1. Account</h3><p>The financial record for one traveler, family, team, church, or sponsor. Charges, support, and payments roll into its balance. A private statement link belongs to an account, not to the shared traveler portal.</p></section>
+        <section><h3>2. Charge</h3><p>An amount the account is expected to pay. Use multiple charges when there is a payment plan or separate due dates.</p></section>
+        <section><h3>3. Support or credit</h3><p>An approved scholarship, leader benefit, sponsor contribution, or fee waiver that reduces the account balance without pretending the traveler paid it.</p></section>
+        <section><h3>4. Payment</h3><p>Money actually received by Hope Sojourns or confirmed as settled by an outside organization. A payment can optionally be applied to a specific charge.</p></section>
+        <section><h3>5. Payment request</h3><p>A friendly balance notice prepared for an account. It communicates what is currently requested; it does not create a new expense by itself.</p></section>
+        <section><h3>6. Private statement</h3><p>A personal link showing that account's charges, support credits, payments, and remaining balance. It is the right tool when a traveler should see personal financial information.</p></section>
+      </div>
+      <div class="trip-dialog-actions"><button class="trip-button trip-button-primary" id="trip-accounts-help-done" type="button">Got it</button></div>
+    </article>
+  </dialog>
+
   <div class="trip-guide-alert" id="trip-guide-alert" role="alert" hidden><span></span><button type="button" aria-label="Dismiss setup message">&times;</button></div>
 
   <template id="trip-record-template"><article class="trip-record"><div class="trip-record-main"></div><div class="trip-record-actions"></div></article></template>
-  <script src="/admin/trips/trips.js?v=2026-09-07.1" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-07.2" defer></script>
 </body>
 </html>

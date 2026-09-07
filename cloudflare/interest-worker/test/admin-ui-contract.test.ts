@@ -102,6 +102,29 @@ describe("Admin Portal sign-in contract", () => {
     expect(tripScript).toContain("/export");
   });
 
+  it("supports a finishable per-traveler budget with compact records and contextual guidance", () => {
+    expect(tripPage).toContain('id="trip-budget-plan-form"');
+    expect(tripPage).toContain('name="payingTravelerCount"');
+    expect(tripPage).toContain('id="trip-budget-complete"');
+    expect(tripPage).toContain('name="calculationMethod"');
+    expect(tripPage).toContain('value="percentage_of_individual"');
+    expect(tripPage).toContain('id="trip-budget-expand-all"');
+    expect(tripScript).toContain('node("details", "trip-budget-record")');
+    expect(tripScript).toContain("done: Boolean(trip.budget_completed_at)");
+    expect(tripScript).toContain('submitBudgetPlan("complete")');
+    expect(tripScript).toContain("editing a cost also reopens it automatically");
+  });
+
+  it("uses click-away field help while keeping full-page help dialogs deliberate", () => {
+    expect(tripScript).toContain("const FIELD_HELP");
+    expect(tripScript).toContain("closeFieldHelp()");
+    expect(tripScript).toContain("!openPopover.contains(event.target)");
+    expect(tripPage).toContain('id="trip-accounts-help-dialog"');
+    expect(tripPage).toContain("How Accounts &amp; Payments works");
+    expect(tripPage).toContain("It does not open the traveler portal.");
+    expect(tripPage).toContain('closedby="closerequest"');
+  });
+
   it("scopes public trip-card overlays away from admin form cards", () => {
     const adminClassTokens = [...tripPage.matchAll(/class="([^"]*)"/g)]
       .flatMap(match => match[1].split(/\s+/));

@@ -18,6 +18,8 @@ describe("trip spreadsheet import", () => {
     ]);
     expect(parseTripImportSheets(sheets)).toEqual([]);
     expect(sheets.find(sheet => sheet.name === "Budget")?.rows.find(row => row.rowNumber === 4)?.cells).toContain("Settlement Route");
+    expect(sheets.find(sheet => sheet.name === "Budget")?.rows.find(row => row.rowNumber === 4)?.cells).toContain("Calculation Method");
+    expect(sheets.find(sheet => sheet.name === "Budget")?.rows.find(row => row.rowNumber === 4)?.cells).toContain("Percentage Rate");
     expect(sheets.find(sheet => sheet.name === "Payments")?.rows.find(row => row.rowNumber === 4)?.cells).toContain("Charitable Amount");
   });
 

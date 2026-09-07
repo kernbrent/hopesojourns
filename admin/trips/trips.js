@@ -14,6 +14,7 @@ const state = {
   guideSteps: [],
   guideAlertTimer: null,
   importPreview: null,
+  budgetItemsExpanded: false,
 };
 
 const loginPanel = document.querySelector("#trip-admin-login");
@@ -36,6 +37,137 @@ function preventDialogBackdropDismissal() {
 
 function markAdminNavigation() {
   try { sessionStorage.setItem(ADMIN_NAVIGATION_SESSION_KEY, "true"); } catch { /* Storage is optional. */ }
+}
+
+const FIELD_HELP = {
+  "trip-budget-plan-form": {
+    payingTravelerCount: ["Paying travelers", "Enter only travelers whose payments fund the per-traveler budget. Leaders or scholarship recipients whose costs are covered should not be counted as paying travelers."],
+  },
+  "trip-cost-form": {
+    categoryId: ["Category", "Choose where this expense belongs. Categories make trip and organization-wide financial summaries useful."],
+    description: ["Description", "Name the specific item being purchased or funded so another administrator can understand the budget later."],
+    expenseScope: ["Scope", "Identify whether the cost belongs to the whole trip, a group, or one individual. This describes responsibility and reporting; the Calculation field controls multiplication."],
+    accountId: ["Related account", "Optionally connect the cost to a traveler, family, group, church, or sponsor account when the expense should appear in that account's financial history."],
+    calculationMethod: ["Calculation", "Use Per paying traveler for an individual cost multiplied across the paying team, Fixed for a one-time total, or Percentage for the HS Leadership/Admin fee categories."],
+    percentageRate: ["Percentage rate", "Enter the fee percent, such as 10 for 10%. It is applied to the individual base expenses before any percentage fees, so fees never compound on each other."],
+    quantity: ["Quantity", "Enter how many units one traveler or the fixed purchase needs—for example, 7 meal days or 2 hotel nights."],
+    estimatedUnitCost: ["Estimated each", "Enter the estimated price of one unit. Per-traveler rows multiply quantity × this amount × paying travelers."],
+    estimatedTotal: ["Estimated total", "This is the planned total for the row. It is calculated automatically for per-traveler and percentage rows; fixed rows may be entered directly."],
+    actualTotal: ["Actual total", "Enter what was truly paid or committed once known. Actuals let Hope Sojourns compare the plan with the final trip cost."],
+    vendorName: ["Vendor or payee", "Enter the airline, hotel, ministry, person, or company receiving the money for reconciliation and future reference."],
+    vendorMinistryId: ["Vendor organization", "Connect the payee to an organization record when one exists. This keeps partner history and trip costs tied together."],
+    settlementRoute: ["Money route", "Choose Paid through HS when Hope Sojourns receives or pays the money. Choose Paid externally when a church or partner settles it without the money entering HS."],
+    paymentStatus: ["Status", "Track whether the cost is only planned, committed, partially paid, paid, or canceled. Status keeps forecasts separate from completed spending."],
+    paymentMethod: ["Payment method", "Record how the expense was paid—for example check, card, ACH, or partner settlement—to support reconciliation."],
+    externalReference: ["Reference", "Store a confirmation, check number, invoice number, or other non-sensitive identifier that helps locate supporting records."],
+    dueDate: ["Due date", "Enter when payment is expected so upcoming obligations are visible before they become urgent."],
+    paidDate: ["Paid date", "Enter the actual payment date. It is required when an HS-routed cost is marked Paid because that cost enters the organization expense ledger."],
+    notes: ["Notes", "Capture assumptions, restrictions, quotes, or context that does not fit another field. Never include card or bank details."],
+  },
+  "trip-allocation-form": {
+    costItemId: ["Cost item", "Choose the expense whose funding responsibility you are assigning."],
+    fundingSourceId: ["Funding source", "Choose who is expected to cover this amount, such as the traveler, Hope Sojourns, a church, sponsor, grant, or external partner."],
+    amount: ["Amount", "Enter the portion assigned to this source. Multiple allocations may divide one cost among several sources."],
+    status: ["Status", "Use Planned for an expectation, Confirmed for an agreed commitment, Paid when settled, or Canceled when it no longer applies."],
+    notes: ["Notes", "Explain special funding arrangements, restrictions, or who confirmed the commitment."],
+  },
+  "trip-account-form": {
+    name: ["Account name", "Use a recognizable traveler, family, group, church, or sponsor name. Every charge, credit, payment, and private statement rolls up here."],
+    accountType: ["Account type", "Choose who owns the financial responsibility. The type determines whether a person or organization connection is required."],
+    personId: ["Person", "Connect an individual account to the matching People record so statements and annual summaries identify the correct traveler."],
+    ministryId: ["Organization", "Connect organization accounts to the matching church or ministry record."],
+    billingEmail: ["Billing email", "Enter the address that should receive balance notices and statements for this account."],
+    financialAccess: ["Financial access", "Private link allows a personal statement page, Email only limits delivery to messages, and Disabled prevents traveler-facing financial access."],
+    status: ["Status", "Keep current accounts Active. Close finished accounts or cancel ones that should no longer be used."],
+  },
+  "trip-charge-form": {
+    accountId: ["Account", "Choose who is expected to pay this charge."],
+    title: ["Title", "Use a friendly label the traveler or payer will understand on a statement."],
+    purpose: ["Purpose", "Classify the amount as trip payment, administrative fee, or other so statements remain clear."],
+    amount: ["Amount", "Enter the amount currently owed. Use separate charges for installments with different due dates."],
+    dueDate: ["Due date", "Set the expected payment date for reminders and payment-plan status."],
+    notes: ["Notes", "Record internal context or special payment-plan instructions."],
+  },
+  "trip-award-form": {
+    accountId: ["Account", "Choose the account receiving this support or credit."],
+    fundingSourceId: ["Funding source", "Identify the fund, church, sponsor, grant, or other source covering the traveler's cost."],
+    awardType: ["Type", "Distinguish leader support, scholarship, sponsor credit, fee waiver, or another form of coverage."],
+    amount: ["Amount", "Enter the approved amount that reduces what this account owes without recording a traveler payment."],
+    awardDate: ["Date", "Record when the support decision became effective for reporting and audit history."],
+    reason: ["Reason", "Briefly document why the support was granted and any restrictions."],
+  },
+  "trip-payment-form": {
+    accountId: ["Account", "Choose the account whose balance this payment should affect. Leave blank only for trip income not owned by one account."],
+    fundingSourceId: ["Funding source", "Optionally identify who supplied the money, especially for church, sponsor, grant, or external-partner payments."],
+    purpose: ["Purpose", "Distinguish travel payments, administrative fees, donations, scholarship contributions, refunds, and other money for accurate statements and giving records."],
+    amount: ["Amount", "Enter the full amount received or externally settled."],
+    paymentMethod: ["Payment method", "Record how the money moved, such as check, PayPal, Venmo, ACH, or external settlement."],
+    settlementRoute: ["Money route", "Received by HS means the funds entered Hope Sojourns. Settled externally means a partner paid outside HS and the entry is informational."],
+    transactionDate: ["Date", "Use the date the money was received or the outside settlement was confirmed."],
+    externalReference: ["Reference", "Enter a check number, processor ID, or other non-sensitive reconciliation reference."],
+    payerName: ["Payer name", "Record the individual or organization that actually supplied the money when it differs from the account name."],
+    charitableAmount: ["Charitable portion", "Enter only the part eligible to be shown as a donation. Travel and service payments remain clearly separate on giving letters."],
+    chargeId: ["Apply to charge", "Optionally match the payment to a specific installment or fee so that charge's remaining balance updates."],
+    notes: ["Notes", "Capture reconciliation details or special context without including card or bank data."],
+  },
+  "trip-request-form": {
+    accountId: ["Account", "Choose who will receive this balance notice."],
+    title: ["Title", "Use a friendly description such as Second trip payment or Remaining balance."],
+    amountRequested: ["Amount", "Enter the amount you are asking the account to pay now; this notice does not create another charge."],
+    dueDate: ["Due date", "Tell the recipient when this requested payment should arrive."],
+    message: ["Message", "Add a warm explanation, payment instructions, or contact information for questions."],
+  },
+};
+
+function closeFieldHelp(except = null) {
+  document.querySelectorAll(".trip-field-help-popover").forEach(popover => {
+    if (popover === except) return;
+    popover.hidden = true;
+    popover.parentElement?.querySelector(".trip-field-help-trigger")?.setAttribute("aria-expanded", "false");
+  });
+}
+
+function initializeFieldHelp() {
+  Object.entries(FIELD_HELP).forEach(([formId, fields]) => {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    Object.entries(fields).forEach(([fieldName, [title, copy]]) => {
+      const field = form.elements.namedItem(fieldName);
+      const label = field?.closest("label");
+      const heading = label?.querySelector(":scope > span");
+      if (!field || !label || !heading || heading.querySelector(".trip-field-help-trigger")) return;
+      heading.classList.add("trip-field-heading");
+      const popoverId = `trip-help-${formId}-${fieldName}`;
+      const button = node("button", "trip-field-help-trigger", "?");
+      button.type = "button";
+      button.setAttribute("aria-label", `Help for ${title}`);
+      button.setAttribute("aria-controls", popoverId);
+      button.setAttribute("aria-expanded", "false");
+      const popover = node("span", "trip-field-help-popover");
+      popover.id = popoverId;
+      popover.hidden = true;
+      popover.setAttribute("role", "note");
+      popover.append(node("strong", "", title), node("span", "", copy));
+      button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const opening = popover.hidden;
+        closeFieldHelp(opening ? popover : null);
+        popover.hidden = !opening;
+        button.setAttribute("aria-expanded", String(opening));
+      });
+      heading.append(button, popover);
+    });
+  });
+  document.addEventListener("click", event => {
+    const openPopover = [...document.querySelectorAll(".trip-field-help-popover")].find(popover => !popover.hidden);
+    if (!openPopover) return;
+    const trigger = openPopover.parentElement?.querySelector(".trip-field-help-trigger");
+    if (!openPopover.contains(event.target) && !trigger?.contains(event.target)) closeFieldHelp();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeFieldHelp();
+  });
 }
 
 function loadSidebarPreference() {
@@ -131,6 +263,12 @@ function dateLabel(value) {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
+function formatDate(value) {
+  if (!value) return "Not set";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value) : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(parsed);
+}
+
 function dateRange(start, end) {
   if (!start && !end) return "Dates not set";
   if (!end || start === end) return dateLabel(start || end);
@@ -220,6 +358,24 @@ function fillAllSelects() {
   document.querySelectorAll('select[name="chargeId"]').forEach(select => fillSelect(select, charges.filter(item => ["open", "partially_paid"].includes(item.status)), "Do not apply automatically", item => item.id, item => `${item.account_name}: ${item.title} (${money(Number(item.amount) - Number(item.applied_total || 0))} open)`));
 }
 
+function updateCostCategoryOptions(selectRecommendedMethod = false) {
+  const form = document.querySelector("#trip-cost-form");
+  if (!form || !state.bootstrap) return;
+  const category = state.bootstrap.costCategories.find(item => item.id === form.elements.categoryId.value);
+  const percentageOption = [...form.elements.calculationMethod.options].find(item => item.value === "percentage_of_individual");
+  const isPercentageFee = ["hs_leadership", "hs_administration"].includes(category?.system_key);
+  percentageOption.disabled = !isPercentageFee;
+  percentageOption.textContent = isPercentageFee
+    ? "Percentage of individual base"
+    : "Percentage of individual base (HS Leadership/Admin only)";
+  if (selectRecommendedMethod && isPercentageFee && !form.elements.id.value) {
+    form.elements.calculationMethod.value = "percentage_of_individual";
+  } else if (!isPercentageFee && form.elements.calculationMethod.value === "percentage_of_individual") {
+    form.elements.calculationMethod.value = "per_traveler";
+  }
+  updateCostCalculationFields();
+}
+
 function setFormPrerequisite(formSelector, prerequisite, message) {
   const form = document.querySelector(formSelector);
   const note = form?.querySelector("[data-prerequisite]");
@@ -292,7 +448,7 @@ function tripSetupSteps() {
     { id: "credentials", done: Boolean(trip.portal_login_id), title: "Set the traveler portal credentials", copy: "Create the one shared trip ID and password for common traveler information.", tab: "portal", target: "#trip-portal-form" },
     { id: "portal", done: Boolean(trip.portal_enabled), title: "Enable traveler portal access", copy: "Use Edit trip to enable the portal after the shared credentials are ready.", action: "edit", requirements: () => trip.portal_login_id ? [] : ["traveler portal credentials"] },
     { id: "content", done: state.workspace.content.length > 0, title: "Add trip content", copy: "Start with an instruction, itinerary item, devotional, resource, update, or overview.", tab: "content", target: "#trip-content-form" },
-    { id: "budget", done: state.workspace.costs.some(item => item.payment_status !== "canceled"), title: "Build the trip budget", copy: "Enter the first expected cost, including who pays it and whether money moves through Hope Sojourns.", tab: "budget", target: "#trip-cost-form", requirements: () => state.bootstrap.costCategories.some(item => item.status === "active") ? [] : ["a cost category in Setup lists"] },
+    { id: "budget", done: Boolean(trip.budget_completed_at), title: "Build and finish the trip budget", copy: "Enter the expected costs, confirm the paying-traveler count, then select Finish budget.", tab: "budget", target: "#trip-budget-plan-form", requirements: () => [...(!state.bootstrap.costCategories.some(item => item.status === "active") ? ["a cost category in Setup lists"] : []), ...(!state.workspace.costs.some(item => item.payment_status !== "canceled") ? ["at least one active budget item"] : [])] },
     { id: "allocation", done: state.workspace.allocations.some(item => item.status !== "canceled"), title: "Assign funding responsibility", copy: "Allocate a trip cost to the traveler, Hope Sojourns, a church, a sponsor, or another funding source.", tab: "budget", target: "#trip-allocation-form", requirements: () => [...(!state.workspace.costs.some(item => item.payment_status !== "canceled") ? ["a trip cost"] : []), ...(!state.bootstrap.fundingSources.some(item => item.status === "active") ? ["a funding source in Setup lists"] : [])] },
     { id: "account", done: state.workspace.accounts.some(item => item.status === "active"), title: "Create a trip account", copy: "Create the individual, family, group, organization, or sponsor account that will receive charges and payments.", tab: "accounts", target: "#trip-account-form" },
     { id: "charge", done: state.workspace.charges.some(item => item.status !== "canceled"), title: "Add a payment plan charge", copy: "Record what the traveler, group, or organization is expected to pay and when it is due.", tab: "accounts", target: "#trip-charge-form", requirements: () => state.workspace.accounts.some(item => item.status === "active") ? [] : ["a trip account"] },
@@ -451,6 +607,9 @@ function metric(label, value) {
 
 function financeTotals() {
   const activeCosts = state.workspace.costs.filter(item => item.payment_status !== "canceled");
+  const individualBase = activeCosts.filter(item => item.calculation_method === "per_traveler").reduce((sum, item) => sum + Number(item.quantity) * Number(item.estimated_unit_cost), 0);
+  const individualFees = activeCosts.filter(item => item.calculation_method === "percentage_of_individual").reduce((sum, item) => sum + Number(item.estimated_unit_cost), 0);
+  const fixedCosts = activeCosts.filter(item => item.calculation_method === "fixed").reduce((sum, item) => sum + Number(item.estimated_total), 0);
   const operational = activeCosts.reduce((sum, item) => sum + Number(item.actual_total > 0 ? item.actual_total : item.estimated_total), 0);
   const actual = activeCosts.reduce((sum, item) => sum + Number(item.actual_total || 0), 0);
   const externalCost = activeCosts.filter(item => item.settlement_route === "external").reduce((sum, item) => sum + Number(item.actual_total > 0 ? item.actual_total : item.estimated_total), 0);
@@ -458,7 +617,7 @@ function financeTotals() {
   const hsIncome = state.workspace.payments.filter(item => item.settlement_route === "through_hs" && item.status === "received" && item.purpose !== "refund").reduce((sum, item) => sum + Number(item.amount), 0);
   const externalFunding = state.workspace.payments.filter(item => item.settlement_route === "external" && item.status === "received").reduce((sum, item) => sum + Number(item.amount), 0);
   const adminRevenue = state.workspace.payments.filter(item => item.settlement_route === "through_hs" && item.status === "received" && item.purpose === "admin_fee").reduce((sum, item) => sum + Number(item.amount), 0);
-  return { operational, actual, externalCost, hsCost, hsIncome, externalFunding, adminRevenue };
+  return { individualBase, individualFees, fixedCosts, operational, actual, externalCost, hsCost, hsIncome, externalFunding, adminRevenue };
 }
 
 function setPortalCredentialLocked(locked) {
@@ -514,7 +673,7 @@ function renderWorkspace() {
     [Boolean(trip.start_date && trip.end_date), "Dates entered"],
     [Boolean(trip.opportunity_id), "Connected to a public opportunity"],
     [state.workspace.members.length > 0, "Team started"],
-    [state.workspace.costs.length > 0, "Budget started"],
+    [Boolean(trip.budget_completed_at), trip.budget_completed_at ? "Budget finished" : state.workspace.costs.length > 0 ? "Budget in progress" : "Budget not started"],
     [Boolean(trip.portal_login_id && trip.portal_enabled), "Traveler portal ready"],
     [state.workspace.content.some(item => item.publication_status === "published"), "Published trip content available"],
   ];
@@ -630,40 +789,141 @@ function renderContent() {
 function editCost(item) {
   const form = document.querySelector("#trip-cost-form");
   setFormValues(form, item);
+  updateCostCategoryOptions(false);
   form.querySelector("[data-cancel-edit]").hidden = false;
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function updateCostCalculationFields() {
+  const form = document.querySelector("#trip-cost-form");
+  const method = form.elements.calculationMethod.value;
+  const percentageField = form.querySelector("[data-percentage-field]");
+  const isPercentage = method === "percentage_of_individual";
+  const isDerived = isPercentage || method === "per_traveler";
+  if (isDerived) form.elements.expenseScope.value = "individual";
+  form.elements.expenseScope.disabled = isDerived;
+  percentageField.hidden = !isPercentage;
+  form.elements.percentageRate.required = isPercentage;
+  form.elements.quantity.readOnly = isPercentage;
+  form.elements.estimatedUnitCost.readOnly = isPercentage;
+  form.elements.estimatedTotal.readOnly = isDerived;
+  if (isPercentage) form.elements.quantity.value = "1";
+  if (!state.workspace || !isDerived) return;
+  const count = Math.max(1, Number(document.querySelector("#trip-budget-plan-form").elements.payingTravelerCount.value || state.workspace.trip.paying_traveler_count || 1));
+  const quantity = Math.max(0, Number(form.elements.quantity.value || 0));
+  let each = Math.max(0, Number(form.elements.estimatedUnitCost.value || 0));
+  if (isPercentage) {
+    each = financeTotals().individualBase * Math.max(0, Number(form.elements.percentageRate.value || 0)) / 100;
+    form.elements.estimatedUnitCost.value = each.toFixed(2);
+  }
+  form.elements.estimatedTotal.value = (quantity * each * count).toFixed(2);
+}
+
+function budgetCalculationLabel(item) {
+  if (item.calculation_method === "percentage_of_individual") {
+    return Number(item.percentage_rate || 0).toLocaleString() + "% of individual base · " + money(item.estimated_unit_cost) + " per traveler";
+  }
+  if (item.calculation_method === "per_traveler") {
+    return Number(item.quantity).toLocaleString() + " × " + money(item.estimated_unit_cost) + " per traveler";
+  }
+  return Number(item.quantity).toLocaleString() + " × " + money(item.estimated_unit_cost) + " fixed";
+}
+
+function budgetDetail(label, value) {
+  const item = node("div");
+  item.append(node("dt", "", label), node("dd", "", value || "Not entered"));
+  return item;
+}
+
+function budgetRecord(item, allocations) {
+  const details = node("details", "trip-budget-record");
+  details.open = state.budgetItemsExpanded;
+  const summary = node("summary");
+  const title = node("span", "trip-budget-record-title");
+  title.append(node("strong", "", item.category_name), node("span", "", item.description));
+  const summaryMeta = node("span", "trip-budget-record-summary");
+  summaryMeta.append(
+    node("span", "", budgetCalculationLabel(item)),
+    node("strong", "", money(item.estimated_total)),
+    node("span", "trip-status-pill", titleCase(item.payment_status)),
+  );
+  summary.append(title, summaryMeta);
+
+  const body = node("div", "trip-budget-record-body");
+  const facts = node("dl", "trip-budget-facts");
+  facts.append(
+    budgetDetail("Calculation", budgetCalculationLabel(item)),
+    budgetDetail("Scope", titleCase(item.expense_scope)),
+    budgetDetail("Estimated trip total", money(item.estimated_total)),
+    budgetDetail("Actual total", money(item.actual_total)),
+    budgetDetail("Money route", item.settlement_route === "external" ? "Paid externally" : "Paid through Hope Sojourns"),
+    budgetDetail("Vendor or payee", item.vendor_name || item.vendor_ministry_name),
+    budgetDetail("Due date", item.due_date ? dateLabel(item.due_date) : ""),
+    budgetDetail("Paid date", item.paid_date ? dateLabel(item.paid_date) : ""),
+    budgetDetail("Payment method", item.payment_method),
+    budgetDetail("Reference", item.external_reference),
+  );
+  const allocationText = allocations.length
+    ? allocations.map(allocation => allocation.funding_source_name + ": " + money(allocation.amount) + " (" + titleCase(allocation.status) + ")").join("\n")
+    : "No funding sources allocated yet.";
+  body.append(facts, node("p", "trip-record-body", "Funding responsibility\n" + allocationText));
+  if (item.notes) body.append(node("p", "trip-record-body", "Notes\n" + item.notes));
+  const actions = node("div", "trip-record-actions");
+  const edit = node("button", "trip-button trip-button-outline", "Edit");
+  edit.type = "button";
+  edit.addEventListener("click", () => editCost(item));
+  const remove = node("button", "trip-button trip-button-quiet", "Remove");
+  remove.type = "button";
+  remove.addEventListener("click", () => removeResource("cost-items", item.id, item.description));
+  actions.append(edit, remove);
+  body.append(actions);
+  details.append(summary, body);
+  details.addEventListener("toggle", updateBudgetExpandButton);
+  return details;
+}
+
+function updateBudgetExpandButton() {
+  const button = document.querySelector("#trip-budget-expand-all");
+  const items = [...document.querySelectorAll("#trip-cost-list .trip-budget-record")];
+  const allOpen = items.length > 0 && items.every(item => item.open);
+  button.disabled = items.length === 0;
+  button.textContent = allOpen ? "Collapse all items" : "Expand all items";
+  button.setAttribute("aria-pressed", String(allOpen));
+}
+
 function renderBudget() {
   const totals = financeTotals();
+  const trip = state.workspace.trip;
+  const planForm = document.querySelector("#trip-budget-plan-form");
+  planForm.elements.payingTravelerCount.value = trip.paying_traveler_count || 1;
+  const completed = Boolean(trip.budget_completed_at);
+  document.querySelector("#trip-budget-complete").hidden = completed;
+  document.querySelector("#trip-budget-complete").disabled = !state.workspace.costs.some(item => item.payment_status !== "canceled");
+  document.querySelector("#trip-budget-reopen").hidden = !completed;
+  const completion = document.querySelector("#trip-budget-completion");
+  completion.dataset.status = completed ? "complete" : "in-progress";
+  completion.textContent = completed
+    ? "Budget finished " + formatDate(trip.budget_completed_at) + ". Reopen it before changing the traveler count; editing a cost also reopens it automatically."
+    : "Budget in progress. Select Finish budget when the cost plan and paying-traveler count have been reviewed.";
   document.querySelector("#trip-budget-summary").replaceChildren(
-    metric("Operational plan", money(totals.operational)),
-    metric("Actual costs", money(totals.actual)),
+    metric("Base per traveler", money(totals.individualBase)),
+    metric("Fees per traveler", money(totals.individualFees)),
+    metric("Paying travelers", Number(trip.paying_traveler_count || 1).toLocaleString()),
+    metric("Estimated trip budget", money(state.workspace.costs.filter(item => item.payment_status !== "canceled").reduce((sum, item) => sum + Number(item.estimated_total), 0))),
+    metric("Fixed trip costs", money(totals.fixedCosts)),
     metric("Paid externally", money(totals.externalCost)),
     metric("HS responsibility", money(totals.hsCost)),
-    metric("Admin revenue", money(totals.adminRevenue)),
+    metric("Actual costs", money(totals.actual)),
   );
   const list = document.querySelector("#trip-cost-list");
   list.replaceChildren();
   state.workspace.costs.forEach(item => {
     const allocations = state.workspace.allocations.filter(allocation => allocation.cost_item_id === item.id && allocation.status !== "canceled");
-    const allocationText = allocations.length
-      ? allocations.map(allocation => `${allocation.funding_source_name}: ${money(allocation.amount)} (${titleCase(allocation.status)})`).join("\n")
-      : "No funding sources allocated yet.";
-    list.append(record(
-      `${item.category_name}: ${item.description}`,
-      `${allocationText}${item.notes ? `\n${item.notes}` : ""}`,
-      [
-        `Estimated ${money(item.estimated_total)}`,
-        `Actual ${money(item.actual_total)}`,
-        item.settlement_route === "external" ? "Paid externally" : "Through HS",
-        titleCase(item.payment_status),
-        item.vendor_name || item.vendor_ministry_name || "",
-      ],
-      [{ label: "Edit", run: () => editCost(item) }, { label: "Remove", kind: "danger", run: () => removeResource("cost-items", item.id, item.description) }],
-    ));
+    list.append(budgetRecord(item, allocations));
   });
   if (!state.workspace.costs.length) list.append(record("No costs entered", "Begin with airfare, lodging, ground transportation, meals, ministry support, and HS expenses."));
+  updateBudgetExpandButton();
+  updateCostCategoryOptions(false);
 }
 
 async function makeAccountLink(account) {
@@ -948,6 +1208,28 @@ function endpoint(resource) {
   return () => `/admin/trips/${state.tripId}/${resource}`;
 }
 
+async function submitBudgetPlan(action) {
+  const form = document.querySelector("#trip-budget-plan-form");
+  const status = form.querySelector("[data-form-status]");
+  const buttons = form.querySelectorAll("button");
+  buttons.forEach(button => { button.disabled = true; });
+  setStatus(status, action === "complete" ? "Finishing budget…" : action === "reopen" ? "Reopening budget…" : "Saving traveler count…");
+  try {
+    await api("/admin/trips/" + state.tripId + "/budget-plan", {
+      method: "POST",
+      body: JSON.stringify({ action, payingTravelerCount: form.elements.payingTravelerCount.value }),
+    });
+    await openTrip(state.tripId, false);
+    setStatus(status, action === "complete" ? "Budget finished." : action === "reopen" ? "Budget reopened." : "Traveler count saved. Review the updated totals, then finish the budget.", "success");
+  } catch (error) {
+    setStatus(status, error.message, "error");
+  } finally {
+    buttons.forEach(button => { button.disabled = false; });
+    const finish = document.querySelector("#trip-budget-complete");
+    finish.disabled = !state.workspace?.costs.some(item => item.payment_status !== "canceled");
+  }
+}
+
 function wireForms() {
   document.querySelector("#trip-admin-login-form").addEventListener("submit", async event => {
     event.preventDefault();
@@ -1055,9 +1337,35 @@ function wireForms() {
     document.querySelector("#trip-portal-form").elements.loginId.focus();
   });
 
+  document.querySelector("#trip-budget-plan-form").addEventListener("submit", event => {
+    event.preventDefault();
+    submitBudgetPlan("save");
+  });
+  document.querySelector("#trip-budget-complete").addEventListener("click", () => submitBudgetPlan("complete"));
+  document.querySelector("#trip-budget-reopen").addEventListener("click", () => submitBudgetPlan("reopen"));
+  document.querySelector("#trip-budget-expand-all").addEventListener("click", () => {
+    const items = [...document.querySelectorAll("#trip-cost-list .trip-budget-record")];
+    const shouldOpen = !items.length || !items.every(item => item.open);
+    state.budgetItemsExpanded = shouldOpen;
+    items.forEach(item => { item.open = shouldOpen; });
+    updateBudgetExpandButton();
+  });
+  const costForm = document.querySelector("#trip-cost-form");
+  costForm.elements.categoryId.addEventListener("change", () => updateCostCategoryOptions(true));
+  costForm.elements.calculationMethod.addEventListener("change", updateCostCalculationFields);
+  ["quantity", "estimatedUnitCost", "percentageRate"].forEach(name => {
+    costForm.elements[name].addEventListener("input", updateCostCalculationFields);
+  });
+
+  const accountsHelp = document.querySelector("#trip-accounts-help-dialog");
+  document.querySelector("#trip-accounts-help-open").addEventListener("click", () => accountsHelp.showModal());
+  document.querySelector("#trip-accounts-help-close").addEventListener("click", () => accountsHelp.close());
+  document.querySelector("#trip-accounts-help-done").addEventListener("click", () => accountsHelp.close());
+
   document.querySelectorAll("[data-cancel-edit]").forEach(button => button.addEventListener("click", () => {
     button.form.reset();
     button.hidden = true;
+    if (button.form.id === "trip-cost-form") updateCostCategoryOptions(false);
   }));
   document.querySelector("#trip-account-form").elements.accountType.addEventListener("change", renderAccountPrerequisite);
   document.querySelector("#trip-payment-form").elements.chargeId.addEventListener("change", event => {
@@ -1096,6 +1404,7 @@ document.querySelector("#trip-admin-signout").addEventListener("click", async ()
 
 initializeSidebar();
 initializePasswordToggles();
+initializeFieldHelp();
 initializeGuidedHelp();
 setupTabs();
 wireForms();
