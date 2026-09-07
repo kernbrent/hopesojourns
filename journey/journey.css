@@ -1,4 +1,5 @@
 .journey-page { min-height: 100vh; background: var(--color-page); }
+.journey-page [hidden] { display: none !important; }
 .journey-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem clamp(1rem, 4vw, 3rem); border-bottom: 1px solid var(--line); background: var(--color-card); }
 .journey-header img { display: block; width: min(13rem, 55vw); height: auto; }
 .journey-header span { color: var(--forest); font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }

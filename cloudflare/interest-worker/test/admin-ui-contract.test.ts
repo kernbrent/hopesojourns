@@ -12,6 +12,7 @@ const tripPage = readFileSync(resolve(testDirectory, "../../../admin/trips/index
 const tripStyles = readFileSync(resolve(testDirectory, "../../../admin/trips/trips.css"), "utf8");
 const journeyPage = readFileSync(resolve(testDirectory, "../../../journey/index.html"), "utf8");
 const journeyScript = readFileSync(resolve(testDirectory, "../../../journey/journey.js"), "utf8");
+const journeyCss = readFileSync(resolve(testDirectory, "../../../journey/journey.css"), "utf8");
 
 describe("Admin Portal sign-in contract", () => {
   it("requires manual sign-in on direct visits but resumes intentional trip-workspace navigation", () => {
@@ -60,8 +61,9 @@ describe("Admin Portal sign-in contract", () => {
   });
 
   it("keeps traveler sign-in responsive through the session handoff", () => {
-    expect(journeyPage).toContain('data-journey-build="2026-09-06.4"');
+    expect(journeyPage).toContain('data-journey-build="2026-09-06.5"');
     expect(journeyPage).toContain("Your personal email address is not used on this screen.");
+    expect(journeyCss).toContain(".journey-page [hidden] { display: none !important; }");
     expect(journeyScript).toContain("const REQUEST_TIMEOUT_MS = 15_000");
     expect(journeyScript).toContain("const SESSION_RETRY_DELAYS = [300, 800]");
     expect(journeyScript).toContain("setLoginBusy(form, true)");
