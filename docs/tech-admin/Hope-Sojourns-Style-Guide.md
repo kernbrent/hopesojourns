@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.4
+Version 4.4.1
 
 Last reviewed: September 17, 2026
 
@@ -531,10 +531,15 @@ Invoice screens distinguish draft, issued, partially paid, paid, overdue, and vo
 
 Forms use labeled native inputs, optional trip/ministry selectors, visible keyboard focus, intentional dialog dismissal, and disabled Save controls while saving. Provide printable invoice and report layouts without navigation. Escape record text and neutralize spreadsheet formula prefixes in CSV output.
 
+## User deletion
+
+Place Delete user beside the existing user actions, except on the signed-in administrator's own row. The confirmation dialog names the person, explains that access ends while past activity is retained, and requires the exact username. State that the username and email remain reserved. Preserve explicit Save and Cancel controls, validation feedback, and intentional dialog dismissal.
+
 ## Revision history
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4.1 | Added confirmed user deletion with access revocation and preserved history; local pending release. |
 | 2026-09-17 | 4.4 | Added individual MMT accounts, section permissions, profile and recovery workflows, email delivery requirements, and US phone storage and masks; local implementation pending release. |
 | 2026-09-17 | 4.3 | Added managed public destinations, photo and visibility controls, and automatic insertion ordering. |
 | 2026-09-17 | 4.2 | Added local bookkeeping dashboard, optional trip/ministry relationships, mileage, invoices, reports, and review controls. |

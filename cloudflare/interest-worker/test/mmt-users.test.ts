@@ -52,3 +52,17 @@ it('revokes sessions after disabling a user and prevents recovery approval witho
  expect((await f.call('/admin/account/users/'+created.user.id,{...profile,revision:created.user.revision,status:'disabled'},'PUT')).status).toBe(200);
  expect((await f.call('/admin/account/users/'+created.user.id+'/invite',{})).status).toBe(409);
 });
+
+it('deletes a user from the directory, revokes access, and preserves attributable history',async()=>{
+ const f=await setup();const data=await (await f.call('/admin/account/users',profile)).json() as any;
+ const path='/admin/account/users/'+data.user.id;
+ expect((await f.call(path,{confirmUsername:'wrong',revision:data.user.revision},'DELETE')).status).toBe(422);
+ expect((await f.call(path,{confirmUsername:'reader',revision:99},'DELETE')).status).toBe(409);
+ expect((await f.call(path,{confirmUsername:'reader',revision:data.user.revision},'DELETE')).status).toBe(200);
+ const list=await (await f.call('/admin/account/users')).json() as any;expect(list.users.some((u:any)=>u.id===data.user.id)).toBe(false);
+ expect(f.sqlite.prepare('SELECT status,password_hash,deleted_at FROM mmt_users WHERE id=?').get(data.user.id)).toMatchObject({status:'disabled',password_hash:null,deleted_at:expect.any(String)});
+ expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM mmt_reset_tokens WHERE user_id=?').get(data.user.id)).toMatchObject({n:0});
+ expect((await f.call(path+'/invite',{})).status).toBe(404);
+ expect((await f.call(path,{...profile,status:'active',revision:2},'PUT')).status).toBe(404);
+ expect((await f.call('/admin/account/users/primary',{confirmUsername:'admin',revision:1},'DELETE')).status).toBe(409);
+});

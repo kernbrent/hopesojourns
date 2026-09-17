@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.4
+Version 4.4.1
 
 Last reviewed: September 17, 2026
 
@@ -757,10 +757,15 @@ Invoices support draft, issued, and void status, itemized quantities and amounts
 
 The new SQLite integration suite verifies authentication, CSRF, organization-wide mileage, effective rates, duplicate batch dates, invalid links, invoice retries, overpayments, ledger preservation, and review filtering. The local demo is sample-only and must stay bound to localhost. Release validation passed 87 tests; migration 0018 and the production Worker were deployed on September 17, 2026.
 
+## User deletion
+
+Administrators can select Delete user in the user list and must type the exact username to confirm. The server rejects self-deletion, unauthorized requests, and stale edits. Migration 0022_mmt_user_deletion.sql adds deleted_at and prevents later changes to deleted accounts. Deletion disables access, clears credentials and section permissions, revokes sessions and setup links, and removes the account from the directory. The account identity remains for historical attribution; its username and email cannot be reused. The existing last-administrator protection remains active. This deletion feature is local pending a separately authorized release.
+
 ## Revision history
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4.1 | Added confirmed user deletion with access revocation and preserved history; local pending release. |
 | 2026-09-17 | 4.4 | Added individual MMT accounts, section permissions, profile and recovery workflows, email delivery requirements, and US phone storage and masks; local implementation pending release. |
 | 2026-09-17 | 4.3 | Added managed public destinations, photo and visibility controls, and automatic insertion ordering. |
 | 2026-09-17 | 4.2 | Added bookkeeping dashboard, optional trip/ministry relationships, mileage, invoices, reports, and review controls. |
