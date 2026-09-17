@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.4.2
+Version 4.4.3
 
 Last reviewed: September 17, 2026
 
@@ -759,12 +759,13 @@ The new SQLite integration suite verifies authentication, CSRF, organization-wid
 
 ## User deletion
 
-Administrators can select Delete user in the user list and must type the exact username to confirm. The server rejects self-deletion, unauthorized requests, and stale edits. Migration 0022_mmt_user_deletion.sql adds deleted_at and prevents later changes to deleted accounts. Deletion disables access, clears credentials and section permissions, revokes sessions and setup links, and removes the account from the directory. The account identity remains for historical attribution; its username and email cannot be reused. The existing last-administrator protection remains active. This deletion feature is local pending a separately authorized release.
+Administrators can select Delete user in the user list and must type the exact username to confirm. The server rejects self-deletion, unauthorized requests, and stale edits. Migration 0022_mmt_user_deletion.sql adds deleted_at and prevents later changes to deleted accounts. Deletion disables access, clears credentials and section permissions, revokes sessions and setup links, and removes the account from the directory. The account identity remains for historical attribution; migration 0023 preserves its original username and email in deleted_username and deleted_email, and replaces the login identifiers with an inaccessible deleted:id marker. This releases those identifiers for a new account with a new ID, fresh access settings, and a new setup link. Previously deleted users are backfilled without changing their IDs or historical references. The existing last-administrator protection remains active. The re-creation fix is local pending a separately authorized release.
 
 ## Revision history
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4.3 | Allow deleted usernames and emails to be reused with fresh access; preserve historical identity and backfill previously deleted users. Local pending release. |
 | 2026-09-17 | 4.4.2 | Added a separately activated Resend account-email adapter with failure handling and updated forwarding destination; verified domain with encrypted key required for activation. |
 | 2026-09-17 | 4.4.1 | Added confirmed user deletion with access revocation and preserved history; local pending release. |
 | 2026-09-17 | 4.4 | Added individual MMT accounts, section permissions, profile and recovery workflows, email delivery requirements, and US phone storage and masks; local implementation pending release. |

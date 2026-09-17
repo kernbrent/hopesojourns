@@ -89,7 +89,7 @@ export async function handleAccountRequest(request:Request,env:AdminEnv,path:str
   const time=now();
   // Session and token removal is conditional on this deletion winning the revision check.
   await env.DB.batch([
-   env.DB.prepare("UPDATE mmt_users SET deleted_at=?,status='disabled',password_hash=NULL,password_salt=NULL,permissions_json='{}',must_change_password=1,temporary_expires_at=NULL,temporary_used_at=NULL,revision=revision+1,updated_at=? WHERE id=? AND revision=?").bind(time,time,u.id,u.revision),
+   env.DB.prepare("UPDATE mmt_users SET deleted_username=username,deleted_email=email,username='deleted:' || id,email='deleted:' || id,deleted_at=?,status='disabled',password_hash=NULL,password_salt=NULL,permissions_json='{}',must_change_password=1,temporary_expires_at=NULL,temporary_used_at=NULL,revision=revision+1,updated_at=? WHERE id=? AND revision=?").bind(time,time,u.id,u.revision),
    env.DB.prepare('DELETE FROM admin_sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM mmt_users WHERE id=? AND deleted_at=?)').bind(u.id,u.id,time),
    env.DB.prepare('DELETE FROM mmt_reset_tokens WHERE user_id=? AND EXISTS(SELECT 1 FROM mmt_users WHERE id=? AND deleted_at=?)').bind(u.id,u.id,time)
   ]);

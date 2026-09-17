@@ -1,3 +1,5 @@
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync,readdirSync} from 'node:fs';
 import {afterEach,expect,it} from 'vitest';
 import {ministryFixture} from './ministry-fixture';
 import {handleAdminRequest,authenticate} from '../src/admin';
@@ -65,4 +67,32 @@ it('deletes a user from the directory, revokes access, and preserves attributabl
  expect((await f.call(path+'/invite',{})).status).toBe(404);
  expect((await f.call(path,{...profile,status:'active',revision:2},'PUT')).status).toBe(404);
  expect((await f.call('/admin/account/users/primary',{confirmUsername:'admin',revision:1},'DELETE')).status).toBe(409);
+});
+
+it('re-adds deleted identities with fresh access while preserving old history',async()=>{
+ const f=await setup();await f.call('/admin/login',{username:'admin',password:f.env.ADMIN_PASSWORD});const old=await (await f.call('/admin/account/users',{...profile,is_admin:true})).json() as any;
+ const token=old.setupLink.split('#token=')[1];
+ expect((await f.call('/admin/account/users/'+old.user.id,{confirmUsername:profile.username,revision:old.user.revision},'DELETE')).status).toBe(200);
+ const result=await f.call('/admin/account/users',profile);expect(result.status).toBe(201);const fresh=await result.json() as any;
+ expect(fresh.user.id).not.toBe(old.user.id);expect(fresh.user.is_admin).toBe(false);
+ expect(f.sqlite.prepare('SELECT deleted_username,deleted_email,status,password_hash FROM mmt_users WHERE id=?').get(old.user.id)).toEqual({deleted_username:profile.username,deleted_email:profile.email,status:'disabled',password_hash:null});
+ expect(()=>f.sqlite.prepare("UPDATE mmt_users SET status='active' WHERE id=?").run(old.user.id)).toThrow('Deleted users cannot be changed');
+ expect((await handleAccountPublic(f.request('/public/account/reset',{token,password:'New!Password1234',confirmPassword:'New!Password1234'}),f.env,'/public/account/reset')).status).toBe(422);
+ expect((await f.call('/admin/account/users',{...profile,username:'other'})).status).toBe(409);
+ expect((await f.call('/admin/account/users',{...profile,email:'other@example.test'})).status).toBe(409);
+ expect((await f.call('/admin/account/users/'+fresh.user.id,{confirmUsername:profile.username,revision:fresh.user.revision},'DELETE')).status).toBe(200);
+ expect((await f.call('/admin/account/users',profile)).status).toBe(201);
+});
+
+it('migrates previously deleted accounts without losing their identity or references',()=>{
+ const db=new DatabaseSync(':memory:');try{
+ const dir=new URL('../migrations/',import.meta.url);
+ for(const name of readdirSync(dir).filter(n=>n.endsWith('.sql')&&n<'0023').sort())db.exec(readFileSync(new URL(name,dir),'utf8'));
+ db.prepare("INSERT INTO mmt_users(id,username,first_name,last_name,email,registered_at,updated_at,status,deleted_at) VALUES('old','reader','Sample','User','sample@example.test','2026-01-01','2026-01-01','disabled','2026-01-02')").run();
+ db.prepare("INSERT INTO mmt_email_events(id,user_id,kind,recipient,status,created_at) VALUES('history','old','invite','sample@example.test','not_sent','2026-01-01')").run();
+ db.exec(readFileSync(new URL('0023_mmt_reusable_deleted_identity.sql',dir),'utf8'));
+ expect(db.prepare("SELECT username,email,deleted_username,deleted_email FROM mmt_users WHERE id='old'").get()).toEqual({username:'deleted:old',email:'deleted:old',deleted_username:'reader',deleted_email:'sample@example.test'});
+ expect(db.prepare("SELECT user_id FROM mmt_email_events WHERE id='history'").get()?.user_id).toBe('old');
+ expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+ }finally{db.close();}
 });
