@@ -16,6 +16,7 @@ const publicEntries = [
   "trip.js",
   "destination",
   "destinations-public.js",
+  "phone-ui.js",
   "about",
   "admin",
   "agreements",

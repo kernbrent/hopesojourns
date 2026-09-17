@@ -20,7 +20,7 @@ export async function ministryFixture(){
  const env={DB:{prepare:(sql:string)=>new Statement(sql),batch:async(statements:Statement[])=>{sqlite.exec('BEGIN');try{const results=[];for(const statement of statements)results.push(await statement.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}},RECEIPTS:{put:async(key:string,value:Uint8Array)=>files.set(key,value),get:async(key:string)=>files.has(key)?{body:files.get(key)}:null,delete:async(key:string)=>files.delete(key)}} as unknown as AdminEnv;
  const token='a'.repeat(48),csrf='test-csrf-token';
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))),b=>b.toString(16).padStart(2,'0')).join('');
- sqlite.prepare('INSERT INTO admin_sessions(id,token_hash,csrf_token,created_at,expires_at,last_seen_at) VALUES(?,?,?,?,?,?)').run('test-session',hash,csrf,new Date().toISOString(),'2099-01-01T00:00:00.000Z',new Date().toISOString());
+ sqlite.prepare("INSERT INTO admin_sessions(id,token_hash,csrf_token,created_at,expires_at,last_seen_at,user_id) VALUES(?,?,?,?,?,?,'primary')").run('test-session',hash,csrf,new Date().toISOString(),'2099-01-01T00:00:00.000Z',new Date().toISOString());
  const request=(path:string,body?:unknown,method?:string)=>new Request('http://localhost:4188/api/interest'+path,{method:method||(body?'POST':'GET'),headers:{cookie:'hs_admin_session='+token,'x-csrf-token':csrf,...(body instanceof FormData?{}:{'Content-Type':'application/json'})},body:body instanceof FormData?body:body?JSON.stringify(body):undefined});
  return {sqlite,env,request,token,csrf,files};
 }

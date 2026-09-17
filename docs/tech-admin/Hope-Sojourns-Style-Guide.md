@@ -1,8 +1,18 @@
 # Hope Sojourns website style guide
 
-Version 4.3
+Version 4.4
 
 Last reviewed: September 17, 2026
+
+## MMT account and access screens
+
+The sign-in form visibly requires User name and Password; the primary administrator uses admin. Request access and Forgot password are adjacent recovery choices. My profile and users is available in the administration navigation. The profile screen shows the immutable username, registration date, and access summary alongside editable personal contact fields.
+
+Use a labeled permission matrix with Blocked, Read only, and Edit choices for each section group. Read-only and blocked presets make common assignments easier; administrator access is an explicit separate choice. Group labels must explain that contacts includes people, ministries, and requests, while trip operations includes participants and budgets. Hide unavailable destinations in navigation and explain restricted actions clearly. Do not rely on disabled controls for security.
+
+Account dialogs retain explicit Save and Cancel controls and preserve existing palette, typography, responsive layout, and keyboard labels. Temporary-password actions require an identity-verification acknowledgement and show the password once. Delivery messages distinguish Sent from Not sent and must never imply an email was delivered when it was not. Recovery requests explain that an administrator will review identity before resetting access.
+
+Format clearly identified US phone numbers as (###)###-#### in forms and record displays. Accept pasted ten-digit numbers or a leading US country code; the storage layer keeps ten digits. Preserve international numbers and extensions rather than truncating them to fit a US mask. Country fields determine whether a phone is treated as US-based.
 
 ## Destination management patterns
 
@@ -525,6 +535,7 @@ Forms use labeled native inputs, optional trip/ministry selectors, visible keybo
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4 | Added individual MMT accounts, section permissions, profile and recovery workflows, email delivery requirements, and US phone storage and masks; local implementation pending release. |
 | 2026-09-17 | 4.3 | Added managed public destinations, photo and visibility controls, and automatic insertion ordering. |
 | 2026-09-17 | 4.2 | Added local bookkeeping dashboard, optional trip/ministry relationships, mileage, invoices, reports, and review controls. |
 | 2026-09-17 | 4.1 | Added Ministry Management navigation, trip preparation, funding, and document interface standards. |

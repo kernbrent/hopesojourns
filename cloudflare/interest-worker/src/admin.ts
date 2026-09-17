@@ -1,3 +1,6 @@
+import {storedPhone} from './phone';
+import {actorContext,can,routeSection,type MmtIdentity} from './mmt-permissions';
+import {verifyUserPassword,publicUser,handleAccountRequest,changeUserPassword} from './mmt-users';
 import {
   CONTACT_IMPORT_MAX_FILE_BYTES,
   ContactImportFileError,
@@ -60,6 +63,8 @@ type AdminSessionRow = {
   id: string;
   csrf_token: string;
   expires_at: string;
+  user_id: string;
+  user: MmtIdentity;
 };
 
 type LoginAttemptRow = {
@@ -438,7 +443,7 @@ function contactInput(body: Record<string, unknown>): ContactInput {
   const lastName = cleanLine(body.lastName, 80);
   if (!firstName || !lastName) throw new AdminError(422, "INVALID_CONTACT", "Enter the contact’s first and last name.");
   const email = cleanEmail(body.email) ?? "";
-  const phone = cleanPhone(body.phone);
+  const phone = storedPhone(cleanPhone(body.phone),typeof body.country==='string'?body.country:undefined);
   if (!email && !phone) throw new AdminError(422, "INVALID_CONTACT", "Enter at least an email address or phone number.");
   const requestedPreference = body.contactPreference === "phone" ? "phone" : "email";
   const contactPreference = requestedPreference === "phone" && !phone ? "email" : requestedPreference === "email" && !email ? "phone" : requestedPreference;
@@ -484,7 +489,7 @@ function ministryInput(body: Record<string, unknown>): MinistryInput {
     postalCode: cleanOptionalLine(body.postalCode, 30),
     country: cleanOptionalLine(body.country, 100),
     email: cleanEmail(body.email),
-    phone: cleanPhone(body.phone),
+    phone: storedPhone(cleanPhone(body.phone),typeof body.country==='string'?body.country:undefined),
     website: cleanWebsite(body.website),
     notes: cleanOptionalMessage(body.notes, 5000),
     status: body.status === "inactive" ? "inactive" : "active",
@@ -492,19 +497,19 @@ function ministryInput(body: Record<string, unknown>): MinistryInput {
   };
 }
 
-function base64Url(bytes: Uint8Array): string {
+export function base64Url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function randomToken(length = 32): string {
+export function randomToken(length = 32): string {
   const bytes = new Uint8Array(length);
   crypto.getRandomValues(bytes);
   return base64Url(bytes);
 }
 
-async function hashText(value: string): Promise<string> {
+export async function hashText(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -531,7 +536,7 @@ function requireSessionSecret(env: AdminEnv): string {
   return env.ADMIN_SESSION_SECRET;
 }
 
-function base64UrlBytes(value: string): Uint8Array<ArrayBuffer> | null {
+export function base64UrlBytes(value: string): Uint8Array<ArrayBuffer> | null {
   if (!/^[A-Za-z0-9_-]{20,100}$/.test(value)) return null;
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
@@ -591,7 +596,7 @@ async function storedAdminCredential(env: AdminEnv): Promise<AdminCredentialRow 
   ).first<AdminCredentialRow>();
 }
 
-async function verifyAdminPassword(env: AdminEnv, password: string): Promise<boolean> {
+export async function verifyAdminPassword(env: AdminEnv, password: string): Promise<boolean> {
   const credential = await storedAdminCredential(env);
   if (!credential) {
     if (!env.ADMIN_PASSWORD) {
@@ -638,7 +643,7 @@ export async function authenticate(request: Request, env: AdminEnv, requireCsrf 
   }
   const tokenHash = await hashText(token);
   const session = await env.DB.prepare(
-    "SELECT id, csrf_token, expires_at FROM admin_sessions WHERE token_hash = ?1 LIMIT 1",
+    "SELECT id, csrf_token, expires_at,user_id FROM admin_sessions WHERE token_hash = ?1 LIMIT 1",
   ).bind(tokenHash).first<AdminSessionRow>();
   if (!session || Date.parse(session.expires_at) <= Date.now()) {
     if (session) await env.DB.prepare("DELETE FROM admin_sessions WHERE id = ?1").bind(session.id).run();
@@ -652,6 +657,15 @@ export async function authenticate(request: Request, env: AdminEnv, requireCsrf 
       throw new AdminError(403, "CSRF_REJECTED", "Refresh the Admin Portal and try again.");
     }
   }
+  const user=await env.DB.prepare('SELECT * FROM mmt_users WHERE id=?').bind(session.user_id).first<MmtIdentity>();
+  if(!user||user.status!=='active')throw new AdminError(401,'AUTH_REQUIRED','Sign in to continue.');
+  session.user=user;
+  const path=new URL(request.url).pathname.replace(/^\/api\/interest/,'');
+  if(user.must_change_password&&!['/admin/password','/admin/session','/admin/logout'].includes(path))throw new AdminError(403,'PASSWORD_CHANGE_REQUIRED','Change your temporary password before continuing.');
+  const section=routeSection(path);
+  if((section==='admin'&&!user.is_admin)||(section!=='self'&&section!=='admin'&&!can(user,section,request.method!=='GET')))throw new AdminError(403,'ACCESS_DENIED','Your account does not have access to this action.');
+  if(/\/admin\/trips\/[^/]+\/(import|export)$/.test(path)&&!can(user,'contacts',request.method!=='GET'))throw new AdminError(403,'ACCESS_DENIED','Trip import and export also require contact access.');
+  const context=actorContext.getStore();if(context)context.userId=user.id;
   await env.DB.prepare("UPDATE admin_sessions SET last_seen_at = ?1 WHERE id = ?2")
     .bind(new Date().toISOString(), session.id)
     .run();
@@ -660,11 +674,11 @@ export async function authenticate(request: Request, env: AdminEnv, requireCsrf 
 
 export function auditStatement(env: AdminEnv, entityType: string, entityId: string, eventType: string, metadata?: unknown): D1PreparedStatement {
   return env.DB.prepare(
-    `INSERT INTO audit_events (id, entity_type, entity_id, event_type, metadata_json, created_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+    `INSERT INTO audit_events (id, entity_type, entity_id, event_type, metadata_json, created_at,actor_user_id)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6,?7)`,
   ).bind(
     crypto.randomUUID(), entityType, entityId, eventType,
-    metadata === undefined ? null : JSON.stringify(metadata), new Date().toISOString(),
+    metadata === undefined ? null : JSON.stringify(metadata), new Date().toISOString(),actorContext.getStore()?.userId??null,
   );
 }
 
@@ -721,14 +735,20 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
   const rememberMe = body.rememberMe === true;
   const keyHash = await loginKey(request, sessionSecret);
   const currentAttempt = await checkLoginBlock(env, keyHash);
-  if (!submittedPassword || submittedPassword.length > 256 || !(await verifyAdminPassword(env, submittedPassword))) {
+  const username=typeof body.username==='string'?body.username.trim().toLowerCase():'';
+  const user=await env.DB.prepare('SELECT * FROM mmt_users WHERE username=?').bind(username).first<MmtIdentity>();
+  if (!submittedPassword || submittedPassword.length > 256 || !user || user.status!=='active' || !(await verifyUserPassword(env,user.id,submittedPassword))) {
     await recordLoginFailure(env, keyHash, currentAttempt);
     console.warn(JSON.stringify({ event: "admin_login_failed" }));
-    throw new AdminError(401, "INVALID_CREDENTIALS", "The password is incorrect.");
+    throw new AdminError(401, "INVALID_CREDENTIALS", "The user name or password is incorrect.");
   }
 
+  if(user.must_change_password){
+    const claim=await env.DB.prepare('UPDATE mmt_users SET temporary_used_at=? WHERE id=? AND temporary_used_at IS NULL').bind(new Date().toISOString(),user.id).run();
+    if(!claim.meta.changes)throw new AdminError(401,'TEMPORARY_USED','This temporary password was already used. Request a new one if you did not finish changing it.');
+  }
   const now = new Date();
-  const sessionLifetimeSeconds = rememberMe
+  const sessionLifetimeSeconds = user.must_change_password?900:rememberMe
     ? REMEMBER_SESSION_DAYS * 24 * 60 * 60
     : SESSION_HOURS * 60 * 60;
   const expiresAt = new Date(now.getTime() + sessionLifetimeSeconds * 1000);
@@ -740,12 +760,14 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
     env.DB.prepare("DELETE FROM admin_login_attempts WHERE key_hash = ?1").bind(keyHash),
     env.DB.prepare("DELETE FROM admin_sessions WHERE expires_at <= ?1").bind(now.toISOString()),
     env.DB.prepare(
-      `INSERT INTO admin_sessions (id, token_hash, csrf_token, created_at, expires_at, last_seen_at, user_agent_hash)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+      `INSERT INTO admin_sessions (id, token_hash, csrf_token, created_at, expires_at, last_seen_at, user_agent_hash,user_id)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7,?8)`,
     ).bind(
-      crypto.randomUUID(), await hashText(token), csrfToken, now.toISOString(), expiresAt.toISOString(), now.toISOString(), userAgentHash,
+      crypto.randomUUID(), await hashText(token), csrfToken, now.toISOString(), expiresAt.toISOString(), now.toISOString(), userAgentHash,user.id,
     ),
   ]);
+  await env.DB.prepare('UPDATE mmt_users SET last_login_at=? WHERE id=?').bind(now.toISOString(),user.id).run();
+  const context=actorContext.getStore();if(context)context.userId=user.id;
   await audit(env, "admin_session", "portal", "login", { remembered: rememberMe });
   console.log(JSON.stringify({ event: "admin_login_succeeded" }));
   return adminJson({
@@ -753,6 +775,7 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
     csrfToken,
     expiresAt: expiresAt.toISOString(),
     replyDelivery: "email_client",
+    user:publicUser(user),
   }, 200, { "Set-Cookie": sessionCookie(token, rememberMe ? sessionLifetimeSeconds : null) });
 }
 
@@ -764,6 +787,7 @@ async function sessionInfo(request: Request, env: AdminEnv): Promise<Response> {
     csrfToken: session.csrf_token,
     expiresAt: session.expires_at,
     replyDelivery: "email_client",
+    user:publicUser(session.user),
   });
 }
 
@@ -772,46 +796,6 @@ async function logout(request: Request, env: AdminEnv): Promise<Response> {
   await env.DB.prepare("DELETE FROM admin_sessions WHERE id = ?1").bind(session.id).run();
   await audit(env, "admin_session", session.id, "logout");
   return adminJson({ success: true }, 200, { "Set-Cookie": sessionCookie("", 0) });
-}
-
-async function changePassword(request: Request, env: AdminEnv): Promise<Response> {
-  const session = await authenticate(request, env, true);
-  const body = await readAdminJson(request);
-  const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
-  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
-  const confirmPassword = typeof body.confirmPassword === "string" ? body.confirmPassword : "";
-  if (!currentPassword || currentPassword.length > 256 || !(await verifyAdminPassword(env, currentPassword))) {
-    throw new AdminError(422, "INVALID_CURRENT_PASSWORD", "The current password is incorrect.");
-  }
-  const policyError = adminPasswordPolicyError(newPassword);
-  if (policyError) throw new AdminError(422, "INVALID_NEW_PASSWORD", policyError);
-  if (!(await secureEqual(newPassword, confirmPassword))) {
-    throw new AdminError(422, "PASSWORDS_DO_NOT_MATCH", "The new passwords do not match.");
-  }
-  if (await secureEqual(currentPassword, newPassword)) {
-    throw new AdminError(422, "PASSWORD_UNCHANGED", "Choose a new password that is different from the current password.");
-  }
-
-  const salt = new Uint8Array(PASSWORD_SALT_BYTES);
-  crypto.getRandomValues(salt);
-  const passwordHash = await deriveAdminPasswordHash(newPassword, salt);
-  const now = new Date().toISOString();
-  await env.DB.batch([
-    env.DB.prepare(
-      `INSERT INTO admin_credentials (id, algorithm, password_salt, password_hash, iterations, created_at, updated_at)
-       VALUES ('primary', 'PBKDF2-SHA256', ?1, ?2, ?3, ?4, ?5)
-       ON CONFLICT (id) DO UPDATE SET
-         algorithm = excluded.algorithm,
-         password_salt = excluded.password_salt,
-         password_hash = excluded.password_hash,
-         iterations = excluded.iterations,
-         updated_at = excluded.updated_at`,
-    ).bind(base64Url(salt), passwordHash, PASSWORD_HASH_ITERATIONS, now, now),
-    env.DB.prepare("DELETE FROM admin_sessions WHERE id <> ?1").bind(session.id),
-    auditStatement(env, "admin_credential", "primary", "password_changed"),
-  ]);
-  console.log(JSON.stringify({ event: "admin_password_changed" }));
-  return adminJson({ success: true, otherSessionsEnded: true });
 }
 
 function parseJsonArray(value: string): unknown[] {
@@ -2776,7 +2760,8 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "POST" && path === "/admin/login") return login(request, env);
   if (request.method === "GET" && path === "/admin/session") return sessionInfo(request, env);
   if (request.method === "POST" && path === "/admin/logout") return logout(request, env);
-  if (request.method === "POST" && path === "/admin/password") return changePassword(request, env);
+  if (request.method === "POST" && path === "/admin/password") return changeUserPassword(request, env);
+  if(path.startsWith('/admin/account/'))return handleAccountRequest(request,env,path);
   if (request.method === "GET" && path === "/admin/teams") return listTeams(request, env);
   if (request.method === "POST" && path === "/admin/teams") return createTeam(request, env);
   if (request.method === "GET" && path === "/admin/people") return listPeople(request, env);

@@ -1,8 +1,24 @@
 # Hope Sojourns developer guide
 
-Version 4.3
+Version 4.4
 
 Last reviewed: September 17, 2026
+
+## Individual MMT accounts and phone storage
+
+This account upgrade is implemented locally and has not been released. The existing administrator signs in as admin using the existing password. Migration 0020_mmt_users.sql creates individual users, access and recovery requests, hashed reset tokens, email events, and public rate limits. It ends existing administrator sessions so subsequent activity has an identifiable user. Passwords use salted PBKDF2 hashes; no recoverable password is stored. The legacy password is accepted only to initialize the primary account when no stored hash exists.
+
+The account workspace at /admin/account/ provides personal profile editing and administrator user management. Users can change their name, email, phone, and country, but cannot change their own username or access. Administrators assign Blocked, Read only, or Edit separately for contacts and ministries, trip operations and budgets, public destinations, finances, documents, and the inbox. The contacts group includes people, ministries, teams, and public requests. Trip access includes participant and budget information; trip imports and exports also require contact access. Administrator status grants all sections and user management. Server authorization is authoritative; hiding navigation is only a usability aid. The last usable administrator cannot be disabled or demoted. Account and access changes invalidate affected sessions and outstanding setup links.
+
+The public /admin/access/ page provides access requests, forgotten-password requests, and administrator recovery requests. Access and recovery requests enter the administrator inbox. Approving an access request creates an account with explicitly selected permissions. Recovery approval requires independent identity verification; submitted contact details do not automatically replace trusted account information. Administrators can issue a temporary password valid for one sign-in within 24 hours. That session can only change the password or sign out until a personal password is saved. New-account invitations let the recipient choose a personal password before first sign-in.
+
+Invitation links expire after 24 hours; reset links expire after one hour. Tokens are stored hashed, claimed once atomically, and carried in URL fragments that the page clears after reading. Resetting a password revokes existing sessions. Public recovery responses do not reveal whether an account exists. Public forms are rate limited, and authenticated writes require CSRF protection. Audit records include the acting user when invoked through the Worker request context.
+
+Automatic email requires a configured Cloudflare EMAIL binding, a verified sending domain, EMAIL_DELIVERY_MODE=live, and the sender/reply-to settings. The live email service is not configured by this local change. Without delivery, the account screen reports Not sent, the administrator inbox flags the event, and an administrator can securely share the returned setup link. Public forgot-password responses never expose that link. This delivery mode also affects existing trip messages: review both workflows before enabling it, and use verified test recipients before production activation.
+
+Migration 0021_us_phone_storage.sql normalizes clearly identified US phone values in people, ministries, trip funding sources, billing accounts, and MMT users. Valid ten-digit values are stored without punctuation; an eleven-digit value beginning with 1 loses that country prefix. Triggers apply the same rules to subsequent writes. Explicit foreign countries, international prefixes, extensions, and ambiguous values are preserved for review. Historical audit and JSON snapshots remain unchanged. phone-ui.js supplies the (###)###-#### presentation mask without using the mask as the stored value.
+
+Release procedure: obtain explicit deployment authorization, capture a database recovery point and record counts, apply migrations 0020 and 0021, and deploy the compatible Worker and account assets together. Verify the existing admin password, permissions, invitation delivery, recovery, and canonical phone values before opening access to more users. Do not include unrelated pending public redesign work. Local regression coverage includes authentication, section enforcement, temporary passwords, one-use reset links, administrator protection, request throttling, recovery review, email payloads, and phone preservation.
 
 ## Managed public destinations
 
@@ -12,7 +28,7 @@ Authenticated /admin/destinations APIs manage content, visibility, and photos; w
 
 Display order is a nonnegative integer; lower values appear first. Assigning an occupied number inserts the destination there and increments all other destinations at or above that number by one, including drafts and hidden destinations. The bump and save occur in one database batch. Bumped records receive new revisions; their opportunity order is synchronized by triggers. Unchanged order or an unoccupied number does not shift neighbors. Stale edits cannot reorder records, and failed creates roll back all shifts. Tests cover collisions, unchanged order, rollback, public visibility, authentication, and stale edits.
 
-Release status: local changes only. Apply migration 0019 before deploying the destination APIs and public assets after explicit release authorization. Preserve unrelated pending homepage redesign changes when preparing a release.
+Destination release status: deployed from commit f3e9fd0 on September 17, 2026, including migration 0019. Unrelated pending homepage redesign changes were excluded.
 
 ## 1. Purpose and operating rules
 
@@ -745,6 +761,7 @@ The new SQLite integration suite verifies authentication, CSRF, organization-wid
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4 | Added individual MMT accounts, section permissions, profile and recovery workflows, email delivery requirements, and US phone storage and masks; local implementation pending release. |
 | 2026-09-17 | 4.3 | Added managed public destinations, photo and visibility controls, and automatic insertion ordering. |
 | 2026-09-17 | 4.2 | Added bookkeeping dashboard, optional trip/ministry relationships, mileage, invoices, reports, and review controls. |
 | 2026-09-17 | 4.1 | Added local Ministry Management architecture, trip defaults, item funding, central inbox, document storage, and regression requirements. |

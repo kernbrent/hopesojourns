@@ -293,7 +293,7 @@ async function api(path, options = {}) {
   if (options.method && options.method !== "GET" && state.csrfToken) headers.set("X-CSRF-Token", state.csrfToken);
   const response = await fetch(`${API_BASE}${path}`, { credentials: "same-origin", ...options, headers });
   let result = {};
-  try { result = await response.json(); } catch { result = {}; }
+  try { result = await response.json(); window.HSPhones?.records(result); } catch { result = {}; }
   if (!response.ok) {
     if (response.status === 401 && !path.endsWith("/login")) showLogin();
     const error = new Error(result.error || "Hope Sojourns could not complete that request.");

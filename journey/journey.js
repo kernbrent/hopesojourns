@@ -49,7 +49,7 @@ async function api(path, options = {}) {
     });
     let result = {};
     try {
-      result = await response.json();
+      result = await response.json(); window.HSPhones?.records(result);
     } catch {
       result = {};
     }

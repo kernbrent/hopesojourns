@@ -1,3 +1,6 @@
+import {storedPhone,matchPhone} from './phone';
+import {actorContext} from './mmt-permissions';
+import {handleAccountPublic} from './mmt-users';
 import { handleAdminRequest } from "./admin";
 import { handleMinistryAdminRequest } from "./ministry-admin";
 import { handleFinanceAdminRequest } from "./finance-admin";
@@ -93,8 +96,7 @@ export function normalizeEmail(value: string): string {
 }
 
 export function normalizePhone(value: string): string | null {
-  const digits = value.replace(/\D/g, "");
-  return digits.length >= 7 && digits.length <= 18 ? digits : null;
+  return matchPhone(value);
 }
 
 function validateName(value: unknown, field: string, errors: FieldErrors): string | null {
@@ -135,7 +137,7 @@ function validatePhone(value: unknown, errors: FieldErrors): { display: string; 
     errors.phone = "Enter a cell phone number with 7 to 18 digits.";
     return null;
   }
-  return { display, normalized };
+  return { display:storedPhone(display)!, normalized };
 }
 
 function validateOpportunities(value: unknown, errors: FieldErrors): string[] {
@@ -567,6 +569,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return json(request, env, { status: "ok", service: "hope-sojourns-interest", environment: env.ENVIRONMENT });
   }
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
+  if(path.startsWith('/public/account/'))return handleAccountPublic(request,env,path);
   if (path.startsWith('/admin/destinations') || path.startsWith('/public/destinations')) return handleDestinations(request,env,path);
   if (path.startsWith('/admin/finance/')) return handleFinanceAdminRequest(request,env,path);
   if (path.startsWith('/admin/ministry/')) return handleMinistryAdminRequest(request,env,path);
@@ -589,7 +592,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 export default {
   async fetch(request, env): Promise<Response> {
     try {
-      return await handleRequest(request, env);
+      return await actorContext.run({},()=>handleRequest(request, env));
     } catch (error) {
       if (error instanceof HttpError) {
         console.warn(JSON.stringify({ event: "request_rejected", status: error.status, code: error.code }));

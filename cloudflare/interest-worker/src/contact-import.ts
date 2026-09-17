@@ -1,3 +1,4 @@
+import {storedPhone,matchPhone} from './phone';
 import { inflateRawSync } from "node:zlib";
 
 export const CONTACT_IMPORT_MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -159,8 +160,7 @@ export function normalizeImportEmail(value: string): string {
 
 export function normalizeImportPhone(value: string | null): string | null {
   if (!value) return null;
-  const digits = value.replace(/\D/g, "");
-  return digits.length >= 7 && digits.length <= 18 ? digits : null;
+  return matchPhone(value);
 }
 
 function decodeXml(value: string): string {
@@ -564,7 +564,7 @@ export function validateContactImportRow(row: ParsedContactImportRow, opportunit
   const lastName = cleanLine(values.lastName, 80, "Last Name", true, errors) ?? "";
   const email = cleanLine(values.email, 254, "Email", false, errors) ?? "";
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push("Email is not a valid email address.");
-  const phone = cleanLine(values.phone, 40, "Cell Phone", false, errors);
+  const phone = storedPhone(cleanLine(values.phone, 40, "Cell Phone", false, errors),values.country);
   if (phone && !normalizeImportPhone(phone)) errors.push("Cell Phone must contain 7 to 18 digits.");
   if (!email && !phone) errors.push("Enter an Email or Cell Phone number.");
 

@@ -353,7 +353,7 @@ async function api(path, options = {}) {
   let result = {};
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
-    try { result = await response.json(); } catch { result = {}; }
+    try { result = await response.json(); window.HSPhones?.records(result); } catch { result = {}; }
   }
   if (!response.ok) {
     if (response.status === 401 && path !== "/login") showLogin("Your session ended. Sign in again.");
@@ -380,7 +380,7 @@ async function apiDownload(path, options = {}) {
   });
   if (!response.ok) {
     let result = {};
-    try { result = await response.json(); } catch { result = {}; }
+    try { result = await response.json(); window.HSPhones?.records(result); } catch { result = {}; }
     if (response.status === 401) showLogin("Your session ended. Sign in again.");
     const error = new Error(result.error || "The portal could not prepare that download.");
     error.status = response.status;
@@ -443,7 +443,7 @@ function showLogin(message = "") {
   accountMenu.open = false;
   resetPasswordVisibility(loginForm);
   if (ledgerReceiptDialog.open) ledgerReceiptDialog.close();
-  passwordInput.focus();
+  loginForm.elements.username.focus();
 }
 
 function requestedAdminView() {
@@ -469,6 +469,10 @@ function consumeAdminNavigationIntent() {
 }
 
 function showDashboard(session) {
+  window.MmtUser=session.user;
+  if(!document.querySelector('script[data-mmt-session]')){const script=document.createElement('script');script.src='/admin/mmt-session.js?v=1';script.dataset.mmtSession='true';document.head.append(script);}
+  if(session.user?.must_change_password){location.href="/admin/account/#password";return;}
+  if(session.user&&!session.user.is_admin&&session.user.permissions.contacts==='blocked'){location.href="/admin/account/";return;}
   state.csrfToken = session.csrfToken;
   document.body.classList.add("admin-authenticated");
   authLoadingPanel.hidden = true;
@@ -3534,11 +3538,12 @@ loginForm.addEventListener("submit", async event => {
   const submit = loginForm.querySelector("button[type='submit']");
   const rememberMe = loginForm.elements.rememberMe.checked;
   setBusy(submit, true, "Checking…");
-  loginStatus.textContent = "Checking your password…";
+  loginStatus.textContent = "Checking your user name and password…";
   try {
     const { result } = await api("/login", {
       method: "POST",
       body: {
+        username: loginForm.elements.username.value,
         password: passwordInput.value,
         rememberMe,
       },

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-admin-build="2026-09-17.3">
+<html lang="en" data-admin-build="2026-09-17.4">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,8 +9,8 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-17.3">
-</head>
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-17.4">
+<script src="/phone-ui.js?v=1" defer></script></head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="admin-header">
@@ -31,7 +31,7 @@
       <a href="/admin/ministry/#inbox"><span aria-hidden="true">▤</span> Inbox</a>
       <a href="/admin/ministry/#documents"><span aria-hidden="true">▱</span> Documents</a>
       <a href="#requests" data-admin-sidebar-view="requests"><span aria-hidden="true">&#9675;</span> Requests</a>
-      <a href="/admin/destinations/"><span aria-hidden="true">◇</span> Destinations</a>
+      <a href="/admin/account/">My profile &amp; users</a><a href="/admin/destinations/"><span aria-hidden="true">◇</span> Destinations</a>
       <a href="/admin/trips/"><span aria-hidden="true">&#10022;</span> Trips</a>
       <a href="/admin/finance/"><span aria-hidden="true">$</span> Organization finances</a>
       <a href="/admin/finance/#income"><span aria-hidden="true">+</span> Income</a>
@@ -58,17 +58,17 @@
           <li><span aria-hidden="true">03</span> Keep contacts and ministries organized</li>
         </ul>
       </div>
-      <section class="admin-login-card" aria-label="Administrator sign in">
+      <section class="admin-login-card" aria-label="MMT sign in">
         <img src="/assets/hope-sojourns-icon.png" alt="" width="56" height="56">
         <p class="eyebrow">Private team access</p>
         <h2>Sign in</h2>
-        <p class="admin-login-help">Use the Hope Sojourns administrator password.</p>
+        <p class="admin-login-help">Enter your MMT user name and password.</p>
         <form id="admin-login-form">
-          <input class="admin-credential-username" name="username" type="text" value="admin" autocomplete="username" tabindex="-1" aria-hidden="true">
-          <label for="admin-password">Administrator password</label>
+          <label for="admin-username">User name</label><input id="admin-username" name="username" type="text" autocomplete="username" required autofocus maxlength="60">
+          <label for="admin-password">Password</label>
           <div class="admin-password-field">
-            <input id="admin-password" name="password" type="password" autocomplete="current-password" required autofocus>
-            <button class="admin-password-toggle" type="button" data-password-toggle aria-controls="admin-password" aria-label="Show administrator password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button>
+            <input id="admin-password" name="password" type="password" autocomplete="current-password" required>
+            <button class="admin-password-toggle" type="button" data-password-toggle aria-controls="admin-password" aria-label="Show password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button>
           </div>
           <label class="admin-remember-choice" for="admin-remember-me">
             <input id="admin-remember-me" name="rememberMe" type="checkbox">
@@ -77,7 +77,7 @@
           <button class="admin-button admin-button-primary" type="submit">Open response center</button>
           <p class="admin-form-status" id="login-status" role="status" aria-live="polite"></p>
         </form>
-        <p class="admin-security-note">Without “Remember me,” the login closes with the browser or after eight hours. Your browser may also offer to save the password securely.</p>
+        <p><a href="/admin/access/#request">Request access</a> · <a href="/admin/access/#forgot">Forgot password?</a></p><p class="admin-security-note">Without “Remember me,” the login closes with the browser or after eight hours. Your browser may also offer to save the password securely.</p>
       </section>
     </section>
 
@@ -606,6 +606,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=2026-09-17.3" defer></script>
+  <script src="/admin/admin.js?v=2026-09-17.4" defer></script>
 </body>
 </html>

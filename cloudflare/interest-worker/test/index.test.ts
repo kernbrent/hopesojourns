@@ -35,7 +35,7 @@ describe("submission validation", () => {
     const result = validateSubmissionPayload(validPayload);
     expect(result.firstName).toBe("María");
     expect(result.emailNormalized).toBe("maria@example.org");
-    expect(result.phoneNormalized).toBe("12145550199");
+    expect(result.phoneNormalized).toBe("2145550199");
     expect(result.opportunities).toEqual(["internship-athens-greece", "trip-athens"]);
   });
 

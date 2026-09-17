@@ -1,0 +1,6 @@
+.finance form label { display: block; margin-block: 1rem; }
+.finance form input:not([type=checkbox]), .finance form select, .finance form textarea { width: 100%; }
+.finance .account-secret { overflow-wrap: anywhere; padding: 1rem; border: 1px solid var(--gold); }
+.finance .access-matrix { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+
+.finance [hidden] { display: none !important; }

@@ -1,3 +1,4 @@
+import {can} from './mmt-permissions';
 import { standardTripStatements, assignTravelerBudget, allocatePayment } from './ministry-budget';
 import {
   AdminError,
@@ -361,7 +362,7 @@ async function requireAccount(env: AdminEnv, tripId: string, accountId: string):
 }
 
 async function listBootstrap(request: Request, env: AdminEnv): Promise<Response> {
-  await authenticate(request, env);
+  const session=await authenticate(request, env);
   const [trips, opportunities, sources, categories, people, ministries] = await Promise.all([
     env.DB.prepare(
       `SELECT t.*, o.title AS opportunity_title,
@@ -380,8 +381,8 @@ async function listBootstrap(request: Request, env: AdminEnv): Promise<Response>
     opportunities: opportunities.results,
     fundingSources: sources.results,
     costCategories: categories.results,
-    people: people.results,
-    ministries: ministries.results,
+    people: can(session.user,'contacts')?people.results:[],
+    ministries: can(session.user,'contacts')?ministries.results:[],
   });
 }
 
