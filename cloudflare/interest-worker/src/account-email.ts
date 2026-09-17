@@ -21,7 +21,8 @@ export async function sendAccountEmail(env: AccountEmailEnv, message: AccountMes
     if (env.MMT_EMAIL_PROVIDER === 'resend') {
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
-        redirect: 'error',
+        // Workers supports manual/follow; manual also prevents credential forwarding.
+        redirect: 'manual',
         signal: AbortSignal.timeout(10000),
         headers: {
           Authorization: `Bearer ${env.RESEND_API_KEY!.trim()}`,

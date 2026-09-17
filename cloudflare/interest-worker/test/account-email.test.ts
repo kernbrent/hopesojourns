@@ -14,7 +14,7 @@ it('sends from Hope Sojourns with reply routing and an idempotency key', async (
   expect(options.headers).toMatchObject({'Idempotency-Key': 'mmt-unique', Authorization: 'Bearer test-key'});
   expect(JSON.parse(options.body)).toEqual({...message, to: [message.to], from: 'Hope Sojourns <admin@hopesojourns.com>', reply_to: 'admin@hopesojourns.com'});
   expect(options.signal).toBeInstanceOf(AbortSignal);
-  expect(options.redirect).toBe('error');
+  expect(options.redirect).toBe('manual');
 });
 
 it('does not send without both explicit activation and credentials', async () => {
