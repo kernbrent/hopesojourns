@@ -35,8 +35,8 @@ type ReceiptRow = {
 };
 
 const PAYMENT_DEFAULTS = ["ACH", "Bank transfer", "Cash", "Check", "Credit card", "PayPal", "Venmo", "Other"];
-const EXPENSE_DEFAULTS = ["Administrative", "Fees", "Insurance", "Lodging", "Marketing", "Meals", "Ministry support", "Misc", "Supplies", "Transportation", "Travel", "Other"];
-const BUDGET_DEFAULTS = ["General", "Fundraising", "Internship", "Marketing", "Mission trip", "Operations", "Other"];
+const EXPENSE_DEFAULTS = ["Travel Expenses", "Operating Expenses", "Trip Partner Expenses", "Scholarships", "Salary", "Donation to another organization", "Administrative", "Fees", "Insurance", "Lodging", "Marketing", "Meals", "Ministry support", "Misc", "Supplies", "Transportation", "Travel", "Other"];
+const BUDGET_DEFAULTS = ["Donations received", "Sponsors", "Traveler fees", "Traveler-covered trip expenses", "Internship expenses", "Corporate Humanitarian Trips", "Reimbursements", "General", "Fundraising", "Internship", "Marketing", "Mission trip", "Operations", "Other"];
 const LEDGER_PURPOSES = new Set<LedgerPurpose>(["donation", "scholarship_contribution", "trip_payment", "admin_fee", "other", "refund", "trip_expense", "reimbursement", "general"]);
 
 function cleanLine(value: unknown, maximum: number, required = false): string | null {

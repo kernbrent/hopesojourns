@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-trip-admin-build="2026-09-07.2">
+<html lang="en" data-trip-admin-build="2026-09-17.1">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Trips | Hope Sojourns Administration</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-07.2">
+  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-17.1">
 </head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
@@ -43,8 +43,12 @@
     <button class="trip-sidebar-toggle" id="trip-sidebar-toggle" type="button" aria-controls="trip-admin-sidebar" aria-expanded="true"><span aria-hidden="true">&#8249;</span><span data-sidebar-toggle-label>Hide menu</span></button>
     <aside class="trip-admin-sidebar" id="trip-admin-sidebar" aria-label="Administration areas">
       <a class="trip-admin-brand" href="/"><img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns"></a>
-      <p class="trip-admin-environment">Test workspace</p>
+      <p class="trip-admin-environment" id="trip-environment-label">Trip workspace</p>
       <nav>
+        <a href="/admin/ministry/">Ministry Management</a>
+        <a href="/admin/ministry/#inbox">Inbox</a>
+        <a href="/admin/ministry/#documents">Documents</a>
+        <a href="/admin/#settings" data-admin-navigation>Settings</a>
         <a href="/admin/" data-admin-navigation><span aria-hidden="true">⌂</span> Response center</a>
         <a class="is-active" href="/admin/trips/" aria-current="page"><span aria-hidden="true">✦</span> Trips</a>
         <a href="/admin/#ledger" data-admin-navigation><span aria-hidden="true">$</span> Organization finances</a>
@@ -234,7 +238,7 @@
           </section>
           <div class="trip-finance-summary" id="trip-budget-summary"></div>
           <div class="trip-two-column trip-align-start">
-            <form class="trip-admin-card trip-form" id="trip-cost-form">
+            <form class="trip-admin-card trip-form" id="trip-cost-form"><label><span>Budget group</span><select name="budgetGroup"><option value="traveler">Traveler expense</option><option value="hs">HS costs</option><option value="ministry">Donation to local ministries</option></select></label><label class="trip-check"><input type="checkbox" name="travelEligible"><span>Include in HS Travel calculation</span></label><label class="trip-check"><input type="checkbox" name="needsEstimate"><span>Still needs an estimate</span></label><label class="trip-check"><input type="checkbox" name="billToTraveler" checked><span>Include in traveler charges</span></label>
               <input name="id" type="hidden">
               <p class="eyebrow">Where the money goes</p><h3>Add a cost</h3>
               <p class="trip-prerequisite" data-prerequisite="cost" hidden></p>
@@ -370,6 +374,6 @@
   <div class="trip-guide-alert" id="trip-guide-alert" role="alert" hidden><span></span><button type="button" aria-label="Dismiss setup message">&times;</button></div>
 
   <template id="trip-record-template"><article class="trip-record"><div class="trip-record-main"></div><div class="trip-record-actions"></div></article></template>
-  <script src="/admin/trips/trips.js?v=2026-09-07.2" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-17.1" defer></script>
 </body>
 </html>

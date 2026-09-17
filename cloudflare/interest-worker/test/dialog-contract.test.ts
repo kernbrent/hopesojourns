@@ -11,7 +11,7 @@ describe("Admin dialog behavior", () => {
   it("keeps every dialog open when its backdrop is clicked", () => {
     expect(adminScript).toContain("preventDialogBackdropDismissal");
     expect(adminScript).toContain("event.stopImmediatePropagation()");
-    expect(adminPage.match(/closedby="closerequest"/g)).toHaveLength(6);
+    expect(adminPage.match(/closedby="closerequest"/g)).toHaveLength((adminPage.match(/<dialog\b/g) || []).length);
     expect(adminScript).not.toContain("event.target === submissionDialog");
     expect(adminScript).not.toContain("event.target === changePasswordDialog");
   });

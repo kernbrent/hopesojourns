@@ -1,3 +1,4 @@
+import { standardTripStatements, assignTravelerBudget, allocatePayment } from './ministry-budget';
 import {
   AdminError,
   adminJson,
@@ -312,7 +313,10 @@ type BudgetCostRow = {
   calculation_method: string;
   quantity: number;
   estimated_unit_cost: number;
+  estimated_total: number;
   percentage_rate: number | null;
+  travel_eligible: number;
+  template_key: string | null;
   payment_status: string;
 };
 
@@ -323,7 +327,7 @@ async function recalculateTripBudget(
   updatedAt: string,
 ): Promise<void> {
   const result = await env.DB.prepare(
-    `SELECT id, calculation_method, quantity, estimated_unit_cost, percentage_rate, payment_status
+    `SELECT id, calculation_method, quantity, estimated_unit_cost, percentage_rate, payment_status, travel_eligible, template_key, estimated_total
      FROM trip_cost_items WHERE trip_id = ?1`,
   ).bind(tripId).all<BudgetCostRow>();
   const individualBaseSubtotal = roundedMoney(result.results
@@ -337,7 +341,9 @@ async function recalculateTripBudget(
         quantity: Number(item.quantity),
         estimatedUnitCost: Number(item.estimated_unit_cost),
         percentageRate: item.percentage_rate,
-      }, payingTravelerCount, individualBaseSubtotal);
+      }, payingTravelerCount, item.template_key === 'hs-leadership'
+        ? roundedMoney(result.results.filter(row => row.payment_status !== 'canceled' && row.travel_eligible && row.calculation_method !== 'percentage_of_individual').reduce((sum,row)=>sum+(row.calculation_method === 'fixed' ? Number(row.estimated_total)/payingTravelerCount : Number(row.quantity)*Number(row.estimated_unit_cost)),0))
+        : individualBaseSubtotal);
       return env.DB.prepare(
         "UPDATE trip_cost_items SET estimated_unit_cost = ?1, estimated_total = ?2, updated_at = ?3 WHERE id = ?4 AND trip_id = ?5",
       ).bind(estimate.estimatedUnitCost, estimate.estimatedTotal, updatedAt, item.id, tripId);
@@ -381,7 +387,10 @@ async function listBootstrap(request: Request, env: AdminEnv): Promise<Response>
 
 async function createTrip(request: Request, env: AdminEnv): Promise<Response> {
   const session = await authenticate(request, env, true);
-  const input = validateTripInput(await readAdminJson(request));
+  const body = await readAdminJson(request);
+  const suffix = crypto.randomUUID().slice(0,8);
+  const base = String(body.title || 'trip').normalize('NFKD').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase().slice(0,28) || 'trip';
+  const input = validateTripInput({...body, code: body.code || `${base}-${suffix}`, slug: body.slug || `${base}-${suffix}`});
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   await env.DB.batch([
@@ -396,6 +405,9 @@ async function createTrip(request: Request, env: AdminEnv): Promise<Response> {
       input.startDate, input.endDate, input.status, input.capacity, input.publicSummary, input.publicDescription,
       input.publicCallToAction, input.publicEnabled, input.interestEnabled, input.portalEnabled, session.id, now,
     ),
+    ...(body.useTemplate === false ? [] : standardTripStatements(env,id,input.startDate,input.endDate,now)),
+    env.DB.prepare('UPDATE trips SET paying_traveler_count=?1 WHERE id=?2').bind(positiveInteger(body.payingTravelerCount??1,'Paying travelers'),id),
+    env.DB.prepare(`INSERT INTO ministry_events(id,event_key,title,detail,action_url,status,created_at) VALUES(?1,?2,?3,?4,?5,'activity',?6)`).bind(crypto.randomUUID(),'trip-created:'+id,input.title,'Trip created with standard budget and content drafts.','/admin/ministry/#trip/'+id,now),
     auditStatement(env, "trip", id, "created", { code: input.code, title: input.title }),
   ]);
   return adminJson({ id }, 201);
@@ -804,6 +816,7 @@ async function saveMember(request: Request, env: AdminEnv, tripId: string): Prom
     ),
     auditStatement(env, "trip", tripId, "member_saved", { personId, role, status }),
   );
+  if (role === 'traveler' && status !== 'withdrawn') statements.push(...await assignTravelerBudget(env,tripId,personId,now));
   await env.DB.batch(statements);
   return adminJson({ ok: true, id: personId });
 }
@@ -915,7 +928,7 @@ async function saveCostItem(request: Request, env: AdminEnv, tripId: string): Pr
   const body = await readAdminJson(request);
   const existingId = uuid(body.id, "cost item", true);
   const id = existingId ?? crypto.randomUUID();
-  const existingCost = existingId ? await env.DB.prepare("SELECT ledger_entry_id FROM trip_cost_items WHERE id = ?1 AND trip_id = ?2").bind(existingId, tripId).first<{ ledger_entry_id: string | null }>() : null;
+  const existingCost = existingId ? await env.DB.prepare("SELECT ledger_entry_id,budget_group,travel_eligible,needs_estimate,bill_to_traveler,template_key FROM trip_cost_items WHERE id = ?1 AND trip_id = ?2").bind(existingId, tripId).first<{ ledger_entry_id: string | null;budget_group:string;travel_eligible:number;needs_estimate:number;bill_to_traveler:number;template_key:string|null }>() : null;
   const categoryId = recordId(body.categoryId, "cost category")!;
   const category = await env.DB.prepare(
     "SELECT id, system_key FROM trip_cost_categories WHERE id = ?1 AND status = 'active'",
@@ -970,14 +983,16 @@ async function saveCostItem(request: Request, env: AdminEnv, tripId: string): Pr
     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?23)`).bind(
       id, tripId, ...values.slice(0, 20), now,
     );
-  const result = await statement.run();
-  if (existingId && !result.meta.changes) throw new AdminError(404, "COST_NOT_FOUND", "That cost item could not be found.");
+  const budgetGroup = choice(body.budgetGroup, 'budget group', new Set(['traveler','hs','ministry']), existingCost?.budget_group ?? 'traveler');
+  const results = await env.DB.batch([statement, env.DB.prepare('UPDATE trip_cost_items SET budget_group=?1, travel_eligible=?2, needs_estimate=?3, bill_to_traveler=?6 WHERE id=?4 AND trip_id=?5').bind(budgetGroup,body.travelEligible===undefined?(existingCost?.travel_eligible??0):flag(body.travelEligible),body.needsEstimate===undefined?(existingCost?.needs_estimate??0):flag(body.needsEstimate),id,tripId,body.billToTraveler===undefined?(existingCost?.bill_to_traveler??1):flag(body.billToTraveler))]);
+  if (existingId && !results[0].meta.changes) throw new AdminError(404, "COST_NOT_FOUND", "That cost item could not be found.");
   await env.DB.prepare("UPDATE trips SET budget_completed_at = NULL, updated_at = ?1 WHERE id = ?2").bind(now, tripId).run();
   await recalculateTripBudget(env, tripId, trip.paying_traveler_count, now);
   await auditStatement(env, "trip_cost_item", id, existingId ? "updated" : "created", {
     tripId, calculationMethod, percentageRate, estimatedTotal, actualTotal,
   }).run();
-  await syncPaidTripCostLedger(env, tripId, trip.code, id, session.id);
+  const template = await env.DB.prepare('SELECT template_key FROM trip_cost_items WHERE id=?1').bind(id).first<{template_key:string|null}>();
+  if (!['hs-admin','hs-leadership'].includes(template?.template_key ?? '')) await syncPaidTripCostLedger(env, tripId, trip.code, id, session.id);
   return adminJson({ id }, existingId ? 200 : 201);
 }
 
@@ -991,6 +1006,8 @@ async function updateBudgetPlan(request: Request, env: AdminEnv, tripId: string)
     const activeCost = await env.DB.prepare(
       "SELECT id FROM trip_cost_items WHERE trip_id = ?1 AND payment_status != 'canceled' LIMIT 1",
     ).bind(tripId).first();
+    const unfinished = await env.DB.prepare("SELECT id FROM trip_cost_items WHERE trip_id=?1 AND payment_status!='canceled' AND needs_estimate=1 LIMIT 1").bind(tripId).first();
+    if (unfinished) throw new AdminError(422,'BUDGET_INCOMPLETE','Review each Needs estimate item, enter its amount (or zero), and clear Needs estimate before finishing.');
     if (!activeCost) {
       throw new AdminError(422, "BUDGET_COST_REQUIRED", "Add at least one active budget item before finishing the budget.");
     }
@@ -1091,7 +1108,8 @@ async function saveAward(request: Request, env: AdminEnv, tripId: string): Promi
 
 async function refreshChargeStatus(env: AdminEnv, chargeId: string): Promise<void> {
   const row = await env.DB.prepare(`SELECT c.amount, c.status,
-    COALESCE((SELECT SUM(a.amount) FROM trip_payment_applications a WHERE a.charge_id = c.id), 0) AS applied
+    COALESCE((SELECT SUM(a.amount) FROM trip_payment_applications a WHERE a.charge_id = c.id), 0)
+    + COALESCE((SELECT SUM(a.amount) FROM trip_award_applications a JOIN trip_coverage_awards w ON w.id=a.award_id WHERE a.charge_id=c.id AND w.status='approved'),0) AS applied
     FROM trip_charges c WHERE c.id = ?1`).bind(chargeId).first<{ amount: number; status: string; applied: number }>();
   if (!row || ["waived", "canceled"].includes(row.status)) return;
   const applied = Number(row.applied);
@@ -1137,6 +1155,12 @@ async function savePayment(request: Request, env: AdminEnv, tripId: string): Pro
       status, payerName, externalReference, sourceSystem, sourceTransactionId, ledgerEntryId, charitableAmount, notes, now,
     );
   const statements: D1PreparedStatement[] = [];
+  const operationId = uuid(body.operationId, 'payment reference', true);
+  if (operationId) {
+    const prior = await env.DB.prepare('SELECT id FROM ministry_operations WHERE id=?1').bind(operationId).first();
+    if(prior) return adminJson({ok:true,alreadyRecorded:true});
+    statements.push(env.DB.prepare('INSERT INTO ministry_operations(id,created_at) VALUES(?1,?2)').bind(operationId,now));
+  }
   if (ledgerEntryId) {
     statements.push(env.DB.prepare(`INSERT INTO ledger_entries (
       id, source_type, import_key, content_fingerprint, financial_transaction_id, transaction_date,
@@ -1153,17 +1177,37 @@ async function savePayment(request: Request, env: AdminEnv, tripId: string): Pro
   }
   statements.push(paymentStatement);
   const chargeId = uuid(body.chargeId, "charge", true);
+  const allocatedIds: string[] = [];
+  if (body.autoApply === true) {
+    if (!accountId || status !== 'received' || !['trip_payment','admin_fee','other'].includes(purpose)) throw new AdminError(422,'INVALID_APPLICATION','Select a received trip payment and account.');
+    if (chargeId) throw new AdminError(422,'INVALID_APPLICATION','Choose automatic allocation or one charge, not both.');
+    const accountPlan=await env.DB.prepare('SELECT payment_plan FROM trip_accounts WHERE id=?1').bind(accountId).first<{payment_plan:string}>();
+    if(body.installment === true && fundingSourceId && !(await env.DB.prepare("SELECT id FROM trip_funding_sources WHERE id=?1 AND source_type='traveler'").bind(fundingSourceId).first())) throw new AdminError(422,'SELF_FUNDED_ONLY','Choose Traveler / Self for an installment.');
+    if(body.installment === true && accountPlan?.payment_plan !== 'self_funded') throw new AdminError(422,'SELF_FUNDED_ONLY','Installments are available for a traveler paying their own entire trip.');
+    const charges=await env.DB.prepare(`SELECT c.id,c.amount,
+      COALESCE((SELECT SUM(a.amount) FROM trip_payment_applications a WHERE a.charge_id=c.id),0)+
+      COALESCE((SELECT SUM(a.amount) FROM trip_award_applications a JOIN trip_coverage_awards w ON w.id=a.award_id WHERE a.charge_id=c.id AND w.status='approved'),0) AS applied
+      FROM trip_charges c WHERE c.account_id=?1 AND c.trip_id=?2 AND c.status NOT IN ('waived','canceled') ORDER BY c.due_date,c.created_at,c.id`).bind(accountId,tripId).all<{id:string;amount:number;applied:number}>();
+    for(const allocation of allocatePayment(amount, charges.results)) {
+      statements.push(env.DB.prepare('INSERT INTO trip_payment_applications(payment_id,charge_id,amount,created_at) VALUES(?1,?2,?3,?4)').bind(id,allocation.chargeId,allocation.amount,now));
+      allocatedIds.push(allocation.chargeId);
+    }
+  }
   if (chargeId) {
     if (!accountId) throw new AdminError(422, "PAYMENT_ACCOUNT_REQUIRED", "Select the same trip account when applying a payment to a charge.");
-    const charge = await env.DB.prepare("SELECT id, account_id, amount FROM trip_charges WHERE id = ?1 AND trip_id = ?2").bind(chargeId, tripId).first<{ id: string; account_id: string; amount: number }>();
+    const charge = await env.DB.prepare(`SELECT c.id, c.account_id, c.amount, c.status,
+      COALESCE((SELECT SUM(a.amount) FROM trip_payment_applications a WHERE a.charge_id=c.id),0)
+      + COALESCE((SELECT SUM(a.amount) FROM trip_award_applications a JOIN trip_coverage_awards w ON w.id=a.award_id WHERE a.charge_id=c.id AND w.status='approved'),0) AS applied
+      FROM trip_charges c WHERE c.id=?1 AND c.trip_id=?2`).bind(chargeId, tripId).first<{ id: string; account_id: string; amount: number; status: string; applied: number }>();
     if (!charge || charge.account_id !== accountId) throw new AdminError(422, "INVALID_CHARGE", "Choose a charge from this trip account.");
     const appliedAmount = money(body.appliedAmount ?? amount, "Applied amount");
     if (appliedAmount > amount) throw new AdminError(422, "INVALID_APPLICATION", "The applied amount cannot exceed the payment.");
+    if (['waived','canceled'].includes(charge.status) || appliedAmount > roundedMoney(charge.amount-charge.applied)) throw new AdminError(409, "CHARGE_BALANCE_CHANGED", "The amount exceeds this item's unpaid balance. Refresh the account and try again.");
     statements.push(env.DB.prepare("INSERT INTO trip_payment_applications (payment_id, charge_id, amount, created_at) VALUES (?1, ?2, ?3, ?4)").bind(id, chargeId, appliedAmount, now));
   }
   statements.push(auditStatement(env, "trip_payment", id, "recorded", { tripId, accountId, amount, settlementRoute, purpose }));
   await env.DB.batch(statements);
-  if (chargeId) await refreshChargeStatus(env, chargeId);
+  for (const allocatedId of [...allocatedIds,...(chargeId?[chargeId]:[])]) await refreshChargeStatus(env,allocatedId);
   return adminJson({ id, ledgerEntryId }, 201);
 }
 
@@ -1330,6 +1374,7 @@ async function deleteTripResource(request: Request, env: AdminEnv, tripId: strin
   };
   const selected = allowed[resource];
   if (!selected) throw new AdminError(404, "NOT_FOUND", "Not found.");
+  if(resource==='cost-items' && await env.DB.prepare('SELECT id FROM trip_charges WHERE cost_item_id=?1 LIMIT 1').bind(id).first()) throw new AdminError(409,'BUDGET_ITEM_IN_USE','This item has traveler charges. Set the cost status to Canceled and review traveler charge updates instead of deleting its history.');
   const ownership = resource === "allocations"
     ? `cost_item_id IN (SELECT id FROM trip_cost_items WHERE trip_id = ?2)`
     : resource === "accounts" ? "trip_id = ?2" : "trip_id = ?2";
@@ -1375,10 +1420,11 @@ async function publicTrip(env: AdminEnv, slug: string): Promise<Response> {
   if (!trip) throw new AdminError(404, "TRIP_NOT_FOUND", "That public trip could not be found.");
   const content = await env.DB.prepare(
     `SELECT id, content_type, title, content, event_date, event_time, location, link_url, sort_order
-     FROM trip_content WHERE trip_id = ?1 AND visibility = 'public' AND publication_status = 'published'
+     FROM trip_content WHERE trip_id = ?1 AND visibility = 'public' AND publication_status = 'published' AND content_type IN ('overview','itinerary')
      ORDER BY content_type, event_date, sort_order, title`,
   ).bind((trip as JsonRecord).id).all();
-  return adminJson({ trip, content: content.results }, 200, { "Cache-Control": "public, max-age=60" });
+  const ministries=await env.DB.prepare('SELECT DISTINCT m.name FROM trip_organizations o JOIN ministries m ON m.id=o.ministry_id WHERE o.trip_id=?1 ORDER BY m.name').bind((trip as JsonRecord).id).all();
+  return adminJson({ trip, content: content.results, ministries:ministries.results }, 200, { "Cache-Control": "public, max-age=60" });
 }
 
 type PortalLoginAttempt = {

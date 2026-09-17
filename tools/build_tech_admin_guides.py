@@ -893,6 +893,12 @@ def build_guide(spec: GuideSpec) -> Path:
     # Keep the final paragraph compact and avoid an accidental blank last page.
     if doc.paragraphs:
         doc.paragraphs[-1].paragraph_format.space_after = Pt(0)
+        if not doc.paragraphs[-1].text.strip():
+            final = doc.paragraphs[-1]
+            final.paragraph_format.space_before = Pt(0)
+            final.paragraph_format.line_spacing = Pt(1)
+            final.paragraph_format.keep_with_next = False
+            final.add_run().font.size = Pt(1)
     doc.save(output_path)
     return output_path
 

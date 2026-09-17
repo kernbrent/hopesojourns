@@ -1,4 +1,5 @@
 import { handleAdminRequest } from "./admin";
+import { handleMinistryAdminRequest } from "./ministry-admin";
 import { handleCsmAdminRequest, handleCsmDelivery } from "./csm-distribution";
 import { handleLedgerAdminRequest } from "./ledger-admin";
 import { handleTripAdminRequest, handleTripPublicRequest } from "./trip-platform";
@@ -564,6 +565,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return json(request, env, { status: "ok", service: "hope-sojourns-interest", environment: env.ENVIRONMENT });
   }
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
+  if (path.startsWith('/admin/ministry/')) return handleMinistryAdminRequest(request,env,path);
   if (path.startsWith("/admin/trip-platform") || path.startsWith("/admin/trips")) {
     return handleTripAdminRequest(request, env, path);
   }

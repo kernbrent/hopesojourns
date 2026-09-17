@@ -450,6 +450,8 @@ function requestedAdminView() {
   const viewsByHash = {
     "#requests": "requests",
     "#ledger": "ledger",
+    "#income": "ledger",
+    "#expenses": "ledger",
     "#ministries": "ministries",
     "#people": "people",
   };
@@ -476,7 +478,9 @@ function showDashboard(session) {
   dashboardPanel.hidden = false;
   loginStatus.textContent = "";
   document.querySelector("#dashboard-title").focus?.();
+  if (location.hash === "#income" || location.hash === "#expenses") ledgerFilters.elements.entryType.value = location.hash === "#income" ? "income" : "expense";
   switchView(requestedAdminView());
+  if (location.hash === "#settings") openAdminSettings();
 }
 
 function loadSidebarPreference() {
@@ -497,6 +501,7 @@ function initializeAdminSidebar() {
     link.addEventListener("click", event => {
       event.preventDefault();
       const view = link.dataset.adminSidebarView;
+      if (view === "ledger") ledgerFilters.elements.entryType.value = link.dataset.ledgerKind || "";
       window.history.replaceState(null, "", link.getAttribute("href"));
       switchView(view, true);
     });
@@ -505,7 +510,7 @@ function initializeAdminSidebar() {
 
 function updateSidebarSelection(view) {
   globalSidebar.querySelectorAll("[data-admin-sidebar-view]").forEach(link => {
-    const active = link.dataset.adminSidebarView === view;
+    const active = link.dataset.adminSidebarView === view && (view !== "ledger" || (link.dataset.ledgerKind || "") === ledgerFilters.elements.entryType.value);
     link.classList.toggle("is-active", active);
     if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
@@ -1538,7 +1543,7 @@ function renderLedgerTable(entries) {
   table.append(element("caption", "", "Filtered Hope Sojourns income and expense ledger."));
   const head = document.createElement("thead");
   const heading = document.createElement("tr");
-  ["Date", "Type", "Purpose", "Amount", "Charitable", "Name", "Payment", "Check #", "Expense category", "Budget category", "Source", "Note", "Receipts", "Actions"].forEach(label => {
+  ["Date", "Name / purpose", "Category / program", "Payment / source", "Amount", "Receipts", "Actions"].forEach(label => {
     const cell = element("th", "", label);
     cell.scope = "col";
     heading.append(cell);
@@ -1548,19 +1553,28 @@ function renderLedgerTable(entries) {
   entries.forEach(entry => {
     const row = document.createElement("tr");
     gridCell(row, formatDate(entry.transactionDate, false));
-    const type = gridCell(row, titleCase(entry.entryType), `admin-ledger-type admin-ledger-type-${entry.entryType}`);
-    type.dataset.label = entry.entryType;
-    gridCell(row, titleCase(String(entry.transactionPurpose || "general").replaceAll("_", " ")));
-    gridCell(row, formatMoney(entry.amount), "admin-ledger-amount");
-    gridCell(row, formatMoney(entry.charitableAmount || 0), "admin-ledger-amount");
-    gridCell(row, entry.name || "—", entry.name ? "" : "admin-grid-muted");
-    gridCell(row, entry.paymentType);
-    gridCell(row, entry.checkNumber || "—", entry.checkNumber ? "" : "admin-grid-muted");
-    gridCell(row, entry.expenseCategory || "—", entry.expenseCategory ? "" : "admin-grid-muted");
-    gridCell(row, entry.budgetCategory);
-    const source = gridCell(row, ledgerSourceLabel(entry.sourceType));
-    if (entry.sourceFileName) source.append(element("small", "", `${entry.sourceFileName}${entry.sourceRowNumber ? ` · row ${entry.sourceRowNumber}` : ""}`));
-    gridCell(row, entry.note || "—", entry.note ? "" : "admin-grid-muted");
+    const party = gridCell(row, '');
+    party.append(element('strong', '', entry.name || 'No name recorded'));
+    party.append(element('small', '', entry.note || titleCase(String(entry.transactionPurpose || 'general').replaceAll('_', ' '))));
+    const details = element('details', 'admin-ledger-details');
+    details.append(element('summary', '', 'Full record'));
+    const fields = [
+      ['Type', titleCase(entry.entryType)], ['Purpose', titleCase(String(entry.transactionPurpose || 'general').replaceAll('_', ' '))],
+      ['Charitable portion', formatMoney(entry.charitableAmount || 0)], ['Check number', entry.checkNumber || '—'],
+      ['Expense category', entry.expenseCategory || '—'], ['Budget category', entry.budgetCategory || '—'],
+      ['Source', ledgerSourceLabel(entry.sourceType)], ['Note', entry.note || '—'],
+      ['Imported file', entry.sourceFileName ? `${entry.sourceFileName}${entry.sourceRowNumber ? ` · row ${entry.sourceRowNumber}` : ''}` : '—']
+    ];
+    const list = element('dl', '');
+    for (const [label, value] of fields) list.append(element('dt', '', label), element('dd', '', value));
+    details.append(list); party.append(details);
+    const category = gridCell(row, entry.expenseCategory || entry.budgetCategory || '—');
+    if (entry.expenseCategory) category.append(element('small', '', entry.budgetCategory || ''));
+    const payment = gridCell(row, entry.paymentType || '—');
+    payment.append(element('small', '', ledgerSourceLabel(entry.sourceType)));
+    if (entry.checkNumber) payment.append(element('small', '', `Check ${entry.checkNumber}`));
+    const amount = gridCell(row, formatMoney(entry.amount), 'admin-ledger-amount');
+    amount.append(element('small', `admin-ledger-type-${entry.entryType}`, titleCase(entry.entryType)));
     const receiptCell = document.createElement("td");
     receiptCell.className = "admin-ledger-receipt-cell";
     if (entry.entryType === "expense") {
@@ -1834,6 +1848,10 @@ function ensureLedgerYears() {
 }
 
 async function loadLedger() {
+  const kind = ledgerFilters.elements.entryType.value;
+  document.querySelector('#ledger-view-title').textContent = kind === 'income' ? 'Income received' : kind === 'expense' ? 'Ministry expenses' : 'Hope Sojourns financial ledger';
+  document.querySelectorAll('[data-ledger-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.ledgerView === kind)));
+  updateSidebarSelection(state.view);
   ensureLedgerYears();
   ledgerStatus.textContent = "Loading ledger…";
   ledgerTableShell.setAttribute("aria-busy", "true");
@@ -3619,7 +3637,20 @@ nextLedgerPage.addEventListener("click", () => {
   if (state.ledgerPage < state.ledgerPages) { state.ledgerPage += 1; loadLedger(); }
 });
 
-addLedgerEntryButton.addEventListener("click", openLedgerEntryDialog);
+addLedgerEntryButton.addEventListener("click", () => openLedgerEntryDialog());
+for (const kind of ['income', 'expense']) {
+  document.getElementById('add-ledger-' + kind).addEventListener('click', () => {
+    openLedgerEntryDialog();
+    ledgerEntryForm.elements.entryType.value = kind;
+    ledgerEntryForm.elements.transactionPurpose.value = kind === 'income' ? 'donation' : 'general';
+    ledgerEntryTitle.textContent = kind === 'income' ? 'Add income' : 'Add expense';
+  });
+}
+document.querySelectorAll('[data-ledger-view]').forEach(button => button.addEventListener('click', () => {
+  ledgerFilters.elements.entryType.value = button.dataset.ledgerView;
+  state.ledgerPage = 1;
+  loadLedger();
+}));
 closeLedgerEntryDialog.addEventListener("click", () => ledgerEntryDialog.close());
 closeLedgerReceiptDialog.addEventListener("click", () => {
   if (!state.ledgerReceiptUploading) ledgerReceiptDialog.close();
@@ -3934,3 +3965,24 @@ initializeAdminSidebar();
   }
   showLogin();
 })();
+
+function openAdminSettings() {
+  const toggle = document.querySelector('#settings-guided-help');
+  try { toggle.checked = localStorage.getItem('hope-sojourns-trip-guided-help') !== 'false'; } catch { toggle.checked = true; }
+  document.querySelector('#settings-status').textContent = '';
+  document.querySelector('#admin-settings-dialog').showModal();
+}
+document.querySelector('#open-admin-settings').addEventListener('click', event => { event.preventDefault(); openAdminSettings(); });
+document.querySelector('#close-admin-settings').addEventListener('click', () => document.querySelector('#admin-settings-dialog').close());
+document.querySelector('#settings-guided-help').addEventListener('change', event => {
+  try {
+    localStorage.setItem('hope-sojourns-trip-guided-help', String(event.target.checked));
+    document.querySelector('#settings-status').textContent = 'Saved. Applies when you next open or refresh the trip workspace.';
+  } catch { document.querySelector('#settings-status').textContent = 'Your browser could not save this preference. Use Guided help in the trip workspace.'; }
+});
+for (const [button, target] of [['settings-password','open-change-password'],['settings-signout','admin-signout']]) {
+  document.getElementById(button).addEventListener('click', () => {
+    document.querySelector('#admin-settings-dialog').close();
+    document.getElementById(target).click();
+  });
+}

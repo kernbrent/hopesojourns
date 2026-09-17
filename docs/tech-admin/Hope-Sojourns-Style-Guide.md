@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 3.6
+Version 4.1
 
-Last reviewed: September 7, 2026
+Last reviewed: September 17, 2026
 
 ## 1. Purpose
 
@@ -15,6 +15,8 @@ The goal is a site that feels warm, grounded, hopeful, relational, and trustwort
 | Source | Responsibility |
 |---|---|
 | `/styles.css` | Global visual system and the canonical `:root` design tokens |
+| `/experience.css` | Public editorial redesign, imported by the shared stylesheet and scoped to `hs-redesign` |
+| `/tools/build_front_door.py` | Maintainable story, welcome, discovery, and public partnership page source |
 | `/admin/admin.css` | Portal-specific layouts that inherit global tokens |
 | `/admin/trips/trips.css` | Focused trip-administration workspace that inherits global tokens |
 | `/journey/journey.css` | Shared trip portal layout and content hierarchy |
@@ -27,6 +29,22 @@ The goal is a site that feels warm, grounded, hopeful, relational, and trustwort
 Every page must load `/styles.css`. A future color change should be made in the `:root` token block, never by hunting through individual components.
 
 ## 3. Brand foundation
+
+### September 2026 test experience
+
+The public test site uses an editorial design centered on encounters, shared humanity, and Christian service. Production retains its previously approved release until a separate promotion is requested. The standards in this subsection take precedence over the older public hero, pill-button, rounded-shell, and cinematic-introduction treatments described elsewhere in this guide. Private portal components retain their existing standards.
+
+The welcome at `/` uses large Georgia typography, warm paper, and a deep forest quotation field. It opens with a personal encounter rather than a destination. `/explore/` is the complete main page, with ministry photography, curiosity links, the existing journey catalog, internships, and the founding story. Keep the visible “Explore the main site” link in the sticky header on every public page, including mobile; it must remain outside the collapsed menu.
+
+Visitors can read two short, manually paced stories at `/stories/`. There is no automatic introduction, audio, timed advance, entrance animation, or scroll reveal. Every story includes an exit to the main site. Greece is identified only as the setting of the founding stories and one destination among many; it must not define the organization’s reach.
+
+The discovery page offers questions about going, joining local work, and bringing a community. These are invitations to explore, not assigned identities. People can change direction freely. No hidden persona, browsing profile, or inferred role is saved. Dedicated ministry, group, and college pages provide relevant practical continuations.
+
+Public typography uses Georgia for expressive headings and the existing system sans-serif for body copy. Large headings scale with the viewport; body copy is normally 17–18px. Primary actions are deep forest with paper text, modest 3px corners, and a clear hover/focus state. Secondary actions are understated text links. Use flat surfaces, fine rules, open spacing, and 3–5px card corners rather than raised rounded panels. The main photographic arch is a deliberate exception.
+
+Use only existing shared palette tokens: paper and cream surfaces, deep forest fields, forest actions, dark coral emphasis on paper, and light gold emphasis on deep forest. No new palette colors are introduced. Downloaded copies of existing ministry photographs are optimized for local delivery; retain accurate captions and do not imply that Athens represents every journey. The existing destination catalog imagery remains separate from the personal story imagery.
+
+At 1000px the navigation collapses; at 700px editorial columns stack. Keep all controls usable at 320px. Native anchors provide shareable story and curiosity locations, browser history, and a complete reading experience without JavaScript. On enhanced pages, move focus to the revealed heading after a visitor changes the story or question. Escape closes the mobile menu.
 
 ### Core idea
 
@@ -443,7 +461,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 
 - Motion should explain arrival, hierarchy, expansion, or the journey motif.
 - Do not loop decorative motion.
-- Keep interactions responsive and short; longer cinematic motion is limited to the optional first-visit invitation.
+- Keep interactions responsive and short. The redesigned public experience has no cinematic introduction or timed transitions; readers advance stories themselves.
 - Preserve content and navigation when motion is disabled.
 - Any new animation requires a reduced-motion alternative.
 
@@ -473,10 +491,26 @@ If a proposed treatment differs from this guide, first determine whether it is:
 
 Only the third case should create a new standard. Update `/styles.css`, `/COLOR-PALETTE.md` when colors are affected, and this guide in the same change.
 
+## Ministry Management interface
+
+The private `/admin/ministry/` workspace uses the shared palette and `/admin/ministry/ministry.css`. Desktop navigation is a persistent left rail. At the mobile breakpoint it becomes a horizontal navigation row, with a single-column content area. Tables scroll within their containers rather than widening the page.
+
+Home emphasizes actions requiring attention. Inbox separates Needs action, Recent activity, and Completed. Financial work uses recognizable Income and Expenses views with add and edit dialogs, and keeps advanced tools accessible. All existing functionality remains reachable through the original workspaces.
+
+Trip preparation follows budget, traveler assignment, and content review. Label unreviewed costs Needs estimate; zero is a valid reviewed estimate. Explain percentage and amount overrides alongside HS Travel. Distinguish traveler contributions from HS leader expenses and projected balances from recorded cash allocations. Funding actions show the source and settlement route before saving. Mark all paid means recording funding, not deleting a balance.
+
+Use native labeled controls, keyboard-accessible dialogs, visible focus indicators, live status messages, and disabled submit buttons while saving. Escape all record text before rendering. Document replacements retain prior versions; deletion uses the plain-language Move to trash action with Restore available.
+
+The main administration and trip sidebars provide direct Ministry Management, Inbox, Documents, and Settings links. Settings reuses the existing password and sign-out controls and stores Guided Trip Help in the existing browser preference. It opens after authentication at `/admin/#settings`.
+
+The ledger follows the CareerSteps Income and Expenses work pattern with direct sidebar views, separate add buttons, and compact rows. Full record disclosures retain every previously displayed field. Receipt, edit, delete, import review, export, source filters, and pagination continue to use the same HS handlers and database. No data migration is needed for this interface change.
+
 ## Revision history
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.1 | Added Ministry Management navigation, trip preparation, funding, and document interface standards. |
+| 2026-09-10 | 4.0 | Added the test-only editorial public experience, permanent main-site escape, manually paced stories, curiosity navigation, partnership pages, and responsive design rules. |
 | 2026-09-07 | 3.6 | Added compact expandable budget records, explicit budget-finish status, paying-traveler and fee-percentage presentation, What/Why field help, the field-popover click-away exception, and invitation-purpose language. |
 | 2026-09-07 | 3.5 | Added clean and current-trip workbook choices, same-upload People and Ministries creation, protected metadata styling, explicit Create/Update/Unchanged/Blocked preview actions, and immutable secret/payment guidance. |
 | 2026-09-06 | 3.4 | Clarified traveler sign-in identity and required bounded, announced, recoverable, single-view session-opening behavior. |

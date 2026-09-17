@@ -546,7 +546,7 @@ function setFormValues(form, values, mapping = {}) {
   });
 }
 
-async function loadBootstrap(selectTrip = state.tripId) {
+async function loadBootstrap(selectTrip = state.tripId || new URLSearchParams(location.search).get('trip')) {
   setStatus(pageStatus, "Loading trips…");
   state.bootstrap = await api("/admin/trip-platform/bootstrap");
   fillAllSelects();
@@ -610,10 +610,11 @@ function financeTotals() {
   const individualBase = activeCosts.filter(item => item.calculation_method === "per_traveler").reduce((sum, item) => sum + Number(item.quantity) * Number(item.estimated_unit_cost), 0);
   const individualFees = activeCosts.filter(item => item.calculation_method === "percentage_of_individual").reduce((sum, item) => sum + Number(item.estimated_unit_cost), 0);
   const fixedCosts = activeCosts.filter(item => item.calculation_method === "fixed").reduce((sum, item) => sum + Number(item.estimated_total), 0);
-  const operational = activeCosts.reduce((sum, item) => sum + Number(item.actual_total > 0 ? item.actual_total : item.estimated_total), 0);
-  const actual = activeCosts.reduce((sum, item) => sum + Number(item.actual_total || 0), 0);
-  const externalCost = activeCosts.filter(item => item.settlement_route === "external").reduce((sum, item) => sum + Number(item.actual_total > 0 ? item.actual_total : item.estimated_total), 0);
-  const hsCost = activeCosts.filter(item => item.settlement_route === "through_hs").reduce((sum, item) => sum + Number(item.actual_total > 0 ? item.actual_total : item.estimated_total), 0);
+  const expenseCosts = activeCosts.filter(item => !['hs-admin','hs-leadership'].includes(item.template_key));
+  const operational = expenseCosts.reduce((sum, item) => sum + Number(item.actual_total > 0 ? item.actual_total : item.estimated_total), 0);
+  const actual = expenseCosts.reduce((sum, item) => sum + Number(item.actual_total || 0), 0);
+  const externalCost = expenseCosts.filter(item => item.settlement_route === "external").reduce((sum, item) => sum + Number(item.actual_total > 0 ? item.actual_total : item.estimated_total), 0);
+  const hsCost = expenseCosts.filter(item => item.settlement_route === "through_hs").reduce((sum, item) => sum + Number(item.actual_total > 0 ? item.actual_total : item.estimated_total), 0);
   const hsIncome = state.workspace.payments.filter(item => item.settlement_route === "through_hs" && item.status === "received" && item.purpose !== "refund").reduce((sum, item) => sum + Number(item.amount), 0);
   const externalFunding = state.workspace.payments.filter(item => item.settlement_route === "external" && item.status === "received").reduce((sum, item) => sum + Number(item.amount), 0);
   const adminRevenue = state.workspace.payments.filter(item => item.settlement_route === "through_hs" && item.status === "received" && item.purpose === "admin_fee").reduce((sum, item) => sum + Number(item.amount), 0);
@@ -813,7 +814,7 @@ function updateCostCalculationFields() {
   const quantity = Math.max(0, Number(form.elements.quantity.value || 0));
   let each = Math.max(0, Number(form.elements.estimatedUnitCost.value || 0));
   if (isPercentage) {
-    each = financeTotals().individualBase * Math.max(0, Number(form.elements.percentageRate.value || 0)) / 100;
+    each = (form.elements.categoryId.value === 'category-hs-leadership' ? state.workspace.costs.filter(item => item.travel_eligible && item.calculation_method !== 'percentage_of_individual' && item.payment_status !== 'canceled').reduce((sum,item)=>sum+(item.calculation_method === 'fixed' ? Number(item.estimated_total)/count : Number(item.quantity)*Number(item.estimated_unit_cost)),0) : financeTotals().individualBase) * Math.max(0, Number(form.elements.percentageRate.value || 0)) / 100;
     form.elements.estimatedUnitCost.value = each.toFixed(2);
   }
   form.elements.estimatedTotal.value = (quantity * each * count).toFixed(2);

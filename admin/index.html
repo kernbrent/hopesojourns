@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-admin-build="2026-09-06.4">
+<html lang="en" data-admin-build="2026-09-17.1">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-06.4">
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-17.1">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -27,11 +27,17 @@
   <aside class="admin-global-sidebar" id="admin-global-sidebar" aria-label="Administration areas" hidden>
     <p class="admin-sidebar-title">Administration</p>
     <nav>
+      <a href="/admin/ministry/"><span aria-hidden="true">⌂</span> Ministry Management</a>
+      <a href="/admin/ministry/#inbox"><span aria-hidden="true">▤</span> Inbox</a>
+      <a href="/admin/ministry/#documents"><span aria-hidden="true">▱</span> Documents</a>
       <a href="#requests" data-admin-sidebar-view="requests"><span aria-hidden="true">&#9675;</span> Requests</a>
       <a href="/admin/trips/"><span aria-hidden="true">&#10022;</span> Trips</a>
       <a href="#ledger" data-admin-sidebar-view="ledger"><span aria-hidden="true">$</span> Organization finances</a>
+      <a href="#income" data-admin-sidebar-view="ledger" data-ledger-kind="income"><span aria-hidden="true">+</span> Income</a>
+      <a href="#expenses" data-admin-sidebar-view="ledger" data-ledger-kind="expense"><span aria-hidden="true">−</span> Expenses</a>
       <a href="#ministries" data-admin-sidebar-view="ministries"><span aria-hidden="true">&#9671;</span> Ministries</a>
       <a href="#people" data-admin-sidebar-view="people"><span aria-hidden="true">&#9675;</span> People</a>
+      <a href="#settings" id="open-admin-settings"><span aria-hidden="true">⚙</span> Settings</a>
     </nav>
     <div class="admin-sidebar-note"><strong>One connected workspace</strong><span>Your signed-in session follows you between these areas.</span></div>
   </aside>
@@ -80,6 +86,7 @@
           <p>Contacts, requests, serving teams, and ministry partners—all in one organized workspace.</p>
         </div>
         <div class="admin-dashboard-actions">
+          <a class="admin-button admin-button-primary" href="/admin/ministry/">Ministry Management · Home &amp; Inbox</a>
           <button class="admin-button admin-button-dark admin-update-button" id="refresh-portal" type="button"><span aria-hidden="true">&#8635;</span> Update portal</button>
           <a class="admin-button admin-button-primary" href="/admin/trips/">Manage trips</a>
           <button class="admin-button admin-button-quiet" id="refresh-submissions" type="button">Refresh data</button>
@@ -215,11 +222,13 @@
         <div class="admin-request-list" id="submissions-list" role="tabpanel" aria-labelledby="requests-view-tab" aria-live="polite" hidden></div>
         <section class="admin-ledger-workspace" id="ledger-workspace" role="tabpanel" aria-labelledby="ledger-view-tab" hidden>
           <div class="admin-ledger-toolbar">
-            <div><strong>Hope Sojourns financial ledger</strong><span>Review approved ChristianSteps transactions, imported spreadsheet rows, and manual entries together.</span></div>
+            <div><strong id="ledger-view-title">Hope Sojourns financial ledger</strong><span>Review approved ChristianSteps transactions, imported spreadsheet rows, and manual entries together.</span></div>
             <div class="admin-ledger-toolbar-actions">
               <button class="admin-button admin-button-outline" id="import-ledger" type="button">Import spreadsheet</button>
               <button class="admin-button admin-button-outline" id="export-ledger" type="button">Export Excel</button>
-              <button class="admin-button admin-button-primary" id="add-ledger-entry" type="button">Add entry</button>
+              <button class="admin-button admin-button-outline" id="add-ledger-income" type="button">Add income</button>
+              <button class="admin-button admin-button-primary" id="add-ledger-expense" type="button">Add expense</button>
+              <button class="admin-button admin-button-quiet" id="add-ledger-entry" type="button">Add entry</button>
             </div>
           </div>
           <div class="admin-ledger-summary" aria-label="Filtered ledger totals">
@@ -227,6 +236,11 @@
             <article><span>Expenses</span><strong id="ledger-expense">$0.00</strong><small>filtered entries</small></article>
             <article class="admin-ledger-balance"><span>Balance</span><strong id="ledger-balance">$0.00</strong><small>income minus expenses</small></article>
             <article><span>Entries</span><strong id="ledger-count">0</strong><small>matching records</small></article>
+          </div>
+          <div class="admin-ledger-views" role="group" aria-label="Financial views">
+            <button class="admin-button" type="button" data-ledger-view="" aria-pressed="true">All transactions</button>
+            <button class="admin-button" type="button" data-ledger-view="income" aria-pressed="false">Income</button>
+            <button class="admin-button" type="button" data-ledger-view="expense" aria-pressed="false">Expenses</button>
           </div>
           <form class="admin-ledger-filters" id="ledger-filters" role="search">
             <label><span>Search ledger</span><input name="search" type="search" maxlength="100" placeholder="Name, note, check number, category, or payment type"></label>
@@ -362,6 +376,19 @@
       </section>
     </section>
   </main>
+
+  <dialog class="admin-detail-dialog admin-password-dialog" id="admin-settings-dialog" aria-labelledby="admin-settings-title" closedby="closerequest">
+    <article class="admin-detail-card">
+      <div class="admin-detail-heading"><h2 id="admin-settings-title">Settings</h2><button class="admin-button" id="close-admin-settings" type="button">Close</button></div>
+      <div class="admin-password-form">
+        <label><input id="settings-guided-help" type="checkbox"> Guided Trip Help</label>
+        <p>Show setup steps and the next action in the trip workspace. This preference is saved in this browser.</p>
+        <p id="settings-status" role="status" aria-live="polite"></p>
+        <button class="admin-button admin-button-outline" id="settings-password" type="button">Change password</button>
+        <button class="admin-button admin-button-outline" id="settings-signout" type="button">Sign out</button>
+      </div>
+    </article>
+  </dialog>
 
   <dialog closedby="closerequest" class="admin-detail-dialog" id="submission-dialog" aria-labelledby="detail-title">
     <div class="admin-detail-shell">
@@ -575,6 +602,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=2026-09-06.4" defer></script>
+  <script src="/admin/admin.js?v=2026-09-17.1" defer></script>
 </body>
 </html>

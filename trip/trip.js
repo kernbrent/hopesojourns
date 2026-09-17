@@ -25,6 +25,7 @@ async function loadTrip() {
     document.querySelectorAll("#actual-trip-interest, #actual-trip-interest-final").forEach(link => { link.href = interestUrl; link.textContent = trip.interest_enabled ? (trip.public_call_to_action || "I'm interested in this trip") : "Talk with Hope Sojourns"; });
     const content = document.querySelector("#actual-trip-content");
     content.replaceChildren();
+    if(data.ministries?.length){const partners=node('article');partners.append(node('h2','','Ministry partners'),node('p','',data.ministries.map(m=>m.name).join(' · ')));content.append(partners);}
     data.content.forEach(item => { const card = node("article"); const detail = [item.event_date ? dateLabel(item.event_date) : "", item.location].filter(Boolean).join(" · "); if (detail) card.append(node("small", "", detail)); card.append(node("h2", "", item.title), node("p", "", item.content)); if (item.link_url) { const link = node("a", "text-link", "Learn more →"); link.href = item.link_url; link.target = "_blank"; link.rel = "noopener noreferrer"; card.append(link); } content.append(card); });
     loading.hidden = true; page.hidden = false;
   } catch { loading.hidden = true; errorPanel.hidden = false; }

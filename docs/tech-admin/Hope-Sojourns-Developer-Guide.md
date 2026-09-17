@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 3.6
+Version 4.1
 
-Last reviewed: September 7, 2026
+Last reviewed: September 17, 2026
 
 ## 1. Purpose and operating rules
 
@@ -80,7 +80,13 @@ There is no top-level frontend package or compilation step. Source HTML, CSS, Ja
 
 | Route | Purpose | Additional runtime |
 |---|---|---|
-| `/` | Homepage and current journeys | `/script.js` |
+| `/` | Shared story-led welcome with a direct main-site link | `/script.js`, `/experience.js` |
+| `/explore/` | Complete main page and retained journey catalog | `/script.js`, `/experience.js` |
+| `/stories/` | Two manually paced founding stories | `/script.js`, `/experience.js` |
+| `/discover/` | Curiosity-led exploration and practical continuations | `/script.js`, `/experience.js` |
+| `/partners/` | Local ministry partnership introduction | `/script.js`, `/experience.js` |
+| `/groups/` | Church, workplace, and community journeys | `/script.js`, `/experience.js` |
+| `/students/` | College and university partnership introduction | `/script.js`, `/experience.js` |
 | `/about/` | Ministry, partnership, and founder information | `/script.js` |
 | `/giving/` | Giving explanation and PayPal widget | `/script.js`, `/giving/giving.js` |
 | `/interest/` | Public interest submission | `/script.js`, `/interest/interest.js` |
@@ -94,7 +100,23 @@ There is no top-level frontend package or compilation step. Source HTML, CSS, Ja
 | `/journey/` | Shared trip credential sign-in and traveler-only resources | `/journey/journey.js` |
 | `/trip-account/?access=<one-time-issued-token>` | Private account statement and balance | `/trip-account/trip-account.js` |
 
-### Developing trip pages
+### Public story experience maintenance
+
+The September 2026 redesign is authorized for `test.hopesojourns.com` only. It changes public static pages, not Workers, D1 databases, receipt buckets, payment behavior, or private portal logic. The shared public header and visual treatment also reach existing public detail pages. Production requires a separately requested promotion; no commit or push is required for a direct test Pages deployment.
+
+`tools/build_front_door.py` generates the seven public entry, exploration, story, and partnership pages. Edit this source for their copy and structure, then regenerate with the bundled Python runtime. The retained journey catalog lives in `tools/front-door-journey-catalog.inc`; dates and opportunity descriptions there must remain synchronized with the developing journey information. The include is an authoring source and is not part of the public artifact.
+
+`experience.css` imports the existing palette through `/styles.css` and scopes public treatments to `body.hs-redesign`. The shared stylesheet imports the experience stylesheet so existing public pages adopt the same presentation. New pages explicitly load both stylesheets. `script.js` adds the public body class, shared header and footer, main-site escape, mobile menu state, and legacy `/#trips` forwarding to `/explore/#trips`. Private administration pages do not load the shared public script and retain their own styles.
+
+`experience.js` uses native URL fragments for `red-1`, `red-2`, `john-1`, `john-2`, `discover`, `partners`, and `together`. It reveals the selected panel, hides its siblings, and moves focus after visitor navigation. Browser back and forward use native history. Without JavaScript, all story and discovery panels remain readable. No story progress, persona, inferred role, or browsing preference is persisted or sent to an API.
+
+The new pages link to the existing interest form, internship information, giving options, and scheduling page. They do not add a new submission endpoint or send messages. Header access to `/explore/` remains visible outside the mobile menu at all screen sizes. Stories additionally expose a direct main-site exit. The old timed invitation and scroll-reveal block is disabled for the redesigned public body class.
+
+Existing ministry photographs copied to `assets/ministry-gathering-athens.jpg` and `assets/athens-team-2026.jpg` come from the ministry’s previously used `christiansteps.net` image URLs. Local optimized copies avoid a third-party load dependency on the main page. Shared CSS and JavaScript use revalidation cache headers.
+
+Run `tools/check-front-door.cjs` with the bundled Node runtime and an optional origin argument to check the public routes, four viewport sizes, both story flows, browser history, three discovery directions, menu/Escape behavior, image loading, and no-JavaScript reading. The checker uses an isolated browser and writes review images under the unpublished `output/front-door-review` directory. It makes no form submissions or donations. Also run `Check-Color-Palette.ps1` and build the allowlisted artifact before publishing to the dedicated test Pages project.
+
+### Developing trip rendering
 
 The route stubs under `/trips/<slug>/` set `data-trip="<slug>"` on the body, load `/trip.js`, and provide `<main id="trip-main"></main>`. `trip.js` selects the matching data object and renders the page.
 
@@ -669,10 +691,42 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 - [ ] TechAdmin copies were synchronized.
 - [ ] Changes remain uncommitted and undeployed unless explicitly requested otherwise.
 
+## Ministry Management workspace
+
+Local implementation dated September 17, 2026. These changes are not deployed. Apply migration `0017_ministry_management.sql` to the target environment before releasing the corresponding Worker and frontend, only after explicit deployment authorization. Preserve the existing database and private receipt bucket; no production data is copied into local previews.
+
+`/admin/ministry/` adds Home, Inbox, Trips, Finances, and Documents while linking to all existing contact, ministry, ledger, receipt, import, statement, and trip tools. `/admin/` and `/admin/trips/` retain their original workflows. The new UI uses the existing administrator cookie and CSRF token. The API namespace `/admin/ministry/` is handled by `src/ministry-admin.ts`.
+
+New trips use the standard template in `src/ministry-budget.ts` unless `useTemplate` is explicitly false. Trip codes and slugs are generated when omitted. Dates create up to 90 daily devotional and itinerary drafts, plus preparation and packing resources. These are editable outlines, not a completed devotional library. Content starts private and unpublished. New-trip creation is one atomic database batch.
+
+Budget items distinguish traveler expenses, HS costs, and local ministry donations. HS Trip Leadership and Administration Fee is separate from HS Travel contribution. HS Travel defaults to 10 percent of eligible travel items, excluding percentage fees; the percentage or calculated amount can be overridden using the existing calculation methods. Eligibility is explicit. The leader travel expense is a separate fixed HS expense that is not charged to travelers a second time. The contribution and administrative fee are budget charges, not automatically posted outgoing expenses.
+
+Traveler assignment creates an individual account when needed and snapshots reviewed budget items into itemized charges. Unestimated items are skipped until reviewed. `GET /admin/ministry/trips/:id/budget-review` returns differences and a revision fingerprint; POST applies the reviewed changes. Existing payments are preserved, stale reviews are rejected, and a charge cannot be reduced below its applied funding. Budgets remain editable independently of issued traveler charges.
+
+The funding screen records payer, source, date, method, reference, and the settlement route. Received HS cash posts through the existing trip payment ledger path; externally settled costs do not create HS cash income. Support credits use coverage awards and item applications, not new cash income. Installments require a self-funded account plan. Mark all paid records the outstanding amount with a source; it never clears balances without funding. Existing unallocated payments and awards can be applied to items first. Operation IDs and database allocation guards protect retries and prevent overpayment. Legacy tools remain available for existing statements, group accounts, allocation details, and payment requests.
+
+The HS Travel reserve view totals received HS payments applied to HS Travel charges less recorded paid HS leader travel expenses across trips. It is a recorded allocation balance, not a reconciled bank balance; unallocated payments and legacy costs without the template association are excluded. Scholarships and external settlements do not increase this cash reserve.
+
+The central inbox combines submitted interest, payment approvals and callback failures, failed trip messages, incomplete budgets, and extensible ministry events. Source records determine action status; the inbox does not post a second payment. Current lists are bounded to 250 recent requests, payments, and custom events, and 100 failed messages and incomplete budgets. Future integrations must emit deduplicated event keys and provide a source action URL.
+
+Documents use authenticated APIs and the existing environment-specific R2 binding under a separate `ministry-documents/` prefix. Metadata and immutable versions are in D1. Uploads are bounded to 10 MB and allow PDF, Office Open XML, PNG, and JPEG signatures. Downloads are authenticated attachments with private no-store caching. Replace creates a new version; delete is recoverable trash, and restore re-enables access. A database failure after object upload removes that new object. No public object URLs are issued.
+
+Public trip responses include only explicitly selected trip fields, ministry names, and published public overview or itinerary content. Budgets, funding, documents, traveler contacts, and devotionals are never returned through that endpoint.
+
+The ledger category catalog adds donation receipts, sponsorships, traveler fees, traveler-covered costs, internship and corporate programs, reimbursements, operating costs, scholarships, salary, and Donation to another organization. Incoming and outgoing donations are distinguished by entry direction. The internship and corporate categories reserve reporting space; specialized workflows still require definition.
+
+Validation includes TypeScript checks, existing regression tests, new SQLite integration tests for the complete migration chain and atomic payment writes, and browser checks against local sample data. On this Windows host use `npm test -- --pool=threads --maxWorkers=1` because forked test workers are unavailable in the sandbox. The local preview helper under `.tmp/` is for sample-data inspection only and must never be deployed or bound to a public interface.
+
+The main administration and trip sidebars provide direct Ministry Management, Inbox, Documents, and Settings links. Settings reuses the existing password and sign-out controls and stores Guided Trip Help in the existing browser preference. It opens after authentication at `/admin/#settings`.
+
+The ledger follows the CareerSteps Income and Expenses work pattern with direct sidebar views, separate add buttons, and compact rows. Full record disclosures retain every previously displayed field. Receipt, edit, delete, import review, export, source filters, and pagination continue to use the same HS handlers and database. No data migration is needed for this interface change.
+
 ## Revision history
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.1 | Added local Ministry Management architecture, trip defaults, item funding, central inbox, document storage, and regression requirements. |
+| 2026-09-10 | 4.0 | Added test-only public redesign routes, generation sources, hash navigation, persistent main-site access, local image delivery, regression checks, and deployment scope. |
 | 2026-09-07 | 3.6 | Added per-traveler and percentage budget calculations, paying-traveler multiplier, explicit budget completion, compact expandable budget records, contextual financial help, and clarified that invitations are for trip interest rather than traveler portal access. |
 | 2026-09-07 | 3.5 | Added People and Ministries as same-workbook creation stages, current-trip workbook export, optimistic update metadata, explicit preview actions, immutable payment handling, and secret-free invitation export. |
 | 2026-09-06 | 3.4 | Documented the traveler sign-in identity model, bounded request handling, session-handoff retry, and visible recovery behavior. |
