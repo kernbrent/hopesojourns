@@ -1,8 +1,14 @@
 # Hope Sojourns website style guide
 
-Version 4.2
+Version 4.3
 
 Last reviewed: September 17, 2026
+
+## Destination management patterns
+
+The Destinations navigation item opens a shared finance-style workspace for public trip tiles. Editors can change names, dates, plain-text content, photos and photo credits; choose Draft, Published, or Hidden; and preview content privately. Hiding retains trip and financial history. New destinations are saved as Draft before uploading a photo, then published explicitly.
+
+Display order uses lower numbers first. Explain beside the field that choosing an occupied number moves that destination and all higher-numbered destinations up by one automatically. Refresh the table after saving to show every affected number. Ordinary content edits must not change neighboring order. Photo previews scale to the dialog width, and labels and status messages remain accessible. Public interest choices follow the same published list and order as the tiles.
 
 ## 1. Purpose
 
@@ -519,6 +525,7 @@ Forms use labeled native inputs, optional trip/ministry selectors, visible keybo
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.3 | Added managed public destinations, photo and visibility controls, and automatic insertion ordering. |
 | 2026-09-17 | 4.2 | Added local bookkeeping dashboard, optional trip/ministry relationships, mileage, invoices, reports, and review controls. |
 | 2026-09-17 | 4.1 | Added Ministry Management navigation, trip preparation, funding, and document interface standards. |
 | 2026-09-10 | 4.0 | Added the test-only editorial public experience, permanent main-site escape, manually paced stories, curiosity navigation, partnership pages, and responsive design rules. |

@@ -1,8 +1,18 @@
 # Hope Sojourns developer guide
 
-Version 4.2
+Version 4.3
 
 Last reviewed: September 17, 2026
+
+## Managed public destinations
+
+Local implementation adds /admin/destinations/, destinations-public.js, and migration 0019_public_destinations.sql. Destinations are public marketing content, separate from dated trips and private traveler or financial records. The migration preserves the seven existing opportunity IDs and seeds their current public content. Public tiles, destination detail pages, and interest-form choices read the same published destination list. Existing /trips/ links remain valid; new pages use /destination/?destination=slug.
+
+Authenticated /admin/destinations APIs manage content, visibility, and photos; writes require CSRF and revision checks. Public /public/destinations endpoints expose published content only. Draft and hidden destinations return 404 publicly; hiding retains associated records. Photos accept JPEG, PNG, or WebP up to 6 MB, stored under destination-images in the existing private R2 binding. Only the current published photo is publicly served, with no-store headers. Original objects are retained for recovery.
+
+Display order is a nonnegative integer; lower values appear first. Assigning an occupied number inserts the destination there and increments all other destinations at or above that number by one, including drafts and hidden destinations. The bump and save occur in one database batch. Bumped records receive new revisions; their opportunity order is synchronized by triggers. Unchanged order or an unoccupied number does not shift neighbors. Stale edits cannot reorder records, and failed creates roll back all shifts. Tests cover collisions, unchanged order, rollback, public visibility, authentication, and stale edits.
+
+Release status: local changes only. Apply migration 0019 before deploying the destination APIs and public assets after explicit release authorization. Preserve unrelated pending homepage redesign changes when preparing a release.
 
 ## 1. Purpose and operating rules
 
@@ -172,13 +182,7 @@ HTML references use query values such as `/styles.css?v=26` and `/script.js?v=15
 
 ### Developing trips
 
-`/trip.js` contains the developing-trip data objects and renders route stubs. When adding a trip:
-
-1. Add a unique, lowercase, hyphenated slug to `tripData`.
-2. Add the destination, status, image, summary, facts, description, and appropriate actions.
-3. Create `/trips/<slug>/index.html` using an existing trip stub.
-4. Update any homepage, interest-form, or navigation content that should expose the new trip.
-5. Verify missing data does not create blank labels or broken links.
+Use **Destinations** in the admin portal to create or edit public destinations. Save new entries as Draft, add a photo, then publish. Set Display order to choose tile placement; occupied numbers automatically bump later destinations. Existing route stubs remain valid and new destinations use the generic destination page. Dated trips and private program records remain separate.
 
 ### Resources
 
@@ -741,6 +745,7 @@ The new SQLite integration suite verifies authentication, CSRF, organization-wid
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.3 | Added managed public destinations, photo and visibility controls, and automatic insertion ordering. |
 | 2026-09-17 | 4.2 | Added bookkeeping dashboard, optional trip/ministry relationships, mileage, invoices, reports, and review controls. |
 | 2026-09-17 | 4.1 | Added local Ministry Management architecture, trip defaults, item funding, central inbox, document storage, and regression requirements. |
 | 2026-09-10 | 4.0 | Added test-only public redesign routes, generation sources, hash navigation, persistent main-site access, local image delivery, regression checks, and deployment scope. |

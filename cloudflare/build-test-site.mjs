@@ -14,6 +14,8 @@ const publicEntries = [
   "script.js",
   "styles.css",
   "trip.js",
+  "destination",
+  "destinations-public.js",
   "about",
   "admin",
   "agreements",

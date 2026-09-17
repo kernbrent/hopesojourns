@@ -199,4 +199,24 @@ if (interestForm) {
   });
 
   prefillFromUrl();
+  const destinationChoices = interestForm.querySelector('[data-choice-group="trip"] .interest-choice-grid');
+  if (destinationChoices) {
+    destinationChoices.textContent = 'Loading current destinations…';
+    fetch('/api/interest/public/destinations', { cache: 'no-store' })
+      .then(response => { if (!response.ok) throw new Error(); return response.json(); })
+      .then(({ destinations }) => {
+        destinationChoices.replaceChildren();
+        destinations.forEach(destination => {
+          const label = document.createElement('label'); label.className = 'interest-choice';
+          const input = document.createElement('input'); input.type = 'checkbox'; input.name = 'opportunities';
+          input.value = destination.slug === 'others' ? 'trip-future-journeys' : 'trip-' + destination.slug;
+          const span = document.createElement('span'), title = document.createElement('strong'), summary = document.createElement('small');
+          title.textContent = destination.title; summary.textContent = destination.summary;
+          span.append(title, summary); label.append(input, span); destinationChoices.append(label);
+        });
+        if (!destinations.length) destinationChoices.textContent = 'New destinations are being planned.';
+        prefillFromUrl();
+      })
+      .catch(() => { destinationChoices.textContent = 'Destinations could not be loaded. Please refresh or book a conversation.'; });
+  }
 }

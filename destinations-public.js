@@ -1,0 +1,21 @@
+/* Public destination fields only. Private trip operations are never loaded here. */
+(async()=>{
+ const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const paragraphs=value=>String(value||'').split('\n').filter(Boolean).map(s=>`<p>${esc(s)}</p>`).join('');
+ const url=d=>['athens','kenya','belize','nice','arkansas','mexico-city','others'].includes(d.slug)?`/trips/${d.slug}/`:`/destination/?destination=${encodeURIComponent(d.slug)}`;
+ const grid=document.querySelector('#trips .trip-grid');
+ if(grid){
+  grid.innerHTML='<p role="status">Loading destinations…</p>';
+  try{const response=await fetch('/api/interest/public/destinations',{cache:'no-store'});if(!response.ok)throw new Error();const data=await response.json();
+   grid.innerHTML=data.destinations.map(d=>`<article class="trip-card ${d.dates_text?'has-schedule':''}"><img src="${esc(d.image_url)}" alt="${esc(d.image_alt)}" loading="lazy"><div class="trip-card-content"><p class="kicker">${esc(d.location)}</p><h3>${esc(d.title)}</h3><p>${esc(d.summary)}</p>${d.dates_text?`<ul class="trip-schedule">${d.dates_text.split('\n').filter(Boolean).map(line=>`<li><span class="trip-date">${esc(line)}</span></li>`).join('')}</ul>`:''}<a class="text-link" href="${esc(url(d))}">Explore ${esc(d.title)} →</a></div></article>`).join('')||'<p>New journeys are being planned. <a href="/schedule/">Talk with us about serving.</a></p>';
+  }catch{grid.innerHTML='<p>Destinations are temporarily unavailable. Please refresh, or <a href="/interest/?type=trip">share your interest</a>.</p>';}
+ }
+ const main=document.querySelector('#trip-main');if(!main)return;
+ const slug=document.body.dataset.trip||new URLSearchParams(location.search).get('destination');
+ if(!slug||!/^[a-z0-9-]+$/.test(slug)){main.innerHTML='<section class="section"><h1>Choose a destination</h1><a href="/#trips">See current destinations</a></section>';return;}
+ main.innerHTML='<section class="section"><p role="status">Loading destination…</p></section>';
+ try{const response=await fetch('/api/interest/public/destinations/'+encodeURIComponent(slug),{cache:'no-store'});if(!response.ok)throw new Error(response.status===404?'This destination is not currently available.':'This destination could not be loaded. Please try again.');const {destination:d,departures}=await response.json();
+  document.title=d.title+' | Hope Sojourns';document.querySelector('meta[name="description"]')?.setAttribute('content',d.summary);
+  main.innerHTML=`<section class="page-hero"><img src="${esc(d.image_url)}" alt="${esc(d.image_alt)}"><div class="hero-content"><p class="eyebrow">${esc(d.eyebrow)}</p><h1>${esc(d.title)}</h1><p>${esc(d.summary)}</p></div></section>${d.image_credit?`<p class="image-credit">${esc(d.image_credit)}</p>`:''}<section class="section content-grid"><div class="prose"><p class="eyebrow">The opportunity</p><h2>Come ready to listen, learn, and help.</h2>${paragraphs(d.introduction)}${d.partners?`<h2>Ministry partners</h2>${paragraphs(d.partners)}`:''}${d.service?`<h2>How a team may serve</h2>${paragraphs(d.service)}`:''}${paragraphs(d.notes)}</div><aside><div class="info-card"><h3>Journey at a glance</h3><dl><dt>Location</dt><dd>${esc(d.location)}</dd>${d.focus?`<dt>Primary focus</dt><dd>${esc(d.focus)}</dd>`:''}${d.setting?`<dt>Setting</dt><dd>${esc(d.setting)}</dd>`:''}${d.dates_text?`<dt>Dates and planning details</dt><dd>${paragraphs(d.dates_text)}</dd>`:''}</dl>${departures.length?`<h3>Scheduled departures</h3>${departures.map(t=>`<p><a href="/trip/?trip=${encodeURIComponent(t.slug)}">${esc(t.title)}</a><br>${esc(t.start_date||'Dates being finalized')}${t.end_date?' – '+esc(t.end_date):''} · ${esc(t.status.replaceAll('_',' '))}</p>`).join('')}`:''}<div class="info-card-actions"><a class="button" href="/interest/?type=trip&amp;opportunity=${encodeURIComponent(d.slug==='others'?'trip-future-journeys':'trip-'+d.slug)}">I’m interested in this destination</a><a class="text-link" href="/schedule/">Talk about this journey →</a></div></div></aside></section>`;
+ }catch(error){main.innerHTML=`<section class="section"><h1>${esc(error.message)}</h1><a class="button" href="/#trips">See current destinations</a></section>`;}
+})();

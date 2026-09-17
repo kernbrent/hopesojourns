@@ -501,3 +501,11 @@ if (photoViewerEnabled) {
   const photoTriggerObserver = new MutationObserver(preparePhotoTriggers);
   photoTriggerObserver.observe(photoViewerMain, { childList: true, subtree: true });
 }
+
+// Managed public destination tiles, independent of the public page layout.
+if (document.querySelector("#trips .trip-grid")) {
+  import("/destinations-public.js?v=1").catch(() => {
+    const grid = document.querySelector("#trips .trip-grid");
+    if (grid) grid.textContent = "Destinations are temporarily unavailable. Please refresh.";
+  });
+}
