@@ -13,10 +13,6 @@ CREATE UNIQUE INDEX trip_auto_account ON trip_accounts(trip_id,person_id) WHERE 
 CREATE TABLE ministry_operations (
   id TEXT PRIMARY KEY, created_at TEXT NOT NULL
 );
-CREATE TRIGGER ministry_charge_update_guard BEFORE UPDATE OF amount,status ON trip_charges
-WHEN (ROUND(NEW.amount*100) < ROUND((COALESCE((SELECT SUM(amount) FROM trip_payment_applications WHERE charge_id=OLD.id),0)+COALESCE((SELECT SUM(a.amount) FROM trip_award_applications a JOIN trip_coverage_awards w ON w.id=a.award_id WHERE a.charge_id=OLD.id AND w.status='approved'),0))*100))
-OR (NEW.status IN ('waived','canceled') AND (EXISTS(SELECT 1 FROM trip_payment_applications WHERE charge_id=OLD.id) OR EXISTS(SELECT 1 FROM trip_award_applications WHERE charge_id=OLD.id)))
-BEGIN SELECT RAISE(ABORT,'Resolve allocated funding before reducing or canceling a charge'); END;
 CREATE TABLE ministry_documents (
   id TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT NOT NULL,
   trip_id TEXT REFERENCES trips(id) ON DELETE SET NULL,
@@ -41,8 +37,7 @@ CREATE TABLE trip_award_applications (
 );
 -- Abort the entire batch if a concurrent allocation would overpay a charge.
 CREATE TRIGGER ministry_payment_application_guard BEFORE INSERT ON trip_payment_applications
-BEGIN
- SELECT CASE WHEN NOT EXISTS (
+WHEN NOT EXISTS (
    SELECT 1 FROM trip_charges c JOIN trip_payments p ON p.id=NEW.payment_id
    WHERE c.id=NEW.charge_id AND c.account_id=p.account_id AND c.trip_id=p.trip_id
      AND c.status NOT IN ('waived','canceled') AND p.status='received'
@@ -51,11 +46,12 @@ BEGIN
        + COALESCE((SELECT SUM(a.amount) FROM trip_award_applications a JOIN trip_coverage_awards w ON w.id=a.award_id WHERE a.charge_id=c.id AND w.status='approved'),0)
        + NEW.amount)*100) <= ROUND(c.amount*100)
      AND ROUND((COALESCE((SELECT SUM(a.amount) FROM trip_payment_applications a WHERE a.payment_id=p.id),0)+NEW.amount)*100)<=ROUND(p.amount*100)
- ) THEN RAISE(ABORT,'Payment allocation exceeds available balance or has an invalid account') END;
+ )
+BEGIN
+ SELECT RAISE(ABORT,'Payment allocation exceeds available balance or has an invalid account');
 END;
 CREATE TRIGGER ministry_award_application_guard BEFORE INSERT ON trip_award_applications
-BEGIN
- SELECT CASE WHEN NOT EXISTS (
+WHEN NOT EXISTS (
    SELECT 1 FROM trip_charges c JOIN trip_coverage_awards w ON w.id=NEW.award_id
    WHERE c.id=NEW.charge_id AND c.account_id=w.account_id AND c.trip_id=w.trip_id
      AND c.status NOT IN ('waived','canceled') AND w.status='approved'
@@ -63,5 +59,12 @@ BEGIN
        + COALESCE((SELECT SUM(a.amount) FROM trip_award_applications a JOIN trip_coverage_awards x ON x.id=a.award_id WHERE a.charge_id=c.id AND x.status='approved'),0)
        + NEW.amount)*100)<=ROUND(c.amount*100)
      AND ROUND((COALESCE((SELECT SUM(a.amount) FROM trip_award_applications a WHERE a.award_id=w.id),0)+NEW.amount)*100)<=ROUND(w.amount*100)
- ) THEN RAISE(ABORT,'Support allocation exceeds available balance or has an invalid account') END;
+ )
+BEGIN
+ SELECT RAISE(ABORT,'Support allocation exceeds available balance or has an invalid account');
 END;
+
+CREATE TRIGGER ministry_charge_update_guard BEFORE UPDATE OF amount,status ON trip_charges
+WHEN (ROUND(NEW.amount*100) < ROUND((COALESCE((SELECT SUM(amount) FROM trip_payment_applications WHERE charge_id=OLD.id),0)+COALESCE((SELECT SUM(a.amount) FROM trip_award_applications a JOIN trip_coverage_awards w ON w.id=a.award_id WHERE a.charge_id=OLD.id AND w.status='approved'),0))*100))
+OR (NEW.status IN ('waived','canceled') AND (EXISTS(SELECT 1 FROM trip_payment_applications WHERE charge_id=OLD.id) OR EXISTS(SELECT 1 FROM trip_award_applications WHERE charge_id=OLD.id)))
+BEGIN SELECT RAISE(ABORT,'Resolve allocated funding before reducing or canceling a charge'); END;
