@@ -50,11 +50,15 @@ export function contactTypeFilterOptions(): Array<{ value: string; label: string
     .sort((left, right) => left.label.localeCompare(right.label, "en-US"));
 }
 
-export type AdminEnv = Omit<Env, "EMAIL_DELIVERY_MODE" | "EMAIL_FROM_ADDRESS" | "EMAIL_REPLY_TO"> & {
+export type AdminEnv = Omit<Env, "ENVIRONMENT" | "EMAIL_DELIVERY_MODE" | "EMAIL_FROM_ADDRESS" | "EMAIL_REPLY_TO" | "MMT_EMAIL_PROVIDER" | "MMT_EMAIL_DELIVERY_MODE"> & {
+  ENVIRONMENT: "test" | "production";
   ADMIN_PASSWORD?: string;
   ADMIN_SESSION_SECRET?: string;
   EMAIL?: SendEmail;
   EMAIL_DELIVERY_MODE?: "capture" | "live";
+  MMT_EMAIL_PROVIDER?: "resend";
+  MMT_EMAIL_DELIVERY_MODE?: "capture" | "live";
+  RESEND_API_KEY?: string;
   EMAIL_FROM_ADDRESS?: string;
   EMAIL_REPLY_TO?: string;
 };

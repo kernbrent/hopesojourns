@@ -79,6 +79,8 @@
       ],
       "vars": {
         "ENVIRONMENT": "production",
+        "MMT_EMAIL_PROVIDER": "resend",
+        "MMT_EMAIL_DELIVERY_MODE": "live",
         "ALLOWED_ORIGINS": "https://hopesojourns.com,https://www.hopesojourns.com,https://hopesojourns.pages.dev"
       },
       "d1_databases": [

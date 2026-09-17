@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.4.1
+Version 4.4.2
 
 Last reviewed: September 17, 2026
 
@@ -14,7 +14,7 @@ The public /admin/access/ page provides access requests, forgotten-password requ
 
 Invitation links expire after 24 hours; reset links expire after one hour. Tokens are stored hashed, claimed once atomically, and carried in URL fragments that the page clears after reading. Resetting a password revokes existing sessions. Public recovery responses do not reveal whether an account exists. Public forms are rate limited, and authenticated writes require CSRF protection. Audit records include the acting user when invoked through the Worker request context.
 
-Automatic email requires a configured Cloudflare EMAIL binding, a verified sending domain, EMAIL_DELIVERY_MODE=live, and the sender/reply-to settings. The live email service is not configured by this local change. Without delivery, the account screen reports Not sent, the administrator inbox flags the event, and an administrator can securely share the returned setup link. Public forgot-password responses never expose that link. This delivery mode also affects existing trip messages: review both workflows before enabling it, and use verified test recipients before production activation.
+Account email supports Resend through src/account-email.ts. Set MMT_EMAIL_PROVIDER=resend, MMT_EMAIL_DELIVERY_MODE=live, and the RESEND_API_KEY Worker secret only after domain verification. Use a sending-only key restricted to hopesojourns.com; never put it in source control. Sender and reply-to default to admin@hopesojourns.com. Disable domain click/open tracking for account links. This account-only switch leaves existing trip-message delivery unchanged. Provider acceptance records Sent; it does not prove inbox delivery. Rejections or timeouts preserve Not sent and the administrator's private setup-link fallback. Public responses never expose the link. Requests have a ten-second timeout, reject redirects, use a per-token idempotency key, and do not automatically retry or fall back to another provider. The domain is verified with enforced TLS. Production activation requires the encrypted API key and the authorized Worker deployment.
 
 Migration 0021_us_phone_storage.sql normalizes clearly identified US phone values in people, ministries, trip funding sources, billing accounts, and MMT users. Valid ten-digit values are stored without punctuation; an eleven-digit value beginning with 1 loses that country prefix. Triggers apply the same rules to subsequent writes. Explicit foreign countries, international prefixes, extensions, and ambiguous values are preserved for review. Historical audit and JSON snapshots remain unchanged. phone-ui.js supplies the (###)###-#### presentation mask without using the mask as the stored value.
 
@@ -414,7 +414,7 @@ The unified ledger distinguishes transaction purpose and charitable amount. A tr
 
 The message outbox stores invitations, payment requests, statements, trip updates, and other messages before delivery. `EMAIL_DELIVERY_MODE` is `capture` by default in both configured environments; a Send action then returns a safe unavailable response and leaves the message queued. Live delivery requires all of the following: a Cloudflare Email Service `send_email` binding named `EMAIL`, `EMAIL_DELIVERY_MODE=live`, a verified sending domain, a permitted `EMAIL_FROM_ADDRESS`, and a valid `EMAIL_REPLY_TO`. Do not add the binding or switch modes until the Cloudflare account and sender are ready.
 
-Inbound `admin@hopesojourns.com` forwarding is operational DNS/account setup, separate from Worker message delivery. Create `hopesojourns@gmail.com`, verify it as the destination in Cloudflare Email Routing, then add the `admin` custom address. Keep delivery in capture mode until both forwarding and outbound sender requirements have been tested in the test environment.
+Inbound `admin@hopesojourns.com` forwarding is operational DNS/account setup, separate from Worker message delivery. Verify `christianstepsministries@gmail.com` as the destination in Cloudflare Email Routing, then add the `admin` custom address. Resend handles outgoing account mail; keep Resend receiving disabled so Cloudflare handles replies. Keep delivery in capture mode until both forwarding and outbound sender requirements have been tested in the test environment.
 
 Primary route families are:
 
@@ -765,6 +765,7 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4.2 | Added a separately activated Resend account-email adapter with failure handling and updated forwarding destination; verified domain with encrypted key required for activation. |
 | 2026-09-17 | 4.4.1 | Added confirmed user deletion with access revocation and preserved history; local pending release. |
 | 2026-09-17 | 4.4 | Added individual MMT accounts, section permissions, profile and recovery workflows, email delivery requirements, and US phone storage and masks; local implementation pending release. |
 | 2026-09-17 | 4.3 | Added managed public destinations, photo and visibility controls, and automatic insertion ordering. |
