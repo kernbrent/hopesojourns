@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-admin-build="2026-09-17.1">
+<html lang="en" data-admin-build="2026-09-17.2">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-17.1">
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-17.2">
 </head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -32,9 +32,11 @@
       <a href="/admin/ministry/#documents"><span aria-hidden="true">▱</span> Documents</a>
       <a href="#requests" data-admin-sidebar-view="requests"><span aria-hidden="true">&#9675;</span> Requests</a>
       <a href="/admin/trips/"><span aria-hidden="true">&#10022;</span> Trips</a>
-      <a href="#ledger" data-admin-sidebar-view="ledger"><span aria-hidden="true">$</span> Organization finances</a>
-      <a href="#income" data-admin-sidebar-view="ledger" data-ledger-kind="income"><span aria-hidden="true">+</span> Income</a>
-      <a href="#expenses" data-admin-sidebar-view="ledger" data-ledger-kind="expense"><span aria-hidden="true">−</span> Expenses</a>
+      <a href="/admin/finance/"><span aria-hidden="true">$</span> Organization finances</a>
+      <a href="/admin/finance/#income"><span aria-hidden="true">+</span> Income</a>
+      <a href="/admin/finance/#expenses"><span aria-hidden="true">−</span> Expenses</a>
+      <a href="/admin/finance/#mileage"><span aria-hidden="true">↗</span> Mileage</a>
+      <a href="/admin/finance/#invoices"><span aria-hidden="true">▤</span> Invoices</a>
       <a href="#ministries" data-admin-sidebar-view="ministries"><span aria-hidden="true">&#9671;</span> Ministries</a>
       <a href="#people" data-admin-sidebar-view="people"><span aria-hidden="true">&#9675;</span> People</a>
       <a href="#settings" id="open-admin-settings"><span aria-hidden="true">⚙</span> Settings</a>
@@ -222,6 +224,7 @@
         <div class="admin-request-list" id="submissions-list" role="tabpanel" aria-labelledby="requests-view-tab" aria-live="polite" hidden></div>
         <section class="admin-ledger-workspace" id="ledger-workspace" role="tabpanel" aria-labelledby="ledger-view-tab" hidden>
           <div class="admin-ledger-toolbar">
+            <a class="admin-button admin-button-primary" href="/admin/finance/">Open bookkeeping: mileage, invoices &amp; reports</a>
             <div><strong id="ledger-view-title">Hope Sojourns financial ledger</strong><span>Review approved ChristianSteps transactions, imported spreadsheet rows, and manual entries together.</span></div>
             <div class="admin-ledger-toolbar-actions">
               <button class="admin-button admin-button-outline" id="import-ledger" type="button">Import spreadsheet</button>
@@ -602,6 +605,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=2026-09-17.1" defer></script>
+  <script src="/admin/admin.js?v=2026-09-17.2" defer></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.1
+Version 4.2
 
 Last reviewed: September 17, 2026
 
@@ -505,10 +505,21 @@ The main administration and trip sidebars provide direct Ministry Management, In
 
 The ledger follows the CareerSteps Income and Expenses work pattern with direct sidebar views, separate add buttons, and compact rows. Full record disclosures retain every previously displayed field. Receipt, edit, delete, import review, export, source filters, and pagination continue to use the same HS handlers and database. No data migration is needed for this interface change.
 
+## Expanded bookkeeping screens
+
+The finance workspace at `/admin/finance/` uses a CareerSteps-style left navigation rail, a compact page heading, summary cards, filter controls, and transaction tables. Apply HS forest, cream, and gold tokens from the shared palette. Desktop navigation is 232 pixels wide, with horizontal navigation on small screens. Tables scroll within their own containers.
+
+Provide direct navigation for Dashboard, Expenses, Income, Invoices, Documents, Mileage, Trips, Ministries, Reports, and Settings. Keep the existing ledger/import workflow reachable. Use organization-wide as the default trip choice and None as the default ministry choice. Neither relationship is required, including for board meetings, office expenses, fundraising, or general ministry travel.
+
+Invoice screens distinguish draft, issued, partially paid, paid, overdue, and void records. Show total, received payments, and remaining balance. Applying a payment matches received income; it never charges or sends a payment. Mileage screens distinguish logged miles, estimated mileage value, tolls, and missing rates. Do not combine mileage estimates with cash expenses.
+
+Forms use labeled native inputs, optional trip/ministry selectors, visible keyboard focus, intentional dialog dismissal, and disabled Save controls while saving. Provide printable invoice and report layouts without navigation. Escape record text and neutralize spreadsheet formula prefixes in CSV output.
+
 ## Revision history
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.2 | Added local bookkeeping dashboard, optional trip/ministry relationships, mileage, invoices, reports, and review controls. |
 | 2026-09-17 | 4.1 | Added Ministry Management navigation, trip preparation, funding, and document interface standards. |
 | 2026-09-10 | 4.0 | Added the test-only editorial public experience, permanent main-site escape, manually paced stories, curiosity navigation, partnership pages, and responsive design rules. |
 | 2026-09-07 | 3.6 | Added compact expandable budget records, explicit budget-finish status, paying-traveler and fee-percentage presentation, What/Why field help, the field-popover click-away exception, and invitation-purpose language. |

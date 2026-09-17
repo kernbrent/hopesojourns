@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.1
+Version 4.2
 
 Last reviewed: September 17, 2026
 
@@ -693,7 +693,7 @@ Update the “Last reviewed” date and add a concise revision-history entry for
 
 ## Ministry Management workspace
 
-Local implementation dated September 17, 2026. These changes are not deployed. Apply migration `0017_ministry_management.sql` to the target environment before releasing the corresponding Worker and frontend, only after explicit deployment authorization. Preserve the existing database and private receipt bucket; no production data is copied into local previews.
+The original Ministry Management implementation was deployed on September 17, 2026. The expanded bookkeeping extension below was authorized for production release on September 17, 2026. Apply migration `0017_ministry_management.sql` to the target environment before releasing the corresponding Worker and frontend, only after explicit deployment authorization. Preserve the existing database and private receipt bucket; no production data is copied into local previews.
 
 `/admin/ministry/` adds Home, Inbox, Trips, Finances, and Documents while linking to all existing contact, ministry, ledger, receipt, import, statement, and trip tools. `/admin/` and `/admin/trips/` retain their original workflows. The new UI uses the existing administrator cookie and CSRF token. The API namespace `/admin/ministry/` is handled by `src/ministry-admin.ts`.
 
@@ -721,10 +721,27 @@ The main administration and trip sidebars provide direct Ministry Management, In
 
 The ledger follows the CareerSteps Income and Expenses work pattern with direct sidebar views, separate add buttons, and compact rows. Full record disclosures retain every previously displayed field. Receipt, edit, delete, import review, export, source filters, and pagination continue to use the same HS handlers and database. No data migration is needed for this interface change.
 
+## Expanded bookkeeping workspace
+
+The finance extension is available at `/admin/finance/`. It adapts CareerSteps navigation and bookkeeping workflows to Hope Sojourns: Dashboard, Expenses, Income, Invoices, Documents, Mileage, Trips, Ministries, Reports, and Settings. The existing ledger and import screen remains at `/admin/#ledger`. Production release was authorized on September 17, 2026.
+
+Migration `0018_finance_workspace.sql` is additive. It creates finance settings, review metadata, mileage rates, saved routes, mileage logs, invoices, invoice lines, and payment links. It does not replace, copy, or renumber ledger entries, people, trips, ministries, or receipt objects. Apply this migration before deploying the corresponding Worker. The existing cookie and CSRF protection secure every `/admin/finance/` endpoint in `src/finance-admin.ts`.
+
+Trips and ministries are optional reporting relationships, not a new client/project catalog. Organization-wide expenses, income, mileage, and invoices require neither relationship. A church, sponsor, organization, or traveler can be the invoice payer independently of the related trip or ministry.
+
+Income and expense writes continue through `ledger-admin.ts`. Review status, accountant follow-up, and reimbursement flags are stored separately from the original ledger. Exclusion affects filtered reporting only. Reimbursement flags do not create cash entries. Cash totals are recorded activity, not reconciled bank balances. Reports expose source, date, direction, trip, ministry, status, missing-receipt, and follow-up filters. CSV and print exports include all matching pages; the existing Excel link exports the full original ledger.
+
+Mileage supports saved routes, 1–90 distinct dates per batch, editable purpose, miles, tolls, optional relationships, review status, trash, and restore. Effective-date rates are explicitly configured, with database guards against overlapping active ranges. There is no assumed IRS rate or automatic tax deduction. Changing a rate recalculates estimates; mileage and toll records never generate ledger expenses. Record actual reimbursement spending separately.
+
+Invoices support draft, issued, and void status, itemized quantities and amounts, due dates, payer address, notes, print output, and partial settlement. Creating an invoice does not post income or create traveler charges. Payments match existing received-income entries, using each entire ledger entry once. Database guards prevent overpayment, duplicate links, payment against an unissued invoice, and edits to funded invoices. Operation identifiers protect retries. Removing a payment link is audited and preserves the income entry. Invoice-linked income cannot be deleted or have its amount/type changed until unlinked.
+
+The new SQLite integration suite verifies authentication, CSRF, organization-wide mileage, effective rates, duplicate batch dates, invalid links, invoice retries, overpayments, ledger preservation, and review filtering. The local demo is sample-only and must stay bound to localhost. Release validation passed 87 tests; migration 0018 and the production Worker were deployed on September 17, 2026.
+
 ## Revision history
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.2 | Added bookkeeping dashboard, optional trip/ministry relationships, mileage, invoices, reports, and review controls. |
 | 2026-09-17 | 4.1 | Added local Ministry Management architecture, trip defaults, item funding, central inbox, document storage, and regression requirements. |
 | 2026-09-10 | 4.0 | Added test-only public redesign routes, generation sources, hash navigation, persistent main-site access, local image delivery, regression checks, and deployment scope. |
 | 2026-09-07 | 3.6 | Added per-traveler and percentage budget calculations, paying-traveler multiplier, explicit budget completion, compact expandable budget records, contextual financial help, and clarified that invitations are for trip interest rather than traveler portal access. |

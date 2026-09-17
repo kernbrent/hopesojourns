@@ -260,6 +260,8 @@ async function updateLedgerEntry(request: Request, env: AdminEnv, id: string): P
   const existing = await env.DB.prepare("SELECT id, source_type, entry_type FROM ledger_entries WHERE id = ?1").bind(id).first<{ id: string; source_type: LedgerSource; entry_type: LedgerType }>();
   if (!existing) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
   const entry = await cleanLedgerEntry(await readAdminJson(request), env);
+  const invoicePayment = await env.DB.prepare('SELECT amount_cents FROM finance_invoice_payments WHERE ledger_id=?').bind(id).first<{amount_cents:number}>();
+  if (invoicePayment && (entry.entryType !== 'income' || Math.round(entry.amount * 100) !== invoicePayment.amount_cents)) throw new AdminError(409, 'INVOICE_PAYMENT_LOCKED', 'Remove the invoice payment link before changing this income amount or type.');
   if (existing.entry_type === "expense" && entry.entryType === "income") {
     const receipt = await env.DB.prepare("SELECT id FROM ledger_receipts WHERE ledger_entry_id = ?1 LIMIT 1").bind(id).first<{ id: string }>();
     if (receipt) throw new AdminError(409, "LEDGER_RECEIPTS_ATTACHED", "Remove the attached receipts before changing this expense to income.");
@@ -282,6 +284,7 @@ async function deleteLedgerEntry(request: Request, env: AdminEnv, id: string): P
   await authenticate(request, env, true);
   const existing = await env.DB.prepare("SELECT id, source_type, transaction_date, entry_type, amount FROM ledger_entries WHERE id = ?1").bind(id).first<{ id: string; source_type: LedgerSource; transaction_date: string; entry_type: LedgerType; amount: number }>();
   if (!existing) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
+  if (await env.DB.prepare('SELECT id FROM finance_invoice_payments WHERE ledger_id=?').bind(id).first()) throw new AdminError(409, 'INVOICE_PAYMENT_LINKED', 'Remove the invoice payment link before deleting this income entry.');
   const receipts = await env.DB.prepare("SELECT object_key FROM ledger_receipts WHERE ledger_entry_id = ?1").bind(id).all<{ object_key: string }>();
   const results = await env.DB.batch([
     env.DB.prepare("DELETE FROM ledger_entries WHERE id = ?1").bind(id),
