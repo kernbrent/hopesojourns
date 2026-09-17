@@ -24,7 +24,7 @@ export async function sendAccountEmail(env: AccountEmailEnv, message: AccountMes
         redirect: 'error',
         signal: AbortSignal.timeout(10000),
         headers: {
-          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          Authorization: `Bearer ${env.RESEND_API_KEY!.trim()}`,
           'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
@@ -32,12 +32,16 @@ export async function sendAccountEmail(env: AccountEmailEnv, message: AccountMes
       });
       // Acceptance by the provider is not confirmation of inbox delivery.
       const accepted = response.ok;
+      if (!accepted) console.warn(JSON.stringify({event: 'mmt_email_rejected', provider: 'resend', status: response.status}));
       await response.body?.cancel();
       return accepted;
     }
     await env.EMAIL!.send({...message, from: {email: from, name: 'Hope Sojourns'}, replyTo});
     return true;
-  } catch {
+  } catch (error) {
+    // Only allowlisted error names: exception messages can contain credentials.
+    const failure = error instanceof Error && ['TimeoutError', 'AbortError', 'TypeError'].includes(error.name) ? error.name : 'Error';
+    console.warn(JSON.stringify({event: 'mmt_email_failed', provider: env.MMT_EMAIL_PROVIDER || 'cloudflare', failure}));
     // Do not retry through another provider: a timed-out request may have sent.
     return false;
   }

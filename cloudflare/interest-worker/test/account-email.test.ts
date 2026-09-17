@@ -3,7 +3,7 @@ import {accountEmailReady, sendAccountEmail} from '../src/account-email';
 
 const message = {to: 'recipient@example.test', subject: 'Set up your account', text: 'Private one-use link'};
 const config = {MMT_EMAIL_PROVIDER: 'resend', MMT_EMAIL_DELIVERY_MODE: 'live' as const, RESEND_API_KEY: 'test-key'} as const;
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {vi.unstubAllGlobals(); vi.restoreAllMocks();});
 
 it('sends from Hope Sojourns with reply routing and an idempotency key', async () => {
   const send = vi.fn().mockResolvedValue(Response.json({id: 'message-id'}));
@@ -35,4 +35,18 @@ it('handles provider rejection and network failures without retrying or falling 
   expect(await sendAccountEmail(env, message, 'second')).toBe(false);
   expect(send).toHaveBeenCalledTimes(2);
   expect(fallback).not.toHaveBeenCalled();
+});
+
+it('trims copied credentials and records only safe rejection diagnostics', async () => {
+ const log=vi.spyOn(console,'warn').mockImplementation(()=>{});
+ const send=vi.fn().mockResolvedValue(new Response('private provider details',{status:401}));vi.stubGlobal('fetch',send);
+ expect(await sendAccountEmail({...config,RESEND_API_KEY:'  secret-key\n'},message,'unique')).toBe(false);
+ expect(send.mock.calls[0][1].headers.Authorization).toBe('Bearer secret-key');
+ expect(log).toHaveBeenCalledExactlyOnceWith(JSON.stringify({event:'mmt_email_rejected',provider:'resend',status:401}));
+});
+it('does not log exception messages or arbitrary exception names', async () => {
+ const log=vi.spyOn(console,'warn').mockImplementation(()=>{});
+ const error=new Error('private key and setup link');error.name='private-data';vi.stubGlobal('fetch',vi.fn().mockRejectedValue(error));
+ expect(await sendAccountEmail(config,message,'unique')).toBe(false);
+ expect(log).toHaveBeenCalledExactlyOnceWith(JSON.stringify({event:'mmt_email_failed',provider:'resend',failure:'Error'}));
 });
