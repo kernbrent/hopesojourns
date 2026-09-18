@@ -1,12 +1,14 @@
 # Hope Sojourns website style guide
 
-Version 4.5.2
+Version 4.5.3
 
 Last reviewed: September 18, 2026
 
-## Contact follow up editing
+## Contact directory and spreadsheet
 
-Show Last Contacted and Last Contacted Notes as labeled inputs in People cards and Spreadsheet rows, with a Save contact update button and local save feedback. Contact checkboxes support a shared date-and-note update above the list. Confirm replacement before bulk saving and disclose that blank notes clear prior notes. Preserve the separate Latest activity display, and use explicit labels and the existing 50-character note limit.
+Contacts use compact summary cards without inline follow-up inputs or selection tools. Default order is last name A–Z. Show an alphabet above the filtered contact list containing only initials present in last names; clicking a letter instantly scrolls to and focuses its first contact. Normalize accented initials to their base letter, retain other Unicode letters, and omit blank or nonletter initials without hiding those contacts. Explicit alternative sort choices remain available.
+
+Keep Last Contacted date and notes editing, row saves, selection, bulk updates, and personalized-document tools in Spreadsheet. The table has its own keyboard-focusable region with horizontal and vertical scrolling, a viewport-relative height limit, and sticky column headings, including on small screens. Bulk tools remain outside the table scrolling region. Preserve the separate Latest activity display and 50-character note limit. Ledger transfer amounts use the existing shared info color token.
 
 ## Trip budget comparison and bulk editing
 
@@ -565,6 +567,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-18 | 4.5.3 | Compact contacts, last-name alphabet navigation, and independent spreadsheet scrolling. |
 | 2026-09-18 | 4.5.2 | Added direct Last Contacted fields and selected-contact follow-up updates in People and Spreadsheet views. |
 | 2026-09-18 | 4.5.1 | Added whole-budget funding previews, estimated/actual/allocated comparisons, and reviewed multi-item cost editing. |
 | 2026-09-17 | 4.5.0 | Added shared profile and role terminology, independent portal access fieldsets, scoped actions, and portal-switch navigation. Local pending release. |
