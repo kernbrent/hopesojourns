@@ -837,6 +837,7 @@ function budgetDetail(label, value) {
 }
 
 function budgetRecord(item, allocations) {
+  const estimateStatus = item.needs_estimate ? "Needs estimate" : "Estimate reviewed";
   const details = node("details", "trip-budget-record");
   details.open = state.budgetItemsExpanded;
   const summary = node("summary");
@@ -846,6 +847,7 @@ function budgetRecord(item, allocations) {
   summaryMeta.append(
     node("span", "", budgetCalculationLabel(item)),
     node("strong", "", money(item.estimated_total)),
+    node("span", "trip-status-pill", estimateStatus),
     node("span", "trip-status-pill", titleCase(item.payment_status)),
   );
   summary.append(title, summaryMeta);
@@ -853,6 +855,7 @@ function budgetRecord(item, allocations) {
   const body = node("div", "trip-budget-record-body");
   const facts = node("dl", "trip-budget-facts");
   facts.append(
+    budgetDetail("Estimate status", estimateStatus),
     budgetDetail("Calculation", budgetCalculationLabel(item)),
     budgetDetail("Scope", titleCase(item.expense_scope)),
     budgetDetail("Estimated trip total", money(item.estimated_total)),
