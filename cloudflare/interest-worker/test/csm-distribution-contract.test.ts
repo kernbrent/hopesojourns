@@ -58,6 +58,11 @@ describe("CSM distribution contract", () => {
     }
   });
 
+  it("accepts a Hope Sojourns withdrawal to the shared CSM bank as a sent transfer", () => {
+    expect(isEligibleDistributionSource({ product: "HopeSojourns", eventCode: "T0400", status: "Completed", currency: "USD", direction: "sent", gross: -73.02 })).toBe(true);
+    expect(isEligibleDistributionSource({ product: "JoshBeyondBorders", eventCode: "T0400", status: "Completed", currency: "USD", direction: "sent", gross: -73.02 })).toBe(false);
+  });
+
   it("normalizes and validates Display Name", () => {
     const parsed = parseDistributionMessage(receivedMessage());
     expect(parsed.displayName).toBe("Example Donor");

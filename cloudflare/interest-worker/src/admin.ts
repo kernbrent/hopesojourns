@@ -1,5 +1,5 @@
 import {storedPhone} from './phone';
-import {actorContext,can,routeSection,type MmtIdentity} from './mmt-permissions';
+import {actorContext,can,routeSection,currentPortal,effectiveUser,hasPortal,type MmtIdentity} from './mmt-permissions';
 import {verifyUserPassword,publicUser,handleAccountRequest,changeUserPassword} from './mmt-users';
 import {
   CONTACT_IMPORT_MAX_FILE_BYTES,
@@ -50,8 +50,11 @@ export function contactTypeFilterOptions(): Array<{ value: string; label: string
     .sort((left, right) => left.label.localeCompare(right.label, "en-US"));
 }
 
-export type AdminEnv = Omit<Env, "ENVIRONMENT" | "EMAIL_DELIVERY_MODE" | "EMAIL_FROM_ADDRESS" | "EMAIL_REPLY_TO" | "MMT_EMAIL_PROVIDER" | "MMT_EMAIL_DELIVERY_MODE"> & {
+export type AdminEnv = Omit<Env, "SHARED_SIGNIN" | "ENVIRONMENT" | "EMAIL_DELIVERY_MODE" | "EMAIL_FROM_ADDRESS" | "EMAIL_REPLY_TO" | "MMT_EMAIL_PROVIDER" | "MMT_EMAIL_DELIVERY_MODE"> & {
   ENVIRONMENT: "test" | "production";
+  SHARED_SIGNIN?:string;
+  HS_PORTAL_ORIGIN?:string;
+  CSM_PORTAL_ORIGIN?:string;
   ADMIN_PASSWORD?: string;
   ADMIN_SESSION_SECRET?: string;
   EMAIL?: SendEmail;
@@ -68,6 +71,7 @@ type AdminSessionRow = {
   csrf_token: string;
   expires_at: string;
   user_id: string;
+  portal: string;
   user: MmtIdentity;
 };
 
@@ -647,10 +651,10 @@ export async function authenticate(request: Request, env: AdminEnv, requireCsrf 
   }
   const tokenHash = await hashText(token);
   const session = await env.DB.prepare(
-    "SELECT id, csrf_token, expires_at,user_id FROM admin_sessions WHERE token_hash = ?1 LIMIT 1",
+    "SELECT id, csrf_token, expires_at,user_id,portal FROM admin_sessions WHERE token_hash = ?1 LIMIT 1",
   ).bind(tokenHash).first<AdminSessionRow>();
-  if (!session || Date.parse(session.expires_at) <= Date.now()) {
-    if (session) await env.DB.prepare("DELETE FROM admin_sessions WHERE id = ?1").bind(session.id).run();
+  if (!session || (session.portal||'hs')!==currentPortal() || Date.parse(session.expires_at) <= Date.now()) {
+    if (session && Date.parse(session.expires_at)<=Date.now()) await env.DB.prepare("DELETE FROM admin_sessions WHERE id = ?1").bind(session.id).run();
     throw new AdminError(401, "SESSION_EXPIRED", "Your session expired. Sign in again.", {
       "Set-Cookie": sessionCookie("", 0),
     });
@@ -662,13 +666,14 @@ export async function authenticate(request: Request, env: AdminEnv, requireCsrf 
     }
   }
   const user=await env.DB.prepare('SELECT * FROM mmt_users WHERE id=?').bind(session.user_id).first<MmtIdentity>();
-  if(!user||user.status!=='active')throw new AdminError(401,'AUTH_REQUIRED','Sign in to continue.');
-  session.user=user;
+  if(!user||!hasPortal(user,currentPortal()))throw new AdminError(401,'AUTH_REQUIRED','Sign in to continue.');
+  session.user=effectiveUser(user);
   const path=new URL(request.url).pathname.replace(/^\/api\/interest/,'');
   if(user.must_change_password&&!['/admin/password','/admin/session','/admin/logout'].includes(path))throw new AdminError(403,'PASSWORD_CHANGE_REQUIRED','Change your temporary password before continuing.');
   const section=routeSection(path);
-  if((section==='admin'&&!user.is_admin)||(section!=='self'&&section!=='admin'&&!can(user,section,request.method!=='GET')))throw new AdminError(403,'ACCESS_DENIED','Your account does not have access to this action.');
-  if(/\/admin\/trips\/[^/]+\/(import|export)$/.test(path)&&!can(user,'contacts',request.method!=='GET'))throw new AdminError(403,'ACCESS_DENIED','Trip import and export also require contact access.');
+  const authorityUser=session.user;
+  if((section==='admin'&&!authorityUser.is_admin)||(section!=='self'&&section!=='admin'&&!can(authorityUser,section,request.method!=='GET')))throw new AdminError(403,'ACCESS_DENIED','Your account does not have access to this action.');
+  if(/\/admin\/trips\/[^/]+\/(import|export)$/.test(path)&&!can(authorityUser,'contacts',request.method!=='GET'))throw new AdminError(403,'ACCESS_DENIED','Trip import and export also require contact access.');
   const context=actorContext.getStore();if(context)context.userId=user.id;
   await env.DB.prepare("UPDATE admin_sessions SET last_seen_at = ?1 WHERE id = ?2")
     .bind(new Date().toISOString(), session.id)
@@ -741,7 +746,7 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
   const currentAttempt = await checkLoginBlock(env, keyHash);
   const username=typeof body.username==='string'?body.username.trim().toLowerCase():'';
   const user=await env.DB.prepare('SELECT * FROM mmt_users WHERE username=?').bind(username).first<MmtIdentity>();
-  if (!submittedPassword || submittedPassword.length > 256 || !user || user.status!=='active' || !(await verifyUserPassword(env,user.id,submittedPassword))) {
+  if (!submittedPassword || submittedPassword.length > 256 || !user || !hasPortal(user,currentPortal()) || !(await verifyUserPassword(env,user.id,submittedPassword))) {
     await recordLoginFailure(env, keyHash, currentAttempt);
     console.warn(JSON.stringify({ event: "admin_login_failed" }));
     throw new AdminError(401, "INVALID_CREDENTIALS", "The user name or password is incorrect.");
@@ -764,10 +769,10 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
     env.DB.prepare("DELETE FROM admin_login_attempts WHERE key_hash = ?1").bind(keyHash),
     env.DB.prepare("DELETE FROM admin_sessions WHERE expires_at <= ?1").bind(now.toISOString()),
     env.DB.prepare(
-      `INSERT INTO admin_sessions (id, token_hash, csrf_token, created_at, expires_at, last_seen_at, user_agent_hash,user_id)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7,?8)`,
+      `INSERT INTO admin_sessions (id, token_hash, csrf_token, created_at, expires_at, last_seen_at, user_agent_hash,user_id,portal)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7,?8,?9)`,
     ).bind(
-      crypto.randomUUID(), await hashText(token), csrfToken, now.toISOString(), expiresAt.toISOString(), now.toISOString(), userAgentHash,user.id,
+      crypto.randomUUID(), await hashText(token), csrfToken, now.toISOString(), expiresAt.toISOString(), now.toISOString(), userAgentHash,user.id,currentPortal(),
     ),
   ]);
   await env.DB.prepare('UPDATE mmt_users SET last_login_at=? WHERE id=?').bind(now.toISOString(),user.id).run();
@@ -780,7 +785,7 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
     csrfToken,
     expiresAt: expiresAt.toISOString(),
     replyDelivery: "email_client",
-    user:publicUser(user),
+    user:publicUser(user,env),
   }, 200, { "Set-Cookie": sessionCookie(token, rememberMe ? sessionLifetimeSeconds : null) });
 }
 
@@ -792,7 +797,7 @@ async function sessionInfo(request: Request, env: AdminEnv): Promise<Response> {
     csrfToken: session.csrf_token,
     expiresAt: session.expires_at,
     replyDelivery: "email_client",
-    user:publicUser(session.user),
+    user:publicUser((await env.DB.prepare("SELECT * FROM mmt_users WHERE id=?").bind(session.user_id).first<MmtIdentity>())!,env),
   });
 }
 

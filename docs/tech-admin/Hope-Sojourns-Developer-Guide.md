@@ -1,8 +1,30 @@
 # Hope Sojourns developer guide
 
-Version 4.4.6
+Version 4.5.0
 
 Last reviewed: September 17, 2026
+
+## Shared HS and CSM accounts
+
+Local implementation pending coordinated release. HS holds shared identities and passwords; CSM delegates through a private service binding named IDENTITY to the CsmIdentity entrypoint. The default public HS handler cannot invoke this entrypoint. The financial distribution secret is not reused for identity authorization. SHARED_SIGNIN stays disabled in configuration until an explicitly authorized release activates both portals.
+
+Migration 0025 preserves existing user IDs and HS permissions. It adds is_org_admin, hs_access, csm_access, csm_is_admin, csm_permissions_json, portal-scoped sessions and requests, and one-use switch codes. Brent's existing primary/admin account becomes the first Organization Administrator with access to both portals. Other HS users receive no CSM access automatically. CSM migration 0004 removes legacy shared sessions and adds shared_account_activity. Finance ownership and existing financial records remain unchanged. After activation CSM accepts the existing HS account credentials, not its legacy shared password.
+
+Organization Administrators manage shared identity, either membership, administrator appointments, global suspension, and deletion. Portal Administrators manage only their own portal's membership and section permissions. They may send password instructions to the existing account email but cannot receive an existing user's fallback token, issue temporary passwords, edit another person's shared identity, or manage Organization Administrators. Existing accounts requesting the other portal require an Organization Administrator to verify identity and link the account. Linking preserves its password and original membership. Users can edit their own shared name and contact information, not username or access.
+
+HS retains contacts, trips, destinations, finances, documents, and inbox permissions. CSM has giving (PayPal, donor reports, distribution) and finances (bookkeeping, invoices, mileage, clients/projects, files). CSM's combined finance data response is one permission boundary. Blocked, Read only, and Edit are checked on the server. Page loads with read-only finance access do not trigger PayPal ledger synchronization. Membership removal affects only that portal. Global suspension/deletion ends access to both. The last usable Organization Administrator cannot be demoted, suspended, deleted, or deprived of both memberships. Deletion retains historical attribution and allows later username/email reuse with a new identity.
+
+The private CSM adapter translates cookies and approved routes, never accepts caller-supplied actor IDs, checks origin and CSRF, and fails closed if identity is unavailable. Session token hashes live in the authority DB, scoped to one portal; both memberships and global status are checked on use. Each site retains its own HttpOnly, Secure, SameSite=Strict cookie. No password or session token appears in a redirect URL.
+
+Switching begins at the destination with a random 120-second verifier cookie. The source creates a 60-second one-use code tied to its active session, destination, and verifier hash. The fragment callback is cleared from browser history immediately. Redemption atomically consumes the code, checks the source session and both memberships again, and creates the destination session. Redirects use configured HS_PORTAL_ORIGIN / CSM_PORTAL_ORIGIN defaults and approved www variants. The button appears only when the account has both active memberships and is not awaiting a password change.
+
+The account and recovery screens are available in both portals under /admin/account/ and /admin/access/. /admin/shared-signin/ handles the switch. Shared account behavior is implemented in mmt-users.ts, shared-users.ts, shared-signin.ts, and identity-entrypoint.ts. admin/account/account.js and the switch/phone scripts are copied into CSM's canonical admin sources. Maintain those copies together. CSM account UI uses local admin theme assets and does not alter its public site. The existing HS email service sends invitations and recovery instructions; CSM-only invitation links point to CSM. HS inbox account requests and email failures are scoped to the viewer's administrative authority.
+
+Access updates record the actor, timestamp, and before/after membership, role, status, and profile values. Own-profile updates identify changed fields. CSM records individual actors for financial mutations without changing the finance owner ID. Last logged in is updated for a successful password login or successful portal switch, not ordinary page visits.
+
+Release order after explicit authorization: back up administration databases, verify Brent's HS account, activate the production flags, apply HS 0025 and deploy its Worker, apply CSM 0004 and deploy CSM with the named binding, then publish only affected HS admin assets. Keep test identity isolated from production. Repair outages without silently returning to the old shared password. The detailed coordinated release and rollback guidance lives in the CSM worker/docs/shared-accounts.md runbook.
+
+Validation covers migrations using real SQLite, independent portal permissions, administrator boundaries, same-password login, account linking, scoped requests, temporary passwords, CSRF, browser-bound one-use switches, expiration, revocation, and reset invalidation. The Workers runtime test verifies the named service binding and its absence from public HTTP. Isolated browser checks exercise account creation and both switch directions on desktop and mobile. No production account or financial data are used in these tests.
 
 ## Donation allocations
 
@@ -779,6 +801,7 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.5.0 | Implemented shared HS/CSM identity, scoped administrator authority, one-use portal switching, preserved financial ownership, and coordinated release checks. Local pending release. |
 | 2026-09-17 | 4.4.6 | Added donation allocations, donor reporting, edit and undo history, and shared CSM transfer handling. |
 | 2026-09-17 | 4.4.5 | Display each user’s last successful sign-in with local date, time, and time zone in the administrator directory. |
 | 2026-09-17 | 4.4.4 | Fix account email request construction in Workers by using manual redirect handling; retain rejection of redirects and add a real-runtime regression test. |

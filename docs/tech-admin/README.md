@@ -1,6 +1,6 @@
 # Hope Sojourns technical administration documents
 
-Last reviewed: August 23, 2026
+Last reviewed: September 10, 2026
 
 This folder contains the living design and technical standards for the Hope Sojourns website.
 

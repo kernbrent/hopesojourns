@@ -24,8 +24,8 @@ async function inbox(env:AdminEnv,user:MmtIdentity) {
  env.DB.prepare(`SELECT id,trip_id,subject AS title,status,created_at FROM trip_message_outbox WHERE status='failed' ORDER BY created_at DESC LIMIT 100`).all<Row>(),
  env.DB.prepare('SELECT * FROM ministry_events ORDER BY created_at DESC LIMIT 250').all<Row>(),
  env.DB.prepare(`SELECT id,title,updated_at AS created_at FROM trips WHERE budget_completed_at IS NULL AND status NOT IN ('archived','canceled','completed') ORDER BY updated_at DESC LIMIT 100`).all<Row>()]);
- const accessRequests=user.is_admin?(await env.DB.prepare("SELECT id,kind,first_name||' '||last_name AS title,status,created_at FROM mmt_access_requests ORDER BY created_at DESC LIMIT 250").all<Row>()).results:[];
- const failedEmails=user.is_admin?(await env.DB.prepare("SELECT id,recipient AS title,kind,created_at FROM mmt_email_events WHERE status='not_sent' ORDER BY created_at DESC LIMIT 100").all<Row>()).results:[];
+ const accessRequests=user.is_admin?(await env.DB.prepare("SELECT id,kind,first_name||' '||last_name AS title,status,created_at FROM mmt_access_requests WHERE (?=1 OR portal='hs') ORDER BY created_at DESC LIMIT 250").bind(user.is_org_admin?1:0).all<Row>()).results:[];
+ const failedEmails=user.is_admin?(await env.DB.prepare("SELECT e.id,e.recipient AS title,e.kind,e.created_at FROM mmt_email_events e JOIN mmt_users u ON u.id=e.user_id WHERE e.status='not_sent' AND (?=1 OR u.hs_access=1) ORDER BY e.created_at DESC LIMIT 100").bind(user.is_org_admin?1:0).all<Row>()).results:[];
  return adminJson({items:[
  ...failedEmails.map(r=>({...r,id:'account-email:'+r.id,kind:'Account email',status:'action',detail:'Account email was not sent. Review delivery and send fresh instructions.',action_url:'/admin/account/#users'})),
  ...accessRequests.map(r=>({...r,id:'access:'+r.id,kind:r.kind==='access'?'Access request':'Account recovery',detail:'Review account access and verify identity before approving recovery.',status:r.status==='pending'?'action':'completed',action_url:'/admin/account/#users'})),

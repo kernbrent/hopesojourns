@@ -28,6 +28,7 @@ type LedgerRow = {
   transaction_purpose: LedgerPurpose; charitable_amount: number; trip_id: string | null;
   trip_account_id: string | null; funding_source_id: string | null;
   gross: number | null; fee: number | null; net: number | null; created_at: string; receipt_count: number;
+  accounting_class: "operating" | "internal_transfer";
 };
 type ExistingImportRow = { import_key: string; content_fingerprint: string };
 type ReceiptRow = {
@@ -127,7 +128,7 @@ function mappedLedgerRow(row: LedgerRow): Record<string, unknown> {
     transactionPurpose: row.transaction_purpose, charitableAmount: Number(row.charitable_amount ?? 0),
     tripId: row.trip_id, tripAccountId: row.trip_account_id, fundingSourceId: row.funding_source_id,
     gross: row.gross === null ? null : Number(row.gross), fee: row.fee === null ? null : Number(row.fee),
-    net: row.net === null ? null : Number(row.net), sourceFileName: row.source_file_name,
+    net: row.net === null ? null : Number(row.net), accountingClass: row.accounting_class, sourceFileName: row.source_file_name,
     sourceRowNumber: row.source_row_number, createdAt: row.created_at, receiptCount: Number(row.receipt_count ?? 0),
   };
 }
@@ -150,8 +151,9 @@ function ledgerWhere(url: URL): { clause: string; bindings: unknown[] } {
   const year = url.searchParams.get("year") ?? "";
   const search = (url.searchParams.get("search") ?? "").normalize("NFKC").replace(/\s+/g, " ").trim();
   if (entryType) {
-    if (!new Set(["income", "expense"]).has(entryType)) throw new AdminError(422, "INVALID_FILTER", "Choose a valid ledger type filter.");
-    conditions.push("entry_type = ?"); bindings.push(entryType);
+    if (!new Set(["income", "expense", "transfer"]).has(entryType)) throw new AdminError(422, "INVALID_FILTER", "Choose income, expenses, or transfers.");
+    if (entryType === "transfer") conditions.push("accounting_class = 'internal_transfer'");
+    else { conditions.push("entry_type = ? AND accounting_class = 'operating'"); bindings.push(entryType); }
   }
   if (sourceType) {
     if (!new Set(["csm", "import", "manual"]).has(sourceType)) throw new AdminError(422, "INVALID_FILTER", "Choose a valid ledger source filter.");
@@ -179,15 +181,16 @@ async function listLedger(request: Request, env: AdminEnv): Promise<Response> {
   const [count, summary, rows, categories] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS count FROM ledger_entries ${where.clause}`).bind(...where.bindings).first<{ count: number }>(),
     env.DB.prepare(
-      `SELECT COALESCE(SUM(CASE WHEN entry_type = 'income' THEN amount ELSE 0 END), 0) AS income,
-              COALESCE(SUM(CASE WHEN entry_type = 'expense' THEN amount ELSE 0 END), 0) AS expense
+      `SELECT COALESCE(SUM(CASE WHEN entry_type = 'income' AND accounting_class = 'operating' THEN amount ELSE 0 END), 0) AS income,
+              COALESCE(SUM(CASE WHEN entry_type = 'expense' AND accounting_class = 'operating' THEN amount ELSE 0 END), 0) AS expense,
+              COALESCE(SUM(CASE WHEN accounting_class = 'internal_transfer' THEN amount ELSE 0 END), 0) AS transfer
        FROM ledger_entries ${where.clause}`,
-    ).bind(...where.bindings).first<{ income: number; expense: number }>(),
+    ).bind(...where.bindings).first<{ income: number; expense: number; transfer: number }>(),
     env.DB.prepare(
       `SELECT id, source_type, import_key, content_fingerprint, source_file_name, source_row_number,
               transaction_date, entry_type, payment_type, expense_category, budget_category, amount,
               name, person_id, check_number, note, currency, gross, fee, net, created_at, transaction_purpose,
-              charitable_amount, trip_id, trip_account_id, funding_source_id,
+              charitable_amount, trip_id, trip_account_id, funding_source_id, accounting_class,
               (SELECT COUNT(*) FROM ledger_receipts WHERE ledger_entry_id = ledger_entries.id) AS receipt_count
        FROM ledger_entries ${where.clause}
        ORDER BY transaction_date DESC, created_at DESC LIMIT ? OFFSET ?`,
@@ -197,9 +200,10 @@ async function listLedger(request: Request, env: AdminEnv): Promise<Response> {
   const total = Number(count?.count ?? 0);
   const income = Number(summary?.income ?? 0);
   const expense = Number(summary?.expense ?? 0);
+  const transfer = Number(summary?.transfer ?? 0);
   return adminJson({
     entries: rows.results.map(mappedLedgerRow), page, pageSize, total, pages: Math.max(1, Math.ceil(total / pageSize)),
-    summary: { income, expense, balance: income - expense, count: total }, categories,
+    summary: { income, expense, transfer, balance: income - expense, count: total }, categories,
   });
 }
 
@@ -441,7 +445,7 @@ async function exportLedger(request: Request, env: AdminEnv): Promise<Response> 
     `SELECT id, source_type, import_key, content_fingerprint, source_file_name, source_row_number,
             transaction_date, entry_type, payment_type, expense_category, budget_category, amount,
             name, person_id, check_number, note, currency, gross, fee, net, created_at, transaction_purpose,
-            charitable_amount, trip_id, trip_account_id, funding_source_id,
+            charitable_amount, trip_id, trip_account_id, funding_source_id, accounting_class,
             (SELECT COUNT(*) FROM ledger_receipts WHERE ledger_entry_id = ledger_entries.id) AS receipt_count
      FROM ledger_entries ORDER BY transaction_date DESC, created_at DESC`,
   ).all<LedgerRow>();
@@ -450,6 +454,7 @@ async function exportLedger(request: Request, env: AdminEnv): Promise<Response> 
     expenseCategory: row.expense_category, amount: Number(row.amount), name: row.name, personId: row.person_id,
     budgetCategory: row.budget_category, note: row.note, sourceType: row.source_type, sourceFileName: row.source_file_name,
     transactionPurpose: row.transaction_purpose, charitableAmount: Number(row.charitable_amount ?? 0),
+    accountingClass: row.accounting_class,
     tripId: row.trip_id, tripAccountId: row.trip_account_id, fundingSourceId: row.funding_source_id,
     checkNumber: row.check_number,
     sourceRowNumber: row.source_row_number, currency: row.currency, gross: row.gross === null ? null : Number(row.gross),
@@ -466,7 +471,7 @@ async function exportLedger(request: Request, env: AdminEnv): Promise<Response> 
 }
 
 type LedgerReceiptEntry = {
-  id: string; transaction_date: string; entry_type: LedgerType; amount: number; name: string | null;
+  id: string; transaction_date: string; entry_type: LedgerType; accounting_class: string; amount: number; name: string | null;
 };
 
 function receiptPreviewable(mediaType: string): boolean {
@@ -483,7 +488,7 @@ function mappedReceipt(row: ReceiptRow): Record<string, unknown> {
 
 async function receiptLedgerEntry(env: AdminEnv, id: string): Promise<LedgerReceiptEntry> {
   const entry = await env.DB.prepare(
-    "SELECT id, transaction_date, entry_type, amount, name FROM ledger_entries WHERE id = ?1",
+    "SELECT id, transaction_date, entry_type, accounting_class, amount, name FROM ledger_entries WHERE id = ?1",
   ).bind(id).first<LedgerReceiptEntry>();
   if (!entry) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
   return entry;
@@ -506,7 +511,7 @@ async function listLedgerReceipts(request: Request, env: AdminEnv, ledgerEntryId
 async function uploadLedgerReceipt(request: Request, env: AdminEnv, ledgerEntryId: string): Promise<Response> {
   const session = await authenticate(request, env, true);
   const entry = await receiptLedgerEntry(env, ledgerEntryId);
-  if (entry.entry_type !== "expense") throw new AdminError(409, "RECEIPTS_REQUIRE_EXPENSE", "Receipts can only be attached to expense entries.");
+  if (entry.entry_type !== "expense" || entry.accounting_class === "internal_transfer") throw new AdminError(409, "RECEIPTS_REQUIRE_EXPENSE", "Receipts can only be attached to operating expense entries.");
   const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM ledger_receipts WHERE ledger_entry_id = ?1").bind(ledgerEntryId).first<{ count: number }>();
   if (Number(count?.count ?? 0) >= RECEIPT_MAX_FILES_PER_ENTRY) {
     throw new AdminError(409, "RECEIPT_LIMIT_REACHED", `This expense already has the maximum of ${RECEIPT_MAX_FILES_PER_ENTRY} receipt files.`);
@@ -673,24 +678,27 @@ async function generateContactDocuments(request: Request, env: AdminEnv): Promis
 export function csmLedgerStatement(env: AdminEnv, input: {
   ledgerId: string; financialTransactionId: string; idempotencyKey: string; transactionDate: string;
   direction: "received" | "sent"; displayName: string; personId: string | null; currency: string;
-  gross: number; fee: number; net: number; itemName: string | null; createdAt: string;
+  gross: number; fee: number; net: number; itemName: string | null; eventCode: string; createdAt: string;
 }): D1PreparedStatement {
+  const isBankTransfer = input.eventCode === "T0300" || input.eventCode === "T0400";
   const entryType = input.direction === "received" ? "income" : "expense";
   const amount = Math.abs(input.net) || Math.abs(input.gross);
-  const transactionPurpose: LedgerPurpose = input.direction === "received" ? "donation" : "general";
-  const charitableAmount = input.direction === "received" ? Math.abs(input.gross) : 0;
+  const transactionPurpose: LedgerPurpose = !isBankTransfer && input.direction === "received" ? "donation" : "general";
+  const charitableAmount = !isBankTransfer && input.direction === "received" ? Math.abs(input.gross) : 0;
+  const accountingClass = isBankTransfer ? "internal_transfer" : "operating";
   return env.DB.prepare(
     `INSERT INTO ledger_entries
       (id, source_type, import_key, content_fingerprint, financial_transaction_id,
        transaction_date, entry_type, payment_type, expense_category, budget_category,
-       amount, name, person_id, note, transaction_purpose, charitable_amount, currency,
+       amount, name, person_id, note, transaction_purpose, charitable_amount, currency, accounting_class,
        gross, fee, net, created_at, updated_at)
-     VALUES (?1, 'csm', ?2, ?3, ?4, ?5, ?6, 'PayPal', ?7, 'General', ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18)`,
+     VALUES (?1, 'csm', ?2, ?3, ?4, ?5, ?6, 'PayPal', ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20)`,
   ).bind(
     input.ledgerId, `csm:${input.idempotencyKey}`, input.idempotencyKey, input.financialTransactionId,
-    input.transactionDate, entryType, input.direction === "sent" ? "Ministry support" : null,
-    amount, input.displayName, input.personId, input.itemName, transactionPurpose, charitableAmount,
-    input.currency, input.gross, input.fee, input.net, input.createdAt,
+    input.transactionDate, entryType, isBankTransfer ? "Internal transfer" : input.direction === "sent" ? "Ministry support" : null,
+    isBankTransfer ? "Balance transfer" : "General", amount, input.displayName, input.personId,
+    input.itemName, transactionPurpose, charitableAmount, input.currency, accountingClass,
+    input.gross, input.fee, input.net, input.createdAt,
   );
 }
 

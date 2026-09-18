@@ -30,6 +30,7 @@
       ],
       "vars": {
         "ENVIRONMENT": "test",
+        "SHARED_SIGNIN": "disabled",
         "ALLOWED_ORIGINS": "https://test.hopesojourns.com,https://hopesojourns-test.pages.dev,http://localhost:*,http://127.0.0.1:*",
         "EMAIL_DELIVERY_MODE": "capture",
         "EMAIL_FROM_ADDRESS": "admin@hopesojourns.com",
@@ -79,6 +80,7 @@
       ],
       "vars": {
         "ENVIRONMENT": "production",
+        "SHARED_SIGNIN": "enabled",
         "MMT_EMAIL_PROVIDER": "resend",
         "MMT_EMAIL_DELIVERY_MODE": "live",
         "ALLOWED_ORIGINS": "https://hopesojourns.com,https://www.hopesojourns.com,https://hopesojourns.pages.dev"

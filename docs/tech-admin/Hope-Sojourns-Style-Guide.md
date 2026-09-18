@@ -1,8 +1,18 @@
 # Hope Sojourns website style guide
 
-Version 4.4.2
+Version 4.5.0
 
 Last reviewed: September 17, 2026
+
+## Shared portal account management
+
+Use Organization Administrator for shared identity and cross-portal authority, Portal Administrator for one portal, and Member for assigned section access. Both account pages show My shared profile, Change shared password, and Users & access requests when authorized. The user list shows portal memberships, global status, and last logged in with the viewer's local time zone.
+
+Separate HS and CSM access into labeled fieldsets. Each has Allow access to this portal, Portal Administrator, and section-level Blocked, Read only, and Edit choices. Presets change only that portal's section choices. Only Organization Administrators see both fieldsets, shared status, shared profile editing for others, and the Organization Administrator checkbox. Explain that removing one membership leaves the other intact, while Suspended in both portals and Delete shared account affect both. Keep typed username confirmation for deletion. Linking an existing account requires independent identity verification and preserves the existing password.
+
+Use compact inline checkboxes, readable sidebar link contrast, palette-based borders and backgrounds, scrollable dialogs, and a horizontally scrollable directory on small screens. Shared profile and recovery screens preserve US phone masking while storing ten digits. Existing users retain usernames, and users cannot edit their own access level. The Switch to Hope Sojourns or Switch to Christian Steps Ministries link appears only when both memberships are active. The switch screen shows progress or a clear retry/sign-in message without showing tokens.
+
+The shared account UI is maintained in HS admin/account/account.js and copied to CSM's admin/account directory. Both portals keep their own branding. New account forms, role selection, instructions, and permission denial messages must describe the scope of the action plainly, especially changes that affect both portals.
 
 ## Donation split editor
 
@@ -545,6 +555,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.5.0 | Added shared profile and role terminology, independent portal access fieldsets, scoped actions, and portal-switch navigation. Local pending release. |
 | 2026-09-17 | 4.4.2 | Added responsive donor split dialog, remaining-amount feedback, and edit/undo history patterns. |
 | 2026-09-17 | 4.4.1 | Added confirmed user deletion with access revocation and preserved history; local pending release. |
 | 2026-09-17 | 4.4 | Added individual MMT accounts, section permissions, profile and recovery workflows, email delivery requirements, and US phone storage and masks; local implementation pending release. |

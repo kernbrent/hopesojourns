@@ -4,6 +4,7 @@ export type LedgerWorkbookRow = {
   id: string;
   transactionDate: string;
   entryType: string;
+  accountingClass?: string;
   paymentType: string;
   expenseCategory: string | null;
   amount: number;
@@ -81,7 +82,7 @@ export function buildLedgerWorkbook(entries: LedgerWorkbookRow[]): Uint8Array {
     ledgerRows.push([
       { value: entry.id },
       date === null ? { value: entry.transactionDate } : { value: date, style: 1, numeric: true },
-      { value: entry.entryType === "income" ? "Income" : "Expense" },
+      { value: entry.accountingClass === "internal_transfer" ? "Transfer" : entry.entryType === "income" ? "Income" : "Expense" },
       { value: entry.paymentType },
       { value: entry.expenseCategory },
       { value: entry.amount, style: 2, numeric: true },

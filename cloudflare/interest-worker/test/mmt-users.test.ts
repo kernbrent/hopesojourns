@@ -33,7 +33,7 @@ it('requires changing a temporary password before accessing records and rejects 
 });
 it('protects the last administrator and rejects self permission changes',async()=>{
  const f=await setup();const me=await (await f.call('/admin/account/profile')).json() as any;
- expect((await f.call('/admin/account/users/primary',{...me.user,permissions:{},is_admin:false,status:'active'},'PUT')).status).toBe(409);
+ expect((await f.call('/admin/account/users/primary',{...me.user,permissions:{},is_admin:false,is_org_admin:false,status:'active'},'PUT')).status).toBe(409);
  expect((await f.call('/admin/account/profile',{...profile,is_admin:true},'PUT')).status).toBe(403);
 });
 it('queues access/recovery requests without granting access and rate limits public requests',async()=>{

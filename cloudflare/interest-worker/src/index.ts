@@ -1,3 +1,5 @@
+export {CsmIdentity} from './identity-entrypoint';
+import {sharedSwitch} from './shared-signin';
 import {storedPhone,matchPhone} from './phone';
 import {actorContext} from './mmt-permissions';
 import {handleAccountPublic} from './mmt-users';
@@ -571,6 +573,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   }
   if (path === "/internal/donation-splits") return internalDonationSplits(request, env);
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
+  if(path.startsWith('/admin/switch/'))return sharedSwitch(request,env,path);
   if(path.startsWith('/public/account/'))return handleAccountPublic(request,env,path);
   if (path.startsWith('/admin/destinations') || path.startsWith('/public/destinations')) return handleDestinations(request,env,path);
   if (path.startsWith('/admin/finance/')) return handleFinanceAdminRequest(request,env,path);

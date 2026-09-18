@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-admin-build="2026-09-17.4">
+<html lang="en" data-admin-build="2026-09-17.5">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-17.4">
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-17.5">
 <script src="/phone-ui.js?v=1" defer></script></head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -238,6 +238,7 @@
           <div class="admin-ledger-summary" aria-label="Filtered ledger totals">
             <article><span>Income</span><strong id="ledger-income">$0.00</strong><small>filtered entries</small></article>
             <article><span>Expenses</span><strong id="ledger-expense">$0.00</strong><small>filtered entries</small></article>
+            <article><span>Transfers</span><strong id="ledger-transfer">$0.00</strong><small>not income or expense</small></article>
             <article class="admin-ledger-balance"><span>Balance</span><strong id="ledger-balance">$0.00</strong><small>income minus expenses</small></article>
             <article><span>Entries</span><strong id="ledger-count">0</strong><small>matching records</small></article>
           </div>
@@ -245,11 +246,12 @@
             <button class="admin-button" type="button" data-ledger-view="" aria-pressed="true">All transactions</button>
             <button class="admin-button" type="button" data-ledger-view="income" aria-pressed="false">Income</button>
             <button class="admin-button" type="button" data-ledger-view="expense" aria-pressed="false">Expenses</button>
+            <button class="admin-button" type="button" data-ledger-view="transfer" aria-pressed="false">Transfers</button>
           </div>
           <form class="admin-ledger-filters" id="ledger-filters" role="search">
             <label><span>Search ledger</span><input name="search" type="search" maxlength="100" placeholder="Name, note, check number, category, or payment type"></label>
             <label><span>Year</span><select name="year" id="ledger-year-filter"><option value="">All years</option></select></label>
-            <label><span>Type</span><select name="entryType"><option value="">Income and expenses</option><option value="income">Income</option><option value="expense">Expenses</option></select></label>
+            <label><span>Type</span><select name="entryType"><option value="">All accounting activity</option><option value="income">Income</option><option value="expense">Expenses</option><option value="transfer">Transfers</option></select></label>
             <label><span>Source</span><select name="sourceType"><option value="">Every source</option><option value="csm">ChristianSteps / PayPal</option><option value="import">Spreadsheet import</option><option value="manual">Manual entry</option></select></label>
             <button class="admin-button admin-button-primary" type="submit">Apply</button>
             <button class="admin-button admin-button-quiet" id="reset-ledger-filters" type="button">Clear</button>
@@ -264,7 +266,7 @@
         </section>
         <section class="admin-csm-workspace" id="csm-inbox-workspace" role="tabpanel" aria-labelledby="csm-inbox-view-tab" hidden>
           <div class="admin-csm-toolbar">
-            <div><strong>Christian Steps transactions</strong><span>Approve received gifts and sent payments before they enter the Hope Sojourns ledger.</span></div>
+            <div><strong>Christian Steps transactions</strong><span>Approve received gifts, sent payments, and PayPal-to-bank transfers before they enter the Hope Sojourns ledger.</span></div>
             <div class="admin-csm-toolbar-actions">
               <label><span>Show</span><select id="csm-inbox-filter"><option value="open">Awaiting review</option><option value="all">All transactions</option><option value="approved">Approved</option><option value="denied">Denied</option><option value="needs_match">Needs donor match</option></select></label>
               <button class="admin-button admin-button-primary" id="approve-all-csm-inbox" type="button" disabled>Approve all awaiting</button>
@@ -280,6 +282,7 @@
             <article><span>Donations</span><strong id="csm-donation-count">0</strong><small>approved gifts</small></article>
             <article><span>Givers</span><strong id="csm-giver-count">0</strong><small>unique donor records</small></article>
             <article><span>Sent</span><strong id="csm-sent-total">$0.00</strong><small>approved payments</small></article>
+            <article><span>Moved to bank</span><strong id="csm-transfer-total">$0.00</strong><small>approved internal transfers</small></article>
           </div>
           <div class="admin-csm-list" id="csm-inbox-list" aria-live="polite"></div>
         </section>
@@ -606,6 +609,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=2026-09-17.4" defer></script>
+  <script src="/admin/admin.js?v=2026-09-17.5" defer></script>
 </body>
 </html>

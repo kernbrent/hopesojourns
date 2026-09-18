@@ -71,6 +71,7 @@ const csmNetReceived = document.querySelector("#csm-net-received");
 const csmDonationCount = document.querySelector("#csm-donation-count");
 const csmGiverCount = document.querySelector("#csm-giver-count");
 const csmSentTotal = document.querySelector("#csm-sent-total");
+const csmTransferTotal = document.querySelector("#csm-transfer-total");
 const ledgerViewTab = document.querySelector("#ledger-view-tab");
 const ledgerWorkspace = document.querySelector("#ledger-workspace");
 const ledgerFilters = document.querySelector("#ledger-filters");
@@ -78,6 +79,7 @@ const ledgerTableShell = document.querySelector("#ledger-table-shell");
 const ledgerStatus = document.querySelector("#ledger-status");
 const ledgerIncome = document.querySelector("#ledger-income");
 const ledgerExpense = document.querySelector("#ledger-expense");
+const ledgerTransfer = document.querySelector("#ledger-transfer");
 const ledgerBalance = document.querySelector("#ledger-balance");
 const ledgerCount = document.querySelector("#ledger-count");
 const ledgerPageLabel = document.querySelector("#ledger-page-label");
@@ -1116,14 +1118,18 @@ function renderCsmGivingSummary(summary = {}) {
   csmDonationCount.textContent = String(Number(summary.donations || 0));
   csmGiverCount.textContent = String(Number(summary.givers || 0));
   csmSentTotal.textContent = csmMoney(summary.sent);
+  csmTransferTotal.textContent = csmMoney(summary.transferred);
 }
 
+function isCsmBankTransfer(message) { return message?.transaction?.eventCode === "T0400"; }
+
 function renderCsmCard(message) {
+  const bankTransfer = isCsmBankTransfer(message);
   const card = element("article", "admin-csm-card");
   const header = element("header");
   const heading = element("div");
   heading.append(element("h3", "", message.displayName));
-  heading.append(element("span", "", `${titleCase(message.direction)} · received by Hope ${formatDate(message.receivedAt)}`));
+  heading.append(element("span", "", `${bankTransfer ? "PayPal to bank transfer" : titleCase(message.direction)} · received by Hope ${formatDate(message.receivedAt)}`));
   const status = statusPill(message.status);
   header.append(heading, status, element("span", "admin-csm-amount", csmMoney(message.transaction.gross)));
 
@@ -1169,7 +1175,7 @@ function renderCsmCard(message) {
         csmInput("Phone", "phone", message.party.phone),
       );
     }
-    const approve = element("button", "admin-button admin-button-primary", message.direction === "received" ? "Approve gift" : "Approve sent payment");
+    const approve = element("button", "admin-button admin-button-primary", message.direction === "received" ? "Approve gift" : bankTransfer ? "Approve transfer" : "Approve sent payment");
     approve.type = "submit";
     form.append(approve);
     form.addEventListener("submit", async event => {
@@ -1198,7 +1204,7 @@ function renderCsmCard(message) {
     const actions = element("div", "admin-csm-actions");
     const note = message.matchedPerson
       ? `Matched to ${message.matchedPerson.firstName} ${message.matchedPerson.lastName} by ${titleCase(message.matchMethod)}.`
-      : message.direction === "received" ? "Confirm an existing donor or complete the new donor fields." : "Sent payments do not create donor records.";
+      : message.direction === "received" ? "Confirm an existing donor or complete the new donor fields." : bankTransfer ? "This moves Hope Sojourns funds from PayPal to the shared CSM bank. It is not an expense and does not create a donor." : "Sent payments do not create donor records.";
     actions.append(element("span", message.status === "needs_match" ? "admin-csm-warning" : "", note));
     const deny = element("button", "admin-button admin-button-outline", "Deny");
     deny.type = "button";
@@ -1220,7 +1226,7 @@ function renderCsmCard(message) {
     card.append(actions);
   } else {
     card.append(element("p", "", message.status === "approved"
-      ? `Approved into the Hope Sojourns ledger${message.matchedPerson ? ` for ${message.matchedPerson.firstName} ${message.matchedPerson.lastName}` : ""}.`
+      ? `${bankTransfer ? "Approved as an internal bank transfer" : "Approved into the Hope Sojourns ledger"}${message.matchedPerson ? ` for ${message.matchedPerson.firstName} ${message.matchedPerson.lastName}` : ""}.`
       : `Denied: ${message.decisionReason || "No reason recorded"}`));
   }
 
@@ -1291,7 +1297,7 @@ async function approveAllCsmInbox() {
       return;
     }
     const confirmed = window.confirm(
-      `Approve all ${total} awaiting Hope Sojourns transactions? Received gifts will be linked to an existing Person or create a new donor in People. Sent payments will not create People.`,
+      `Approve all ${total} awaiting Hope Sojourns transactions? Received gifts will be linked to an existing Person or create a new donor in People. Sent payments and bank transfers will not create People.`,
     );
     if (!confirmed) return;
 
@@ -1500,6 +1506,8 @@ function ledgerSourceLabel(value) {
   return value === "csm" ? "ChristianSteps / PayPal" : value === "import" ? "Spreadsheet" : "Manual";
 }
 
+function ledgerEntryType(entry) { return entry.accountingClass === "internal_transfer" ? "transfer" : entry.entryType; }
+
 function renderLedgerTableLegacy(entries) {
   if (!entries.length) {
     const empty = element("article", "admin-empty-state");
@@ -1518,10 +1526,11 @@ function renderLedgerTableLegacy(entries) {
   head.append(heading);
   const body = document.createElement("tbody");
   entries.forEach(entry => {
+    const displayType = ledgerEntryType(entry);
     const row = document.createElement("tr");
     gridCell(row, formatDate(entry.transactionDate, false));
-    const type = gridCell(row, titleCase(entry.entryType), `admin-ledger-type admin-ledger-type-${entry.entryType}`);
-    type.dataset.label = entry.entryType;
+    const type = gridCell(row, titleCase(displayType), `admin-ledger-type admin-ledger-type-${displayType}`);
+    type.dataset.label = displayType;
     gridCell(row, formatMoney(entry.amount), "admin-ledger-amount");
     gridCell(row, entry.name || "—", entry.name ? "" : "admin-grid-muted");
     gridCell(row, entry.paymentType);
@@ -1555,6 +1564,7 @@ function renderLedgerTable(entries) {
   head.append(heading);
   const body = document.createElement("tbody");
   entries.forEach(entry => {
+    const displayType = ledgerEntryType(entry);
     const row = document.createElement("tr");
     gridCell(row, formatDate(entry.transactionDate, false));
     const party = gridCell(row, '');
@@ -1563,7 +1573,7 @@ function renderLedgerTable(entries) {
     const details = element('details', 'admin-ledger-details');
     details.append(element('summary', '', 'Full record'));
     const fields = [
-      ['Type', titleCase(entry.entryType)], ['Purpose', titleCase(String(entry.transactionPurpose || 'general').replaceAll('_', ' '))],
+      ['Type', titleCase(displayType)], ['Purpose', titleCase(String(entry.transactionPurpose || 'general').replaceAll('_', ' '))],
       ['Charitable portion', formatMoney(entry.charitableAmount || 0)], ['Check number', entry.checkNumber || '—'],
       ['Expense category', entry.expenseCategory || '—'], ['Budget category', entry.budgetCategory || '—'],
       ['Source', ledgerSourceLabel(entry.sourceType)], ['Note', entry.note || '—'],
@@ -1578,10 +1588,10 @@ function renderLedgerTable(entries) {
     payment.append(element('small', '', ledgerSourceLabel(entry.sourceType)));
     if (entry.checkNumber) payment.append(element('small', '', `Check ${entry.checkNumber}`));
     const amount = gridCell(row, formatMoney(entry.amount), 'admin-ledger-amount');
-    amount.append(element('small', `admin-ledger-type-${entry.entryType}`, titleCase(entry.entryType)));
+    amount.append(element('small', `admin-ledger-type-${displayType}`, titleCase(displayType)));
     const receiptCell = document.createElement("td");
     receiptCell.className = "admin-ledger-receipt-cell";
-    if (entry.entryType === "expense") {
+    if (entry.entryType === "expense" && displayType !== "transfer") {
       const receiptTotal = Number(entry.receiptCount || 0);
       const receiptButton = element("button", "admin-button admin-button-outline admin-receipt-button");
       receiptButton.type = "button";
@@ -1606,7 +1616,7 @@ function renderLedgerTable(entries) {
     remove.type = "button";
     remove.addEventListener("click", async () => {
       const receiptWarning = Number(entry.receiptCount || 0) ? ` This also permanently removes ${plural(Number(entry.receiptCount), "stored receipt")}.` : "";
-      const confirmation = window.prompt(`Permanently delete this ${titleCase(entry.entryType)} entry for ${formatMoney(entry.amount)} on ${formatDate(entry.transactionDate, false)}?${receiptWarning}\n\nType DELETE to confirm.`);
+      const confirmation = window.prompt(`Permanently delete this ${titleCase(displayType)} entry for ${formatMoney(entry.amount)} on ${formatDate(entry.transactionDate, false)}?${receiptWarning}\n\nType DELETE to confirm.`);
       if (confirmation === null) return;
       if (confirmation !== "DELETE") {
         ledgerStatus.textContent = "Nothing was deleted. Enter DELETE exactly to confirm permanent deletion.";
@@ -1853,7 +1863,7 @@ function ensureLedgerYears() {
 
 async function loadLedger() {
   const kind = ledgerFilters.elements.entryType.value;
-  document.querySelector('#ledger-view-title').textContent = kind === 'income' ? 'Income received' : kind === 'expense' ? 'Ministry expenses' : 'Hope Sojourns financial ledger';
+  document.querySelector('#ledger-view-title').textContent = kind === 'income' ? 'Income received' : kind === 'expense' ? 'Ministry expenses' : kind === 'transfer' ? 'Internal transfers' : 'Hope Sojourns financial ledger';
   document.querySelectorAll('[data-ledger-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.ledgerView === kind)));
   updateSidebarSelection(state.view);
   ensureLedgerYears();
@@ -1864,6 +1874,7 @@ async function loadLedger() {
     ledgerTableShell.replaceChildren(renderLedgerTable(result.entries || []));
     ledgerIncome.textContent = formatMoney(result.summary?.income);
     ledgerExpense.textContent = formatMoney(result.summary?.expense);
+    ledgerTransfer.textContent = formatMoney(result.summary?.transfer);
     ledgerBalance.textContent = formatMoney(result.summary?.balance);
     ledgerCount.textContent = String(result.summary?.count || 0);
     ledgerBalance.closest("article").classList.toggle("is-negative", Number(result.summary?.balance || 0) < 0);
