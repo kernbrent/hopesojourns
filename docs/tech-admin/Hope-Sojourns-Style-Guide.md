@@ -1,8 +1,14 @@
 # Hope Sojourns website style guide
 
-Version 4.4.1
+Version 4.4.2
 
 Last reviewed: September 17, 2026
+
+## Donation split editor
+
+Place Split donation beside eligible income entries. The dialog identifies the original payer and date, charitable amount before fees, and any fee and net deposit. Use labeled donor fields, an existing-contact selector, and Add donor and Remove donor controls. Selecting an existing contact makes identity fields read-only; choosing New donor enables entry. A live Amount remaining message helps the user allocate the complete donation.
+
+Use two columns for donor fields on wider screens and one column on small screens. Keep dates, amounts, validation messages, Save split, Cancel, and Undo split visible through normal dialog scrolling. Escape and Cancel close without saving. Explain that the original payment remains counted once. Undo requires confirmation and retains a readable change history. Use the shared palette and existing buttons, labels, and focus styles.
 
 ## MMT account and access screens
 
@@ -539,6 +545,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4.2 | Added responsive donor split dialog, remaining-amount feedback, and edit/undo history patterns. |
 | 2026-09-17 | 4.4.1 | Added confirmed user deletion with access revocation and preserved history; local pending release. |
 | 2026-09-17 | 4.4 | Added individual MMT accounts, section permissions, profile and recovery workflows, email delivery requirements, and US phone storage and masks; local implementation pending release. |
 | 2026-09-17 | 4.3 | Added managed public destinations, photo and visibility controls, and automatic insertion ordering. |

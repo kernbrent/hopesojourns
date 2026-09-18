@@ -1,3 +1,4 @@
+import {allocationContacts} from './donation-splits';
 import { parseDistributionMessage, type CsmDistributionMessage } from "./csm-distribution-contract";
 import {
   AdminError, adminJson, authenticate, auditStatement, readAdminJson, secureEqual, type AdminEnv,
@@ -252,8 +253,8 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
       ).bind(
         personId, input.firstName, input.lastName, normalizedName(input.firstName), normalizedName(input.lastName),
         input.email, normalizedEmail(input.email), input.phone, normalizedPhone(input.phone),
-        message.party.address?.line1, message.party.address?.line2, message.party.address?.city,
-        message.party.address?.state, message.party.address?.postalCode, message.party.address?.countryCode, now,
+        message.party.address?.line1 ?? null, message.party.address?.line2 ?? null, message.party.address?.city ?? null,
+        message.party.address?.state ?? null, message.party.address?.postalCode ?? null, message.party.address?.countryCode ?? null, now,
       ));
     }
     statements.push(
@@ -295,6 +296,11 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
     ).bind(personId, matchMethod, recordId, now, session.id, id),
     auditStatement(env, "csm_distribution", id, "approved", { recordId, personId, matchMethod }),
   );
+  if(message.donorAllocations?.length){
+    const allocations=message.donorAllocations.map(a=>({...a,personId:undefined}));
+    statements.push(...await allocationContacts(env,allocations,now));
+    statements.push(env.DB.prepare('INSERT INTO donation_splits(entry_id,revision,allocations_json,updated_at,actor) VALUES(?,1,?,?,?)').bind(ledgerId,JSON.stringify(allocations),now,session.user_id));
+  }
   await env.DB.batch(statements);
   const callbackStatus = await notifyCsm(env, { ...row, recipient_record_id: recordId }, "approved", null);
   return adminJson({ success: true, status: "approved", recordId, personId, matchMethod,

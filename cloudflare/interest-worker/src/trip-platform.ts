@@ -2345,8 +2345,8 @@ async function annualPersonSummary(request: Request, env: AdminEnv): Promise<Res
     env.DB.prepare(`SELECT le.id, le.transaction_date, le.charitable_amount AS amount,
       le.payment_type, le.budget_category, le.transaction_purpose, le.note,
       t.code AS trip_code, t.title AS trip_title
-      FROM ledger_entries le LEFT JOIN trips t ON t.id = le.trip_id
-      WHERE le.person_id = ?1 AND le.entry_type = 'income' AND le.charitable_amount > 0
+      FROM donation_gifts le LEFT JOIN trips t ON t.id = le.trip_id
+      WHERE le.person_id = ?1 AND le.charitable_amount > 0
         AND le.transaction_date >= ?2 AND le.transaction_date < ?3
       ORDER BY le.transaction_date, le.created_at`).bind(personId, start, end).all(),
     env.DB.prepare(`SELECT le.id, le.transaction_date, (le.amount - le.charitable_amount) AS amount, le.payment_type,

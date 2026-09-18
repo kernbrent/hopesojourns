@@ -15,6 +15,7 @@ import {
   ReceiptFileError, receiptObjectKey, type ReceiptMedia,
 } from "./receipt-file";
 
+import {donationSplits} from './donation-splits';
 type LedgerSource = "csm" | "import" | "manual";
 type LedgerType = "income" | "expense";
 type LedgerPurpose = "donation" | "scholarship_contribution" | "trip_payment" | "admin_fee" | "other" | "refund" | "trip_expense" | "reimbursement" | "general";
@@ -260,6 +261,9 @@ async function updateLedgerEntry(request: Request, env: AdminEnv, id: string): P
   const existing = await env.DB.prepare("SELECT id, source_type, entry_type FROM ledger_entries WHERE id = ?1").bind(id).first<{ id: string; source_type: LedgerSource; entry_type: LedgerType }>();
   if (!existing) throw new AdminError(404, "LEDGER_ENTRY_NOT_FOUND", "The ledger entry no longer exists.");
   const entry = await cleanLedgerEntry(await readAdminJson(request), env);
+  const donorSplit=await env.DB.prepare('SELECT allocations_json FROM donation_splits WHERE entry_id=?').bind(id).first<{allocations_json:string}>();
+  const allocations=JSON.parse(donorSplit?.allocations_json||'[]') as {amountCents:number}[];
+  if(allocations.length && (entry.entryType!=='income'||Math.round(entry.charitableAmount*100)!==allocations.reduce((n,a)=>n+a.amountCents,0)))throw new AdminError(409,'DONOR_SPLIT_LOCKED','Undo the donor split before changing the charitable total or income type.');
   const invoicePayment = await env.DB.prepare('SELECT amount_cents FROM finance_invoice_payments WHERE ledger_id=?').bind(id).first<{amount_cents:number}>();
   if (invoicePayment && (entry.entryType !== 'income' || Math.round(entry.amount * 100) !== invoicePayment.amount_cents)) throw new AdminError(409, 'INVOICE_PAYMENT_LOCKED', 'Remove the invoice payment link before changing this income amount or type.');
   if (existing.entry_type === "expense" && entry.entryType === "income") {
@@ -644,8 +648,8 @@ async function generateContactDocuments(request: Request, env: AdminEnv): Promis
       `SELECT person_id, transaction_date,
               charitable_amount AS statement_amount,
               budget_category, payment_type
-       FROM ledger_entries
-       WHERE entry_type = 'income' AND charitable_amount > 0 AND person_id IN (${placeholders})
+       FROM donation_gifts
+       WHERE charitable_amount > 0 AND person_id IN (${placeholders})
          AND transaction_date >= ? AND transaction_date < ?
        ORDER BY transaction_date ASC, created_at ASC`,
     ).bind(...personIds, `${taxYear}-01-01`, `${taxYear + 1}-01-01`).all<{ person_id: string; transaction_date: string; statement_amount: number; budget_category: string; payment_type: string }>();
@@ -700,6 +704,8 @@ export async function handleLedgerAdminRequest(request: Request, env: AdminEnv, 
   try {
     if (request.method === "GET" && path === "/admin/ledger") return await listLedger(request, env);
     if (request.method === "POST" && path === "/admin/ledger/entries") return await createLedgerEntry(request, env);
+    const splitRoute=path.match(/^\/admin\/ledger\/entries\/([^/]+)\/donor-splits$/);
+    if(splitRoute && ['GET','PUT'].includes(request.method))return await donationSplits(request,env,decodeURIComponent(splitRoute[1]!));
     const receiptCollectionRoute = path.match(/^\/admin\/ledger\/entries\/([^/]+)\/receipts$/);
     if (receiptCollectionRoute && (request.method === "GET" || request.method === "POST")) {
       const ledgerEntryId = cleanLine(decodeURIComponent(receiptCollectionRoute[1]!), 128, true)!;

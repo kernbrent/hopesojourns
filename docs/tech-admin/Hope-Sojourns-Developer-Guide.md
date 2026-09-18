@@ -1,8 +1,20 @@
 # Hope Sojourns developer guide
 
-Version 4.4.5
+Version 4.4.6
 
 Last reviewed: September 17, 2026
+
+## Donation allocations
+
+Finance > Income > Split donation assigns a single payment to 2–100 donors without altering the original ledger amount, payer, PayPal identifiers, fee, or net deposit. Amounts use positive integer cents and must total the charitable amount before fees. Each allocation records the donor, original gift date, and optional note. Undo restores the original payer for giving statements and retains the history.
+
+Migration 0024 adds donation_splits, donation_split_history, atomic save guards, and the donation_gifts reporting view. Giving statements and annual contribution reports query this view so the original payer is not counted alongside split donors. Existing rows are unchanged. Contact deletion and changes to a split's charitable total are blocked until the split is undone. Database triggers enforce totals; optimistic revisions prevent stale saves. Finance and contact permissions, CSRF, and existing session rules apply.
+
+The shared admin/donation-splits.js dialog is loaded by the finance workspace. GET and PUT /admin/ledger/entries/:id/donor-splits expose the editor. Splits create or select donor contacts and retain revisions with the editing actor. Allocation names and email are snapshots; HS giving documents use the current contact profile.
+
+CSM sends optional donorAllocations and donorSplitRevision in the existing distribution contract. Inbox approval writes contacts, the original payment, and allocations atomically. After transfer approval, HS is authoritative. The existing secret-protected POST /internal/donation-splits service allows CSM to read and update allocations for approved CSM source records only. CSM giving statements fetch those allocations, including when a status callback is delayed, and stop if authoritative data is unavailable. Before approval, CSM locks the submitted split; complete approval before editing it. CSM migration 0003 protects the split and transfer revision from concurrent changes.
+
+Deploy the HS migration and Worker before the CSM migration and Worker, then publish the HS admin assets. No historical donation is automatically split. Reconcile original deposit totals separately from donor allocations. Test total mismatches, fees, original donation years, multiple donors, edit/undo, stale changes, authorization, and transfer approval. Payment dashboards and bank exports continue to show original payment activity; giving statements show attributed gifts.
 
 ## Individual MMT accounts and phone storage
 
@@ -767,6 +779,7 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4.6 | Added donation allocations, donor reporting, edit and undo history, and shared CSM transfer handling. |
 | 2026-09-17 | 4.4.5 | Display each user’s last successful sign-in with local date, time, and time zone in the administrator directory. |
 | 2026-09-17 | 4.4.4 | Fix account email request construction in Workers by using manual redirect handling; retain rejection of redirects and add a real-runtime regression test. |
 | 2026-09-17 | 4.4.3 | Allow deleted usernames and emails to be reused with fresh access; preserve historical identity and backfill previously deleted users. Local pending release. |

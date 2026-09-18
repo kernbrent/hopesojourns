@@ -6,6 +6,7 @@ import { handleMinistryAdminRequest } from "./ministry-admin";
 import { handleFinanceAdminRequest } from "./finance-admin";
 import { handleDestinations } from "./destinations";
 import { handleCsmAdminRequest, handleCsmDelivery } from "./csm-distribution";
+import {internalDonationSplits} from './donation-splits';
 import { handleLedgerAdminRequest } from "./ledger-admin";
 import { handleTripAdminRequest, handleTripPublicRequest } from "./trip-platform";
 
@@ -568,6 +569,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     await env.DB.prepare("SELECT 1").first();
     return json(request, env, { status: "ok", service: "hope-sojourns-interest", environment: env.ENVIRONMENT });
   }
+  if (path === "/internal/donation-splits") return internalDonationSplits(request, env);
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
   if(path.startsWith('/public/account/'))return handleAccountPublic(request,env,path);
   if (path.startsWith('/admin/destinations') || path.startsWith('/public/destinations')) return handleDestinations(request,env,path);
