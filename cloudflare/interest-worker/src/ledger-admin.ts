@@ -10,6 +10,7 @@ import {
   parseLedgerImportFile, sha256Hex, type LedgerImportInput, type ParsedLedgerImport,
 } from "./ledger-file";
 import { buildLedgerWorkbook, type LedgerWorkbookRow } from "./ledger-xlsx";
+import { isPayPalBankTransferEvent } from "./csm-distribution-contract";
 import {
   cleanReceiptFileName, detectReceiptMedia, RECEIPT_MAX_FILE_BYTES, RECEIPT_MAX_FILES_PER_ENTRY,
   ReceiptFileError, receiptObjectKey, type ReceiptMedia,
@@ -680,7 +681,7 @@ export function csmLedgerStatement(env: AdminEnv, input: {
   direction: "received" | "sent"; displayName: string; personId: string | null; currency: string;
   gross: number; fee: number; net: number; itemName: string | null; eventCode: string; createdAt: string;
 }): D1PreparedStatement {
-  const isBankTransfer = input.eventCode === "T0300" || input.eventCode === "T0400";
+  const isBankTransfer = isPayPalBankTransferEvent(input.eventCode);
   const entryType = input.direction === "received" ? "income" : "expense";
   const amount = Math.abs(input.net) || Math.abs(input.gross);
   const transactionPurpose: LedgerPurpose = !isBankTransfer && input.direction === "received" ? "donation" : "general";

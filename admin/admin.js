@@ -1121,7 +1121,8 @@ function renderCsmGivingSummary(summary = {}) {
   csmTransferTotal.textContent = csmMoney(summary.transferred);
 }
 
-function isCsmBankTransfer(message) { return message?.transaction?.eventCode === "T0400"; }
+const CSM_BANK_WITHDRAWAL_EVENT_CODES = new Set(["T0400", "T0401", "T0403"]);
+function isCsmBankTransfer(message) { return CSM_BANK_WITHDRAWAL_EVENT_CODES.has(message?.transaction?.eventCode); }
 
 function renderCsmCard(message) {
   const bankTransfer = isCsmBankTransfer(message);

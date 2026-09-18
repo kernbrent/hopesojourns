@@ -71,8 +71,8 @@ export async function currentGivingSummary(env: CsmEnv, at = new Date()): Promis
     `SELECT
        COALESCE(SUM(CASE WHEN direction = 'received' THEN gross ELSE 0 END), 0) AS gross_received,
        COALESCE(SUM(CASE WHEN direction = 'received' THEN net ELSE 0 END), 0) AS net_received,
-       COALESCE(SUM(CASE WHEN direction = 'sent' AND paypal_event_code <> 'T0400' THEN ABS(gross) ELSE 0 END), 0) AS sent,
-       COALESCE(SUM(CASE WHEN paypal_event_code = 'T0400' THEN ABS(gross) ELSE 0 END), 0) AS transferred,
+       COALESCE(SUM(CASE WHEN direction = 'sent' AND paypal_event_code NOT IN ('T0400', 'T0401', 'T0403') THEN ABS(gross) ELSE 0 END), 0) AS sent,
+       COALESCE(SUM(CASE WHEN paypal_event_code IN ('T0400', 'T0401', 'T0403') THEN ABS(gross) ELSE 0 END), 0) AS transferred,
        COALESCE(SUM(CASE WHEN direction = 'received' THEN 1 ELSE 0 END), 0) AS donations,
        COUNT(DISTINCT CASE WHEN direction = 'received' THEN person_id END) AS givers
      FROM financial_transactions WHERE transaction_date >= ?1 AND transaction_date < ?2`,
