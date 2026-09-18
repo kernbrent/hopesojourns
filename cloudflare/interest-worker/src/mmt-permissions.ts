@@ -2,7 +2,7 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 export const actorContext=new AsyncLocalStorage<{userId?:string}>();
 export const sections=['contacts','trips','destinations','finances','documents','inbox'] as const;
 export type Section=typeof sections[number];
-export type MmtIdentity={id:string;username:string;first_name:string;last_name:string;email:string;phone:string;country:string;is_admin:number;permissions_json:string;status:string;must_change_password:number;registered_at:string;revision:number};
+export type MmtIdentity={id:string;username:string;first_name:string;last_name:string;email:string;phone:string;country:string;is_admin:number;permissions_json:string;status:string;must_change_password:number;registered_at:string;last_login_at?:string|null;revision:number};
 export function permissions(user:MmtIdentity):Record<string,string>{
  if(user.is_admin)return Object.fromEntries(sections.map(s=>[s,'edit']));
  try{return JSON.parse(user.permissions_json);}catch{return {};}

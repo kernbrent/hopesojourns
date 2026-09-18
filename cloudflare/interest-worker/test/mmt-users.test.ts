@@ -96,3 +96,15 @@ it('migrates previously deleted accounts without losing their identity or refere
  expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
  }finally{db.close();}
 });
+
+it('exposes the last successful login without changing it for failed logins or page visits',async()=>{
+ const f=await setup();
+ const initial=await (await f.call('/admin/account/users')).json() as any;
+ expect(initial.users.find((u:any)=>u.id==='primary').last_login_at).toBeNull();
+ const login=await (await f.call('/admin/login',{username:'admin',password:f.env.ADMIN_PASSWORD})).json() as any;
+ const timestamp=login.user.last_login_at;expect(Number.isFinite(Date.parse(timestamp))).toBe(true);
+ expect((await f.call('/admin/login',{username:'admin',password:'incorrect'})).status).toBe(401);
+ const list=await (await f.call('/admin/account/users')).json() as any;
+ expect(list.users.find((u:any)=>u.id==='primary').last_login_at).toBe(timestamp);
+ expect(f.sqlite.prepare("SELECT last_login_at FROM mmt_users WHERE id='primary'").get()?.last_login_at).toBe(timestamp);
+});

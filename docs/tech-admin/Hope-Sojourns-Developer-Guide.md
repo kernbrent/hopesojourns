@@ -1,10 +1,12 @@
 # Hope Sojourns developer guide
 
-Version 4.4.4
+Version 4.4.5
 
 Last reviewed: September 17, 2026
 
 ## Individual MMT accounts and phone storage
+
+The administrator user directory displays Last logged in from the existing mmt_users.last_login_at field, in the viewer’s local time zone with a zone label. Missing timestamps show Never logged in. Only successful authentication updates this timestamp; failed attempts and session activity do not. The account API returns the nullable timestamp; no migration is required.
 
 This account upgrade is implemented locally and has not been released. The existing administrator signs in as admin using the existing password. Migration 0020_mmt_users.sql creates individual users, access and recovery requests, hashed reset tokens, email events, and public rate limits. It ends existing administrator sessions so subsequent activity has an identifiable user. Passwords use salted PBKDF2 hashes; no recoverable password is stored. The legacy password is accepted only to initialize the primary account when no stored hash exists.
 
@@ -765,6 +767,7 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-17 | 4.4.5 | Display each user’s last successful sign-in with local date, time, and time zone in the administrator directory. |
 | 2026-09-17 | 4.4.4 | Fix account email request construction in Workers by using manual redirect handling; retain rejection of redirects and add a real-runtime regression test. |
 | 2026-09-17 | 4.4.3 | Allow deleted usernames and emails to be reused with fresh access; preserve historical identity and backfill previously deleted users. Local pending release. |
 | 2026-09-17 | 4.4.2 | Added a separately activated Resend account-email adapter with failure handling and updated forwarding destination; verified domain with encrypted key required for activation. |

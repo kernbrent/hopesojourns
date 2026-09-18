@@ -771,6 +771,7 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
     ),
   ]);
   await env.DB.prepare('UPDATE mmt_users SET last_login_at=? WHERE id=?').bind(now.toISOString(),user.id).run();
+  user.last_login_at=now.toISOString();
   const context=actorContext.getStore();if(context)context.userId=user.id;
   await audit(env, "admin_session", "portal", "login", { remembered: rememberMe });
   console.log(JSON.stringify({ event: "admin_login_succeeded" }));
