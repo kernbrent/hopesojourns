@@ -602,7 +602,17 @@ function renderPersonCard(person) {
   expandButton.setAttribute("aria-expanded", "false");
   expandButton.setAttribute("aria-label", "Expand contact summary for " + fullName);
   expandButton.addEventListener("click", () => togglePersonCard(card));
-  nameRow.append(nameButton, expandButton);
+  const selectContact = document.createElement('input');
+  selectContact.type = 'checkbox';
+  selectContact.dataset.contactSelect = person.id;
+  selectContact.checked = state.selectedPersonIds.has(person.id);
+  selectContact.setAttribute('aria-label', `Select ${fullName}`);
+  selectContact.addEventListener('change', () => {
+    if (selectContact.checked) state.selectedPersonIds.add(person.id);
+    else state.selectedPersonIds.delete(person.id);
+    updateGridSelectionState();
+  });
+  nameRow.append(selectContact, nameButton, expandButton);
   const expandedIdentity = element("span", "admin-person-expanded-identity");
   expandedIdentity.dataset.personExpanded = "";
   expandedIdentity.append(element("small", "", person.organization || "No organization recorded"));
@@ -639,6 +649,9 @@ function renderPersonCard(person) {
   viewEverything.addEventListener("click", () => openPerson(person.id));
 
   card.append(identity, compactTypes, compactOrganization, compactPhone, contact, interests, activity, viewEverything);
+  const followUp = element('div', 'admin-person-follow-up');
+  appendContactFollowUpCells(followUp, person);
+  card.append(followUp);
   setPersonCardExpanded(card, state.expandedPersonId === String(person.id));
   return card;
 }
@@ -745,7 +758,8 @@ function updateGridSelectionState() {
   document.querySelectorAll("[data-requires-contact-selection]").forEach(button => {
     button.disabled = count === 0;
   });
-  const rowBoxes = [...peopleGrid.querySelectorAll("[data-contact-select]")];
+  const contactList = state.view === 'people' ? peopleList : peopleGrid;
+  const rowBoxes = [...contactList.querySelectorAll("[data-contact-select]")];
   const selectAll = peopleGrid.querySelector("[data-select-visible-contacts]");
   if (selectAll) {
     const checked = rowBoxes.filter(box => box.checked).length;
@@ -779,50 +793,55 @@ function renderContactGridToolbar(people) {
   const toolbar = element("section", "admin-grid-bulk-tools");
   const heading = element("div", "admin-grid-bulk-heading");
   const copy = element("div");
-  copy.append(element("strong", "", "Selected contacts"), element("span", "", "Use the checkboxes below, then update activity or create personalized letters."));
+  copy.append(element("strong", "", "Selected contacts"), element("span", "", "Check contact rows to apply the same Last Contacted date and notes, or create personalized letters."));
   const count = element("span", "admin-selection-count");
   count.dataset.selectedContactCount = "";
   const clear = element("button", "admin-button admin-button-quiet", "Clear selection");
   clear.type = "button";
   clear.addEventListener("click", () => {
     state.selectedPersonIds.clear();
-    peopleGrid.querySelectorAll("[data-contact-select]").forEach(box => { box.checked = false; });
+    document.querySelectorAll("[data-contact-select]").forEach(box => { box.checked = false; });
     updateGridSelectionState();
   });
   heading.append(copy, count, clear);
 
   const activity = element("div", "admin-grid-bulk-group");
-  activity.append(element("strong", "", "Update latest activity"));
+  activity.append(element("strong", "", "Update Last Contacted for selected contacts"));
   const dateLabel = element("label");
-  dateLabel.append(element("span", "", "Activity date"));
+  dateLabel.append(element("span", "", "Last Contacted"));
   const date = document.createElement("input");
   date.type = "date";
   date.value = localDateInputValue();
   dateLabel.append(date);
   const noteLabel = element("label", "admin-grid-note-field");
-  noteLabel.append(element("span", "", "Last contacted notes"));
+  noteLabel.append(element("span", "", "Last Contacted Notes (50 characters)"));
   const note = document.createElement("input");
   note.type = "text";
   note.maxLength = 50;
   note.placeholder = "Brief follow-up note";
   noteLabel.append(note);
-  const update = element("button", "admin-button admin-button-primary", "Update selected");
+  const update = element("button", "admin-button admin-button-primary", "Save Last Contacted for selected");
   update.type = "button";
   update.dataset.requiresContactSelection = "";
   const status = element("p", "admin-form-status admin-grid-bulk-status");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   update.addEventListener("click", async () => {
-    if (!date.value) { status.textContent = "Choose an activity date."; return; }
+    if (!date.value) { status.textContent = "Choose a Last Contacted date."; return; }
+    const personIds = selectedContactIds();
+    if (!personIds.length) { status.textContent = "Check the contacts you want to update."; return; }
+    if (personIds.length > 100) { status.textContent = "Select up to 100 contacts at a time."; return; }
+    if (!window.confirm(`Replace Last Contacted with ${date.value} and ${note.value ? 'the entered notes' : 'blank notes'} for ${personIds.length} selected contact(s)? Unsaved row edits will be discarded when the list refreshes.`)) return;
     setBusy(update, true, "Updating…");
     status.textContent = "";
     try {
       const { result } = await api("/contacts/bulk-activity", {
         method: "POST",
-        body: { personIds: selectedContactIds(), lastContactedAt: date.value, lastContactedNote: note.value },
+        body: { personIds, lastContactedAt: date.value, lastContactedNote: note.value },
       });
-      status.textContent = `${plural(result.updated, "contact")} updated.`;
-      await loadPeopleGrid();
+      if (state.view === 'people') await loadPeople(); else await loadPeopleGrid();
+      const savedStatus = (state.view === 'people' ? peopleList : peopleGrid).querySelector('.admin-grid-bulk-status');
+      if (savedStatus) savedStatus.textContent = `${plural(result.updated, "contact")} updated with the selected Last Contacted date and notes.`;
     } catch (error) {
       status.textContent = error.message;
     } finally {
@@ -880,6 +899,50 @@ function renderContactGridToolbar(people) {
   return toolbar;
 }
 
+function appendContactFollowUpCells(row, person) {
+  const makeCell = () => { const c = element(row.tagName === 'TR' ? 'td' : 'div', 'admin-contact-follow-up'); row.append(c); return c; };
+  const dateCell = makeCell();
+  const notesCell = makeCell();
+  const contactName = `${person.firstName} ${person.lastName}`;
+  const date = document.createElement("input");
+  date.type = "date";
+  date.value = person.lastContactedAt?.slice(0, 10) || "";
+  date.setAttribute("aria-label", `${contactName}: Last Contacted`);
+  const notes = document.createElement("input");
+  notes.type = "text";
+  notes.maxLength = 50;
+  notes.value = person.lastContactedNote || "";
+  notes.placeholder = "Brief follow-up note (50 characters)";
+  notes.setAttribute("aria-label", `${contactName}: Last Contacted Notes`);
+  const save = element("button", "admin-button admin-button-outline", "Save contact update");
+  save.type = "button";
+  save.setAttribute("aria-label", `Save Last Contacted for ${contactName}`);
+  const status = element("small", "admin-form-status");
+  status.setAttribute("role", "status");
+  const allowed = () => !window.MmtUser || window.MmtUser.is_admin || window.MmtUser.permissions?.contacts === 'edit';
+  save.disabled = !allowed();
+  date.disabled = notes.disabled = !allowed();
+  [date, notes].forEach(input => input.addEventListener('input', () => { status.textContent = 'Unsaved changes'; }));
+  save.addEventListener("click", async () => {
+    if (!allowed()) return;
+    if (!date.value || !date.checkValidity()) { status.textContent = "Choose a Last Contacted date."; date.focus(); return; }
+    date.disabled = notes.disabled = true;
+    setBusy(save, true, "Saving…");
+    try {
+      const { result } = await api('/contacts/bulk-activity', { method: 'POST', body: { personIds: [person.id], lastContactedAt: date.value, lastContactedNote: notes.value } });
+      if (result.updated !== 1) throw new Error('This contact was not updated. Refresh the list and try again.');
+      person.lastContactedAt = date.value;
+      person.lastContactedNote = notes.value;
+      status.textContent = "Saved.";
+    } catch (error) { status.textContent = error.message; }
+    finally { setBusy(save, false); date.disabled = notes.disabled = !allowed(); }
+  });
+  const dateLabel = element('label'); dateLabel.append(element('span', '', 'Last Contacted'), date);
+  const notesLabel = element('label'); notesLabel.append(element('span', '', 'Last Contacted Notes'), notes);
+  dateCell.append(dateLabel);
+  notesCell.append(notesLabel, save, status);
+}
+
 function renderPeopleGrid(people) {
   const shell = element("div", "admin-grid-content");
   shell.append(renderContactGridToolbar(people));
@@ -903,7 +966,7 @@ function renderPeopleGrid(people) {
   });
   selectionHeading.append(selectAll);
   headingRow.append(selectionHeading);
-  ["Name", "Organization", "Contact type", "Email", "Cell phone", "Languages", "Hope Sojourns area", "Trips", "Teams", "Latest activity", "Requests"].forEach(label => {
+  ["Name", "Organization", "Contact type", "Email", "Cell phone", "Languages", "Hope Sojourns area", "Trips", "Teams", "Last Contacted", "Last Contacted Notes", "Latest activity", "Requests"].forEach(label => {
     const heading = element("th", "", label);
     heading.scope = "col";
     headingRow.append(heading);
@@ -950,9 +1013,9 @@ function renderPeopleGrid(people) {
     if (person.teams?.length) person.teams.forEach(team => teamList.append(teamPill(team)));
     else teamList.append(element("span", "admin-grid-muted", "Unassigned"));
     teamsCell.append(teamList);
+    appendContactFollowUpCells(row, person);
     const activityCell = gridCell(row, "");
-    activityCell.append(element("span", "", person.lastContactedAt ? formatDate(person.lastContactedAt, false) : formatDate(person.latestActivityAt || person.updatedAt)));
-    if (person.lastContactedNote) activityCell.append(element("small", "admin-grid-activity-note", person.lastContactedNote));
+    activityCell.append(element("span", "", formatDate(person.latestActivityAt || person.updatedAt)));
     gridCell(row, String(person.submissionCount), "admin-grid-count");
     body.append(row);
   });
@@ -1066,7 +1129,10 @@ function applyResultMeta(result, recordCount, unit, pluralUnit) {
 function applyListResult(result, records, renderCard, unit, pluralUnit) {
   const list = state.view === "people" ? peopleList : submissionsList;
   const content = records.map(renderCard);
-  if (state.view === "people" && records.length) content.unshift(renderPersonListHeading());
+  if (state.view === "people" && records.length) {
+    content.unshift(renderContactGridToolbar(records), renderPersonListHeading());
+    queueMicrotask(updateGridSelectionState);
+  }
   list.replaceChildren(...content);
   applyResultMeta(result, records.length, unit, pluralUnit);
 }

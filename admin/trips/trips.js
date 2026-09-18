@@ -928,6 +928,7 @@ function renderBudget() {
   if (!state.workspace.costs.length) list.append(record("No costs entered", "Begin with airfare, lodging, ground transportation, meals, ministry support, and HS expenses."));
   updateBudgetExpandButton();
   updateCostCategoryOptions(false);
+  window.TripBudgetTools.render({ workspace: state.workspace, sources: state.bootstrap.fundingSources, api, reload: () => openTrip(state.tripId, false) });
 }
 
 async function makeAccountLink(account) {

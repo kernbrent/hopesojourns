@@ -1013,3 +1013,19 @@
   .trip-admin-main { margin: 0; padding: 0; }
   .trip-tab-panel { border: 0; }
 }
+
+/* Scrollable budget grids retain item context on narrow screens. */
+.trip-budget-table-scroll { overflow-x: auto; margin: 1rem 0; }
+.trip-budget-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.trip-budget-table th, .trip-budget-table td { padding: .65rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+.trip-budget-table th { color: var(--forest-dark); background: var(--forest-wash); }
+.trip-budget-table td:first-child { min-width: 12rem; font-weight: 700; }
+.trip-budget-table input:not([type=checkbox]), .trip-budget-table select { min-width: 8rem; width: 100%; padding: .5rem; border: 1px solid var(--line); border-radius: .4rem; color: var(--forest-dark); background: var(--color-surface); }
+.trip-budget-table input[type=checkbox] { width: 1.15rem; height: 1.15rem; }
+.trip-budget-dialog { width: min(96vw, 85rem); max-width: 96vw; max-height: 90vh; overflow: auto; padding: 1.5rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--color-surface); color: var(--forest-dark); }
+.trip-budget-dialog::backdrop { background: rgba(var(--forest-rgb), .55); }
+.trip-budget-dialog > div > label { display: block; margin: .75rem 0; }
+.trip-budget-dialog > div > label select { display: block; max-width: 100%; padding: .6rem; }
+.trip-budget-dialog .trip-button { margin: .35rem .35rem .35rem 0; }
+
+.trip-budget-dialog [hidden] { display: none !important; }

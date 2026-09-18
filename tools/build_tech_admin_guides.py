@@ -712,10 +712,11 @@ def add_contents_page(doc: Document, headings: list[str], numbering_ids: dict[st
     add_inline_text(intro, "Use Word’s Navigation Pane or the section list below to move through this living reference guide.")
     for item in headings:
         paragraph = doc.add_paragraph()
+        paragraph.paragraph_format.space_after = Pt(4)
+        paragraph.paragraph_format.line_spacing = 1
         apply_numbering(paragraph, numbering_ids["contents"], 0)
         display = re.sub(r"^\d+\.\s*", "", item)
         add_inline_text(paragraph, display, base_size=10.5)
-    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
 
 def add_note_paragraph(doc: Document, text: str) -> None:
@@ -888,7 +889,9 @@ def build_guide(spec: GuideSpec) -> Path:
     start_index = 1
     while start_index < len(lines) and (not lines[start_index].strip() or lines[start_index].startswith("Version ") or lines[start_index].startswith("Last reviewed:")):
         start_index += 1
+    first_body_index = len(doc.paragraphs)
     render_markdown(doc, lines[start_index:], numbering_ids)
+    doc.paragraphs[first_body_index].paragraph_format.page_break_before = True
 
     # Keep the final paragraph compact and avoid an accidental blank last page.
     if doc.paragraphs:

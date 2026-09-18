@@ -1,8 +1,20 @@
 # Hope Sojourns developer guide
 
-Version 4.5.0
+Version 4.5.2
 
-Last reviewed: September 17, 2026
+Last reviewed: September 18, 2026
+
+## Contact follow up editing
+
+Contact follow-up fields are editable directly in People cards and Spreadsheet rows. Row saves submit only personIds, lastContactedAt, and lastContactedNote to the existing authenticated /contacts/bulk-activity endpoint. Selected-row updates reuse its 100-contact batch limit and 50-character note limit. Confirm replacement of both fields before bulk saving; blank notes clear the previous note. Row saves retain other unsaved rows. Bulk refresh discards pending row edits with an explicit warning. General activity remains separate from actual contact dates. No migration or new API is required.
+
+## Trip budget funding and bulk updates
+
+The trip workspace loads admin/trips/budget-tools.js before trips.js. It renders estimated costs, recorded actual costs, active funding allocations, variance, and remaining funding. A zero actual amount is treated as not recorded unless the cost is Paid. Canceled costs and allocations are excluded. Allocation totals include Planned, Confirmed, and Paid funding; these are funding commitments, not receipts or ledger transactions.
+
+Fund the entire budget previews positive uncovered balances per cost, using either the original estimates or actual costs where recorded. Saving creates Planned allocations through the existing allocations endpoint, preserves prior allocations, and never reduces excess funding. Refresh and review after a partial failure; there is no automatic retry. A pre-save workspace comparison detects changes since opening the dialog, but the sequential requests are not an atomic transaction or a server-side concurrency lock.
+
+Edit multiple budget items supports quantity, estimated unit cost, actual total, estimate-review flag, payment status, paid date, and payment method. Only changed rows are submitted through the existing cost-items endpoint after review and paid-date validation. Untouched fields and original estimates are preserved; changing fixed-cost quantity or unit cost recalculates its estimated total. Percentage-derived fields are read-only. Existing server permissions, cost validation, budget recalculation, reopening, audit, and paid-expense ledger synchronization remain authoritative. The UI reports confirmed saves and stops on the first failure; close and refresh before retrying. No schema migration is needed.
 
 ## Shared HS and CSM accounts
 
@@ -801,6 +813,8 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-18 | 4.5.2 | Added direct Last Contacted fields and selected-contact follow-up updates in People and Spreadsheet views. |
+| 2026-09-18 | 4.5.1 | Added whole-budget funding previews, estimated/actual/allocated comparisons, and reviewed multi-item cost editing. |
 | 2026-09-17 | 4.5.0 | Implemented shared HS/CSM identity, scoped administrator authority, one-use portal switching, preserved financial ownership, and coordinated release checks. Local pending release. |
 | 2026-09-17 | 4.4.6 | Added donation allocations, donor reporting, edit and undo history, and shared CSM transfer handling. |
 | 2026-09-17 | 4.4.5 | Display each user’s last successful sign-in with local date, time, and time zone in the administrator directory. |

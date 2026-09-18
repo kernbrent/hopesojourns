@@ -9,7 +9,7 @@
   <title>Trips | Hope Sojourns Administration</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-17.4">
+  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-18.2">
 <script src="/phone-ui.js?v=1" defer></script><script src="/admin/mmt-session.js?v=1" defer></script></head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
@@ -270,6 +270,7 @@
             </form>
           </div>
           <div class="trip-record-list-heading"><div><p class="eyebrow">Budget register</p><h3>Budget items</h3></div><button class="trip-button trip-button-outline" id="trip-budget-expand-all" type="button">Expand all items</button></div>
+          <section class="trip-admin-card" id="trip-budget-tools" aria-label="Budget comparison and bulk updates"></section>
           <div class="trip-record-list trip-budget-record-list" id="trip-cost-list"></div>
         </section>
 
@@ -375,6 +376,7 @@
   <div class="trip-guide-alert" id="trip-guide-alert" role="alert" hidden><span></span><button type="button" aria-label="Dismiss setup message">&times;</button></div>
 
   <template id="trip-record-template"><article class="trip-record"><div class="trip-record-main"></div><div class="trip-record-actions"></div></article></template>
-  <script src="/admin/trips/trips.js?v=2026-09-18.1" defer></script>
+  <script src="/admin/trips/budget-tools.js?v=2026-09-18.2" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-18.2" defer></script>
 </body>
 </html>

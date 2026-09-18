@@ -1,8 +1,18 @@
 # Hope Sojourns website style guide
 
-Version 4.5.0
+Version 4.5.2
 
-Last reviewed: September 17, 2026
+Last reviewed: September 18, 2026
+
+## Contact follow up editing
+
+Show Last Contacted and Last Contacted Notes as labeled inputs in People cards and Spreadsheet rows, with a Save contact update button and local save feedback. Contact checkboxes support a shared date-and-note update above the list. Confirm replacement before bulk saving and disclose that blank notes clear prior notes. Preserve the separate Latest activity display, and use explicit labels and the existing 50-character note limit.
+
+## Trip budget comparison and bulk editing
+
+Show estimated costs, actual costs, funding allocations, and remaining funding together in a labeled, horizontally scrollable table. Clearly distinguish unrecorded actual costs from a paid zero-cost item. Positive variance means over budget; excess allocations must say overallocated rather than appearing as a negative funding need.
+
+Use Fund the entire budget for a funding-source and amount-basis preview, and Edit multiple budget items for a scrollable grid with labeled inputs. Show Needs estimate or Estimate reviewed on both collapsed rows and expanded details. Keep estimate review separate from payment status. Require a review step before bulk saves; explain ledger effects and report partial completion without retrying silently. Reuse shared palette variables, native dialog focus handling, semantic table headers, and accessible per-item input labels.
 
 ## Shared portal account management
 
@@ -555,6 +565,8 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-18 | 4.5.2 | Added direct Last Contacted fields and selected-contact follow-up updates in People and Spreadsheet views. |
+| 2026-09-18 | 4.5.1 | Added whole-budget funding previews, estimated/actual/allocated comparisons, and reviewed multi-item cost editing. |
 | 2026-09-17 | 4.5.0 | Added shared profile and role terminology, independent portal access fieldsets, scoped actions, and portal-switch navigation. Local pending release. |
 | 2026-09-17 | 4.4.2 | Added responsive donor split dialog, remaining-amount feedback, and edit/undo history patterns. |
 | 2026-09-17 | 4.4.1 | Added confirmed user deletion with access revocation and preserved history; local pending release. |
