@@ -1049,7 +1049,7 @@
 }
 
 .admin-ledger-type-transfer,
-.admin-ledger-type-transfer + .admin-ledger-amount { color: #31506f; }
+.admin-ledger-type-transfer + .admin-ledger-amount { color: var(--info); }
 
 .admin-ledger-pagination {
   display: flex;
@@ -2097,7 +2097,14 @@
 .admin-ledger-details dd { margin: 0 0 .4rem; overflow-wrap: anywhere; }
 .admin-ledger-table td:nth-child(2) { min-width: 14rem; max-width: 25rem; white-space: normal; }
 
-.admin-person-follow-up { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .75rem; align-items: start; border-top: 1px solid var(--line); padding-top: .75rem; }
+.admin-contact-alphabet { display: flex; flex-wrap: wrap; gap: .4rem; padding-block: .5rem; }
+.admin-contact-alphabet .admin-button { min-width: 2.5rem; padding: .45rem .65rem; }
+.admin-person-card { scroll-margin-top: 6rem; }
+.admin-person-card:focus { outline: 3px solid var(--gold); outline-offset: 2px; }
+#people-grid { min-width: 0; overflow: visible; }
+#people-grid .admin-grid-content { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.admin-contact-grid-viewport { width: 100%; min-width: 0; max-height: 65vh; max-height: 65dvh; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border: 1px solid var(--line); border-radius: .6rem; }
+.admin-contact-grid-viewport:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .admin-contact-follow-up label { display: grid; gap: .3rem; font-size: .78rem; }
 .admin-contact-follow-up input { max-width: 100%; min-width: 10rem; padding: .55rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--paper); color: var(--forest-dark); }
 .admin-contact-follow-up input[type=text] { width: 20rem; }

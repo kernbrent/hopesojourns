@@ -602,17 +602,7 @@ function renderPersonCard(person) {
   expandButton.setAttribute("aria-expanded", "false");
   expandButton.setAttribute("aria-label", "Expand contact summary for " + fullName);
   expandButton.addEventListener("click", () => togglePersonCard(card));
-  const selectContact = document.createElement('input');
-  selectContact.type = 'checkbox';
-  selectContact.dataset.contactSelect = person.id;
-  selectContact.checked = state.selectedPersonIds.has(person.id);
-  selectContact.setAttribute('aria-label', `Select ${fullName}`);
-  selectContact.addEventListener('change', () => {
-    if (selectContact.checked) state.selectedPersonIds.add(person.id);
-    else state.selectedPersonIds.delete(person.id);
-    updateGridSelectionState();
-  });
-  nameRow.append(selectContact, nameButton, expandButton);
+  nameRow.append(nameButton, expandButton);
   const expandedIdentity = element("span", "admin-person-expanded-identity");
   expandedIdentity.dataset.personExpanded = "";
   expandedIdentity.append(element("small", "", person.organization || "No organization recorded"));
@@ -649,9 +639,6 @@ function renderPersonCard(person) {
   viewEverything.addEventListener("click", () => openPerson(person.id));
 
   card.append(identity, compactTypes, compactOrganization, compactPhone, contact, interests, activity, viewEverything);
-  const followUp = element('div', 'admin-person-follow-up');
-  appendContactFollowUpCells(followUp, person);
-  card.append(followUp);
   setPersonCardExpanded(card, state.expandedPersonId === String(person.id));
   return card;
 }
@@ -1020,8 +1007,12 @@ function renderPeopleGrid(people) {
     body.append(row);
   });
   table.append(head, body);
-  prepareResponsiveTable(table);
-  shell.append(table);
+  const viewport = element("div", "admin-contact-grid-viewport");
+  viewport.tabIndex = 0;
+  viewport.setAttribute("role", "region");
+  viewport.setAttribute("aria-label", "Contact spreadsheet, scroll horizontally and vertically");
+  viewport.append(table);
+  shell.append(viewport);
   queueMicrotask(updateGridSelectionState);
   return shell;
 }
@@ -1041,6 +1032,7 @@ function filterQuery() {
     const value = String(formData.get(key) || "").trim();
     if (value) params.set(key, value);
   }
+  if (!params.has("sort")) params.set("sort", state.view === "people" ? "name_asc" : "newest");
   return params;
 }
 
@@ -1130,11 +1122,37 @@ function applyListResult(result, records, renderCard, unit, pluralUnit) {
   const list = state.view === "people" ? peopleList : submissionsList;
   const content = records.map(renderCard);
   if (state.view === "people" && records.length) {
-    content.unshift(renderContactGridToolbar(records), renderPersonListHeading());
-    queueMicrotask(updateGridSelectionState);
+    content.unshift(renderContactAlphabet(records, content), renderPersonListHeading());
   }
   list.replaceChildren(...content);
   applyResultMeta(result, records.length, unit, pluralUnit);
+}
+function contactInitial(person) {
+  return Array.from((person.lastName || "").trim().normalize("NFD").replace(/\p{M}/gu, "").toLocaleUpperCase())[0] || "";
+}
+
+function renderContactAlphabet(records, cards) {
+  const nav = element("nav", "admin-contact-alphabet");
+  nav.setAttribute("aria-label", "Jump to contacts by last name");
+  const targets = new Map();
+  records.forEach((person, index) => {
+    const letter = contactInitial(person);
+    if (/\p{L}/u.test(letter) && !targets.has(letter)) targets.set(letter, cards[index]);
+  });
+  [...targets.keys()].sort((a, b) => a.localeCompare(b)).forEach(letter => {
+    const button = element("button", "admin-button admin-button-outline", letter);
+    button.type = "button";
+    button.setAttribute("aria-label", `Jump to last names beginning with ${letter}`);
+    button.addEventListener("click", () => {
+      const card = targets.get(letter);
+      card.tabIndex = -1;
+      card.focus({ preventScroll: true });
+      card.scrollIntoView({ block: "start", behavior: "instant" });
+    });
+    nav.append(button);
+  });
+  nav.hidden = !targets.size;
+  return nav;
 }
 function csmMoney(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
@@ -1430,17 +1448,32 @@ function viewCsmDonors() {
   switchView("people", true);
 }
 
+let peopleLoadVersion = 0;
 async function loadPeople() {
+  const version = ++peopleLoadVersion;
   submissionsStatus.textContent = "Loading people…";
   peopleList.setAttribute("aria-busy", "true");
   try {
-    const { result } = await api(`/people?${filterQuery()}`);
-    applyListResult(result, result.people, renderPersonCard, "person", "people");
+    const query = filterQuery();
+    query.set("page", "1");
+    query.set("pageSize", "50");
+    const { result } = await api(`/people?${query}`);
+    const people = [...result.people];
+    for (let page = 2; page <= result.pagination.pages; page++) {
+      if (version !== peopleLoadVersion || state.view !== "people") return;
+      query.set("page", String(page));
+      const { result: next } = await api(`/people?${query}`);
+      people.push(...next.people);
+    }
+    if (version !== peopleLoadVersion || state.view !== "people") return;
+    const uniquePeople = [...new Map(people.map(person => [person.id, person])).values()];
+    applyListResult({ ...result, pagination: { ...result.pagination, page: 1, pages: 1, total: uniquePeople.length } }, uniquePeople, renderPersonCard, "person", "people");
+    recordsPagination.hidden = true;
     submissionsStatus.textContent = "";
   } catch (error) {
-    if (error.status !== 401) submissionsStatus.textContent = error.message;
+    if (version === peopleLoadVersion && state.view === "people" && error.status !== 401) submissionsStatus.textContent = error.message;
   } finally {
-    peopleList.removeAttribute("aria-busy");
+    if (version === peopleLoadVersion) peopleList.removeAttribute("aria-busy");
   }
 }
 
@@ -2303,7 +2336,7 @@ function switchViewLegacy(view, focusTab = false) {
   ministriesWorkspace.hidden = !showMinistries;
   internshipToolkitWorkspace.hidden = !showInternshipToolkit;
   filterForm.hidden = showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
-  recordsPagination.hidden = showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
+  recordsPagination.hidden = showPeople || showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
   exportButton.hidden = showCsmInbox || showTeams || showMinistries || showInternshipToolkit;
   submissionsEmpty.hidden = true;
   recordsTitle.textContent = showPeople ? "Master contacts" : showRequests ? "Individual requests" : showGrid ? "Contact spreadsheet" : showCsmInbox ? "Payment inbox" : showTeams ? "Teams" : showMinistries ? "Ministries" : "Internship toolkit";
@@ -2370,7 +2403,7 @@ function switchView(view, focusTab = false) {
   internshipToolkitWorkspace.hidden = !visibility["internship-toolkit"];
   const standalone = visibility["csm-inbox"] || visibility.ledger || visibility.teams || visibility.ministries || visibility["internship-toolkit"];
   filterForm.hidden = standalone;
-  recordsPagination.hidden = standalone;
+  recordsPagination.hidden = visibility.people || standalone;
   exportButton.hidden = standalone;
   submissionsEmpty.hidden = true;
   const titles = {

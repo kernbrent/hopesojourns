@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.5.3
+Version 4.5.4
 
-Last reviewed: September 18, 2026
+Last reviewed: September 19, 2026
 
 ## Inbox completion and trash
 
@@ -10,9 +10,13 @@ GET /admin/ministry/inbox returns source-visible notices with saved completion o
 
 Apply migration 0027_ministry_inbox_states.sql before releasing the updated Worker and ministry UI. It adds a separate state table keyed by prefixed source IDs, preserving the prior manual completion state while an item is in Trash. Reopen removes the manual override and uses the current source status. Restore preserves prior manual completion or uses the current source status. Source visibility and the existing recent-source limits still apply; this is not an unlimited historical archive. Local regression tests cover the action lifecycle, source preservation, validation, CSRF, and read-only or inaccessible-source denial.
 
-## Contact follow up editing
+## Contact directory and spreadsheet
 
-Contact follow-up fields are editable directly in People cards and Spreadsheet rows. Row saves submit only personIds, lastContactedAt, and lastContactedNote to the existing authenticated /contacts/bulk-activity endpoint. Selected-row updates reuse its 100-contact batch limit and 50-character note limit. Confirm replacement of both fields before bulk saving; blank notes clear the previous note. Row saves retain other unsaved rows. Bulk refresh discards pending row edits with an explicit warning. General activity remains separate from actual contact dates. No migration or new API is required.
+Contacts use compact summary cards without inline follow-up inputs or selection tools. Default order is last name A–Z. Show an alphabet above the filtered contact list containing only initials present in last names; clicking a letter instantly scrolls to and focuses its first contact. Normalize accented initials to their base letter, retain other Unicode letters, and omit blank or nonletter initials without hiding those contacts. Explicit alternative sort choices remain available.
+
+Keep Last Contacted date and notes editing, row saves, selection, bulk updates, and personalized-document tools in Spreadsheet. The table has its own keyboard-focusable region with horizontal and vertical scrolling, a viewport-relative height limit, and sticky column headings, including on small screens. Bulk tools remain outside the table scrolling region. Preserve the separate Latest activity display and 50-character note limit. Ledger transfer amounts use the existing shared info color token.
+
+The Contacts loader requests all filtered /people pages in batches of 50, using the existing authenticated API, before building the letter navigation. It deduplicates by contact ID and ignores superseded loads and results arriving after a view change. Contacts hide pagination; Spreadsheet and Requests keep their existing pagination. An empty sort selection resolves to name_asc for Contacts and newest elsewhere. No API or schema change is needed. The spreadsheet table deliberately does not use the mobile card transformation applied to other responsive tables. Follow-up saves continue to use /contacts/bulk-activity with its existing permissions and batch limit.
 
 ## Trip budget funding and bulk updates
 
@@ -819,7 +823,8 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
-| 2026-09-18 | 4.5.3 | Added shared inbox completion, reopening, Trash, and restoration with separate audited state. |
+| 2026-09-19 | 4.5.4 | Added shared inbox completion, reopening, Trash, and restoration with separate audited state. |
+| 2026-09-18 | 4.5.3 | Compact contacts, last-name alphabet navigation, and independent spreadsheet scrolling. |
 | 2026-09-18 | 4.5.2 | Added direct Last Contacted fields and selected-contact follow-up updates in People and Spreadsheet views. |
 | 2026-09-18 | 4.5.1 | Added whole-budget funding previews, estimated/actual/allocated comparisons, and reviewed multi-item cost editing. |
 | 2026-09-17 | 4.5.0 | Implemented shared HS/CSM identity, scoped administrator authority, one-use portal switching, preserved financial ownership, and coordinated release checks. Local pending release. |

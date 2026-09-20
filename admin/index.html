@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-admin-build="2026-09-18.1">
+<html lang="en" data-admin-build="2026-09-18.3">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-18.2">
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-18.3">
 <script src="/phone-ui.js?v=1" defer></script></head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -164,10 +164,11 @@
             <label>
               <span>Sort by</span>
               <select name="sort">
+                <option value="">Default order</option>
                 <option value="newest">Newest activity</option>
                 <option value="oldest">Oldest activity</option>
-                <option value="name_asc">Name A–Z</option>
-                <option value="name_desc">Name Z–A</option>
+                <option value="name_asc">Last name A–Z</option>
+                <option value="name_desc">Last name Z–A</option>
               </select>
             </label>
             <button class="admin-button admin-button-primary" type="submit">Apply</button>
@@ -609,6 +610,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=2026-09-18.2" defer></script>
+  <script src="/admin/admin.js?v=2026-09-18.3" defer></script>
 </body>
 </html>
