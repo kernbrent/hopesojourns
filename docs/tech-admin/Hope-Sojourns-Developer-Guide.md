@@ -1,8 +1,14 @@
 # Hope Sojourns developer guide
 
-Version 4.5.2
+Version 4.5.3
 
 Last reviewed: September 18, 2026
+
+## Inbox completion and trash
+
+GET /admin/ministry/inbox returns source-visible notices with saved completion or deletion state and a canManage flag. POST to the same route accepts itemId and action: complete, reopen, delete, or restore. Actions require inbox edit access, source visibility, and the existing authenticated CSRF checks. The state change and audit entry are saved in one database batch. These actions organize the shared inbox for all authorized users; they never approve payments, finish budgets, or modify source records.
+
+Apply migration 0027_ministry_inbox_states.sql before releasing the updated Worker and ministry UI. It adds a separate state table keyed by prefixed source IDs, preserving the prior manual completion state while an item is in Trash. Reopen removes the manual override and uses the current source status. Restore preserves prior manual completion or uses the current source status. Source visibility and the existing recent-source limits still apply; this is not an unlimited historical archive. Local regression tests cover the action lifecycle, source preservation, validation, CSRF, and read-only or inaccessible-source denial.
 
 ## Contact follow up editing
 
@@ -775,7 +781,7 @@ The funding screen records payer, source, date, method, reference, and the settl
 
 The HS Travel reserve view totals received HS payments applied to HS Travel charges less recorded paid HS leader travel expenses across trips. It is a recorded allocation balance, not a reconciled bank balance; unallocated payments and legacy costs without the template association are excluded. Scholarships and external settlements do not increase this cash reserve.
 
-The central inbox combines submitted interest, payment approvals and callback failures, failed trip messages, incomplete budgets, and extensible ministry events. Source records determine action status; the inbox does not post a second payment. Current lists are bounded to 250 recent requests, payments, and custom events, and 100 failed messages and incomplete budgets. Future integrations must emit deduplicated event keys and provide a source action URL.
+The central inbox combines submitted interest, payment approvals and callback failures, trip messages, budgets, account requests, failed account emails, and extensible ministry events. Source records determine the initial action status; separate inbox states can mark notices completed or deleted without changing their source. Current lists are bounded to 250 recent requests, payments, account requests, and custom events, and 100 sent or failed trip messages, budgets, and failed account emails. Future integrations must emit deduplicated event keys and provide a source action URL.
 
 Documents use authenticated APIs and the existing environment-specific R2 binding under a separate `ministry-documents/` prefix. Metadata and immutable versions are in D1. Uploads are bounded to 10 MB and allow PDF, Office Open XML, PNG, and JPEG signatures. Downloads are authenticated attachments with private no-store caching. Replace creates a new version; delete is recoverable trash, and restore re-enables access. A database failure after object upload removes that new object. No public object URLs are issued.
 
@@ -813,6 +819,7 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-18 | 4.5.3 | Added shared inbox completion, reopening, Trash, and restoration with separate audited state. |
 | 2026-09-18 | 4.5.2 | Added direct Last Contacted fields and selected-contact follow-up updates in People and Spreadsheet views. |
 | 2026-09-18 | 4.5.1 | Added whole-budget funding previews, estimated/actual/allocated comparisons, and reviewed multi-item cost editing. |
 | 2026-09-17 | 4.5.0 | Implemented shared HS/CSM identity, scoped administrator authority, one-use portal switching, preserved financial ownership, and coordinated release checks. Local pending release. |

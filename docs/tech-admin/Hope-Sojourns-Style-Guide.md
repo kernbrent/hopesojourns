@@ -1,8 +1,14 @@
 # Hope Sojourns website style guide
 
-Version 4.5.2
+Version 4.5.3
 
 Last reviewed: September 18, 2026
+
+## Inbox completion and trash
+
+Inbox cards offer Mark completed and Delete to users with inbox edit access. Manually completed notices offer Reopen; deleted notices offer Restore. The Show filter includes Needs action, Recent activity, Completed, and Trash. Completed and deleted items leave the home page attention count; Recent activity excludes Trash. Keep Open record available so users can review the original item.
+
+Explain that these actions organize the shared inbox without approving payments, finishing budgets, or changing source records. Confirm deletion with plain language about Trash and restoration. Show success or failure feedback and disable an action while it is saving. Source-completed notices do not offer Reopen unless they also have a manual completion override. Read-only users can browse permitted notices but do not see management buttons. Reuse existing card, button, label, and status styles.
 
 ## Contact follow up editing
 
@@ -565,6 +571,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-18 | 4.5.3 | Added inbox action buttons, Completed and Trash views, and source-preserving confirmation copy. |
 | 2026-09-18 | 4.5.2 | Added direct Last Contacted fields and selected-contact follow-up updates in People and Spreadsheet views. |
 | 2026-09-18 | 4.5.1 | Added whole-budget funding previews, estimated/actual/allocated comparisons, and reviewed multi-item cost editing. |
 | 2026-09-17 | 4.5.0 | Added shared profile and role terminology, independent portal access fieldsets, scoped actions, and portal-switch navigation. Local pending release. |

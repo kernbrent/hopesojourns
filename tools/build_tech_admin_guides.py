@@ -712,9 +712,9 @@ def add_contents_page(doc: Document, headings: list[str], numbering_ids: dict[st
     add_inline_text(intro, "Use Word’s Navigation Pane or the section list below to move through this living reference guide.")
     for item in headings:
         paragraph = doc.add_paragraph()
-        paragraph.paragraph_format.space_after = Pt(4)
-        paragraph.paragraph_format.line_spacing = 1
         apply_numbering(paragraph, numbering_ids["contents"], 0)
+        paragraph.paragraph_format.space_after = Pt(3)
+        paragraph.paragraph_format.line_spacing = 1
         display = re.sub(r"^\d+\.\s*", "", item)
         add_inline_text(paragraph, display, base_size=10.5)
 

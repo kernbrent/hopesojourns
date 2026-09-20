@@ -15,26 +15,48 @@ async function openCharges(env:AdminEnv,accountId:string,includeInactive=false) 
  FROM trip_charges c WHERE c.account_id=?1 ${includeInactive?'':"AND c.status NOT IN ('waived','canceled')"} ORDER BY c.created_at,c.id`).bind(accountId).all<{id:string;amount:number;applied:number;cost_item_id:string;title:string;budget_managed:number;status:string}>()).results;
 }
 
-async function inbox(env:AdminEnv,user:MmtIdentity) {
+async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  const [requests,payments,messages,events,budgets]=await Promise.all([
  env.DB.prepare(`SELECT s.id,p.first_name || ' ' || p.last_name AS title,s.created_at,
  CASE WHEN EXISTS(SELECT 1 FROM interests i WHERE i.submission_id=s.id AND i.status='new') THEN 'action' ELSE 'completed' END AS status
  FROM interest_submissions s JOIN people p ON p.id=s.person_id ORDER BY s.created_at DESC LIMIT 250`).all<Row>(),
  env.DB.prepare(`SELECT id,display_name AS title,status,callback_status,received_at AS created_at FROM csm_distribution_inbox ORDER BY received_at DESC LIMIT 250`).all<Row>(),
- env.DB.prepare(`SELECT id,trip_id,subject AS title,status,created_at FROM trip_message_outbox WHERE status='failed' ORDER BY created_at DESC LIMIT 100`).all<Row>(),
+ env.DB.prepare(`SELECT id,trip_id,subject AS title,status,created_at FROM trip_message_outbox WHERE status IN ('failed','sent') ORDER BY created_at DESC LIMIT 100`).all<Row>(),
  env.DB.prepare('SELECT * FROM ministry_events ORDER BY created_at DESC LIMIT 250').all<Row>(),
- env.DB.prepare(`SELECT id,title,updated_at AS created_at FROM trips WHERE budget_completed_at IS NULL AND status NOT IN ('archived','canceled','completed') ORDER BY updated_at DESC LIMIT 100`).all<Row>()]);
+ env.DB.prepare(`SELECT id,title,updated_at AS created_at, CASE WHEN budget_completed_at IS NULL AND status NOT IN ('archived','canceled','completed') THEN 'action' ELSE 'completed' END AS status FROM trips ORDER BY updated_at DESC LIMIT 100`).all<Row>()]);
  const accessRequests=user.is_admin?(await env.DB.prepare("SELECT id,kind,first_name||' '||last_name AS title,status,created_at FROM mmt_access_requests WHERE (?=1 OR portal='hs') ORDER BY created_at DESC LIMIT 250").bind(user.is_org_admin?1:0).all<Row>()).results:[];
  const failedEmails=user.is_admin?(await env.DB.prepare("SELECT e.id,e.recipient AS title,e.kind,e.created_at FROM mmt_email_events e JOIN mmt_users u ON u.id=e.user_id WHERE e.status='not_sent' AND (?=1 OR u.hs_access=1) ORDER BY e.created_at DESC LIMIT 100").bind(user.is_org_admin?1:0).all<Row>()).results:[];
- return adminJson({items:[
+ const items:Row[]=[
  ...failedEmails.map(r=>({...r,id:'account-email:'+r.id,kind:'Account email',status:'action',detail:'Account email was not sent. Review delivery and send fresh instructions.',action_url:'/admin/account/#users'})),
  ...accessRequests.map(r=>({...r,id:'access:'+r.id,kind:r.kind==='access'?'Access request':'Account recovery',detail:'Review account access and verify identity before approving recovery.',status:r.status==='pending'?'action':'completed',action_url:'/admin/account/#users'})),
  ...(can(user,'contacts')?requests.results:[]).map(r=>({...r,id:'request:'+r.id,kind:'Traveler request',detail:'Review the submitted interest and update its follow-up status.',action_url:'/admin/#requests'})),
  ...(can(user,'finances')?payments.results:[]).map(r=>({...r,id:'payment:'+r.id,kind:'Payment',detail:r.callback_status==='failed'?'Decision callback failed. Review the payment inbox.':`Payment ${r.status}.`,status:['pending','needs_match','failed'].includes(String(r.status))||r.callback_status==='failed'?'action':'completed',action_url:'/admin/#csm-inbox'})),
- ...(can(user,'trips')?messages.results:[]).map(r=>({...r,id:'message:'+r.id,kind:'Message failed',status:'action',detail:'Review the failed message before retrying.',action_url:'/admin/trips/?trip='+r.trip_id})),
- ...(can(user,'trips')?budgets.results:[]).map(r=>({...r,id:'budget:'+r.id,kind:'Trip preparation',status:'action',detail:'Finish estimates and review traveler charges.',action_url:'/admin/trips/?trip='+r.id})),
- ...(user.is_admin?events.results:[]).map(r=>({...r,kind:'Activity'}))
- ].sort((a,b)=>String((b as Row).created_at).localeCompare(String((a as Row).created_at)))});
+ ...(can(user,'trips')?messages.results:[]).map(r=>({...r,id:'message:'+r.id,kind:'Trip message',status:r.status==='failed'?'action':'completed',detail:r.status==='failed'?'Review the failed message before retrying.':'Message sent.',action_url:'/admin/trips/?trip='+r.trip_id})),
+ ...(can(user,'trips')?budgets.results:[]).map(r=>({...r,id:'budget:'+r.id,kind:'Trip preparation',detail:'Finish estimates and review traveler charges.',action_url:'/admin/trips/?trip='+r.id})),
+ ...(user.is_admin?events.results:[]).map(r=>({...r,id:'event:'+r.id,kind:'Activity'}))
+ ].sort((a,b)=>String((b as Row).created_at).localeCompare(String((a as Row).created_at)));
+ const saved=(await env.DB.prepare('SELECT * FROM ministry_inbox_states').all<Row>()).results;
+ const states=new Map(saved.map(row=>[row.item_id,row]));
+ return items.map(item=>{const saved=states.get(item.id);return {...item,source_status:item.status,status:saved?.status||item.status,manually_completed:saved?.status==='completed',inbox_updated_at:saved?.updated_at||null};});
+}
+
+async function updateInbox(request:Request,env:AdminEnv,user:MmtIdentity){
+ if(!can(user,'inbox',true))throw new AdminError(403,'ACCESS_DENIED','You need edit access to the inbox.');
+ const body=await readAdminJson(request),itemId=line(body.itemId,100),action=line(body.action,20);
+ if(!['complete','reopen','delete','restore'].includes(action))throw new AdminError(422,'INVALID_ACTION','Choose Complete, Reopen, Delete, or Restore.');
+ const item=(await inboxItems(env,user)).find(item=>item.id===itemId);
+ if(!item)throw new AdminError(404,'INBOX_ITEM_NOT_FOUND','This inbox item is no longer available to you. Refresh the inbox.');
+ const now=new Date().toISOString();
+ const existing=await env.DB.prepare('SELECT status,previous_status FROM ministry_inbox_states WHERE item_id=?').bind(itemId).first<{status:string;previous_status:string|null}>();
+ if(action==='restore'&&existing?.status!=='deleted'||action==='reopen'&&existing?.status!=='completed')throw new AdminError(409,'INBOX_STATE_CHANGED','This item changed. Refresh the inbox before trying again.');
+ if(action==='complete'&&existing?.status==='deleted')throw new AdminError(409,'INBOX_ITEM_DELETED','Restore this item before marking it completed.');
+ const next=action==='delete'?'deleted':action==='complete'?'completed':action==='restore'?existing?.previous_status:null;
+ const previous=action==='delete'?(existing?.status==='deleted'?existing.previous_status:existing?.status==='completed'?'completed':null):null;
+ await env.DB.batch([
+ next?env.DB.prepare('INSERT INTO ministry_inbox_states(item_id,status,previous_status,updated_by,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(item_id) DO UPDATE SET status=excluded.status,previous_status=excluded.previous_status,updated_by=excluded.updated_by,updated_at=excluded.updated_at').bind(itemId,next,previous,user.id,now):env.DB.prepare('DELETE FROM ministry_inbox_states WHERE item_id=?').bind(itemId),
+ auditStatement(env,'ministry_inbox',itemId,action,{inboxOnly:true,actorUserId:user.id})
+ ]);
+ return adminJson({success:true,itemId,action});
 }
 
 async function account(env:AdminEnv,accountId:string) {
@@ -173,7 +195,8 @@ async function documents(request:Request,env:AdminEnv,documentId?:string,version
 export async function handleMinistryAdminRequest(request:Request,env:AdminEnv,path:string):Promise<Response>{
  try{
   const session=await authenticate(request,env,request.method!=='GET');
-  if(path==='/admin/ministry/inbox'&&request.method==='GET')return inbox(env,session.user);
+  if(path==='/admin/ministry/inbox'&&request.method==='GET')return adminJson({items:await inboxItems(env,session.user),canManage:can(session.user,'inbox',true)});
+  if(path==='/admin/ministry/inbox'&&request.method==='POST')return await updateInbox(request,env,session.user);
   if(path==='/admin/ministry/travel-reserve'&&request.method==='GET'){
    const received=await env.DB.prepare(`SELECT COALESCE(SUM(a.amount),0) AS amount FROM trip_payment_applications a
     JOIN trip_payments p ON p.id=a.payment_id JOIN trip_charges c ON c.id=a.charge_id JOIN trip_cost_items i ON i.id=c.cost_item_id
