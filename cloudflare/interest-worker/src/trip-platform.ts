@@ -447,21 +447,55 @@ async function updatePortalCredential(request: Request, env: AdminEnv, tripId: s
   const salt = new Uint8Array(16);
   crypto.getRandomValues(salt);
   const hash = await derivePassword(password, salt);
+  const key = await portalPasswordKey(env);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode(tripId) }, key, new TextEncoder().encode(password));
+  const encryptedPassword = `${base64Url(iv)}.${base64Url(new Uint8Array(encrypted))}`;
   const now = new Date().toISOString();
   await env.DB.batch([
     env.DB.prepare(
       `UPDATE trips SET portal_login_id = ?1, portal_password_salt = ?2, portal_password_hash = ?3,
          portal_password_iterations = ?4, portal_enabled = 1, portal_updated_at = ?5, updated_at = ?5 WHERE id = ?6`,
     ).bind(loginId, base64Url(salt), hash, PASSWORD_ITERATIONS, now, tripId),
+    env.DB.prepare(`INSERT INTO trip_portal_passwords (trip_id, encrypted_password, updated_at) VALUES (?1, ?2, ?3)
+      ON CONFLICT(trip_id) DO UPDATE SET encrypted_password = excluded.encrypted_password, updated_at = excluded.updated_at`)
+      .bind(tripId, encryptedPassword, now),
     env.DB.prepare("DELETE FROM trip_portal_sessions WHERE trip_id = ?1").bind(tripId),
     auditStatement(env, "trip", tripId, "portal_credential_changed", { loginId }),
   ]);
   return adminJson({ ok: true, loginId });
 }
 
-async function tripWorkspace(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
-  await authenticate(request, env);
+async function portalPasswordKey(env: AdminEnv): Promise<CryptoKey> {
+  if (!env.ADMIN_SESSION_SECRET) throw new AdminError(503, "ADMIN_NOT_CONFIGURED", "The Admin Portal is not configured yet.");
+  const material = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`hs-trip-password-display-v1:${env.ADMIN_SESSION_SECRET}`));
+  return crypto.subtle.importKey("raw", material, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+
+async function revealPortalCredential(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
+  const session = await authenticate(request, env);
+  if (!can(session.user, 'trips', true)) throw new AdminError(403, "FORBIDDEN", "Trip edit access is required to reveal the shared password.");
   await requireTrip(env, tripId);
+  const stored = await env.DB.prepare("SELECT encrypted_password FROM trip_portal_passwords WHERE trip_id = ?1").bind(tripId).first<{ encrypted_password: string }>();
+  if (!stored) throw new AdminError(409, "PASSWORD_NOT_SAVED_FOR_DISPLAY", "Save the shared password again to enable reveal.");
+  const key = await portalPasswordKey(env);
+  const [ivText, cipherText] = stored.encrypted_password.split('.');
+  const iv = base64UrlBytes(ivText || ''), ciphertext = base64UrlBytes(cipherText || '');
+  let password: string;
+  try {
+    if (!iv || iv.length !== 12 || !ciphertext) throw new Error('Invalid encrypted credential');
+    password = new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode(tripId) }, key, ciphertext));
+  } catch {
+    throw new AdminError(409, "PASSWORD_NOT_SAVED_FOR_DISPLAY", "This password cannot be displayed. Save it again to enable reveal.");
+  }
+  return adminJson({ password });
+}
+
+async function tripWorkspace(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
+  const session = await authenticate(request, env);
+  await requireTrip(env, tripId);
+  const canReveal = can(session.user, 'trips', true);
+  const savedPassword = canReveal ? await env.DB.prepare("SELECT trip_id FROM trip_portal_passwords WHERE trip_id = ?1").bind(tripId).first() : null;
   const queries = [
     env.DB.prepare("SELECT t.*, o.title AS opportunity_title FROM trips t LEFT JOIN opportunities o ON o.id = t.opportunity_id WHERE t.id = ?1").bind(tripId).first(),
     env.DB.prepare(`SELECT tc.* FROM trip_content tc WHERE tc.trip_id = ?1 ORDER BY tc.content_type, tc.event_date, tc.sort_order, tc.title`).bind(tripId).all(),
@@ -514,6 +548,7 @@ async function tripWorkspace(request: Request, env: AdminEnv, tripId: string): P
     });
   }
   return adminJson({
+    portalCredential: { canReveal, available: Boolean(savedPassword) },
     trip, content: content.results, members: members.results, interests: interests.results, organizations: organizations.results,
     accounts: accountRows, costs: costs.results, allocations: allocations.results, charges: charges.results,
     awards: awards.results, payments: payments.results, paymentRequests: requests.results,
@@ -2402,6 +2437,7 @@ async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Pr
   if (tripMatch && request.method === "PUT") return updateTrip(request, env, tripMatch[1]);
 
   const portalCredential = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/portal-credential$/i);
+  if (portalCredential && request.method === "GET") return revealPortalCredential(request, env, portalCredential[1]);
   if (portalCredential && request.method === "POST") return updatePortalCredential(request, env, portalCredential[1]);
 
   const budgetPlan = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/budget-plan$/i);

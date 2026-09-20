@@ -9,3 +9,7 @@
 /media-inventory-hashes.json
 **/__pycache__/
 *.py[cod]
+/.codex-tmp/
+/.wrangler/
+/node_modules/
+/output/

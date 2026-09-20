@@ -1,8 +1,18 @@
 # Hope Sojourns website style guide
 
-Version 4.5.4
+Version 4.5.6
 
-Last reviewed: September 19, 2026
+Last reviewed: September 20, 2026
+
+## Dated trip preview layout
+
+Dated trip pages use bounded horizontal padding inside the shared 1240px page shell. Keep the hero heading at a maximum of 4.5rem, allow long titles and codes to wrap, and stack the summary and details card at 760px. Never calculate inner hero padding from unused viewport width.
+
+## Current shared trip password
+
+Keep the credential card locked after saving, but label the password field Current shared password and show masked dots when a saved display copy is available. The field is read-only, so editors can use the existing eye button without unlocking or changing credentials. Keep the Show shared trip password and Hide shared trip password labels and aria-pressed state synchronized. Retrieve the value only on reveal and clear it when hidden, unlocked, reloaded, switched to another trip, or signed out.
+
+Unlock credentials still enables editing, clears the field, changes its label to New shared password, and exposes the save action. Saving revokes traveler sessions and returns the card to the masked, locked state. For older passwords, show a brief instruction to unlock and save the password again before reveal is available. Read-only users see a permission explanation and cannot reveal or modify the credential. Use the existing field, eye button, card, status, and palette styling.
 
 ## Inbox completion and trash
 
@@ -390,7 +400,7 @@ The stylesheet currently uses breakpoints around `980px`, `850px`, `760px`, `700
 - Make every setup-checklist item an action. Available items may be opened in any order; an unavailable item must remain clickable and answer with a brief **Please complete [prerequisite] before this [item]** message. Do not impose a linear sequence when the underlying records are independent.
 - Provide the same persistent, collapsible administration rail in the main response center and trip management. Remember its open or closed state in that browser, place the collapse control at the rail edge, and change it to a slide-over menu at narrower widths. A valid cross-workspace session should show a neutral loading state while it is checked, never a momentary login form.
 - Every password input needs an adjacent eye control with an accessible Show/Hide label. Revealing text is temporary; reset it to masked after sign-in, sign-out, successful save, or a return to a protected state.
-- After a shared trip login has been created, render its credential card as visibly locked and muted. Disable both fields, hide the save action, and expose one explicit **Unlock credentials** action. Unlocking requires entry of a new password; saving revokes prior traveler sessions and returns the card to its locked state.
+- After a shared trip login has been created, render its credential card as visibly locked and muted. Disable the login-ID field and make the masked current-password field read-only, with its eye button available to authorized trip editors. Hide the save action and expose one explicit **Unlock credentials** action. Unlocking clears the password for entry; saving revokes prior traveler sessions and returns the card to its masked, locked state. Explain when older passwords must be saved again before reveal is available.
 - Offer a spreadsheet-import callout wherever administrators manage trip content, budgets, accounts, payments, support, or invitations. The modal must offer both a clean starter template and **Download this trip's workbook**, require a preview before commit, show row-by-row Create, Update, Unchanged, or Blocked actions beside the detailed status, and preserve the selected file while corrections are reviewed.
 - Put People and Ministries first in the workbook workflow so one upload can create those records before Team, Partners, Accounts, or other dependent rows reference them. In exported trip workbooks, visually mute the protected metadata columns and plainly tell administrators not to change Record ID, Original Updated At, Original Fingerprint, or Original Role. Block stale edits with a brief instruction to download a fresh copy; never export invitation secrets or private links, and treat existing payment rows as read-only audit records.
 - Keep dense setup forms inside cards or disclosures and keep saved records visually separate beneath them. Buttons must use direct verbs such as **Save cost**, **Record payment**, **Add coverage**, **Create request**, and **Create invitation**.
@@ -573,6 +583,8 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-20 | 4.5.6 | Corrected dated-trip hero spacing and heading wrapping across phone and wide desktop layouts. |
+| 2026-09-19 | 4.5.5 | Added masked current shared password, eye-button reveal while locked, and legacy-password and permission explanations. |
 | 2026-09-19 | 4.5.4 | Added inbox action buttons, Completed and Trash views, and source-preserving confirmation copy. |
 | 2026-09-18 | 4.5.3 | Compact contacts, last-name alphabet navigation, and independent spreadsheet scrolling. |
 | 2026-09-18 | 4.5.2 | Added direct Last Contacted fields and selected-contact follow-up updates in People and Spreadsheet views. |

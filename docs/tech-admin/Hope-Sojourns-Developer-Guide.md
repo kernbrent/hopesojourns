@@ -1,8 +1,20 @@
 # Hope Sojourns developer guide
 
-Version 4.5.4
+Version 4.5.6
 
-Last reviewed: September 19, 2026
+Last reviewed: September 20, 2026
+
+## Dated trip preview layout
+
+The dated-trip preview at /trip/ uses trip/trip.css inside the shared fixed-width shell. Hero padding must stay bounded rather than using viewport-minus-content calculations. Validate /trip/ with representative API data at 320, 390, 760, 820, 1378, 1920, and 2560px for overflow and intersecting hero columns. The trip stylesheet version is 2026-09-20.1. Displayed dates come directly from the saved trip record.
+
+## Shared trip password display
+
+The traveler credential card shows a masked current-password field. Trip editors can use its eye button while the card remains locked. The browser retrieves plaintext only on that action through authenticated `GET /admin/trips/:id/portal-credential`, which additionally requires trip edit permission and returns `no-store, private`. Read-only users cannot reveal passwords. Ordinary workspace responses contain only `portalCredential.canReveal` and `portalCredential.available`, not the recoverable password. The revealed value stays only in the input and is cleared when hidden, unlocked, refreshed, switched to another trip, or signed out. Never put it in local storage, audit metadata, exports, public responses, or traveler responses.
+
+Migration `0028_trip_portal_password_display.sql` adds `trip_portal_passwords` separately from `trips`. Saving credentials writes an AES-GCM encrypted copy atomically with the existing PBKDF2 hash, salt, and session deletion. The display key is SHA-256 derived with a versioned domain prefix from the environment's existing `ADMIN_SESSION_SECRET`; each save has a fresh 12-byte IV and authenticates the trip ID as additional data. No plaintext is stored in D1. Keep the session secret available for display; rotating it makes prior display copies unreadable until the password is saved again, but does not affect password-hash verification for traveler sign-in. Decryption failures return a friendly re-save message without logging credential contents.
+
+Older credentials have only one-way hashes and cannot be recovered. The card explains that an editor must unlock and save the password again, which may be the same password if known. Saving still signs out all existing traveler sessions. Apply migration 0028 before releasing the matching Worker and trip-admin assets, only after explicit deployment authorization. This change is local pending release. Regression tests cover retrieval, encryption, legacy credentials, permissions, CSRF, secret rotation, and session revocation.
 
 ## Inbox completion and trash
 
@@ -437,7 +449,7 @@ The budget step is complete only when the administrator selects **Finish budget*
 
 Budget and Accounts & Payments labels receive contextual What/Why help from the frontend field-help map. These small non-modal popovers are the intentional click-away exception: a click outside the help trigger and popover dismisses only that help text. Full semantic dialogs, including the Accounts & Payments page guide, continue to require an explicit close action and must never close on a backdrop click.
 
-All password inputs in the main administrator, trip administrator, and traveler surfaces have accessible show/hide controls. Shared trip credentials are write-only: the Worker never returns a plaintext password. When `portal_login_id` exists, the browser locks and mutes the credential card until **Unlock credentials** is selected. A replacement requires a new password and the existing save route revokes all traveler sessions.
+All password inputs in the main administrator, trip administrator, and traveler surfaces have accessible show/hide controls. When `portal_login_id` exists, the browser locks and mutes the credential card until **Unlock credentials** is selected. The current shared password remains masked and read-only, with an eye button available to trip editors when an encrypted display copy exists. Unlocking clears the displayed value for entry of a replacement; saving revokes all traveler sessions. See Shared trip password display for legacy-password and encryption behavior.
 
 Trip bulk import is a preview-first multipart route at `POST /admin/trips/:id/import`. It accepts only `.xlsx` files up to 3 MB and at most 200 populated rows. The bounded ZIP/XML reader rejects path traversal, encrypted or unsafe packages, excessive entries or decompressed bytes, formulas, unsupported files, duplicate Import Refs, and unsafe changed-data reuse. The supported data sheets are People, Ministries, Team, Partners, Content, Accounts, Budget, Allocations, Charges, Support, Payments, and Invites; Instructions and blank sheets are ignored. Dependency order creates or updates People and Ministries first, then partner and team links, followed by content, accounts, budget items, allocations, charges, support, payments, and invitations. This permits a new person or ministry to be referenced elsewhere in the same workbook. People are referenced by email; Ministries, cost categories, and funding sources by normalized name; dependent trip records by their workbook Import Ref. Cost categories and funding sources remain administrator-managed setup lists and must already exist.
 
@@ -451,7 +463,7 @@ The canonical workbook is `/outputs/01a0775c-925e-7713-9822-42450cb2f4b6/Hope-So
 
 Trip invitations are hashed bearer tokens. They invite someone to apply or express interest in one actual trip; they are not traveler-portal credentials. They preselect the actual trip and optional organization on `/interest/`, can expire or have a maximum use count, and are revealed only at creation. A successful interest form links the submission and Person to `trip_interests`; it does not silently confirm the traveler. Administrators review the interest and control the separate `trip_members.status` lifecycle. Approved travelers receive the trip's separate shared ID and password.
 
-The shared traveler password is PBKDF2-SHA-256 derived with a random per-trip salt and 100,000 iterations. The plaintext password is never stored. Successful sign-in creates an HTTP-only, Secure, SameSite Strict session cookie scoped to the portal API. Changing the credential revokes all existing sessions. Failed logins are limited by the hash of the normalized login ID and client address; repeated failures create a temporary block, and old attempt rows are removed automatically. The shared portal never includes account balances or payment history.
+The shared traveler password is PBKDF2-SHA-256 derived with a random per-trip salt and 100,000 iterations. A separately encrypted display copy supports authorized editor reveal; the plaintext password is never stored. Successful sign-in creates an HTTP-only, Secure, SameSite Strict session cookie scoped to the portal API. Changing the credential revokes all existing sessions. Failed logins are limited by the hash of the normalized login ID and client address; repeated failures create a temporary block, and old attempt rows are removed automatically. The shared portal never includes account balances or payment history.
 
 The traveler sign-in uses the shared Trip ID and trip password, not the traveler's email address. The client disables repeat submission while the portal opens, applies a 15-second request timeout, announces a longer-than-expected request after four seconds, and briefly retries the session lookup after a successful credential exchange. Success clears the message and hides sign-in before the portal appears; failures return the form to an actionable state without clearing the entered password.
 
@@ -483,6 +495,7 @@ Primary route families are:
 | `POST /admin/trip-platform/funding-sources`, `POST /admin/trip-platform/cost-categories` | Create or update administrator-managed catalogs |
 | `POST /admin/trips/:id/<resource>` | Save members, organizations, content, costs, allocations, accounts, charges, awards, payments, payment requests, invites, or messages |
 | `POST /admin/trips/:id/portal-credential` | Replace the shared credential and revoke sessions |
+| `GET /admin/trips/:id/portal-credential` | Reveal the current shared password to trip editors only |
 | `POST /admin/trips/:id/budget-plan` | Save the paying-traveler multiplier, finish the budget, or reopen it |
 | `POST /admin/trips/:id/import` | Preview or commit a formatted XLSX trip import |
 | `GET /admin/trips/:id/export` | Download the current trip as a safe round-trip XLSX workbook |
@@ -823,6 +836,8 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-20 | 4.5.6 | Corrected dated-trip hero spacing and heading wrapping across phone and wide desktop layouts. |
+| 2026-09-19 | 4.5.5 | Added masked current trip password with editor-only reveal, encrypted display copies, and unchanged credential locking and session revocation. Local pending release. |
 | 2026-09-19 | 4.5.4 | Added shared inbox completion, reopening, Trash, and restoration with separate audited state. |
 | 2026-09-18 | 4.5.3 | Compact contacts, last-name alphabet navigation, and independent spreadsheet scrolling. |
 | 2026-09-18 | 4.5.2 | Added direct Last Contacted fields and selected-contact follow-up updates in People and Spreadsheet views. |

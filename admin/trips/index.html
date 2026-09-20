@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-trip-admin-build="2026-09-17.4">
+<html lang="en" data-trip-admin-build="2026-09-19.1">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -188,7 +188,8 @@
               <p class="eyebrow">Shared traveler access</p><h3>Trip ID and password</h3>
               <p>Everyone on this trip uses the same credentials for shared resources. Changing the password signs out every existing portal session.</p>
               <label><span>Trip login ID</span><input name="loginId" required maxlength="80" autocomplete="off"></label>
-              <label><span>New shared password</span><div class="trip-password-field"><input id="trip-shared-password" name="password" type="password" minlength="10" maxlength="128" required autocomplete="new-password"><button class="trip-password-toggle" type="button" data-password-toggle aria-controls="trip-shared-password" aria-label="Show shared trip password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button></div></label>
+              <label><span data-shared-password-label>New shared password</span><div class="trip-password-field"><input id="trip-shared-password" name="password" type="password" minlength="10" maxlength="128" required autocomplete="new-password" aria-describedby="trip-credential-display-note"><button class="trip-password-toggle" type="button" data-password-toggle aria-controls="trip-shared-password" aria-label="Show shared trip password" aria-pressed="false"><span aria-hidden="true">&#128065;</span></button></div></label>
+              <p id="trip-credential-display-note" data-credential-display-note hidden></p>
               <p class="trip-credential-locked-note" data-credential-locked-note hidden>Credentials are protected. Select Unlock credentials to make changes.</p>
               <div class="trip-card-actions"><button class="trip-button trip-button-primary" type="submit" data-save-portal-credentials>Set portal credentials</button><button class="trip-button trip-button-outline" id="trip-portal-unlock" type="button" hidden>Unlock credentials</button></div><p class="trip-form-status" data-form-status></p>
             </form>
@@ -377,6 +378,6 @@
 
   <template id="trip-record-template"><article class="trip-record"><div class="trip-record-main"></div><div class="trip-record-actions"></div></article></template>
   <script src="/admin/trips/budget-tools.js?v=2026-09-18.2" defer></script>
-  <script src="/admin/trips/trips.js?v=2026-09-18.2" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-19.1" defer></script>
 </body>
 </html>

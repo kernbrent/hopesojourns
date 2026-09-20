@@ -201,11 +201,27 @@ function resetPasswordVisibility(container) {
 
 function initializePasswordToggles() {
   document.querySelectorAll("[data-password-toggle]").forEach(button => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const input = document.querySelector(`#${button.getAttribute("aria-controls")}`);
       if (!input || input.disabled) return;
       const revealing = input.type === "password";
+      if (input.id === "trip-shared-password" && input.readOnly && revealing) {
+        const tripId = state.tripId;
+        const version = input.dataset.revealVersion;
+        button.disabled = true;
+        try {
+          const result = await api(`/admin/trips/${tripId}/portal-credential`);
+          if (state.tripId !== tripId || !input.readOnly || input.dataset.revealVersion !== version || app.hidden) return;
+          input.value = result.password;
+        } catch (error) {
+          if (state.tripId === tripId) setStatus(document.querySelector("#trip-portal-form [data-form-status]"), error.message, "error");
+          return;
+        } finally {
+          if (state.tripId === tripId && input.dataset.revealVersion === version && !app.hidden) button.disabled = false;
+        }
+      }
       input.type = revealing ? "text" : "password";
+      if (input.id === "trip-shared-password" && input.readOnly && !revealing) input.value = "";
       button.setAttribute("aria-pressed", String(revealing));
       button.setAttribute("aria-label", button.getAttribute("aria-label").replace(revealing ? /^Show / : /^Hide /, revealing ? "Hide " : "Show "));
       input.focus();
@@ -304,6 +320,10 @@ async function api(path, options = {}) {
 }
 
 function showLogin() {
+  const credentialForm = document.querySelector("#trip-portal-form");
+  credentialForm.elements.password.value = "";
+  credentialForm.elements.password.dataset.revealVersion = String(Number(credentialForm.elements.password.dataset.revealVersion || 0) + 1);
+  resetPasswordVisibility(credentialForm);
   authLoading.hidden = true;
   app.hidden = true;
   loginPanel.hidden = false;
@@ -580,6 +600,7 @@ function renderTripList() {
 }
 
 async function openTrip(tripId, scroll = true) {
+  setPortalCredentialLocked(true);
   state.tripId = tripId;
   setStatus(pageStatus, "Opening trip…");
   state.workspace = await api(`/admin/trips/${tripId}`);
@@ -628,19 +649,29 @@ function setPortalCredentialLocked(locked) {
   const save = form.querySelector("[data-save-portal-credentials]");
   const unlock = document.querySelector("#trip-portal-unlock");
   const note = form.querySelector("[data-credential-locked-note]");
+  const credential = state.workspace?.portalCredential;
+  const canEdit = credential?.canReveal === true;
+  const available = credential?.available === true;
+  const help = form.querySelector("[data-credential-display-note]");
   form.classList.toggle("is-locked", locked);
   loginId.disabled = locked;
-  password.disabled = locked;
+  password.disabled = !canEdit;
+  password.readOnly = locked;
   password.required = !locked;
-  form.querySelector('[data-password-toggle][aria-controls="trip-shared-password"]').disabled = locked;
-  save.hidden = locked;
+  password.value = "";
+  password.dataset.revealVersion = String(Number(password.dataset.revealVersion || 0) + 1);
+  password.placeholder = locked && available ? "••••••••••••" : "";
+  resetPasswordVisibility(form);
+  form.querySelector("[data-shared-password-label]").textContent = locked ? "Current shared password" : "New shared password";
+  form.querySelector('[data-password-toggle][aria-controls="trip-shared-password"]').disabled = !canEdit || (locked && !available);
+  save.hidden = locked || !canEdit;
   save.textContent = state.workspace?.trip.portal_login_id ? "Update portal credentials" : "Set portal credentials";
-  unlock.hidden = !locked;
+  unlock.hidden = !locked || !canEdit;
   note.hidden = !locked;
-  if (locked) {
-    password.value = "";
-    resetPasswordVisibility(form);
-  }
+  help.hidden = !locked;
+  help.textContent = !canEdit ? "Trip edit access is required to reveal the shared password."
+    : available ? "Use the eye button to show or hide the current password."
+    : "The existing password cannot be displayed yet. Unlock credentials and save the password again to enable reveal.";
 }
 
 function renderWorkspace() {
