@@ -1,8 +1,16 @@
 # Hope Sojourns website style guide
 
-Version 4.7.0
+Version 4.8.0
 
 Last reviewed: September 22, 2026
+
+## Trip photos and past trip stories
+
+Photos & memories adds responsive photo cards and dated journal notes to each trip. Administrators can upload several photos, add captions and credits, edit image descriptions, and select traveler visibility. Use descriptive alternative text that communicates the scene. The collection separates adding new material from editing saved items and includes a removed-items view with Restore controls.
+
+Past-trip story uses a destination selector, public title, short summary, narrative, and explicit checkboxes for the material to publish. Save and preview opens a modal showing the exact public version. Publishing remains unavailable until the trip has ended and is marked Completed. The live version stays unchanged while a new draft is prepared; Unpublish story removes it from public access.
+
+Traveler and public displays share journey/memories.css and memories-view.js. Galleries adapt to available width, include captions and dates, and open the full image in a new tab. Longer devotional resources use native expandable sections. Text uses the existing safe content formatter. Forms, cards, previews, and disclosure controls use existing palette tokens, visible labels, keyboard-accessible controls, and readable spacing. Keep the established public homepage and destination design; add past-trip stories within the existing destination layout.
 
 ## Shared MMT navigation
 
@@ -608,6 +616,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
 | 2026-09-21 | 4.5.8 | Added collapsed devotional day banners and day navigation. Deployed September 21, 2026. |

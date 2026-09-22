@@ -1,3 +1,4 @@
+import {handleMemoriesAdmin,handleTripStories,portalMemories,portalPhoto} from './trip-memories';
 import { handleDevotionalLibrary, masterStatement, requireDevotional } from "./devotional-library";
 import {can} from './mmt-permissions';
 import { standardTripStatements, assignTravelerBudget, allocatePayment } from './ministry-budget';
@@ -1557,7 +1558,7 @@ async function portalLogin(request: Request, env: AdminEnv): Promise<Response> {
   return adminJson({ ok: true, trip: { slug: trip.slug, title: trip.title } }, 200, { "Set-Cookie": portalCookie(token, maxAge), "Cache-Control": "no-store" });
 }
 
-async function portalSession(request: Request, env: AdminEnv): Promise<Response> {
+async function portalSession(request: Request, env: AdminEnv, photoTrip?:string, photoId?:string): Promise<Response> {
   const token = cookieValue(request, "hs_trip_portal_session");
   if (!token) throw new AdminError(401, "PORTAL_AUTH_REQUIRED", "Enter the Trip ID and password to continue.");
   const session = await env.DB.prepare(`SELECT s.id, s.trip_id, s.expires_at FROM trip_portal_sessions s
@@ -1568,6 +1569,7 @@ async function portalSession(request: Request, env: AdminEnv): Promise<Response>
   const trip = await env.DB.prepare(`SELECT id, code, slug, title, subtitle, location, start_date, end_date, status,
     public_summary FROM trips WHERE id = ?1 AND portal_enabled = 1`).bind(session.trip_id).first();
   if (!trip) throw new AdminError(401, "PORTAL_AUTH_REQUIRED", "This trip portal is not available.");
+  if(photoTrip){if(photoTrip!==session.trip_id)throw new AdminError(404,"NOT_FOUND","Photo not found.");return portalPhoto(env,photoTrip,photoId!);}
   const [content, members, costs] = await Promise.all([
     env.DB.prepare(`SELECT id, content_type, title, content, event_date, event_time, location, link_url, visibility, sort_order
       FROM trip_content WHERE trip_id = ?1 AND publication_status = 'published' AND visibility IN ('public', 'travelers')
@@ -1583,7 +1585,7 @@ async function portalSession(request: Request, env: AdminEnv): Promise<Response>
       FROM trip_cost_items WHERE trip_id = ?1 AND payment_status != 'canceled'`).bind(session.trip_id).first(),
   ]);
   await env.DB.prepare("UPDATE trip_portal_sessions SET last_seen_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), session.id).run();
-  return adminJson({ trip, content: content.results, members: members.results, financialOverview: costs }, 200, { "Cache-Control": "no-store" });
+  return adminJson({ trip, content: content.results, memories: await portalMemories(env,session.trip_id), members: members.results, financialOverview: costs }, 200, { "Cache-Control": "no-store" });
 }
 
 async function portalLogout(request: Request, env: AdminEnv): Promise<Response> {
@@ -2441,6 +2443,8 @@ async function annualPersonSummary(request: Request, env: AdminEnv): Promise<Res
 }
 
 async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Promise<Response> {
+  const memories=path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/memories(?:\/([a-z0-9-]+)(?:\/(image|restore|draft|publish|unpublish))?)?$/i);
+  if(memories)return handleMemoriesAdmin(request,env,memories[1],memories[2],memories[3]);
   if (path === "/admin/trip-platform/devotionals" || path.startsWith("/admin/trip-platform/devotionals/")) return handleDevotionalLibrary(request, env, path);
   if (request.method === "GET" && path === "/admin/trip-platform/bootstrap") return listBootstrap(request, env);
   if (request.method === "POST" && path === "/admin/trip-platform/funding-sources") return saveFundingSource(request, env);
@@ -2507,6 +2511,9 @@ export async function handleTripAdminRequest(request: Request, env: AdminEnv, pa
 
 export async function handleTripPublicRequest(request: Request, env: AdminEnv, path: string): Promise<Response> {
   try {
+    if(path.startsWith("/public/trip-stories"))return await handleTripStories(request,env,path);
+    const photo=path.match(/^\/portal\/trips\/([0-9a-f-]{36})\/photos\/([0-9a-f-]{36})$/i);
+    if(photo&&request.method==="GET")return await portalSession(request,env,photo[1],photo[2]);
     if (request.method === "GET" && path === "/public/trips") return await listPublicTrips(env, request);
     const publicMatch = path.match(/^\/public\/trips\/([a-z0-9-]+)$/);
     if (request.method === "GET" && publicMatch) return await publicTrip(env, publicMatch[1]);

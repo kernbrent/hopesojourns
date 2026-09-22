@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
   <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-21.1">
-<script src="/admin/mmt-navigation.js?v=2026-09-22.1" defer></script><script src="/phone-ui.js?v=1" defer></script><script src="/admin/mmt-session.js?v=2026-09-22.1" defer></script><link rel="stylesheet" href="/admin/mmt-navigation.css?v=2026-09-22.1"></head>
+<script src="/admin/mmt-navigation.js?v=2026-09-22.1" defer></script><script src="/phone-ui.js?v=1" defer></script><script src="/admin/mmt-session.js?v=2026-09-22.1" defer></script><link rel="stylesheet" href="/admin/mmt-navigation.css?v=2026-09-22.1"><link rel="stylesheet" href="/journey/journey.css?v=2026-09-22.2"><link rel="stylesheet" href="/journey/memories.css?v=2026-09-22.2"><script src="/journey/content-format.js?v=2026-09-21.3" defer></script><script src="/journey/memories-view.js?v=2026-09-22.2" defer></script><script src="/admin/trips/memories.js?v=2026-09-22.2" defer></script></head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
 
@@ -126,6 +126,7 @@
           <button type="button" role="tab" data-trip-tab="budget">Budget &amp; funding</button>
           <button type="button" role="tab" data-trip-tab="accounts">Accounts &amp; payments</button>
           <button type="button" role="tab" data-trip-tab="communications">Invites &amp; messages</button>
+          <button type="button" role="tab" data-trip-tab="memories">Photos &amp; memories</button><button type="button" role="tab" data-trip-tab="story">Past-trip story</button>
           <button type="button" role="tab" data-trip-tab="public">Public page</button>
           <button type="button" role="tab" data-trip-tab="settings">Setup lists</button>
         </div>
@@ -133,6 +134,7 @@
           <strong>How editing works:</strong> cards with labeled fields and a Save button accept entries. Cards labeled Summary show saved information. Use <strong>Edit trip</strong> for dates, location, status, capacity, and public settings.
         </p>
 
+        <section data-trip-panel="memories" id="trip-memories-panel" hidden></section><section data-trip-panel="story" id="trip-story-panel" hidden></section>
         <section class="trip-tab-panel" data-trip-panel="overview">
           <div class="trip-two-column">
             <article class="trip-admin-card trip-summary-card">
@@ -421,6 +423,6 @@
   </dialog>
 
   <script src="/admin/trips/devotional-library.js?v=2026-09-21.1" defer></script>
-  <script src="/admin/trips/trips.js?v=2026-09-22.1" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-22.2" defer></script>
 </body>
 </html>

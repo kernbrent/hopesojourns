@@ -586,7 +586,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return handleLedgerAdminRequest(request, env, path);
   }
   if (path.startsWith("/admin/")) return handleAdminRequest(request, env, path);
-  if (path.startsWith("/public/trips") || path.startsWith("/portal/") || path.startsWith("/private-account/")) {
+  if (path.startsWith("/public/trip-stories") || path.startsWith("/public/trips") || path.startsWith("/portal/") || path.startsWith("/private-account/")) {
     return handleTripPublicRequest(request, env, path);
   }
   if (request.method === "GET" && path === "/opportunities") return listOpportunities(request, env);

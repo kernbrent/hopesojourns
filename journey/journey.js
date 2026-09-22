@@ -181,6 +181,7 @@ function render(data) {
   const content = document.querySelector("#journey-content");
   navigation.replaceChildren();
   content.replaceChildren();
+  if(data.memories?.length){const section=node('section','journey-section');section.id='trip-memories';const link=node('a','', 'Photos & memories');link.href='#trip-memories';navigation.append(link);window.HSTripMemoriesView.collection(section,data.memories);content.append(section);}
   const grouped = new Map();
   data.content.forEach(item => {
     if (!grouped.has(item.content_type)) grouped.set(item.content_type, []);
@@ -214,7 +215,7 @@ function render(data) {
     link.href = `#${section.id}`;
     navigation.append(link);
   });
-  if (!data.content.length) {
+  if (!data.content.length && !data.memories?.length) {
     content.append(node("section", "journey-section", "Your trip leader is still preparing the portal. Please check back soon."));
   }
 

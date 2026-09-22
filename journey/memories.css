@@ -1,0 +1,15 @@
+.memory-gallery { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:20px; }
+.memory-card { margin:0 0 20px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--paper);overflow-wrap:anywhere; }
+.memory-card img { width:100%;height:230px;object-fit:cover;border-radius:8px; }
+.memory-card h3 { margin:14px 0 8px; }.memory-card p { line-height:1.7;white-space:pre-wrap; }
+.memory-date,.memory-credit { color:var(--muted);font-size:.9rem; }
+.memory-study { padding:18px;margin:12px 0;border:1px solid var(--line);border-radius:12px;background:var(--paper); }
+.memory-study summary { cursor:pointer;font-weight:700;line-height:1.5; }.memory-study[open] summary { margin-bottom:18px; }
+.trip-story { width:min(100% - 32px,1050px);margin:40px auto;overflow-wrap:anywhere; }.trip-story>p { line-height:1.8; }
+.trip-story h1 { font-size:clamp(2rem,5vw,3.5rem); }.trip-story h2 { margin-top:36px; }
+.memory-editor-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:20px; }.memory-editor-grid form { display:grid;gap:12px; }
+.memory-editor-grid label,.memory-story-form>label { display:grid;gap:6px;margin:12px 0; }.memory-editor-grid input,.memory-editor-grid textarea,.memory-story-form input,.memory-story-form textarea,.memory-story-form select { width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;box-sizing:border-box; }
+.memory-check { display:flex!important;align-items:start;gap:10px!important;margin:10px 0; }.memory-check input { width:18px!important;flex:none;margin-top:3px; }.memory-editor-list { display:grid;gap:20px;margin:24px 0; }.memory-editor-list img { max-width:240px;max-height:180px;object-fit:contain; }.memory-editor-list form { padding:20px;border:1px solid var(--line);border-radius:12px; }
+.memory-actions { display:flex;gap:10px;flex-wrap:wrap;margin:16px 0; }.memory-preview { width:min(1100px,calc(100vw - 28px));max-height:90dvh;overflow:auto;border:1px solid var(--line);border-radius:16px;padding:24px;background:var(--paper);color:var(--ink); }.memory-preview::backdrop { background:rgba(var(--forest-deep-rgb),.65); }.memory-preview header { display:flex;align-items:center;justify-content:space-between;gap:16px; }.memory-status { white-space:pre-wrap; }
+
+.memory-editor-list label { display:grid;gap:6px;margin:12px 0; }.memory-editor-list input,.memory-editor-list textarea { width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit; }.memory-story-form fieldset { border:1px solid var(--line);border-radius:12px;margin:20px 0;padding:18px; }

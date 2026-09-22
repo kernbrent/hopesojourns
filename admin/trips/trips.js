@@ -1083,6 +1083,7 @@ function renderSetupLists() {
 
 function activateTab(name) {
   state.activeTab = name;
+  if (name === "memories" || name === "story") window.HSMemories.open(name);
   document.querySelectorAll("[data-trip-tab]").forEach(button => {
     const active = button.dataset.tripTab === name;
     button.classList.toggle("is-active", active);
