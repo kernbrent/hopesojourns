@@ -1,8 +1,27 @@
 # Hope Sojourns website style guide
 
-Version 4.5.6
+Version 4.6.0
 
-Last reviewed: September 20, 2026
+Last reviewed: September 22, 2026
+
+## Devotional library
+
+Open Devotional library from the Trips sidebar or toolbar, or use /admin/trips/?library=devotionals. Search matches every entered word against title, Scripture references, topics, and content. Add or edit masters with separate Scripture and comma-separated topic fields. The Trips and dates section shows original use and saved trip copies, including dates, draft/published status, and removed assignments. Deletion is reversible through Show deleted and does not change trip copies.
+
+In a trip's Content tab, choose a devotional, select a date, and copy it into the trip editor. Personalize and save that copy. An empty generated devotional for that date is filled instead of creating a duplicate; nonempty studies are preserved. New trip-only devotionals can optionally be saved as a library master with the checkbox in the trip editor. Newly created trips open the Content tab. Hidden editor IDs are cleared after save/cancel and when changing trips.
+
+Use the existing forest, gold, paper, ink, and line palette. The library uses a native modal with a searchable list beside the master editor on desktop; stack these on narrow screens. Keep primary trip-copy controls above the master editor, explain copy independence, and label master-save actions explicitly. Use regular-weight readable text in the content editor, visible focus/selection states, and live result counts. Enforce hidden attributes so deleted-only controls and inactive panels do not appear accidentally.
+
+
+## Collapsible devotional days
+
+Begin the devotional section with wrapping day-and-date links. Each dated group starts collapsed in a native details element. Its banner shows the trip day, full date, study title, Scripture references when supplied, and an Open study or Close study cue. Use forest-wash panels, existing text colors, visible keyboard focus, and generous touch targets. Selecting a day link opens and focuses its banner. Multiple studies on the same date share one banner. Keep unpublished days absent rather than renumbering the published days. This enhancement is deployed September 21, 2026.
+
+## Traveler study typography
+
+Bible studies and devotionals in the traveler portal use a reading column limited to 70 characters, generous paragraph spacing, forest-green bold section headings, bulleted talking points, and numbered group questions. Scripture references are bold; NIV reading links are descriptive and underlined. Closing prayers use italics and the existing dark gold-ink token. Keep body copy at 17px on desktop and 16px on small phones, with a 1.8 line height. Underlining denotes links rather than decorative emphasis. Use semantic headings, lists, strong text, and emphasis so the organization remains clear without color.
+
+Apply this presentation when displaying devotional records, including Bible studies stored in that category. Existing drafts receive the same presentation when their owner publishes them. Formatting does not change publication status, visibility, or saved text. The typography update was deployed September 21, 2026.
 
 ## Dated trip preview layout
 
@@ -583,6 +602,9 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
+| 2026-09-21 | 4.5.8 | Added collapsed devotional day banners and day navigation. Deployed September 21, 2026. |
+| 2026-09-21 | 4.5.7 | Added readable traveler study sections, Scripture emphasis, real lists, underlined reading links, and italic prayers. Deployed September 21, 2026. |
 | 2026-09-20 | 4.5.6 | Corrected dated-trip hero spacing and heading wrapping across phone and wide desktop layouts. |
 | 2026-09-19 | 4.5.5 | Added masked current shared password, eye-button reveal while locked, and legacy-password and permission explanations. |
 | 2026-09-19 | 4.5.4 | Added inbox action buttons, Completed and Trash views, and source-preserving confirmation copy. |
@@ -622,3 +644,8 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 | 2026-08-23 | 1.2 | Added hostname-aware response-portal environment labeling for the production launch. |
 | 2026-08-23 | 1.1 | Added inclusive form-language and document-bundle standards for the public interest form and response portal. |
 | 2026-08-23 | 1.0 | Established the living site-wide style guide from the implemented Hope Sojourns design system. |
+
+
+### Public design restoration — September 21, 2026
+
+Restored the production homepage, shared navigation script, and shared stylesheet to the approved public design from c617a30 (archived deployment bcdaf6ac). The homepage again reads “Travel farther. Serve closer.” The experimental experience stylesheet is no longer imported globally. Current admin, finance, trip portal, and devotional formatting/day navigation remain intact. Experimental routes and assets remain available in source but are not linked by the restored public navigation. Do not run tools/build_front_door.py for production; that generator replaces the approved homepage with the experimental design.

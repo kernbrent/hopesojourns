@@ -1,8 +1,33 @@
 # Hope Sojourns developer guide
 
-Version 4.5.6
+Version 4.6.0
 
-Last reviewed: September 20, 2026
+Last reviewed: September 22, 2026
+
+## Devotional library
+
+Open Devotional library from the Trips sidebar or toolbar, or use /admin/trips/?library=devotionals. Search matches every entered word against title, Scripture references, topics, and content. Add or edit masters with separate Scripture and comma-separated topic fields. The Trips and dates section shows original use and saved trip copies, including dates, draft/published status, and removed assignments. Deletion is reversible through Show deleted and does not change trip copies.
+
+In a trip's Content tab, choose a devotional, select a date, and copy it into the trip editor. Personalize and save that copy. An empty generated devotional for that date is filled instead of creating a duplicate; nonempty studies are preserved. New trip-only devotionals can optionally be saved as a library master with the checkbox in the trip editor. Newly created trips open the Content tab. Hidden editor IDs are cleared after save/cancel and when changing trips.
+
+API routes live under /api/interest/admin/trip-platform/devotionals and use existing trip permissions and CSRF enforcement. GET lists active or deleted masters; POST creates; GET /:id returns the master and usage; PUT /:id saves; DELETE /:id soft-deletes; POST /:id/restore restores. Updates require updatedAt to detect stale edits. Migration 0029 adds devotional_library, trip_content.devotional_id, devotional_usage, and transactional usage triggers. Migration 0030 seeds 13 completed Greece 2026 studies with original-use history; 0031 seeds eight FOT studies from the verified live text and links existing copies without rewriting their content or publication settings. Mexico currently has only six empty devotional templates; completed Mexico source text is still needed.
+
+Trip content saves batch optional master creation, trip copy, and audit entries atomically. Editing a trip never updates the master. Usage triggers preserve history after deletion, date changes, or conversion to another content type. Library data is available only through authenticated admin APIs, not the public static build. Do not add outputs/devotional-library to the public build allowlist. The approved public homepage, shared stylesheet, and navigation must remain unchanged when releasing library updates.
+
+Validation: database-backed library tests cover independent copies, empty-day replacement, history, soft deletion/restoration, unsafe links, stale versions, CSRF, anonymous requests, and read-only permissions. The full backend suite passes 153 checks. Browser checks cover Scripture search, trip copying, and master/history visibility. For rollout, apply migrations to test, deploy test worker, apply production migrations, deploy production worker, then deploy the Pages bundle. Verify the homepage and both admin and traveler portal assets after release.
+
+
+## Devotional day navigation
+
+`studyDays()` in journey.js groups devotional records by event_date, sorts days chronologically, and renders native details and summary elements with stable date-based anchors. Trip day numbers use UTC date differences from trip.start_date, not the visible entry index; this preserves numbering when drafts are withheld. Undated records remain separate, with a title-derived day or Additional study label. Scripture references come from standalone Read aloud from the NIV, Scripture, Scripture reading, or Bible reading labels. Unknown readings show a neutral prompt to read inside.
+
+Day links open, focus, and scroll to the matching banner, including when the same link is selected again. Initial and changed URL fragments open the matching day after the asynchronous portal render. Native keyboard toggling remains available. Multiple entries on one date share a banner and retain their individual bodies. No API, database, or publication changes are involved. The journey asset version is 2026-09-21.3; this day-navigation enhancement is deployed September 21, 2026.
+
+## Traveler study formatting
+
+`journey/content-format.js` exposes `HSJourneyContent.render(text, { study })`. The journey page loads it before `journey.js`; both scripts and the journey stylesheet use asset version `2026-09-21.1`. Render saved content with DOM creation and textContent, never innerHTML. Blank lines form paragraphs; devotional content additionally recognizes short uppercase section headings, talking-point sections, and closing prayers. Explicit numbered and bulleted lines become native lists. Known Scripture, focus, and leader-reminder labels are emphasized. Whole-line `NIV reading: https://...` entries become descriptive HTTPS links with noopener and noreferrer; invalid links and raw HTML stay plain text.
+
+Study-specific presentation applies to every record whose content_type is devotional, including Bible studies in that category. All other content keeps paragraph breaks and explicit lists without study-heading inference. No database migration, record rewrite, visibility change, or publication action is required. Existing drafts gain the formatting when normally published. The typography update was deployed September 21, 2026 as Pages deployment 7f15e692. Preserve the portal session API and its existing publication filtering.
 
 ## Dated trip preview layout
 
@@ -836,6 +861,9 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
+| 2026-09-21 | 4.5.8 | Added date-grouped native disclosures, stable anchors, and keyboard-accessible day links without exposing drafts. Deployed September 21, 2026. |
+| 2026-09-21 | 4.5.7 | Added safe plain-text study rendering and responsive reading styles without changing saved content or publication filtering. Deployed September 21, 2026. |
 | 2026-09-20 | 4.5.6 | Corrected dated-trip hero spacing and heading wrapping across phone and wide desktop layouts. |
 | 2026-09-19 | 4.5.5 | Added masked current trip password with editor-only reveal, encrypted display copies, and unchanged credential locking and session revocation. Local pending release. |
 | 2026-09-19 | 4.5.4 | Added shared inbox completion, reopening, Trash, and restoration with separate audited state. |
@@ -881,3 +909,13 @@ Administrators can select Delete user in the user list and must type the exact u
 | 2026-08-23 | 1.2 | Added Word editions and their build, visual-review, and synchronization workflow. |
 | 2026-08-23 | 1.1 | Added conflict-safe document synchronization and the daily 2:30 a.m. task. |
 | 2026-08-23 | 1.0 | Established the guide from the current site, portal, Workers, and validation rules. |
+
+
+### Public design restoration — September 21, 2026
+
+Restored the production homepage, shared navigation script, and shared stylesheet to the approved public design from c617a30 (archived deployment bcdaf6ac). The homepage again reads “Travel farther. Serve closer.” The experimental experience stylesheet is no longer imported globally. Current admin, finance, trip portal, and devotional formatting/day navigation remain intact. Experimental routes and assets remain available in source but are not linked by the restored public navigation. Do not run tools/build_front_door.py for production; that generator replaces the approved homepage with the experimental design.
+
+
+### Traveler portal trip selection — September 21, 2026
+
+Portal restoration now checks the requested trip before rendering an existing session. Admin portal links include the stable tripId as well as the shared login ID. A different trip presents the requested login instead of displaying the previous trip. Successful sign-in verifies the returned session against the login response and updates the URL with its trip ID. Regression coverage includes mismatched sessions, matching trips, custom login IDs, and direct portal visits.

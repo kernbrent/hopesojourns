@@ -9,7 +9,7 @@
   <title>Trips | Hope Sojourns Administration</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-18.2">
+  <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-21.1">
 <script src="/phone-ui.js?v=1" defer></script><script src="/admin/mmt-session.js?v=1" defer></script></head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
@@ -52,6 +52,7 @@
         <a href="/admin/#settings" data-admin-navigation>Settings</a>
         <a href="/admin/" data-admin-navigation><span aria-hidden="true">⌂</span> Response center</a>
         <a class="is-active" href="/admin/trips/" aria-current="page"><span aria-hidden="true">✦</span> Trips</a>
+        <a href="/admin/trips/?library=devotionals">Devotional library</a>
         <a href="/admin/finance/" data-admin-navigation><span aria-hidden="true">$</span> Organization finances</a>
         <a href="/admin/#ministries" data-admin-navigation><span aria-hidden="true">◇</span> Ministries</a>
         <a href="/admin/#people" data-admin-navigation><span aria-hidden="true">○</span> People</a>
@@ -72,6 +73,7 @@
           <p>Create a dated journey, prepare the team, and understand every dollar.</p>
         </div>
         <div class="trip-admin-topbar-actions">
+          <button class="trip-button trip-button-outline" type="button" data-open-devotional-library>Devotional library</button>
           <button class="trip-button trip-button-outline" id="trip-refresh" type="button">Refresh</button>
           <button class="trip-button trip-button-primary" id="trip-create" type="button">Create a trip</button>
         </div>
@@ -202,9 +204,12 @@
         </section>
 
         <section class="trip-tab-panel" data-trip-panel="content" hidden>
+          <aside class="trip-import-callout"><div><strong>Plan a devotional for a trip day</strong><span>Choose from your library or write a new devotional below. Trip edits affect only this trip.</span></div><button class="trip-button trip-button-primary" type="button" data-pick-devotional>Choose a devotional</button></aside>
           <aside class="trip-import-callout"><div><strong>Adding several devotionals, itinerary items, instructions, or resources?</strong><span>Use the trip workbook to load them together, or keep using the form below for one-at-a-time entry.</span></div><button class="trip-button trip-button-outline" type="button" data-open-trip-import>Import spreadsheet</button></aside>
           <div class="trip-two-column trip-align-start">
             <form class="trip-admin-card trip-form" id="trip-content-form">
+              <input name="devotionalId" type="hidden">
+              <p id="trip-devotional-source" class="trip-form-status" aria-live="polite"></p>
               <input name="id" type="hidden">
               <p class="eyebrow">One publishing workflow</p><h3>Add trip content</h3>
               <div class="trip-form-row"><label><span>Type</span><select name="contentType"><option value="devotional">Daily devotional</option><option value="instruction">Instruction</option><option value="itinerary">Itinerary</option><option value="resource">Resource</option><option value="update">Trip update</option><option value="overview">Overview</option></select></label><label><span>Visibility</span><select name="visibility"><option value="travelers">Travelers only</option><option value="public">Public</option><option value="admin">Admin only</option></select></label></div>
@@ -213,6 +218,7 @@
               <div class="trip-form-row"><label><span>Date <small>Optional</small></span><input name="eventDate" type="date"></label><label><span>Time <small>Optional</small></span><input name="eventTime" maxlength="40"></label></div>
               <div class="trip-form-row"><label><span>Location <small>Optional</small></span><input name="location" maxlength="200"></label><label><span>Secure link <small>Optional</small></span><input name="linkUrl" type="url" placeholder="https://"></label></div>
               <div class="trip-form-row"><label><span>Publishing</span><select name="publicationStatus"><option value="draft">Draft</option><option value="published">Published</option></select></label><label><span>Order</span><input name="sortOrder" type="number" value="0"></label></div>
+              <label class="trip-check" id="trip-save-library-label"><input name="saveToLibrary" type="checkbox"><span>Also save this devotional as a new master in my library</span></label>
               <button class="trip-button trip-button-primary" type="submit">Save content</button><button class="trip-button trip-button-quiet" type="button" data-cancel-edit hidden>Cancel edit</button><p class="trip-form-status" data-form-status></p>
             </form>
             <article class="trip-admin-card">
@@ -378,6 +384,43 @@
 
   <template id="trip-record-template"><article class="trip-record"><div class="trip-record-main"></div><div class="trip-record-actions"></div></article></template>
   <script src="/admin/trips/budget-tools.js?v=2026-09-18.2" defer></script>
-  <script src="/admin/trips/trips.js?v=2026-09-19.1" defer></script>
+
+  <dialog class="trip-dialog devotional-library-dialog" id="devotional-library-dialog" aria-labelledby="devotional-library-title">
+    <div class="trip-dialog-card">
+      <div class="trip-section-heading"><div><p class="eyebrow">Your reusable collection</p><h2 id="devotional-library-title">Devotional library</h2></div><button class="trip-button trip-button-outline" type="button" id="devotional-library-close">Close library</button></div>
+      <p>Keep a master here, then make a separate copy for each trip. Editing or deleting a master never changes existing trip copies.</p>
+      <p id="devotional-library-status" role="status" aria-live="polite"></p>
+      <div class="devotional-library-layout">
+        <section aria-label="Browse devotionals">
+          <label class="devotional-search"><span>Search topics, Scripture, titles, or words</span><input id="devotional-search" type="search" placeholder="Try humility, Matthew 25, or prayer"></label>
+          <div class="trip-record-actions"><button class="trip-button trip-button-primary" type="button" id="devotional-new">Add devotional</button><label class="trip-check"><input type="checkbox" id="devotional-deleted"><span>Show deleted</span></label></div>
+          <p id="devotional-result-count" aria-live="polite"></p>
+          <div id="devotional-library-list" class="devotional-library-list"></div>
+        </section>
+        <section aria-label="Selected devotional" id="devotional-detail" hidden>
+          <div id="devotional-pick-fields" class="trip-admin-card" hidden>
+            <p id="devotional-pick-trip"></p>
+            <label><span>Trip devotional date</span><input id="devotional-pick-date" type="date" required></label>
+            <button class="trip-button trip-button-primary" type="button" id="devotional-use">Copy to trip editor</button>
+            <p>Review and personalize the copy, then choose Save content.</p>
+          </div>
+          <form class="trip-form" id="devotional-master-form">
+            <input name="id" type="hidden"><input name="updatedAt" type="hidden">
+            <h3 id="devotional-editor-title">Edit library master</h3>
+            <label><span>Title</span><input name="title" maxlength="180" required></label>
+            <label><span>Scripture references</span><input name="scripture" maxlength="500" placeholder="Matthew 25:40; John 13:1–17"></label>
+            <label><span>Topics <small>Separate with commas</small></span><input name="topics" maxlength="500" placeholder="Humility, service, compassion"></label>
+            <label><span>Devotional content</span><textarea name="content" rows="14" maxlength="12000" required></textarea></label>
+            <label><span>Scripture or resource link <small>Optional</small></span><input name="linkUrl" type="url" placeholder="https://"></label>
+            <div class="trip-record-actions"><button class="trip-button trip-button-primary" type="submit" id="devotional-save">Save master</button><button class="trip-button trip-button-outline" type="button" id="devotional-delete">Delete master</button><button class="trip-button trip-button-outline" type="button" id="devotional-restore" hidden>Restore master</button></div>
+          </form>
+          <section id="devotional-usage"><h3>Trips and dates</h3><p>History includes original use, scheduled trip copies, and removed assignments.</p><div id="devotional-usage-list"></div></section>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="/admin/trips/devotional-library.js?v=2026-09-21.1" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-21.2" defer></script>
 </body>
 </html>

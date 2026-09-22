@@ -1,3 +1,4 @@
+import { handleDevotionalLibrary, masterStatement, requireDevotional } from "./devotional-library";
 import {can} from './mmt-permissions';
 import { standardTripStatements, assignTravelerBudget, allocatePayment } from './ministry-budget';
 import {
@@ -634,23 +635,37 @@ async function saveContent(request: Request, env: AdminEnv, tripId: string): Pro
     publicationStatus: choice(body.publicationStatus, "publication status", new Set(["draft", "published"]), "draft"),
     sortOrder: Number.isFinite(Number(body.sortOrder)) ? Math.trunc(Number(body.sortOrder)) : 0,
   };
+  const existing = existingId ? await env.DB.prepare("SELECT devotional_id FROM trip_content WHERE id=?1 AND trip_id=?2").bind(id,tripId).first<{devotional_id:string|null}>() : null;
+  if(existingId && !existing) throw new AdminError(404,"CONTENT_NOT_FOUND","That content item could not be found.");
+  let devotionalId = values.type === "devotional" ? existing?.devotional_id ?? null : null;
+  const statements: D1PreparedStatement[] = [];
+  if(body.saveToLibrary === true) {
+    if(values.type !== "devotional" || !values.content.trim() || devotionalId) throw new AdminError(422,"INVALID_FIELD","Only an unlinked devotional can be saved as a new library master.");
+    devotionalId = crypto.randomUUID();
+    statements.push(masterStatement(env,devotionalId,values.title,values.content,values.linkUrl,now));
+    statements.push(auditStatement(env,"devotional",devotionalId,"created_from_trip",{tripId,contentId:id}));
+  } else if(!devotionalId && body.devotionalId && (!existingId || values.type === "devotional")) {
+    if(values.type !== "devotional") throw new AdminError(422,"INVALID_FIELD","Library entries can only be used as devotionals.");
+    devotionalId=(await requireDevotional(env,body.devotionalId)).id;
+  }
   const statement = existingId
     ? env.DB.prepare(`UPDATE trip_content SET content_type = ?1, title = ?2, content = ?3, event_date = ?4,
         event_time = ?5, location = ?6, link_url = ?7, visibility = ?8, publication_status = ?9,
-        sort_order = ?10, updated_at = ?11 WHERE id = ?12 AND trip_id = ?13`).bind(
+        sort_order = ?10, updated_at = ?11, devotional_id = ?14 WHERE id = ?12 AND trip_id = ?13`).bind(
         values.type, values.title, values.content, values.eventDate, values.eventTime, values.location, values.linkUrl,
-        values.visibility, values.publicationStatus, values.sortOrder, now, id, tripId,
+        values.visibility, values.publicationStatus, values.sortOrder, now, id, tripId, devotionalId,
       )
     : env.DB.prepare(`INSERT INTO trip_content (
         id, trip_id, content_type, title, content, event_date, event_time, location, link_url,
-        visibility, publication_status, sort_order, created_at, updated_at
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)`).bind(
+        visibility, publication_status, sort_order, created_at, updated_at, devotional_id
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13, ?14)`).bind(
         id, tripId, values.type, values.title, values.content, values.eventDate, values.eventTime, values.location,
-        values.linkUrl, values.visibility, values.publicationStatus, values.sortOrder, now,
+        values.linkUrl, values.visibility, values.publicationStatus, values.sortOrder, now, devotionalId,
       );
-  const result = await statement.run();
+  statements.push(statement, auditStatement(env, "trip_content", id, existingId ? "updated" : "created", { tripId, title: values.title, visibility: values.visibility }));
+  const results = await env.DB.batch(statements);
+  const result = results[results.length - 2];
   if (existingId && !result.meta.changes) throw new AdminError(404, "CONTENT_NOT_FOUND", "That content item could not be found.");
-  await auditStatement(env, "trip_content", id, existingId ? "updated" : "created", { tripId, title: values.title, visibility: values.visibility }).run();
   return adminJson({ id }, existingId ? 200 : 201);
 }
 
@@ -2426,6 +2441,7 @@ async function annualPersonSummary(request: Request, env: AdminEnv): Promise<Res
 }
 
 async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Promise<Response> {
+  if (path === "/admin/trip-platform/devotionals" || path.startsWith("/admin/trip-platform/devotionals/")) return handleDevotionalLibrary(request, env, path);
   if (request.method === "GET" && path === "/admin/trip-platform/bootstrap") return listBootstrap(request, env);
   if (request.method === "POST" && path === "/admin/trip-platform/funding-sources") return saveFundingSource(request, env);
   if (request.method === "POST" && path === "/admin/trip-platform/cost-categories") return saveCostCategory(request, env);

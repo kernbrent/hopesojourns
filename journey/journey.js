@@ -108,6 +108,66 @@ const labels = {
   update: "Updates",
 };
 
+function openStudyAnchor() {
+  let id;
+  try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+  const day = document.getElementById(id);
+  if (!day?.matches('details.journey-study-day')) return;
+  day.open = true;
+  day.querySelector('summary').focus({ preventScroll: true });
+  day.scrollIntoView({ block: 'start', behavior: 'instant' });
+}
+window.addEventListener('hashchange', openStudyAnchor);
+
+function studyDays(section, items, trip) {
+  const jump = node('nav', 'journey-day-links');
+  jump.setAttribute('aria-label', 'Choose a devotional day');
+  section.append(node('p', 'journey-day-help', 'Choose a day to open its study, or select a banner below.'), jump);
+  const groups = new Map();
+  items.forEach((item, index) => {
+    const key = item.event_date || `undated-${item.id || index}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+  const hosts = new Map();
+  [...groups].sort(([a], [b]) => a.localeCompare(b)).forEach(([key, entries]) => {
+    const first = entries[0];
+    const offset = first.event_date && trip.start_date
+      ? (Date.parse(`${first.event_date}T00:00:00Z`) - Date.parse(`${trip.start_date}T00:00:00Z`)) / 86400000 + 1 : NaN;
+    const titleDay = first.title.match(/^Day\s+(\d+)\b/i)?.[1];
+    const dayLabel = Number.isInteger(offset) && offset > 0 ? `Day ${offset}` : titleDay ? `Day ${titleDay}` : 'Additional study';
+    const date = first.event_date ? dateLabel(first.event_date) : 'Date to be announced';
+    const details = node('details', 'journey-study-day');
+    details.id = `journey-devotional-${key}`;
+    const summary = node('summary', 'journey-study-summary');
+    const heading = node('h3', 'journey-study-heading');
+    heading.append(node('span', 'journey-study-day-label', dayLabel), node('span', 'journey-study-date', date));
+    summary.append(heading);
+    summary.append(node('span', 'journey-study-title', entries.length === 1
+      ? first.title.replace(/^Day\s+\d+\s*/i, '').replace(/^[—–:-]\s*/, '')
+      : `${entries.length} studies and devotionals`));
+    const readings = [...new Set(entries.map(item => String(item.content || '').match(/^(?:Read aloud from the NIV|Scripture(?: reading)?|Bible reading):[ \t]*(.+)$/im)?.[1]?.trim()).filter(Boolean))];
+    summary.append(node('span', 'journey-study-scripture', readings.length ? `Scripture: ${readings.join(' · ')}` : 'Scripture readings inside the study'));
+    const cue = node('span', 'journey-study-toggle', 'Open study');
+    summary.append(cue);
+    details.addEventListener('toggle', () => { cue.textContent = details.open ? 'Close study' : 'Open study'; });
+    const body = node('div', 'journey-study-body');
+    details.append(summary, body);
+    section.append(details);
+    entries.forEach(item => hosts.set(item, body));
+    const link = node('a', '', first.event_date ? `${dayLabel} · ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(`${first.event_date}T12:00:00`))}` : `${dayLabel} · ${first.title}`);
+    link.href = `#${details.id}`;
+    link.addEventListener('click', event => {
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      if (location.hash !== link.hash) history.pushState(null, '', link.hash);
+      openStudyAnchor();
+    });
+    jump.append(link);
+  });
+  return hosts;
+}
+
 function render(data) {
   resetPasswordVisibility();
   login.hidden = true;
@@ -130,6 +190,7 @@ function render(data) {
     const section = node("section", "journey-section");
     section.id = `journey-${type}`;
     section.append(node("h2", "", labels[type] || type));
+    const dayHosts = type === 'devotional' ? studyDays(section, items, data.trip) : null;
     items.forEach(item => {
       const article = node("article", "journey-item");
       article.append(node("h3", "", item.title));
@@ -138,7 +199,7 @@ function render(data) {
         .filter(Boolean)
         .forEach(value => meta.append(node("span", "", value)));
       if (meta.childNodes.length) article.append(meta);
-      article.append(node("p", "", item.content));
+      article.append(window.HSJourneyContent.render(item.content, { study: item.content_type === "devotional" }));
       if (item.link_url) {
         const link = node("a", "text-link", "Open resource \u2192");
         link.href = item.link_url;
@@ -146,7 +207,7 @@ function render(data) {
         link.rel = "noopener noreferrer";
         article.append(link);
       }
-      section.append(article);
+      (dayHosts?.get(item) || section).append(article);
     });
     content.append(section);
     const link = node("a", "", labels[type] || type);
@@ -178,11 +239,29 @@ function render(data) {
     team.append(card);
   });
   document.querySelector("#journey-team").hidden = !data.members.length;
+  openStudyAnchor();
+}
+
+function requestedTripMatches(trip) {
+  const params = new URLSearchParams(location.search);
+  const tripId = params.get("tripId");
+  if (tripId) return String(trip.id) === tripId;
+  const requested = params.get("trip")?.trim().toUpperCase();
+  return !requested || [trip.code, trip.slug, trip.portal_login_id]
+    .some(value => value && String(value).toUpperCase() === requested);
 }
 
 async function restore() {
+  const requested = new URLSearchParams(location.search).get("trip");
+  if (requested) document.querySelector("#journey-login-form").elements.loginId.value = requested.toUpperCase();
   try {
     const data = await api("/portal/session");
+    if (!requestedTripMatches(data.trip)) {
+      login.hidden = false;
+      portal.hidden = true;
+      setStatus("Enter this trip's password to open the trip you selected.");
+      return;
+    }
     setStatus("");
     render(data);
   } catch (error) {
@@ -206,11 +285,18 @@ document.querySelector("#journey-login-form").addEventListener("submit", async e
   setLoginBusy(form, true);
   setStatus("Opening your trip\u2026");
   try {
-    await api("/portal/login", {
+    const signedIn = await api("/portal/login", {
       method: "POST",
       body: JSON.stringify({ loginId: form.elements.loginId.value, password: form.elements.password.value }),
     });
     const data = await loadPortalSession();
+    if (data.trip.slug !== signedIn.trip.slug) {
+      throw new Error("Your trip session changed. Please sign in to the selected trip again.");
+    }
+    const url = new URL(location.href);
+    url.searchParams.set("trip", form.elements.loginId.value.trim().toUpperCase());
+    url.searchParams.set("tripId", data.trip.id);
+    history.replaceState(null, "", url);
     form.elements.password.value = "";
     resetPasswordVisibility();
     setStatus("");

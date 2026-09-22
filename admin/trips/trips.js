@@ -320,6 +320,7 @@ async function api(path, options = {}) {
 }
 
 function showLogin() {
+  document.querySelector("#devotional-library-dialog")?.close();
   const credentialForm = document.querySelector("#trip-portal-form");
   credentialForm.elements.password.value = "";
   credentialForm.elements.password.dataset.revealVersion = String(Number(credentialForm.elements.password.dataset.revealVersion || 0) + 1);
@@ -572,6 +573,7 @@ async function loadBootstrap(selectTrip = state.tripId || new URLSearchParams(lo
   fillAllSelects();
   renderTripList();
   renderSetupLists();
+  if (new URLSearchParams(location.search).get("library") === "devotionals" && !window.HSDevotionals.openedFromUrl) { window.HSDevotionals.openedFromUrl = true; await window.HSDevotionals.open(false); }
   if (selectTrip) await openTrip(selectTrip, false);
   setStatus(pageStatus, "");
 }
@@ -601,6 +603,7 @@ function renderTripList() {
 
 async function openTrip(tripId, scroll = true) {
   setPortalCredentialLocked(true);
+  if (state.tripId !== tripId) { const contentForm = document.querySelector("#trip-content-form"); contentForm.reset(); contentForm.elements.id.value = ""; contentForm.elements.devotionalId.value = ""; window.HSDevotionals.syncTripForm(); }
   state.tripId = tripId;
   setStatus(pageStatus, "Opening trip…");
   state.workspace = await api(`/admin/trips/${tripId}`);
@@ -684,7 +687,7 @@ function renderWorkspace() {
   document.querySelector("#trip-opportunity-copy").textContent = trip.opportunity_title
     ? `This dated departure appears with the broader ${trip.opportunity_title} opportunity when public visibility is enabled.`
     : "Connect this trip to a public opportunity so visitors can discover its dates and express interest.";
-  document.querySelector("#trip-open-portal").href = `/journey/?trip=${encodeURIComponent(trip.portal_login_id || trip.code)}`;
+  document.querySelector("#trip-open-portal").href = `/journey/?trip=${encodeURIComponent(trip.portal_login_id || trip.code)}&tripId=${encodeURIComponent(trip.id)}`;
   document.querySelector("#trip-open-public").href = `/trip/?trip=${encodeURIComponent(trip.slug)}`;
   document.querySelector("#trip-public-summary").textContent = trip.public_enabled
     ? `${trip.title} is public. ${trip.interest_enabled ? "Interest is open." : "Interest is currently closed."}`
@@ -795,7 +798,9 @@ function renderMembers() {
 
 function editContent(item) {
   const form = document.querySelector("#trip-content-form");
+  form.reset();
   setFormValues(form, item);
+  window.HSDevotionals.syncTripForm();
   form.querySelector("[data-cancel-edit]").hidden = false;
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -1229,6 +1234,7 @@ async function submitJsonForm(form, path, transform = value => value, after = "w
     await api(path(payload), { method: payload.id && path.updateMethod ? path.updateMethod : "POST", body: JSON.stringify(payload) });
     setStatus(status, "Saved.", "success");
     form.reset();
+    if (form.getAttribute("id") === "trip-content-form") { form.elements.id.value = ""; form.elements.devotionalId.value = ""; window.HSDevotionals.syncTripForm(); }
     form.querySelector('input[name="id"]')?.setAttribute("value", "");
     form.querySelector("[data-cancel-edit]")?.setAttribute("hidden", "");
     if (after === "bootstrap") await loadBootstrap(state.tripId);
@@ -1291,6 +1297,7 @@ function wireForms() {
       const editing = Boolean(payload.id);
       const result = await api(editing ? `/admin/trips/${payload.id}` : "/admin/trips", { method: editing ? "PUT" : "POST", body: JSON.stringify(payload) });
       tripDialog.close();
+      if (!editing) state.activeTab = "content";
       await loadBootstrap(editing ? payload.id : result.id);
     } catch (error) { setStatus(status, error.message, "error"); }
   });
@@ -1402,6 +1409,7 @@ function wireForms() {
     button.form.reset();
     button.hidden = true;
     if (button.form.id === "trip-cost-form") updateCostCategoryOptions(false);
+    if (button.form.getAttribute("id") === "trip-content-form") { button.form.elements.id.value = ""; button.form.elements.devotionalId.value = ""; window.HSDevotionals.syncTripForm(); }
   }));
   document.querySelector("#trip-account-form").elements.accountType.addEventListener("change", renderAccountPrerequisite);
   document.querySelector("#trip-payment-form").elements.chargeId.addEventListener("change", event => {

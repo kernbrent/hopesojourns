@@ -62,7 +62,10 @@ describe("Admin Portal sign-in contract", () => {
   });
 
   it("keeps traveler sign-in responsive through the session handoff", () => {
-    expect(journeyPage).toContain('data-journey-build="2026-09-06.5"');
+    const build = journeyPage.match(/data-journey-build="([^"]+)"/)?.[1];
+    expect(build).toBeTruthy();
+    expect(journeyPage).toContain(`/journey/journey.js?v=${build}`);
+    expect(journeyPage).toContain(`/journey/journey.css?v=${build}`);
     expect(journeyPage).toContain("Your personal email address is not used on this screen.");
     expect(journeyCss).toContain(".journey-page [hidden] { display: none !important; }");
     expect(journeyScript).toContain("const REQUEST_TIMEOUT_MS = 15_000");

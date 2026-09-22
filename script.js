@@ -1,28 +1,26 @@
 const calendarUrl = "/schedule/";
 const donateUrl = "/giving/#donate";
-const siteVersion = "2.0.0";
-const isTestSite = window.location.hostname === "test.hopesojourns.com" || window.location.hostname === "hopesojourns-test.pages.dev" || window.location.hostname.endsWith(".hopesojourns-test.pages.dev");
-document.body.classList.add("hs-redesign");
-if (window.location.pathname === "/" && ["#trips", "#possibilities"].includes(window.location.hash)) {
-  window.location.replace(`/explore/${window.location.hash}`);
-}
+const siteVersion = "1.1.0";
+const isTestSite = window.location.hostname === "test.hopesojourns.com" || window.location.hostname.endsWith(".hopesojourns-test.pages.dev");
 
 const header = `
-  ${isTestSite ? '<div class="test-site-banner">Hope Sojourns · Test experience</div>' : ''}
+  ${isTestSite ? '<div class="test-site-banner" role="status">Hope Sojourns test site · Forms and portal are ready for review</div>' : ''}
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <nav class="nav-wrap" aria-label="Main navigation">
       <a class="brand" href="/" aria-label="Hope Sojourns home">
         <img class="brand-logo" src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with Hope. Serve with Faith.">
       </a>
-      <a class="main-site-link" href="/explore/">Explore the main site ↗</a>
       <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links">Menu</button>
       <div class="nav-links" id="nav-links">
-        <a href="/explore/#trips">Journeys</a>
+        <a href="/#trips">Trips</a>
+        <a href="/past-trips/">Past trips</a>
         <a href="/internships/">Internships</a>
-        <a href="/giving/">Give</a>
-        <a href="/about/">Our story</a>
-        <a href="${calendarUrl}">Let’s talk</a>
+        <a href="/resources/">Resources</a>
+        <a href="/giving/">Giving</a>
+        <a href="/about/">About us</a>
+        <a href="/interest/">Get involved</a>
+        <a class="button" href="${calendarUrl}">Book a conversation</a>
       </div>
     </nav>
   </header>`;
@@ -37,7 +35,7 @@ const footer = `
   <footer class="site-footer">
     <div class="footer-grid">
       <div>
-        <a class="footer-brand" href="/explore/" aria-label="Hope Sojourns main site">
+        <a class="footer-brand" href="/" aria-label="Hope Sojourns home">
           <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with Hope. Serve with Faith.">
         </a>
         <p>Purposeful journeys shaped around humility, local partnership, and practical Christian service.</p>
@@ -45,15 +43,12 @@ const footer = `
       <div>
         <h3>Explore</h3>
         <div class="footer-links">
-          <a href="/explore/">Explore the main site</a>
-          <a href="/explore/#trips">Mission trips</a>
+          <a href="/#trips">Mission trips</a>
           <a href="/past-trips/">Past trips</a>
           <a href="/internships/">Internships</a>
           <a href="/resources/">Resources</a>
           <a href="/giving/">Giving</a>
           <a href="/about/">About us</a>
-          <a href="/stories/">Read the founding stories</a>
-          <a href="/discover/">Follow your curiosity</a>
         </div>
       </div>
       <div>
@@ -61,9 +56,6 @@ const footer = `
         <div class="footer-links">
           <a href="/interest/">Share your interest</a>
           <a href="${calendarUrl}">Schedule a meeting</a>
-          <a href="/partners/">Ministry partnerships</a>
-          <a href="/groups/">Bring your community</a>
-          <a href="/students/">College partnerships</a>
           <span>Christian Steps Ministries</span>
         </div>
       </div>
@@ -95,16 +87,6 @@ links?.querySelectorAll("a").forEach(link => link.addEventListener("click", () =
   toggle?.setAttribute("aria-expanded", "false");
   links.classList.remove("open");
 }));
-links?.querySelectorAll("a").forEach(link => {
-  if (link.pathname === window.location.pathname && !link.hash) link.setAttribute("aria-current", "page");
-});
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && toggle?.getAttribute("aria-expanded") === "true") {
-    toggle.setAttribute("aria-expanded", "false");
-    links.classList.remove("open");
-    toggle.focus();
-  }
-});
 
 const approachTabs = [...document.querySelectorAll(".approach-tab")];
 const approachTabsGroup = document.querySelector(".approach-tabs");
@@ -191,7 +173,7 @@ const staggerSelector = [
   ".archive-gallery",
 ].join(", ");
 
-if (!reduceMotion && !document.body.classList.contains("hs-redesign")) {
+if (!reduceMotion) {
   document.documentElement.classList.add("motion-enabled");
 
   if (invitationIntro) {
