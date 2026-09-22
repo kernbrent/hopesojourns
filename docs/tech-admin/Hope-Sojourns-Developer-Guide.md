@@ -1,12 +1,12 @@
 # Hope Sojourns developer guide
 
-Version 4.8.0
+Version 4.8.1
 
 Last reviewed: September 22, 2026
 
 ## Trip memories and public trip stories
 
-This locally prepared feature adds administrator-managed trip photos and dated notes. Open a trip, choose Photos & memories, upload images or write notes, then choose Show in traveler portal for each item. Removed items can be restored. Traveler submissions are not enabled in this version.
+This feature adds administrator-managed trip photos and dated notes. Open a trip, choose Photos & memories, upload images or write notes, then choose Show in traveler portal for each item. Removed items can be restored. Traveler submissions are not enabled in this version.
 
 Migration 0032 adds trip_memories and trip_publications. Photo bytes use the existing private RECEIPTS bucket under trip-memories/{tripId}/; metadata stays in D1. Browser uploads resize to 2000 pixels and encode JPEG, stripping original metadata. The API accepts signature-checked JPEG, PNG, and WebP up to 6 MB. Original images remain on the uploader's device. A trip supports 300 active memories; each upload batch supports 30 photos. Server text limits and publication size limits bound storage and responses.
 
@@ -16,9 +16,13 @@ Past-trip story lets administrators select a published destination, write a titl
 
 The public /public/trip-stories API lists summaries, optionally filtered by destination slug. /public/trip-stories/:slug returns the reviewed snapshot; its /photos/:id route serves only a photo selected in that snapshot. Responses use no-store. Public snapshots omit finances, contact records, admin-only content, and storage keys. Source photo deletion retains stored bytes for published snapshots. Unpublishing disables story and image routes, but cannot retract copies visitors previously downloaded.
 
-The shared journey/memories-view.js and memories.css render traveler galleries, notes, and public stories. Admin editing lives in admin/trips/memories.js. Published stories appear in /past-trips/, in each destination's past-trips section, and at /past-trips/story/?trip=slug. Existing archive entries remain. Integration tests cover publication separation, snapshot stability, cross-trip photo access, visibility, stale edits, invalid images, CSRF, and read-only permissions. The full backend suite passes 157 tests.
+The shared journey/memories-view.js and memories.css render traveler galleries, notes, and public stories. Admin editing lives in admin/trips/memories.js. Published stories appear in /past-trips/, in each destination's past-trips section, and at /past-trips/story/?trip=slug. Existing archive entries remain. Integration tests cover publication separation, snapshot stability, cross-trip photo access, visibility, stale edits, invalid images, CSRF, and read-only permissions. The full backend suite passes 161 tests.
 
-Release requires explicit user authorization. Apply migration 0032 before deploying the Worker and Pages bundle. No production migration or deployment has been performed for this revision. Use the existing static build allowlist; never include local preview fixtures or QA outputs.
+The initial feature was deployed from c7b4cab on September 22, 2026. Permanent deletion requires migration 0033 before the updated Worker and Pages bundle. Release remains subject to explicit user authorization. Use the existing static build allowlist; never include local preview fixtures or QA outputs.
+
+Administrators can permanently delete a removed memory through DELETE /admin/trips/:tripId/memories/:id/permanent with revision and confirm=true. This action requires an effective portal administrator, authenticated CSRF, and an already-removed item. The UI names the item and warns that the item and stored photo cannot be restored. An item referenced by a saved preview or published story must be removed from those versions first.
+
+Migration 0033 adds purge_pending and database triggers protecting snapshot references. The delete operation atomically locks an unreferenced, removed row before deleting its R2 object, then removes the row and records a content-free audit event. A storage or final database failure leaves a locked item that can be retried from Removed items; it cannot be edited or restored. Snapshot triggers prevent concurrent saves from referencing a locked or missing memory. Tests cover stale revisions, confirmation, administrator-only access, cross-trip isolation, snapshot protection, and interrupted deletion retries.
 
 ## Shared MMT navigation
 
@@ -883,6 +887,7 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
 | September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |

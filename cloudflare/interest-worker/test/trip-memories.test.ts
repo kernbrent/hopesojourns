@@ -72,3 +72,48 @@ it('rejects unavailable selections, future trips, invalid files, stale edits, an
  f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,phone,country,is_admin,permissions_json,status,must_change_password,registered_at,updated_at) VALUES('reader','reader','Read','Only','reader@example.test','','US',0,'{"trips":"read"}','active',0,'2026','2026'); UPDATE admin_sessions SET user_id='reader'`);
  expect((await f.call(f.base)).status).toBe(200);expect((await f.call(f.base,{title:'No',content:'No'})).status).toBe(403);
 });
+it('permanently deletes only removed, confirmed items and their stored image bytes',async()=>{
+ const f=await setup(),n=await f.note(),p=await f.photo();const key=String(f.sqlite.prepare('SELECT object_key FROM trip_memories WHERE id=?').get(p.id)!.object_key);
+ expect((await f.call(f.base+'/'+n.id+'/permanent',{revision:1,confirm:true},'DELETE')).status).toBe(409);
+ for(const m of [n,p]){
+  await f.call(f.base+'/'+m.id,{revision:1},'DELETE');
+  expect((await f.call(f.base+'/'+m.id+'/permanent',{revision:2},'DELETE')).status).toBe(422);
+  expect((await f.call(f.base+'/'+m.id+'/permanent',{revision:1,confirm:true},'DELETE')).status).toBe(409);
+  expect((await f.call(f.base+'/'+m.id+'/permanent',{revision:2,confirm:true},'DELETE')).status).toBe(200);
+  expect(f.sqlite.prepare('SELECT id FROM trip_memories WHERE id=?').get(m.id)).toBeUndefined();
+  expect((await f.call(f.base+'/'+m.id+'/restore',{revision:2})).status).toBe(404);
+ }
+ expect(f.files.has(key)).toBe(false);
+ expect(f.sqlite.prepare("SELECT COUNT(*) n FROM audit_events WHERE event_type='permanently_deleted'").get()!.n).toBe(2);
+});
+it('protects draft and public story references before allowing permanent deletion',async()=>{
+ const f=await setup(),n=await f.note();await f.draft([n.id]);await f.call(f.base+'/'+n.id,{revision:1},'DELETE');
+ expect((await f.call(f.base+'/'+n.id+'/permanent',{revision:2,confirm:true},'DELETE')).status).toBe(409);
+ await f.call(f.base+'/publication/publish',{revision:1});await f.draft([],[],2);
+ expect((await f.call(f.base+'/'+n.id+'/permanent',{revision:2,confirm:true},'DELETE')).status).toBe(409);
+ await f.call(f.base+'/publication/unpublish',{revision:3});
+ expect((await f.call(f.base+'/'+n.id+'/permanent',{revision:2,confirm:true},'DELETE')).status).toBe(200);
+ const stale=JSON.stringify({memories:[{id:n.id}]});
+ expect(()=>f.sqlite.prepare('UPDATE trip_publications SET draft_json=? WHERE trip_id=?').run(stale,f.id)).toThrow('TRIP_MEMORY_UNAVAILABLE');
+});
+it('retains a locked retryable item on storage failure and blocks restoration and stale snapshots',async()=>{
+ const f=await setup(),p=await f.photo();await f.call(f.base+'/'+p.id,{revision:1},'DELETE');const original=f.env.RECEIPTS.delete;
+ f.env.RECEIPTS.delete=async()=>{throw Error('Storage unavailable');};
+ expect((await f.call(f.base+'/'+p.id+'/permanent',{revision:2,confirm:true},'DELETE')).status).toBe(503);
+ const pending=f.sqlite.prepare('SELECT * FROM trip_memories WHERE id=?').get(p.id)!;expect(pending.purge_pending).toBe(1);expect(pending.revision).toBe(3);
+ expect((await f.call(f.base+'/'+p.id+'/restore',{revision:3})).status).toBe(409);
+ expect(()=>f.sqlite.prepare('INSERT INTO trip_publications(trip_id,draft_json,updated_at) VALUES(?,?,?)').run(f.id,JSON.stringify({memories:[{id:p.id}]}),'2026')).toThrow('TRIP_MEMORY_UNAVAILABLE');
+ f.env.RECEIPTS.delete=original;
+ expect((await f.call(f.base+'/'+p.id+'/permanent',{revision:3,confirm:true},'DELETE')).status).toBe(200);
+ expect(f.files.size).toBe(0);
+});
+it('restricts permanent deletion to administrators with CSRF and the matching trip',async()=>{
+ const f=await setup(),n=await f.note();await f.call(f.base+'/'+n.id,{revision:1},'DELETE');const path=f.base+'/'+n.id+'/permanent';
+ const csrf=f.request(path,{revision:2,confirm:true},'DELETE');csrf.headers.delete('x-csrf-token');expect((await handleTripAdminRequest(csrf,f.env,path)).status).toBe(403);
+ const anonymous=f.request(path,{revision:2,confirm:true},'DELETE');anonymous.headers.delete('cookie');expect((await handleTripAdminRequest(anonymous,f.env,path)).status).toBe(401);
+ const {id:other}=await (await f.call('/admin/trips',{title:'Other trip',location:'Elsewhere'})).json() as any;
+ expect((await f.call(`/admin/trips/${other}/memories/${n.id}/permanent`,{revision:2,confirm:true},'DELETE')).status).toBe(404);
+ f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,phone,country,is_admin,permissions_json,status,must_change_password,registered_at,updated_at) VALUES('editor','editor','Trip','Editor','editor@example.test','','US',0,'{"trips":"edit"}','active',0,'2026','2026'); UPDATE admin_sessions SET user_id='editor'`);
+ expect((await f.call(path,{revision:2,confirm:true},'DELETE')).status).toBe(403);
+ expect(f.sqlite.prepare('SELECT id FROM trip_memories WHERE id=?').get(n.id)).toBeTruthy();
+});

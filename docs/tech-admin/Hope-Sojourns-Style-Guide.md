@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.8.0
+Version 4.8.1
 
 Last reviewed: September 22, 2026
 
@@ -11,6 +11,8 @@ Photos & memories adds responsive photo cards and dated journal notes to each tr
 Past-trip story uses a destination selector, public title, short summary, narrative, and explicit checkboxes for the material to publish. Save and preview opens a modal showing the exact public version. Publishing remains unavailable until the trip has ended and is marked Completed. The live version stays unchanged while a new draft is prepared; Unpublish story removes it from public access.
 
 Traveler and public displays share journey/memories.css and memories-view.js. Galleries adapt to available width, include captions and dates, and open the full image in a new tab. Longer devotional resources use native expandable sections. Text uses the existing safe content formatter. Forms, cards, previews, and disclosure controls use existing palette tokens, visible labels, keyboard-accessible controls, and readable spacing. Keep the established public homepage and destination design; add past-trip stories within the existing destination layout.
+
+In Photos & memories, Show removed items reveals Restore and, for administrators, Delete permanently. Keep the removed view selected after an action so the user can see the result. Permanent deletion asks for confirmation naming the item and explains that its record and stored photo cannot be restored. Items still used in a story show instructions to remove them from the preview and update or unpublish the public version first. An interrupted deletion shows a pending message and a retry control; hide the image and Restore control while its file is being deleted.
 
 ## Shared MMT navigation
 
@@ -616,6 +618,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
 | September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |

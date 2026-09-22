@@ -36,15 +36,41 @@ async function buildDraft(request:Request,env:AdminEnv,t:Row){
  const snapshot={title:line(body.title,180,true),summary:line(body.summary,2000,true),story:line(body.story,20000),destination,location:t.location,start_date:t.start_date,end_date:t.end_date,content:chosenContent,memories:chosenMemories.map(m=>({id:m.id,kind:m.kind,title:m.title,content:m.content,caption:m.caption,alt_text:m.alt_text,credit:m.credit,event_date:m.event_date,object_key:m.object_key,media_type:m.media_type}))};
  const json=JSON.stringify(snapshot);if(new TextEncoder().encode(json).length>1500000)fail(422,'TOO_LARGE','Choose fewer items for this publication.');
  const now=new Date().toISOString();const statement=current?env.DB.prepare('UPDATE trip_publications SET draft_json=?,revision=revision+1,updated_at=? WHERE trip_id=? AND revision=?').bind(json,now,t.id,body.revision):env.DB.prepare('INSERT INTO trip_publications(trip_id,draft_json,revision,updated_at) VALUES(?,?,1,?) ON CONFLICT(trip_id) DO NOTHING').bind(t.id,json,now);
- const result=await env.DB.batch([statement,auditStatement(env,'trip_publication',t.id,'draft_saved',{})]);if(!result[0].meta.changes)fail(409,'STALE_EDIT','This story changed. Refresh and try again.');return adminJson({revision:Number(body.revision)+1,snapshot:safeSnapshot(snapshot,'admin',t.id,t.slug)},200,noStore);
+ let result;try{result=await env.DB.batch([statement,auditStatement(env,'trip_publication',t.id,'draft_saved',{})]);}catch(error){if(String(error).includes('TRIP_MEMORY_UNAVAILABLE'))fail(409,'STALE_MEMORY','A selected memory was permanently deleted. Refresh the collection and save a new preview.');throw error;}if(!result[0].meta.changes)fail(409,'STALE_EDIT','This story changed. Refresh and try again.');return adminJson({revision:Number(body.revision)+1,snapshot:safeSnapshot(snapshot,'admin',t.id,t.slug)},200,noStore);
 }
 async function publish(request:Request,env:AdminEnv,t:Row,remove=false){const body=await readAdminJson(request),row=await publication(env,t.id);revision(body,row);if(!row)fail(422,'NO_DRAFT','Prepare and preview the story first.');
  if(!remove){if(t.status!=='completed'||!t.end_date||t.end_date>new Date().toISOString().slice(0,10))fail(422,'NOT_COMPLETED','Publish after the trip end date and mark the trip Completed first.');if(!row.draft_json)fail(422,'NO_DRAFT','Prepare and preview the story first.');const draft=JSON.parse(row.draft_json);const destination=await env.DB.prepare("SELECT id FROM destinations WHERE id=? AND status='published'").bind(draft.destination.id).first();if(!destination)fail(422,'DESTINATION_REQUIRED','Choose a published destination before publishing.');}
  const now=new Date().toISOString(),destinationId=remove?row.destination_id:JSON.parse(row.draft_json).destination.id;
  const result=await env.DB.batch([env.DB.prepare('UPDATE trip_publications SET published_json=?,destination_id=?,published_at=?,revision=revision+1,updated_at=? WHERE trip_id=? AND revision=?').bind(remove?null:row.draft_json,destinationId,remove?null:now,now,t.id,body.revision),auditStatement(env,'trip_publication',t.id,remove?'unpublished':'published',{})]);if(!result[0].meta.changes)fail(409,'STALE_EDIT','The story changed. Refresh and try again.');return adminJson({ok:true,revision:Number(body.revision)+1,url:`/past-trips/story/?trip=${t.slug}`},200,noStore);
 }
+// Keep the removed row locked until R2 confirms deletion, so a failed request can be retried.
+async function permanentlyDelete(request:Request,env:AdminEnv,tripId:string,row:Row){
+ const body=await readAdminJson(request);
+ revision(body,row);
+ if(body.confirm!==true)fail(422,'CONFIRM_REQUIRED','Confirm permanent deletion. This cannot be undone.');
+ if(!row.deleted_at)fail(409,'REMOVE_FIRST','Remove this item before permanently deleting it.');
+ if(!row.purge_pending){
+  const result=await env.DB.prepare(`UPDATE trip_memories SET purge_pending=1,revision=revision+1,updated_at=?
+   WHERE id=? AND trip_id=? AND revision=? AND deleted_at IS NOT NULL AND purge_pending=0
+   AND NOT EXISTS (SELECT 1 FROM trip_publications p,json_each(p.draft_json,'$.memories') j WHERE json_extract(j.value,'$.id')=trip_memories.id)
+   AND NOT EXISTS (SELECT 1 FROM trip_publications p,json_each(p.published_json,'$.memories') j WHERE json_extract(j.value,'$.id')=trip_memories.id)`)
+   .bind(new Date().toISOString(),row.id,tripId,row.revision).run();
+  if(!result.meta.changes)fail(409,'MEMORY_IN_USE_OR_CHANGED','This item changed or is used in a saved or published trip story. Remove it from the story preview and update or unpublish the public version, then try again.');
+ }
+ if(row.object_key){
+  try{await env.RECEIPTS.delete(row.object_key);}
+  catch{fail(503,'PHOTO_DELETE_RETRY','The photo file could not be deleted. The item remains locked in Removed items. Refresh and retry permanent deletion.');}
+ }
+ await env.DB.batch([
+  env.DB.prepare('DELETE FROM trip_memories WHERE id=? AND trip_id=? AND purge_pending=1').bind(row.id,tripId),
+  auditStatement(env,'trip_memory',row.id,'permanently_deleted',{tripId,kind:row.kind})
+ ]);
+ return adminJson({ok:true},200,noStore);
+}
 export async function handleMemoriesAdmin(request:Request,env:AdminEnv,tripId:string,id?:string,action?:string):Promise<Response>{
- await authenticate(request,env,request.method!=='GET');const t=await trip(env,tripId);
+ const session=await authenticate(request,env,request.method!=='GET');
+ if(action==='permanent'&&!session.user?.is_admin)fail(403,'ADMIN_REQUIRED','Only an administrator can permanently delete trip memories.');
+ const t=await trip(env,tripId);
  if(id==='publication'){
   if(request.method==='POST'&&action==='draft')return buildDraft(request,env,t);
   if(request.method==='POST'&&action==='publish')return publish(request,env,t);
@@ -62,6 +88,8 @@ export async function handleMemoriesAdmin(request:Request,env:AdminEnv,tripId:st
   await env.DB.batch([env.DB.prepare("INSERT INTO trip_memories(id,trip_id,kind,title,content,event_date,credit,portal_visible,created_at,updated_at) VALUES(?1,?2,'note',?3,?4,?5,?6,?7,?8,?8)").bind(newId,tripId,line(body.title,180,true),line(body.content,12000,true),date(body.event_date),line(body.credit,180),body.portal_visible===true?1:0,now),auditStatement(env,'trip_memory',newId,'note_added',{tripId})]);return adminJson({memory:mapped(await item(env,tripId,newId))},201,noStore);
  }
  if(!id)fail(404,'NOT_FOUND','Not found.');const row=await item(env,tripId,id);
+ if(request.method==='DELETE'&&action==='permanent')return permanentlyDelete(request,env,tripId,row);
+ if(row.purge_pending)fail(409,'DELETE_PENDING','Permanent deletion has started. Refresh and retry Delete permanently; this item cannot be restored.');
  if(request.method==='GET'&&action==='image')return photoResponse(env,row);
  const body=await readAdminJson(request);revision(body,row);if(action==='restore'&&row.deleted_at){const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM trip_memories WHERE trip_id=? AND deleted_at IS NULL').bind(tripId).first<Row>();if(Number(count?.n)>=MAX_ITEMS)fail(422,'LIMIT','This trip already has 300 memories.');}const now=new Date().toISOString();let statement;
  if(request.method==='DELETE'||request.method==='POST'&&action==='restore')statement=env.DB.prepare('UPDATE trip_memories SET deleted_at=?,revision=revision+1,updated_at=? WHERE id=? AND trip_id=? AND revision=?').bind(request.method==='DELETE'?now:null,now,id,tripId,body.revision);

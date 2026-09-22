@@ -2443,7 +2443,7 @@ async function annualPersonSummary(request: Request, env: AdminEnv): Promise<Res
 }
 
 async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Promise<Response> {
-  const memories=path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/memories(?:\/([a-z0-9-]+)(?:\/(image|restore|draft|publish|unpublish))?)?$/i);
+  const memories=path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/memories(?:\/([a-z0-9-]+)(?:\/(image|restore|permanent|draft|publish|unpublish))?)?$/i);
   if(memories)return handleMemoriesAdmin(request,env,memories[1],memories[2],memories[3]);
   if (path === "/admin/trip-platform/devotionals" || path.startsWith("/admin/trip-platform/devotionals/")) return handleDevotionalLibrary(request, env, path);
   if (request.method === "GET" && path === "/admin/trip-platform/bootstrap") return listBootstrap(request, env);
