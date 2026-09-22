@@ -29,7 +29,7 @@ it('requires authenticated finance and contact permissions, CSRF, and the intern
  expect((await internalDonationSplits(new Request('http://localhost/internal/donation-splits',{method:'POST'}),f.env)).status).toBe(401);
  expect((await splitSnapshot(f.env,'split-test')).revision).toBe(0);
 });
-import {handleCsmDelivery,handleCsmAdminRequest} from '../src/csm-distribution';
+import {currentGivingSummary,handleCsmDelivery,handleCsmAdminRequest} from '../src/csm-distribution';
 it('carries allocations through inbox approval and lets CSM edit the same approved split',async()=>{
  const f=await ministryFixture();fixtures.push(f);f.env.CSM_DISTRIBUTION_SECRET='test-secret';
  const message={schemaVersion:1,messageId:'split-message',idempotencyKey:'HopeSojourns:SPLIT:T0006:1',sourceRevision:1,sentAt:'2026-09-17T12:00:00.000Z',destination:'HopeSojourns',product:'HopeSojourns',displayName:'Transfer Agent',masterDonorId:'master-transfer',party:{role:'donor',displayName:'Transfer Agent',email:'transfer@example.test',phone:null,address:null},transaction:{sourceRecordId:'SPLIT:T0006',paypalTransactionId:'SPLIT',paypalReferenceId:null,eventCode:'T0006',eventDate:'2026-09-17T12:00:00.000Z',status:'Completed',direction:'received',currency:'USD',gross:300,fee:-9,net:291,itemName:'Hope Sojourns Donation',itemId:'HopeSojourns'},donorAllocations:rows,donorSplitRevision:1};
@@ -41,6 +41,8 @@ it('carries allocations through inbox approval and lets CSM edit the same approv
  expect(await approved.json()).toMatchObject({success:true,status:'approved'});
  expect(f.sqlite.prepare('SELECT COUNT(*) AS n,SUM(amount) AS total FROM ledger_entries').get()).toMatchObject({n:1,total:291});
  expect(f.sqlite.prepare('SELECT COUNT(*) AS n,SUM(charitable_amount) AS total FROM donation_gifts').get()).toMatchObject({n:2,total:300});
+ const givingSummary=await currentGivingSummary(f.env,new Date('2026-09-18T00:00:00.000Z'));
+ expect(givingSummary).toEqual({year:2026,grossReceived:300,netReceived:291,donations:1,givers:1});
  const call=(body:unknown)=>internalDonationSplits(new Request('http://localhost/internal/donation-splits',{method:'POST',headers:{'Content-Type':'application/json','X-CSM-Distribution-Secret':'test-secret'},body:JSON.stringify(body)}),f.env);
  const result=await (await call({sourceIds:['SPLIT:T0006']})).json() as any;
  const snapshot=result.snapshots['SPLIT:T0006'];expect(snapshot.revision).toBe(1);

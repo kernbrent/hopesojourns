@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-admin-build="2026-09-18.3">
+<html lang="en" data-admin-build="2026-09-21.1">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <title>Response Portal | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
-  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-18.3">
+  <link rel="stylesheet" href="/admin/admin.css?v=2026-09-21.1">
 <script src="/phone-ui.js?v=1" defer></script></head>
 <body class="admin-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -276,14 +276,17 @@
           </div>
           <div class="admin-csm-summary" id="csm-giving-summary" aria-label="Current-year giving statistics">
             <article class="admin-csm-summary-primary">
-              <span id="csm-giving-year">Current year gross received</span>
+              <span id="csm-giving-year">Current year gross given</span>
               <strong id="csm-gross-received">$0.00</strong>
-              <small><span id="csm-net-received">$0.00</span> after PayPal fees</small>
+              <small>What givers donated before PayPal fees</small>
+            </article>
+            <article class="admin-csm-summary-primary">
+              <span id="csm-net-year">Current year net received</span>
+              <strong id="csm-net-received">$0.00</strong>
+              <small>Available to Hope Sojourns after PayPal fees</small>
             </article>
             <article><span>Donations</span><strong id="csm-donation-count">0</strong><small>approved gifts</small></article>
             <article><span>Givers</span><strong id="csm-giver-count">0</strong><small>unique donor records</small></article>
-            <article><span>Sent</span><strong id="csm-sent-total">$0.00</strong><small>approved payments</small></article>
-            <article><span>Moved to bank</span><strong id="csm-transfer-total">$0.00</strong><small>approved internal transfers</small></article>
           </div>
           <div class="admin-csm-list" id="csm-inbox-list" aria-live="polite"></div>
         </section>
@@ -610,6 +613,6 @@
   </footer>
 
   <noscript><p class="admin-noscript">JavaScript must be enabled to use the Admin Portal.</p></noscript>
-  <script src="/admin/admin.js?v=2026-09-18.3" defer></script>
+  <script src="/admin/admin.js?v=2026-09-21.1" defer></script>
 </body>
 </html>

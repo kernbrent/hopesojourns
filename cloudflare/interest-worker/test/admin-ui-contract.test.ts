@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const adminScript = readFileSync(resolve(testDirectory, "../../../admin/admin.js"), "utf8");
 const adminPage = readFileSync(resolve(testDirectory, "../../../admin/index.html"), "utf8");
+const financeScript = readFileSync(resolve(testDirectory, "../../../admin/finance/finance.js"), "utf8");
 const publicStyles = readFileSync(resolve(testDirectory, "../../../styles.css"), "utf8");
 const tripScript = readFileSync(resolve(testDirectory, "../../../admin/trips/trips.js"), "utf8");
 const tripPage = readFileSync(resolve(testDirectory, "../../../admin/trips/index.html"), "utf8");
@@ -100,6 +101,20 @@ describe("Admin Portal sign-in contract", () => {
     expect(tripScript).toContain("sendTripImport(false)");
     expect(tripScript).toContain("sendTripImport(true)");
     expect(tripScript).toContain("/export");
+  });
+
+  it("shows gross gifts and net receipts without presenting internal money movements as giving", () => {
+    expect(adminPage).toContain('id="csm-giving-year">Current year gross given');
+    expect(adminPage).toContain('id="csm-net-year">Current year net received');
+    expect(adminPage).toContain("What givers donated before PayPal fees");
+    expect(adminPage).toContain("Available to Hope Sojourns after PayPal fees");
+    expect(adminPage).not.toContain('id="csm-sent-total"');
+    expect(adminPage).not.toContain('id="csm-transfer-total"');
+    expect(adminScript).toContain('`${year} gross given`');
+    expect(adminScript).toContain('`${year} net received`');
+    expect(financeScript).toContain("Gross donor gifts");
+    expect(financeScript).toContain("Net income received");
+    expect(financeScript).toContain("status=included");
   });
 
   it("supports a finishable per-traveler budget with compact records and contextual guidance", () => {

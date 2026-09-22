@@ -64,4 +64,18 @@ describe('HS bookkeeping extensions',()=>{
     expect(f.sqlite.prepare('SELECT * FROM ledger_entries WHERE id=?').get(id)).toEqual(before);
     expect((await (await f.call('records?status=included')).json() as any).summary.income).toBe(0);
   });
+  it('reports gross gifts and net cash without counting internal transfers as income or expenses',async()=>{
+    const f=await setup(),now='2026-09-17T12:00:00.000Z';
+    f.sqlite.prepare(`INSERT INTO ledger_entries
+      (id,source_type,import_key,content_fingerprint,transaction_date,entry_type,payment_type,expense_category,budget_category,
+       amount,name,transaction_purpose,charitable_amount,currency,accounting_class,gross,fee,net,created_at,updated_at)
+      VALUES('gift','manual','gift','gift','2026-09-17','income','PayPal',NULL,'General',97.52,'Example Donor','donation',100,'USD','operating',100,-2.48,97.52,?,?)`).run(now,now);
+    f.sqlite.prepare(`INSERT INTO ledger_entries
+      (id,source_type,import_key,content_fingerprint,transaction_date,entry_type,payment_type,expense_category,budget_category,
+       amount,name,transaction_purpose,charitable_amount,currency,accounting_class,gross,fee,net,created_at,updated_at)
+      VALUES('bank-transfer','manual','bank-transfer','bank-transfer','2026-09-17','expense','PayPal','Internal transfer','Balance transfer',323.89,'CSM bank','general',0,'USD','internal_transfer',-323.89,0,-323.89,?,?)`).run(now,now);
+    const data=await (await f.call('records?from=2026-01-01&to=2026-12-31')).json() as any;
+    expect(data.summary).toMatchObject({count:1,gross_giving:100,income:97.52,expenses:0});
+    expect(data.entries.map((entry:any)=>entry.id)).toEqual(['gift']);
+  });
 });

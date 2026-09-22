@@ -66,12 +66,11 @@ const csmInboxBadge = document.querySelector("#csm-inbox-badge");
 const approveAllCsmInboxButton = document.querySelector("#approve-all-csm-inbox");
 const viewCsmDonorsButton = document.querySelector("#view-csm-donors");
 const csmGivingYear = document.querySelector("#csm-giving-year");
+const csmNetYear = document.querySelector("#csm-net-year");
 const csmGrossReceived = document.querySelector("#csm-gross-received");
 const csmNetReceived = document.querySelector("#csm-net-received");
 const csmDonationCount = document.querySelector("#csm-donation-count");
 const csmGiverCount = document.querySelector("#csm-giver-count");
-const csmSentTotal = document.querySelector("#csm-sent-total");
-const csmTransferTotal = document.querySelector("#csm-transfer-total");
 const ledgerViewTab = document.querySelector("#ledger-view-tab");
 const ledgerWorkspace = document.querySelector("#ledger-workspace");
 const ledgerFilters = document.querySelector("#ledger-filters");
@@ -1196,13 +1195,12 @@ function csmApprovalBody(message) {
 
 function renderCsmGivingSummary(summary = {}) {
   const year = Number(summary.year) || new Date().getFullYear();
-  csmGivingYear.textContent = `${year} gross received`;
+  csmGivingYear.textContent = `${year} gross given`;
+  csmNetYear.textContent = `${year} net received`;
   csmGrossReceived.textContent = csmMoney(summary.grossReceived);
   csmNetReceived.textContent = csmMoney(summary.netReceived);
   csmDonationCount.textContent = String(Number(summary.donations || 0));
   csmGiverCount.textContent = String(Number(summary.givers || 0));
-  csmSentTotal.textContent = csmMoney(summary.sent);
-  csmTransferTotal.textContent = csmMoney(summary.transferred);
 }
 
 const CSM_BANK_WITHDRAWAL_EVENT_CODES = new Set(["T0400", "T0401", "T0403"]);

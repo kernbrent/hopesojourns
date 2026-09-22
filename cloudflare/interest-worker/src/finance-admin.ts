@@ -41,7 +41,7 @@ async function bootstrap(env: AdminEnv) {
   return adminJson({settings,trips:trips.results,ministries:ministries.results,rates:rates.results,routes:routes.results});
 }
 async function records(request: Request, env: AdminEnv) {
-  const url = new URL(request.url), values: (string|number)[] = [], where: string[] = [];
+  const url = new URL(request.url), values: (string|number)[] = [], where: string[] = ["l.accounting_class = 'operating'"];
   for (const [query,column] of [['from','l.transaction_date >='],['to','l.transaction_date <='],['type','l.entry_type ='],['source','l.source_type ='],['trip','COALESCE(r.trip_id,l.trip_id) ='],['ministry','r.ministry_id ='],['status',"COALESCE(r.status,'included') ="]]) {
     const value = url.searchParams.get(query); if (value) { if (query==='from'||query==='to') date(value); where.push(`${column} ?`); values.push(value); }
   }
@@ -55,7 +55,7 @@ async function records(request: Request, env: AdminEnv) {
   const base=`FROM ledger_entries l LEFT JOIN finance_review r ON r.ledger_id=l.id ${clause}`;
   const [entries,summary]=await Promise.all([
     env.DB.prepare(`SELECT l.*,COALESCE(r.trip_id,l.trip_id) AS linked_trip_id,r.ministry_id,COALESCE(r.status,'included') AS review_status,COALESCE(r.accountant_review,0) AS accountant_review,COALESCE(r.reimbursable,0) AS reimbursable,COALESCE(r.reimbursed,0) AS reimbursed,COALESCE(r.notes,'') AS review_notes,(SELECT COUNT(*) FROM ledger_receipts WHERE ledger_entry_id=l.id) AS receipt_count,(SELECT i.number FROM finance_invoice_payments p JOIN finance_invoices i ON i.id=p.invoice_id WHERE p.ledger_id=l.id) AS invoice_number ${base} ORDER BY l.transaction_date DESC,l.id LIMIT 100 OFFSET ?`).bind(...values,(page-1)*100).all(),
-    env.DB.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(CASE WHEN l.entry_type='income' THEN ROUND(l.amount*100) ELSE 0 END),0)/100.0 AS income,COALESCE(SUM(CASE WHEN l.entry_type='expense' THEN ROUND(l.amount*100) ELSE 0 END),0)/100.0 AS expenses ${base}`).bind(...values).first()
+    env.DB.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(CASE WHEN l.entry_type='income' THEN ROUND(l.amount*100) ELSE 0 END),0)/100.0 AS income,COALESCE(SUM(CASE WHEN l.entry_type='income' AND l.charitable_amount>0 THEN ROUND(l.charitable_amount*100) ELSE 0 END),0)/100.0 AS gross_giving,COALESCE(SUM(CASE WHEN l.entry_type='expense' THEN ROUND(l.amount*100) ELSE 0 END),0)/100.0 AS expenses ${base}`).bind(...values).first()
   ]);
   return adminJson({entries:entries.results,summary,page,pageSize:100});
 }
