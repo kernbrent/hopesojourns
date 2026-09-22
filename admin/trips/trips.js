@@ -320,6 +320,7 @@ async function api(path, options = {}) {
 }
 
 function showLogin() {
+  window.HSMmtNav?.unmount();
   document.querySelector("#devotional-library-dialog")?.close();
   const credentialForm = document.querySelector("#trip-portal-form");
   credentialForm.elements.password.value = "";

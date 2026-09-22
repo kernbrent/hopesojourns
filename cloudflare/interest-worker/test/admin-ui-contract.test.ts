@@ -16,6 +16,15 @@ const journeyScript = readFileSync(resolve(testDirectory, "../../../journey/jour
 const journeyCss = readFileSync(resolve(testDirectory, "../../../journey/journey.css"), "utf8");
 
 describe("Admin Portal sign-in contract", () => {
+  it("resolves every legacy destination exposed by the shared MMT menu", () => {
+    const source = adminScript.match(/function requestedAdminView\(\) \{([\s\S]*?)\n\}/)?.[1];
+    expect(source).toBeTruthy();
+    const resolveView = new Function("window", source!);
+    for (const view of ["people", "requests", "grid", "teams", "ministries", "internship-toolkit", "csm-inbox", "ledger"]) {
+      expect(resolveView({ location: { hash: "#" + view } })).toBe(view);
+    }
+  });
+
   it("requires manual sign-in on direct visits but resumes intentional trip-workspace navigation", () => {
     const startup = adminScript.match(/\(async function startPortal\(\) \{([\s\S]*?)\}\)\(\);/)?.[1] || "";
     expect(startup).toContain("consumeAdminNavigationIntent()");

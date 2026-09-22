@@ -1,0 +1,39 @@
+/* One sidebar style, isolated from each workspace's content. */
+body.mmt-navigation-ready { --mmt-menu-width:260px; }
+body.mmt-navigation-ready .mmt-sidebar { position:fixed;inset:0 auto 0 0;z-index:40;display:flex;width:var(--mmt-menu-width);height:100dvh;box-sizing:border-box;flex-direction:column;gap:16px;padding:24px 16px;overflow-y:auto;background:var(--forest-deep);color:var(--paper);font:14px/1.45 "Segoe UI",Aptos,sans-serif;transform:none; }
+body.mmt-navigation-ready .mmt-sidebar[hidden] { display:none; }
+body.mmt-navigation-ready .mmt-sidebar > :not(.mmt-brand):not(.mmt-nav):not(.mmt-signout) { display:none!important; }
+body.mmt-navigation-ready .mmt-sidebar .mmt-brand { display:grid;gap:10px;color:var(--paper);text-decoration:none;padding:0;margin:0;font-size:12px;letter-spacing:.06em; }
+body.mmt-navigation-ready .mmt-brand img { display:block;width:100%;max-width:210px;height:66px;object-fit:contain;box-sizing:border-box;padding:8px;background:var(--paper);border-radius:10px; }
+body.mmt-navigation-ready .mmt-sidebar .mmt-nav { display:grid;gap:5px;margin:0;padding:0;overflow:visible; }
+body.mmt-navigation-ready .mmt-nav a,body.mmt-navigation-ready .mmt-nav summary { display:block;box-sizing:border-box;margin:0;padding:10px 12px;border:0;border-radius:8px;color:var(--paper);background:transparent;font:600 14px/1.45 "Segoe UI",Aptos,sans-serif;text-decoration:none;white-space:normal;cursor:pointer; }
+body.mmt-navigation-ready .mmt-nav summary { display:flex;align-items:center;justify-content:space-between;list-style:none; }
+body.mmt-navigation-ready .mmt-nav summary::-webkit-details-marker { display:none; }
+body.mmt-navigation-ready .mmt-nav summary::after { content:'›';font-size:21px;line-height:1; }
+body.mmt-navigation-ready .mmt-nav details[open]>summary::after { transform:rotate(90deg); }
+body.mmt-navigation-ready .mmt-nav details { margin:0;padding:0;border:0;background:transparent; }
+body.mmt-navigation-ready .mmt-nav details a { margin:2px 0 2px 12px;padding:8px 12px;font-weight:400;border-left:2px solid var(--forest-soft);border-radius:0 8px 8px 0; }
+body.mmt-navigation-ready .mmt-nav a:hover,body.mmt-navigation-ready .mmt-nav summary:hover { background:var(--forest); }
+body.mmt-navigation-ready .mmt-nav a[aria-current=page] { background:var(--forest);color:var(--gold-light);border-color:var(--gold);font-weight:700; }
+body.mmt-navigation-ready .mmt-sidebar :focus-visible,body.mmt-navigation-ready .mmt-menu-toggle:focus-visible { outline:3px solid var(--gold);outline-offset:2px; }
+body.mmt-navigation-ready .mmt-signout { display:block;margin-top:auto;flex-shrink:0;width:100%;padding:10px 12px;border:1px solid var(--forest-soft);border-radius:8px;background:transparent;color:var(--paper);font:600 14px/1.45 "Segoe UI",Aptos,sans-serif;cursor:pointer; }
+body.mmt-navigation-ready .mmt-menu-toggle { position:fixed;z-index:41;top:12px;left:calc(var(--mmt-menu-width) + 12px);padding:8px 12px;border:1px solid var(--line);border-radius:24px;background:var(--paper);color:var(--forest-dark);font:600 13px/1.4 "Segoe UI",Aptos,sans-serif;cursor:pointer; }
+body.mmt-navigation-ready .admin-sidebar-toggle,body.mmt-navigation-ready .trip-sidebar-toggle { display:none!important; }
+body.mmt-navigation-ready .finance-shell,body.mmt-navigation-ready .ministry-shell { display:block;margin-left:var(--mmt-menu-width); }
+body.mmt-navigation-ready .trip-admin-main,body.mmt-navigation-ready .admin-header { margin-left:var(--mmt-menu-width); }
+body.mmt-navigation-ready .admin-main,body.mmt-navigation-ready .admin-footer { width:calc(100% - var(--mmt-menu-width) - 32px);margin-left:calc(var(--mmt-menu-width) + 16px);margin-right:16px; }
+body.mmt-navigation-ready .finance-shell>main,body.mmt-navigation-ready .ministry-shell>main,body.mmt-navigation-ready .trip-admin-main { padding-top:66px; }
+body.mmt-menu-collapsed .mmt-sidebar { transform:translateX(-100%);visibility:hidden; }
+body.mmt-menu-collapsed .mmt-menu-toggle { left:12px; }
+body.mmt-menu-collapsed .finance-shell,body.mmt-menu-collapsed .ministry-shell,body.mmt-menu-collapsed .trip-admin-main,body.mmt-menu-collapsed .admin-header { margin-left:0; }
+body.mmt-menu-collapsed .admin-main,body.mmt-menu-collapsed .admin-footer { width:calc(100% - 32px);margin-left:16px; }
+@media(max-width:760px) {
+ body.mmt-navigation-ready .finance-shell,body.mmt-navigation-ready .ministry-shell,body.mmt-navigation-ready .trip-admin-main,body.mmt-navigation-ready .admin-header { margin-left:0; }
+ body.mmt-navigation-ready .admin-main,body.mmt-navigation-ready .admin-footer { width:calc(100% - 32px);margin-left:16px; }
+ body.mmt-navigation-ready .mmt-sidebar { box-shadow:8px 0 28px rgba(var(--forest-deep-rgb),.24); }
+ body.mmt-navigation-ready .mmt-menu-toggle { left:calc(var(--mmt-menu-width) + 8px); }
+ body.mmt-menu-collapsed .mmt-menu-toggle { left:12px; }
+}
+@media print { body.mmt-navigation-ready .mmt-sidebar,body.mmt-navigation-ready .mmt-menu-toggle { display:none!important; } }
+
+body.mmt-navigation-ready .mmt-sidebar [hidden],body.mmt-navigation-ready .mmt-menu-toggle[hidden] { display:none!important; }

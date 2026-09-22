@@ -1,8 +1,14 @@
 # Hope Sojourns website style guide
 
-Version 4.6.0
+Version 4.7.0
 
 Last reviewed: September 22, 2026
+
+## Shared MMT navigation
+
+The MMT portal uses a single forest sidebar across Ministry Management, Trips, Finances, Destinations, Account, and the Response Center. The logo and Home link return to Ministry Management. Home, Inbox, and Documents precede four expandable groups: Trips and destinations, People and ministry, Finances, and Account and settings. Links retain the same names and order across workspaces, subject to the signed-in user’s permissions.
+
+The current group opens automatically when moving to another area; other groups collapse. Users may open additional groups manually. Native disclosure controls support keyboard interaction. The current page uses a gold accent and aria-current. The sidebar can be hidden, starts closed on phones, and scrolls independently when needed. Sign out stays at its foot. Use only shared palette tokens; shared sidebar typography and spacing must not inherit inconsistent page-specific styles.
 
 ## Devotional library
 
@@ -602,6 +608,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
 | 2026-09-21 | 4.5.8 | Added collapsed devotional day banners and day navigation. Deployed September 21, 2026. |
 | 2026-09-21 | 4.5.7 | Added readable traveler study sections, Scripture emphasis, real lists, underlined reading links, and italic prayers. Deployed September 21, 2026. |

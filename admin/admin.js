@@ -426,6 +426,7 @@ function saveRememberMePreference(rememberMe) {
 }
 
 function showLogin(message = "") {
+  window.HSMmtNav?.unmount();
   state.csrfToken = "";
   document.body.classList.remove("admin-authenticated");
   authLoadingPanel.hidden = true;
@@ -455,6 +456,10 @@ function requestedAdminView() {
     "#expenses": "ledger",
     "#ministries": "ministries",
     "#people": "people",
+    "#grid": "grid",
+    "#teams": "teams",
+    "#internship-toolkit": "internship-toolkit",
+    "#csm-inbox": "csm-inbox",
   };
   return viewsByHash[window.location.hash.toLowerCase()] || "people";
 }
@@ -471,7 +476,7 @@ function consumeAdminNavigationIntent() {
 
 function showDashboard(session) {
   window.MmtUser=session.user;
-  if(!document.querySelector('script[data-mmt-session]')){const script=document.createElement('script');script.src='/admin/mmt-session.js?v=1';script.dataset.mmtSession='true';document.head.append(script);}
+  if(!document.querySelector('script[data-mmt-session]')){const script=document.createElement('script');script.src='/admin/mmt-session.js?v=2026-09-22.1';script.dataset.mmtSession='true';document.head.append(script);}
   if(session.user?.must_change_password){location.href="/admin/account/#password";return;}
   if(session.user&&!session.user.is_admin&&session.user.permissions.contacts==='blocked'){location.href="/admin/account/";return;}
   state.csrfToken = session.csrfToken;
@@ -2416,7 +2421,9 @@ function switchView(view, focusTab = false) {
   };
   recordsTitle.textContent = titles[view];
   mobileWorkspaceSelect.value = view;
+  if (location.hash !== "#settings" && !(view === "ledger" && ["#income", "#expenses"].includes(location.hash))) window.history.replaceState(null, "", "#" + view);
   updateSidebarSelection(view);
+  window.HSMmtNav?.selection();
   if (focusTab) tabs[view].focus();
   loadRecords();
 }
@@ -4100,3 +4107,7 @@ for (const [button, target] of [['settings-password','open-change-password'],['s
     document.getElementById(target).click();
   });
 }
+
+window.addEventListener("hashchange",()=>{if(!document.body.classList.contains("admin-authenticated"))return;if(location.hash==="#settings")openAdminSettings();else switchView(requestedAdminView());window.HSMmtNav?.selection();});
+
+document.addEventListener('click',event=>{if(!event.target.closest('.mmt-nav a[href="/admin/#settings"]'))return;event.preventDefault();window.history.replaceState(null,'','#settings');openAdminSettings();window.HSMmtNav?.selection();});

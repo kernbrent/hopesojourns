@@ -1,8 +1,14 @@
 # Hope Sojourns developer guide
 
-Version 4.6.0
+Version 4.7.0
 
 Last reviewed: September 22, 2026
+
+## Shared MMT navigation
+
+All six authenticated workspaces load admin/mmt-navigation.js and admin/mmt-navigation.css. HSMmtNav.mount(user) builds one permission-aware link catalogue after session validation. Home and the logo target /admin/ministry/. Trips, People and ministry, Finances, and Account and settings use native details elements; the current group opens when the route changes. Same-page hashes, browser Back, trip detail queries, and account rerenders keep the current link synchronized. Session permissions and all server checks remain authoritative. Forced password setup retains its restricted navigation. Sign-out uses the session CSRF token; login transitions remove the authenticated sidebar layout.
+
+The shared component owns sidebar styling and menu visibility. Existing page-specific content layouts remain intact. The responsive menu starts collapsed on small screens, with an accessible Show menu button; desktop navigation remains visible by default. The former sidebar markup remains as a fallback before authentication. Validate transitions between each workspace, manual disclosure controls, the logo, account rerenders, narrow screens, and permission restrictions before release.
 
 ## Devotional library
 
@@ -861,6 +867,7 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
 | 2026-09-21 | 4.5.8 | Added date-grouped native disclosures, stable anchors, and keyboard-accessible day links without exposing drafts. Deployed September 21, 2026. |
 | 2026-09-21 | 4.5.7 | Added safe plain-text study rendering and responsive reading styles without changing saved content or publication filtering. Deployed September 21, 2026. |
