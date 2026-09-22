@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.8.1
+Version 4.8.3
 
 Last reviewed: September 22, 2026
 
@@ -20,9 +20,15 @@ The shared journey/memories-view.js and memories.css render traveler galleries, 
 
 The initial feature was deployed from c7b4cab on September 22, 2026. Permanent deletion requires migration 0033 before the updated Worker and Pages bundle. Release remains subject to explicit user authorization. Use the existing static build allowlist; never include local preview fixtures or QA outputs.
 
-Administrators can permanently delete a removed memory through DELETE /admin/trips/:tripId/memories/:id/permanent with revision and confirm=true. This action requires an effective portal administrator, authenticated CSRF, and an already-removed item. The UI names the item and warns that the item and stored photo cannot be restored. An item referenced by a saved preview or published story must be removed from those versions first.
+Administrators can permanently delete a removed memory through DELETE /admin/trips/:tripId/memories/:id/permanent with revision and confirm=true. This action requires an effective portal administrator, authenticated CSRF, and an already-removed item. The UI names the item and warns that the item and stored media cannot be restored. An item referenced by a saved preview or published story must be removed from those versions first.
 
 Migration 0033 adds purge_pending and database triggers protecting snapshot references. The delete operation atomically locks an unreferenced, removed row before deleting its R2 object, then removes the row and records a content-free audit event. A storage or final database failure leaves a locked item that can be retried from Removed items; it cannot be edited or restored. Snapshot triggers prevent concurrent saves from referencing a locked or missing memory. Tests cover stale revisions, confirmation, administrator-only access, cross-trip isolation, snapshot protection, and interrupted deletion retries.
+
+Traveler gallery sizing is scoped to .journey-page in journey/memories.css: two equal columns above 600 pixels and one column on smaller screens. memories-view.js sorts a filtered photo/video array by event_date ascending, with undated images last and creation time then ID as tie-breakers, without mutating the incoming collection. Existing full-image links remain and have descriptive accessible labels. Shared renderer and stylesheet references use version 2026-09-22.4. Migration 0034 is required for video support in this release.
+
+Migration 0034 rebuilds trip_memories to allow video while preserving all columns, indexes, records, and snapshot-protection triggers. MP4/WebM container signatures are checked server-side; photo validation stays at 6 MB and video uploads are bounded at 20 MB plus multipart overhead. Uploads use existing private R2 storage. Existing image/photos media routes also serve videos with authenticated portal checks or reviewed public snapshot checks, Content-Type, no-store, Content-Length, Accept-Ranges, and valid single-byte-range responses (206/416) for seeking. The Worker does not transcode; the browser optimization step prepares supported MP4/WebM uploads. Videos use the same edit, remove, restore, protected permanent-delete, and selected public-story lifecycle as photos. Tests cover video byte ranges, invalid files, size limits, cross-trip isolation, and snapshot access after removal. Deploy migration 0034 before the updated Worker and frontend assets.
+
+admin/trips/media-optimize.js performs local browser optimization before the existing multipart upload. Photos resize to a 1600-pixel maximum edge and encode WebP at 0.78 quality, with JPEG fallback. Video uses a lazy-loaded, self-hosted Mediabunny 1.59.0 bundle and WebCodecs: MP4/H.264/AAC first, then WebM/VP9 or VP8/Opus if encoding fails. Video dimensions fit within 1280 by 720 (orientation preserved), with up to 30 fps, a duration-adjusted bitrate up to 1.5 Mbps, and 96 kbps audio. Longer clips use a lower resolution when needed to target 18 MB within the 20 MB server limit. Conversion rejects discarded audio/video tracks, handles cancellation and timeout, and releases resources. Original MP4/WebM or JPEG/PNG/WebP files are retained when smaller; no new storage is used for original copies. New uploads only are optimized. Rebuild the pinned library with npm ci --ignore-scripts and npm run build in tools/media-upload; its lockfile and MPL-2.0 license/source notice accompany the self-hosted bundle. No external media service receives the files. Browser QA verified photo/video size reduction, unchanged video duration and audio presence, and cancellation. Asset version 2026-09-22.5 loads the optimizer before the editor.
 
 ## Shared MMT navigation
 
@@ -887,6 +893,8 @@ Administrators can select Delete user in the user list and must type the exact u
 
 | Date | Version | Change |
 |---|---|---|
+| September 22, 2026 | 4.8.3 | Automatic photo/video upload optimization, local processing, progress, cancellation, and storage savings. |
+| September 22, 2026 | 4.8.2 | Two-column dated photo/video tiles, video uploads and playback, and accessible full-image links. |
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
 | September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |

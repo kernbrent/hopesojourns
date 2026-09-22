@@ -4,10 +4,10 @@ import {fileURLToPath} from 'node:url';
 import type {AdminEnv} from '../src/admin';
 
 // Real SQLite constraints and atomic batches, with an isolated in-memory file store.
-export async function ministryFixture(){
+export async function ministryFixture(through?:string){
  const sqlite=new DatabaseSync(':memory:');
  const directory=fileURLToPath(new URL('../migrations/',import.meta.url));
- for(const name of readdirSync(directory).filter(n=>n.endsWith('.sql')).sort())sqlite.exec(readFileSync(directory+'/'+name,'utf8'));
+ for(const name of readdirSync(directory).filter(n=>n.endsWith('.sql')&&(!through||n<=through)).sort())sqlite.exec(readFileSync(directory+'/'+name,'utf8'));
  class Statement{
   values: (string|number|null)[]=[];
   constructor(readonly sql:string){}
@@ -17,7 +17,7 @@ export async function ministryFixture(){
   async run(){const result=sqlite.prepare(this.sql).run(...this.values);return {success:true,meta:{changes:Number(result.changes)},results:[]};}
  }
  const files=new Map<string,Uint8Array>();
- const env={DB:{prepare:(sql:string)=>new Statement(sql),batch:async(statements:Statement[])=>{sqlite.exec('BEGIN');try{const results=[];for(const statement of statements)results.push(await statement.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}},RECEIPTS:{put:async(key:string,value:Uint8Array)=>files.set(key,value),get:async(key:string)=>files.has(key)?{body:files.get(key)}:null,delete:async(key:string)=>files.delete(key)}} as unknown as AdminEnv;
+ const env={DB:{prepare:(sql:string)=>new Statement(sql),batch:async(statements:Statement[])=>{sqlite.exec('BEGIN');try{const results=[];for(const statement of statements)results.push(await statement.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}},RECEIPTS:{put:async(key:string,value:Uint8Array)=>files.set(key,value),head:async(key:string)=>files.has(key)?{size:files.get(key)!.length}:null,get:async(key:string,options?:{range:{offset:number,length:number}})=>files.has(key)?{body:options?.range?files.get(key)!.slice(options.range.offset,options.range.offset+options.range.length):files.get(key),size:files.get(key)!.length}:null,delete:async(key:string)=>files.delete(key)}} as unknown as AdminEnv;
  const token='a'.repeat(48),csrf='test-csrf-token';
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))),b=>b.toString(16).padStart(2,'0')).join('');
  sqlite.prepare("INSERT INTO admin_sessions(id,token_hash,csrf_token,created_at,expires_at,last_seen_at,user_id) VALUES(?,?,?,?,?,?,'primary')").run('test-session',hash,csrf,new Date().toISOString(),'2099-01-01T00:00:00.000Z',new Date().toISOString());

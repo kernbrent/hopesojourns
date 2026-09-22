@@ -1,8 +1,9 @@
 import {expect,it} from 'vitest';
+import {readFileSync} from 'node:fs';
 import {ministryFixture} from './ministry-fixture';
 import {handleTripAdminRequest,handleTripPublicRequest} from '../src/trip-platform';
-async function setup(){
- const f=await ministryFixture();
+async function setup(through?:string){
+ const f=await ministryFixture(through);
  const call=(path:string,body?:unknown,method?:string)=>handleTripAdminRequest(f.request(path,body,method),f.env,path.split('?')[0]);
  const {id}=await (await call('/admin/trips',{title:'Memory test',location:'Test destination',startDate:'2025-01-09',endDate:'2025-01-14'})).json() as any;
  f.sqlite.prepare("UPDATE trips SET status='completed',portal_enabled=1 WHERE id=?").run(id);
@@ -116,4 +117,45 @@ it('restricts permanent deletion to administrators with CSRF and the matching tr
  f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,phone,country,is_admin,permissions_json,status,must_change_password,registered_at,updated_at) VALUES('editor','editor','Trip','Editor','editor@example.test','','US',0,'{"trips":"edit"}','active',0,'2026','2026'); UPDATE admin_sessions SET user_id='editor'`);
  expect((await f.call(path,{revision:2,confirm:true},'DELETE')).status).toBe(403);
  expect(f.sqlite.prepare('SELECT id FROM trip_memories WHERE id=?').get(n.id)).toBeTruthy();
+});
+
+it('uploads videos, supports seeking, and preserves privacy, publication, and deletion rules',async()=>{
+ const f=await setup();
+ const bytes=Buffer.concat([Buffer.from([0,0,0,24]),Buffer.from('ftypisom'),Buffer.alloc(4),Buffer.from('isommp42'),Buffer.alloc(64)]);
+ const form=new FormData();form.set('file',new File([new Uint8Array(bytes)],'clip.mp4',{type:'video/mp4'}));form.set('title','Our service day');form.set('alt_text','A short trip video');form.set('event_date','2025-01-11');form.set('portal_visible','true');
+ const response=await f.call(f.base,form);expect(response.status).toBe(201);const m=(await response.json() as any).memory;expect(m.kind).toBe('video');
+ const mediaPath=`/portal/trips/${f.id}/photos/${m.id}`;
+ const get=(range?:string,cookie=f.cookie,path=mediaPath)=>handleTripPublicRequest(new Request('http://localhost:4188/api/interest'+path,{headers:{cookie,...(range?{range}:{})}}),f.env,path);
+ expect((await get(undefined,'')).status).toBe(401);
+ expect((await get(undefined,f.cookie,mediaPath.replace(f.id,crypto.randomUUID()))).status).toBe(404);
+ let r=await get();expect(r.status).toBe(200);expect(r.headers.get('content-type')).toBe('video/mp4');expect(Buffer.from(await r.arrayBuffer())).toEqual(bytes);
+ for(const [range,start,end] of [['bytes=0-15',0,15],['bytes=16-',16,87],['bytes=-8',80,87],['bytes=80-999',80,87]] as const){r=await get(range);expect(r.status).toBe(206);expect(r.headers.get('content-range')).toBe(`bytes ${start}-${end}/88`);expect(Buffer.from(await r.arrayBuffer())).toEqual(bytes.subarray(start,end+1));}
+ for(const range of ['bytes=999-','bytes=20-10','bytes=-0','bytes=0-1,4-5'])expect((await get(range)).status).toBe(416);
+ expect((await f.publicCall(f.publicPath+'/photos/'+m.id)).status).toBe(404);
+ await f.draft([m.id]);await f.call(f.base+'/publication/publish',{revision:1});
+ expect((await get('bytes=0-15','',f.publicPath+'/photos/'+m.id)).status).toBe(206);
+ await f.call(f.base+'/'+m.id,{revision:1},'DELETE');expect((await get()).status).toBe(404);
+ expect((await f.publicCall(f.publicPath+'/photos/'+m.id)).status).toBe(200);
+ expect((await f.call(f.base+'/'+m.id+'/permanent',{revision:2,confirm:true},'DELETE')).status).toBe(409);
+ await f.draft([],[],2);await f.call(f.base+'/publication/unpublish',{revision:3});
+ expect((await f.call(f.base+'/'+m.id+'/permanent',{revision:2,confirm:true},'DELETE')).status).toBe(200);expect(f.files.size).toBe(0);
+});
+it('accepts WebM containers and rejects disguised or oversized video uploads',async()=>{
+ const f=await setup();const upload=(bytes:Uint8Array)=>{const form=new FormData();form.set('file',new File([new Uint8Array(bytes)],'clip.mp4',{type:'video/mp4'}));form.set('title','Clip');form.set('alt_text','Video');return f.call(f.base,form);};
+ const webm=Buffer.concat([Buffer.from([0x1a,0x45,0xdf,0xa3]),Buffer.from('test webm container')]);
+ const good=await upload(webm);expect(good.status).toBe(201);expect((await good.json() as any).memory.kind).toBe('video');
+ expect((await upload(Buffer.from('<html>not video</html>'))).status).toBe(422);
+ const avif=Buffer.concat([Buffer.from([0,0,0,24]),Buffer.from('ftypavif'),Buffer.alloc(4),Buffer.from('avifmif1')]);expect((await upload(avif)).status).toBe(422);
+ expect((await upload(new Uint8Array(20*1024*1024+1))).status).toBe(422);
+});
+
+it('preserves existing memories, published snapshots, and deletion locks during the video migration',async()=>{
+ const f=await setup('0033_trip_memory_permanent_delete.sql'),p=await f.photo(),n=await f.note();await f.draft([p.id]);await f.call(f.base+'/publication/publish',{revision:1});
+ f.sqlite.prepare("UPDATE trip_memories SET deleted_at='2026-09-22',purge_pending=1,revision=3 WHERE id=?").run(n.id);
+ const before=f.sqlite.prepare('SELECT * FROM trip_memories ORDER BY id').all(),pub=f.sqlite.prepare('SELECT * FROM trip_publications').all();
+ f.sqlite.exec(readFileSync(new URL('../migrations/0034_trip_memory_video.sql',import.meta.url),'utf8'));
+ expect(f.sqlite.prepare('SELECT * FROM trip_memories ORDER BY id').all()).toEqual(before);expect(f.sqlite.prepare('SELECT * FROM trip_publications').all()).toEqual(pub);
+ expect((await f.publicCall(f.publicPath+'/photos/'+p.id)).status).toBe(200);
+ expect(()=>f.sqlite.prepare('UPDATE trip_publications SET draft_json=? WHERE trip_id=?').run(JSON.stringify({memories:[{id:n.id}]}),f.id)).toThrow('TRIP_MEMORY_UNAVAILABLE');
+ expect(f.sqlite.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
 });

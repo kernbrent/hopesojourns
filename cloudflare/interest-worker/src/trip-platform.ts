@@ -1569,7 +1569,7 @@ async function portalSession(request: Request, env: AdminEnv, photoTrip?:string,
   const trip = await env.DB.prepare(`SELECT id, code, slug, title, subtitle, location, start_date, end_date, status,
     public_summary FROM trips WHERE id = ?1 AND portal_enabled = 1`).bind(session.trip_id).first();
   if (!trip) throw new AdminError(401, "PORTAL_AUTH_REQUIRED", "This trip portal is not available.");
-  if(photoTrip){if(photoTrip!==session.trip_id)throw new AdminError(404,"NOT_FOUND","Photo not found.");return portalPhoto(env,photoTrip,photoId!);}
+  if(photoTrip){if(photoTrip!==session.trip_id)throw new AdminError(404,"NOT_FOUND","Photo not found.");return portalPhoto(env,photoTrip,photoId!,request);}
   const [content, members, costs] = await Promise.all([
     env.DB.prepare(`SELECT id, content_type, title, content, event_date, event_time, location, link_url, visibility, sort_order
       FROM trip_content WHERE trip_id = ?1 AND publication_status = 'published' AND visibility IN ('public', 'travelers')

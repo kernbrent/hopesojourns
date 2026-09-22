@@ -1,0 +1,4 @@
+Mediabunny 1.59.0 by Vanilagy, licensed under MPL-2.0.
+Unmodified library source: https://registry.npmjs.org/mediabunny/-/mediabunny-1.59.0.tgz
+Project: https://github.com/Vanilagy/mediabunny
+Rebuild using tools/media-upload/build.mjs and its pinned lockfile.

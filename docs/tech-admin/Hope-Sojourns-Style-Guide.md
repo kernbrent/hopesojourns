@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.8.1
+Version 4.8.3
 
 Last reviewed: September 22, 2026
 
@@ -12,7 +12,13 @@ Past-trip story uses a destination selector, public title, short summary, narrat
 
 Traveler and public displays share journey/memories.css and memories-view.js. Galleries adapt to available width, include captions and dates, and open the full image in a new tab. Longer devotional resources use native expandable sections. Text uses the existing safe content formatter. Forms, cards, previews, and disclosure controls use existing palette tokens, visible labels, keyboard-accessible controls, and readable spacing. Keep the established public homepage and destination design; add past-trip stories within the existing destination layout.
 
-In Photos & memories, Show removed items reveals Restore and, for administrators, Delete permanently. Keep the removed view selected after an action so the user can see the result. Permanent deletion asks for confirmation naming the item and explains that its record and stored photo cannot be restored. Items still used in a story show instructions to remove them from the preview and update or unpublish the public version first. An interrupted deletion shows a pending message and a retry control; hide the image and Restore control while its file is being deleted.
+In Photos & memories, Show removed items reveals Restore and, for administrators, Delete permanently. Keep the removed view selected after an action so the user can see the result. Permanent deletion asks for confirmation naming the item and explains that its record and stored media cannot be restored. Items still used in a story show instructions to remove them from the preview and update or unpublish the public version first. An interrupted deletion shows a pending message and a retry control; hide the image and Restore control while its file is being deleted.
+
+Traveler photo galleries use two equal-width tiles per row above 600 pixels and one tile per row on smaller phones. A single photo retains one tile width on wider screens. Photos run from oldest to newest using the assigned Date; undated photos appear last. Clicking or tapping a photo opens the full image in a new tab. Image links include an accessible full-size label.
+
+Photos and videos share the traveler gallery and are sorted together by assigned date. Video tiles show a preview frame when supported and a clearly labeled Play video button. Clicking opens a larger, keyboard-accessible dialog with playback controls; Close or Escape stops playback and returns focus to the tile. Videos never autoplay in the gallery. Saved videos are MP4 or WebM and remain limited to 20 MB per file. Video cards retain titles, dates, descriptions, captions, credits, and visibility controls.
+
+Optimize uploads for faster viewing is checked by default. The browser prepares smaller photos and videos before upload; original files on the device are unchanged. Show file-by-file preparation progress, a Cancel preparation control, and the original and stored sizes with the percentage saved. Keep the smaller original when conversion would enlarge it. Accept original photos up to 50 MB and video clips up to 250 MB and five minutes; saved photos remain limited to 6 MB and videos to 20 MB. Explain unsupported formats with a useful retry instruction. Users may turn optimization off for files already within the saved-file limits. Refresh the collection after partial success so retries do not create duplicates.
 
 ## Shared MMT navigation
 
@@ -618,6 +624,8 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 
 | Date | Version | Change |
 |---|---|---|
+| September 22, 2026 | 4.8.3 | Automatic photo/video upload optimization, local processing, progress, cancellation, and storage savings. |
+| September 22, 2026 | 4.8.2 | Two-column dated photo/video tiles, video uploads and playback, and accessible full-image links. |
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
 | September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |

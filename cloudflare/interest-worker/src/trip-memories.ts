@@ -2,6 +2,7 @@ import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type Admi
 import {detectReceiptMedia,ReceiptFileError} from './receipt-file';
 type Row=Record<string,any>;
 const MAX_IMAGE=6*1024*1024;
+const MAX_VIDEO=20*1024*1024;
 const MAX_ITEMS=300;
 const noStore={'Cache-Control':'no-store'};
 function fail(status:number,code:string,message:string):never{throw new AdminError(status,code,message);}
@@ -9,18 +10,49 @@ function line(value:unknown,max:number,required=false):string{if(value==null&&!r
 function date(value:unknown){if(!value)return null;const s=line(value,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)fail(422,'INVALID_DATE','Choose a valid date.');return s;}
 async function trip(env:AdminEnv,id:string){const row=await env.DB.prepare('SELECT id,slug,title,location,start_date,end_date,status,opportunity_id FROM trips WHERE id=?').bind(id).first<Row>();if(!row)fail(404,'NOT_FOUND','Trip not found.');return row;}
 function imageUrl(id:string,tripId:string,mode:string,slug?:string){return mode==='public'?`/api/interest/public/trip-stories/${slug}/photos/${id}`:mode==='portal'?`/api/interest/portal/trips/${tripId}/photos/${id}`:`/api/interest/admin/trips/${tripId}/memories/${id}/image`;}
-function mapped(row:Row,mode='admin',slug?:string){const {object_key,media_type,byte_size,...safe}=row;return {...safe,...(row.kind==='photo'?{image_url:imageUrl(row.id,row.trip_id,mode,slug)}:{})};}
+function mapped(row:Row,mode='admin',slug?:string){const {object_key,media_type,byte_size,...safe}=row;return {...safe,...(['photo','video'].includes(row.kind)?{image_url:imageUrl(row.id,row.trip_id,mode,slug)}:{})};}
 async function item(env:AdminEnv,tripId:string,id:string){const row=await env.DB.prepare('SELECT * FROM trip_memories WHERE trip_id=? AND id=?').bind(tripId,id).first<Row>();if(!row)fail(404,'NOT_FOUND','Trip memory not found.');return row;}
-async function photoResponse(env:AdminEnv,row:Row){if(row.kind!=='photo'||!row.object_key)fail(404,'NOT_FOUND','Photo not found.');const object=await env.RECEIPTS.get(row.object_key);if(!object)fail(404,'NOT_FOUND','Photo not found.');return new Response(object.body,{headers:{...noStore,'Content-Type':row.media_type,'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'"}});}
-async function photoForm(request:Request){if(!request.body)fail(422,'NO_PHOTO','Choose a photo.');const reader=request.body.getReader(),parts:Uint8Array[]=[];let size=0;while(true){const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.length;if(size>MAX_IMAGE+65536){await reader.cancel();fail(413,'TOO_LARGE','Choose a photo up to 6 MB.');}parts.push(chunk.value);}const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length;}return new Response(bytes,{headers:{'Content-Type':request.headers.get('content-type')||''}}).formData();}
+// Serve bounded byte ranges so video seeking works without buffering the file.
+async function photoResponse(env:AdminEnv,row:Row,request?:Request){
+ if(!['photo','video'].includes(row.kind)||!row.object_key)fail(404,'NOT_FOUND','Media not found.');
+ const range=request?.headers.get('range');
+ const meta=await env.RECEIPTS.head(row.object_key);if(!meta)fail(404,'NOT_FOUND','Media not found.');
+ const headers=new Headers({...noStore,'Content-Type':row.media_type,'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'",'Accept-Ranges':'bytes'});
+ let offset=0,length=meta.size,status=200;
+ if(range){
+  const match=/^bytes=(\d*)-(\d*)$/.exec(range);
+  const invalid=()=>new Response(null,{status:416,headers:{...noStore,'Content-Range':`bytes */${meta.size}`}});
+  if(!match||(!match[1]&&!match[2]))return invalid();
+  if(!match[1]){const suffix=Number(match[2]);if(!Number.isSafeInteger(suffix)||suffix<=0)return invalid();offset=Math.max(0,meta.size-suffix);}
+  else {offset=Number(match[1]);if(!Number.isSafeInteger(offset)||offset>=meta.size)return invalid();}
+  const end=match[1]&&match[2]?Math.min(Number(match[2]),meta.size-1):meta.size-1;
+  if(!Number.isSafeInteger(end)||end<offset)return invalid();length=end-offset+1;status=206;
+  headers.set('Content-Range',`bytes ${offset}-${end}/${meta.size}`);
+ }
+ const object=await env.RECEIPTS.get(row.object_key,range?{range:{offset,length}}:undefined);
+ if(!object)fail(404,'NOT_FOUND','Media not found.');
+ headers.set('Content-Length',String(length));return new Response(object.body,{status,headers});
+}
+function videoMedia(bytes:Uint8Array){
+ const text=new TextDecoder('latin1').decode(bytes.subarray(0,4096));
+ if(bytes.length>=24&&text.slice(4,8)==='ftyp'){
+  const size=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength).getUint32(0);
+  const brands=[];for(let i=8;i+4<=Math.min(size,bytes.length,4096);i+=4)if(i!==12)brands.push(text.slice(i,i+4));
+  if(size>=16&&size<=bytes.length&&brands.some(b=>['isom','iso2','mp41','mp42','avc1','M4V '].includes(b))&&!brands.some(b=>['avif','avis','heic','heix','mif1'].includes(b)))return {mediaType:'video/mp4',extension:'mp4'};
+ }
+ if(bytes[0]===0x1a&&bytes[1]===0x45&&bytes[2]===0xdf&&bytes[3]===0xa3&&text.includes('webm'))return {mediaType:'video/webm',extension:'webm'};
+ return null;
+}
+async function photoForm(request:Request){if(!request.body)fail(422,'NO_PHOTO','Choose a photo.');const reader=request.body.getReader(),parts:Uint8Array[]=[];let size=0;while(true){const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.length;if(size>MAX_VIDEO+65536){await reader.cancel();fail(413,'TOO_LARGE','Choose a photo up to 6 MB or a video up to 20 MB.');}parts.push(chunk.value);}const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length;}return new Response(bytes,{headers:{'Content-Type':request.headers.get('content-type')||''}}).formData();}
 async function upload(request:Request,env:AdminEnv,tripId:string){
  const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM trip_memories WHERE trip_id=? AND deleted_at IS NULL').bind(tripId).first<Row>();if(Number(count?.n)>=MAX_ITEMS)fail(422,'LIMIT','This trip already has 300 memories.');
- const form=await photoForm(request),file=form.get('file');if(!(file instanceof File)||!file.size||file.size>MAX_IMAGE)fail(422,'INVALID_IMAGE','Choose a JPEG, PNG, or WebP photo up to 6 MB.');
- const bytes=new Uint8Array(await file.arrayBuffer());let media;try{media=detectReceiptMedia(bytes);}catch(e){if(e instanceof ReceiptFileError)fail(422,'INVALID_IMAGE','Choose a JPEG, PNG, or WebP photo.');throw e;}if(!['image/jpeg','image/png','image/webp'].includes(media.mediaType))fail(422,'INVALID_IMAGE','Choose a JPEG, PNG, or WebP photo.');
+ const form=await photoForm(request),file=form.get('file');if(!(file instanceof File)||!file.size||file.size>MAX_VIDEO)fail(422,'INVALID_IMAGE','Choose a photo up to 6 MB or an MP4/WebM video up to 20 MB.');
+ const bytes=new Uint8Array(await file.arrayBuffer());let media=videoMedia(bytes);const kind=media?'video':'photo';
+ if(!media){try{media=detectReceiptMedia(bytes);}catch(e){if(e instanceof ReceiptFileError)fail(422,'INVALID_IMAGE','Choose a JPEG, PNG, WebP photo or MP4/WebM video.');throw e;}if(!['image/jpeg','image/png','image/webp'].includes(media.mediaType)||file.size>MAX_IMAGE)fail(422,'INVALID_IMAGE','Choose a JPEG, PNG, or WebP photo up to 6 MB.');}
  const id=crypto.randomUUID(),key=`trip-memories/${tripId}/${id}.${media.extension}`,now=new Date().toISOString();
- const values=[id,tripId,line(form.get('title'),180,true),line(form.get('caption'),1000),line(form.get('alt_text'),300,true),line(form.get('credit'),180),date(form.get('event_date')),form.get('portal_visible')==='true'?1:0,key,media.mediaType,file.size,now];
+ const values=[id,tripId,line(form.get('title'),180,true),line(form.get('caption'),1000),line(form.get('alt_text'),300,true),line(form.get('credit'),180),date(form.get('event_date')),form.get('portal_visible')==='true'?1:0,key,media.mediaType,file.size,now,kind];
  await env.RECEIPTS.put(key,bytes,{httpMetadata:{contentType:media.mediaType}});
- try{await env.DB.batch([env.DB.prepare("INSERT INTO trip_memories(id,trip_id,kind,title,caption,alt_text,credit,event_date,portal_visible,object_key,media_type,byte_size,created_at,updated_at) VALUES(?1,?2,'photo',?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?12)").bind(...values),auditStatement(env,'trip_memory',id,'photo_added',{tripId})]);}catch(e){await env.RECEIPTS.delete(key);throw e;}
+ try{await env.DB.batch([env.DB.prepare("INSERT INTO trip_memories(id,trip_id,kind,title,caption,alt_text,credit,event_date,portal_visible,object_key,media_type,byte_size,created_at,updated_at) VALUES(?1,?2,?13,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?12)").bind(...values),auditStatement(env,'trip_memory',id,kind+'_added',{tripId})]);}catch(e){await env.RECEIPTS.delete(key);throw e;}
  return adminJson({memory:mapped(await item(env,tripId,id))},201,noStore);
 }
 function ids(value:unknown):string[]{if(!Array.isArray(value)||value.length>MAX_ITEMS||value.some(id=>typeof id!=='string')||new Set(value).size!==value.length)fail(422,'INVALID_SELECTION','Choose valid, unique items for the public story.');return value as string[];}
@@ -59,7 +91,7 @@ async function permanentlyDelete(request:Request,env:AdminEnv,tripId:string,row:
  }
  if(row.object_key){
   try{await env.RECEIPTS.delete(row.object_key);}
-  catch{fail(503,'PHOTO_DELETE_RETRY','The photo file could not be deleted. The item remains locked in Removed items. Refresh and retry permanent deletion.');}
+  catch{fail(503,'PHOTO_DELETE_RETRY','The media file could not be deleted. The item remains locked in Removed items. Refresh and retry permanent deletion.');}
  }
  await env.DB.batch([
   env.DB.prepare('DELETE FROM trip_memories WHERE id=? AND trip_id=? AND purge_pending=1').bind(row.id,tripId),
@@ -90,15 +122,15 @@ export async function handleMemoriesAdmin(request:Request,env:AdminEnv,tripId:st
  if(!id)fail(404,'NOT_FOUND','Not found.');const row=await item(env,tripId,id);
  if(request.method==='DELETE'&&action==='permanent')return permanentlyDelete(request,env,tripId,row);
  if(row.purge_pending)fail(409,'DELETE_PENDING','Permanent deletion has started. Refresh and retry Delete permanently; this item cannot be restored.');
- if(request.method==='GET'&&action==='image')return photoResponse(env,row);
+ if(request.method==='GET'&&action==='image')return photoResponse(env,row,request);
  const body=await readAdminJson(request);revision(body,row);if(action==='restore'&&row.deleted_at){const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM trip_memories WHERE trip_id=? AND deleted_at IS NULL').bind(tripId).first<Row>();if(Number(count?.n)>=MAX_ITEMS)fail(422,'LIMIT','This trip already has 300 memories.');}const now=new Date().toISOString();let statement;
  if(request.method==='DELETE'||request.method==='POST'&&action==='restore')statement=env.DB.prepare('UPDATE trip_memories SET deleted_at=?,revision=revision+1,updated_at=? WHERE id=? AND trip_id=? AND revision=?').bind(request.method==='DELETE'?now:null,now,id,tripId,body.revision);
- else if(request.method==='PUT'&&!row.deleted_at)statement=env.DB.prepare('UPDATE trip_memories SET title=?,content=?,caption=?,alt_text=?,credit=?,event_date=?,portal_visible=?,revision=revision+1,updated_at=? WHERE id=? AND trip_id=? AND revision=?').bind(line(body.title,180,true),line(body.content,12000,row.kind==='note'),line(body.caption,1000),line(body.alt_text,300,row.kind==='photo'),line(body.credit,180),date(body.event_date),body.portal_visible===true?1:0,now,id,tripId,body.revision);
+ else if(request.method==='PUT'&&!row.deleted_at)statement=env.DB.prepare('UPDATE trip_memories SET title=?,content=?,caption=?,alt_text=?,credit=?,event_date=?,portal_visible=?,revision=revision+1,updated_at=? WHERE id=? AND trip_id=? AND revision=?').bind(line(body.title,180,true),line(body.content,12000,row.kind==='note'),line(body.caption,1000),line(body.alt_text,300,row.kind!=='note'),line(body.credit,180),date(body.event_date),body.portal_visible===true?1:0,now,id,tripId,body.revision);
  else fail(404,'NOT_FOUND','Not found.');
  const result=await env.DB.batch([statement,auditStatement(env,'trip_memory',id,request.method==='DELETE'?'removed':action==='restore'?'restored':'edited',{tripId})]);if(!result[0].meta.changes)fail(409,'STALE_EDIT','This memory changed. Refresh and try again.');return adminJson({ok:true},200,noStore);
 }
 export async function portalMemories(env:AdminEnv,tripId:string){const rows=await env.DB.prepare('SELECT * FROM trip_memories WHERE trip_id=? AND portal_visible=1 AND deleted_at IS NULL ORDER BY event_date,created_at,id').bind(tripId).all<Row>();return rows.results.map(m=>mapped(m,'portal'));}
-export async function portalPhoto(env:AdminEnv,tripId:string,id:string){const row=await item(env,tripId,id);if(!row.portal_visible||row.deleted_at)fail(404,'NOT_FOUND','Photo not found.');return photoResponse(env,row);}
+export async function portalPhoto(env:AdminEnv,tripId:string,id:string,request?:Request){const row=await item(env,tripId,id);if(!row.portal_visible||row.deleted_at)fail(404,'NOT_FOUND','Photo not found.');return photoResponse(env,row,request);}
 export async function handleTripStories(request:Request,env:AdminEnv,path:string){
  const match=path.match(/^\/public\/trip-stories(?:\/([a-z0-9-]+)(?:\/photos\/([0-9a-f-]{36}))?)?$/);if(!match||request.method!=='GET')fail(404,'NOT_FOUND','Not found.');
  if(!match[1]){
@@ -111,6 +143,6 @@ export async function handleTripStories(request:Request,env:AdminEnv,path:string
  }
  const rows=await env.DB.prepare("SELECT p.published_json,p.published_at,t.id,t.slug FROM trip_publications p JOIN trips t ON t.id=p.trip_id JOIN destinations d ON d.id=p.destination_id WHERE p.published_json IS NOT NULL AND d.status='published' AND t.slug=?").bind(match[1]).all<Row>();
  const row=rows.results[0];if(!row)fail(404,'NOT_FOUND','This trip story is not published.');const snapshot=JSON.parse(row.published_json);
- if(match[2]){const photo=snapshot.memories.find((m:Row)=>m.id===match[2]&&m.kind==='photo');if(!photo)fail(404,'NOT_FOUND','Photo not found.');return photoResponse(env,photo);}
+ if(match[2]){const photo=snapshot.memories.find((m:Row)=>m.id===match[2]&&['photo','video'].includes(m.kind));if(!photo)fail(404,'NOT_FOUND','Photo not found.');return photoResponse(env,photo,request);}
  return adminJson({story:safeSnapshot(snapshot,'public',row.id,row.slug),published_at:row.published_at},200,noStore);
 }
