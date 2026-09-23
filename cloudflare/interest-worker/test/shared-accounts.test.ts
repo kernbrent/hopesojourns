@@ -45,3 +45,23 @@ it('approves a new CSM request without granting HS access',async()=>{const f=awa
 it('does not return setup tokens to Portal Administrators resetting an existing user',async()=>{const f=await setup();await f.create({username:'localadmin',email:'local@example.test',memberships:{hs:membership({},true)}});const target=await f.create(),a=await credentials(await f.call('/admin/login',{username:'localadmin',password}));const r=await f.call('/admin/account/users/'+target.id+'/invite',{},'POST',a.cookie,a.csrfToken);expect(r.status).toBe(200);expect(await r.json()).not.toHaveProperty('setupLink');});
 it('checks CSRF and origin before processing CSM user changes',async()=>{const f=await setup(),a=await credentials(await f.cs('/login',{userId:'admin',password}));expect((await f.cs('/account/users',profile,'POST',a.cookie,'wrong')).status).toBe(403);await expect(sharedRoutes(new Request('http://localhost:4189/api/admin/account/users',{method:'POST',headers:{origin:'https://untrusted.example','content-type':'application/json',cookie:a.cookie},body:JSON.stringify(profile)}),f.csEnv,'/account/users')).rejects.toMatchObject({status:403});});
 it('rejects expired tickets and tickets after target access is removed',async()=>{const f=await setup();const u=await f.create(),a=await credentials(await f.call('/admin/login',{username:'member',password})),challenge=await hashText('x'.repeat(43));const issue=()=>sharedSwitch(f.request('/admin/switch/issue',{challenge},'POST',a.cookie,a.csrfToken),f.env,'/admin/switch/issue');let code=new URL((await (await issue()).json() as any).url).hash.split('=')[1];f.sqlite.exec("UPDATE mmt_switch_codes SET expires_at='2000-01-01'");expect((await f.cs('/switch/finish',{code},'POST','mmt_switch='+'x'.repeat(43))).status).toBe(403);code=new URL((await (await issue()).json() as any).url).hash.split('=')[1];await f.call('/admin/account/users/'+u.id,{revision:2,memberships:{csm:membership({},false,false)}},'PUT');expect((await f.cs('/switch/finish',{code},'POST','mmt_switch='+'x'.repeat(43))).status).toBe(403);});
+
+it('restricts donor search to the selected field and preserves direct donor lookup',async()=>{
+ const f=await setup();await f.create({memberships:{hs:membership({contacts:'read'}),csm:membership({giving:'read'})}});
+ const session=await credentials(await f.cs('/login',{userId:'member',password}));
+ const headers={cookie:session.cookie.replace('cs_admin_session=','hs_admin_session=')};
+ for(const [id,first,last,email,phone] of [['joy','Joy','Kern','joykern47@example.test','972-555-0100'],['ed','Ed','Lorenz','ed@example.test','(214) 555-4747']])f.sqlite.prepare('INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,phone,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(id,first,last,first.toLowerCase(),last.toLowerCase(),email,email,phone,'2026','2026');
+ const search=async(q:string,field?:string)=>csmAuthority(new Request('https://identity.internal/personal-gift-contacts?'+new URLSearchParams({q,...field?{field}:{}}),{headers}),f.env);
+ const ids=async(r:Response)=>{expect(r.status).toBe(200);return ((await r.json()) as any).contacts.map((c:any)=>c.id);};
+ expect(await ids(await search(' JOYKERN47@example.test ','email'))).toEqual(['joy']);
+ expect(await ids(await search('joykern47@example.test'))).toEqual(['joy']);
+ expect(await ids(await search('47','email'))).toEqual(['joy']);
+ expect(await ids(await search('47','phone'))).toEqual(['ed']);
+ expect(await ids(await search('214-555','phone'))).toEqual(['ed']);
+ expect(await ids(await search('Joy Kern','name'))).toEqual(['joy']);
+ expect(await ids(await search('ed@example.test','name'))).toEqual([]);
+ expect((await search('joykern47@example.test','phone')).status).toBe(422);
+ expect((await search('anything','unknown')).status).toBe(422);
+ expect(await ids(await search('','phone'))).toEqual([]);
+ expect(await ids(await csmAuthority(new Request('https://identity.internal/personal-gift-contacts?id=ed',{headers}),f.env))).toEqual(['ed']);
+});
