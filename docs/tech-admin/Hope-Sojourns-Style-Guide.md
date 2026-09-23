@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.9
+Version 4.10
 
 Last reviewed: September 23, 2026
 
@@ -633,6 +633,12 @@ Forms use labeled native inputs, optional trip/ministry selectors, visible keybo
 
 Place Delete user beside the existing user actions, except on the signed-in administrator's own row. The confirmation dialog names the person, explains that access ends while past activity is retained, and requires the exact username. State that the username and email remain reserved. Preserve explicit Save and Cancel controls, validation feedback, and intentional dialog dismissal.
 
+## Personally received gift presentation
+
+Version 4.10 adds local presentation for gifts received through personal payment accounts. In the Payment inbox, show the original donor and original gift date first, followed by payment method, funds holder, designation, transaction reference, and settlement details. Always distinguish the giver from the person forwarding the money. Use the existing palette, labeled fields, responsive cards, and keyboard-accessible controls.
+
+CSM provides a separate Personally received gifts workspace with HS contact search, original gift entry, expandable reconciliation rows, evidence attachments, and a step-by-step guide. Status labels distinguish funds still held, queued review, approved, and denied. Present the original donor on statements and identify the gift as Christian Steps Ministries — Hope Sojourns. Bank transfers are settlement information, not additional gifts.
+
 ## Revision history
 
 | Date | Version | Change |
@@ -642,6 +648,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
 | September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
+| 2026-09-23 | 4.10 | Personally received gifts with HS contact selection, original donor attribution, settlement reconciliation, and reviewed delivery. Local implementation only. |
 | 2026-09-22 | 4.9 | Portal planning, reviewed readiness, templates, offline packets, follow-up tasks, staged duplicate interest review, and isolated test hosting with copied business records. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
 | 2026-09-21 | 4.5.8 | Added collapsed devotional day banners and day navigation. Deployed September 21, 2026. |

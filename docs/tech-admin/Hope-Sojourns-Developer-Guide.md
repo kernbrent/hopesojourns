@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.9
+Version 4.10
 
 Last reviewed: September 23, 2026
 
@@ -914,6 +914,18 @@ The new SQLite integration suite verifies authentication, CSRF, organization-wid
 
 Administrators can select Delete user in the user list and must type the exact username to confirm. The server rejects self-deletion, unauthorized requests, and stale edits. Migration 0022_mmt_user_deletion.sql adds deleted_at and prevents later changes to deleted accounts. Deletion disables access, clears credentials and section permissions, revokes sessions and setup links, and removes the account from the directory. The account identity remains for historical attribution; migration 0023 preserves its original username and email in deleted_username and deleted_email, and replaces the login identifiers with an inaccessible deleted:id marker. This releases those identifiers for a new account with a new ID, fresh access settings, and a new setup link. Previously deleted users are backfilled without changing their IDs or historical references. The existing last-administrator protection remains active. The re-creation fix is local pending a separately authorized release.
 
+## Personally received ministry gifts
+
+Version 4.10 adds local implementation only; it is not approved for deployment. CSM /admin/personal-gifts/ records original HS donors separately from personal Venmo, Zelle, or PayPal holders. CSM migration 0005 stores gifts, settlements, private evidence, immutable delivery payloads, and audit history. Original donor attribution is preserved in giving statements. The CSM process guide is worker/docs/personally-received-gifts-process.md and is also available from the entry screen.
+
+The private CsmIdentity /personal-gift-contacts route authenticates the actual shared session and requires CSM Giving read plus HS Contacts read access. It returns a bounded search result or one selected contact. Public APIs cannot impersonate an identity. CSM mutations require Giving edit, CSRF, and an allowed origin. Evidence uses private LEDGER_ATTACHMENTS storage with a 5 MB limit and PNG, JPEG, or PDF signature checks.
+
+The PERSONAL_GIFT contract is restricted to HopeSojourns. Settlements must reconcile exactly to the original gift; bank transfers require clearance dates. Fees and expenses require evidence. The source freezes before delivery, and retries reuse its payload and idempotency key. Approval enforces the selected HS contact and atomically adds donor income and expense entries once. Transfers never create a second donation. Legacy transport field names do not mean that personal gifts are imported as PayPal transactions. Denial leaves the source frozen for coordinated correction rather than silent editing.
+
+CSM callback handling updates personal-gift status and audit history. Only approved gifts appear in CSM giving statements. Reconciliation exports trace donor, holder, settlement, bank reference, and remaining funds. This dedicated report supplements the general CSM bank ledger; do not re-enter the original gift or its HS copy as additional income. Expenses recorded through this workflow must not already exist in HS.
+
+Regression coverage includes contact permissions, original donor attribution, exact contact approval, combined and partial deposits, over-allocation, evidence requirements, reversals, voiding, delivery retries, callbacks, fees, expenses, and giving statements. Release requires review, explicit deployment authorization, CSM migration 0005, and compatible receivers before sending. Never bind live CSM to the isolated HS test environment; its shared identity and callbacks remain disabled.
+
 ## Revision history
 
 | Date | Version | Change |
@@ -923,6 +935,7 @@ Administrators can select Delete user in the user list and must type the exact u
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
 | September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
+| 2026-09-23 | 4.10 | Personally received gifts with HS contact selection, original donor attribution, settlement reconciliation, and reviewed delivery. Local implementation only. |
 | 2026-09-22 | 4.9 | Portal planning, reviewed readiness, templates, offline packets, follow-up tasks, staged duplicate interest review, and isolated test hosting with copied business records. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
 | 2026-09-21 | 4.5.8 | Added date-grouped native disclosures, stable anchors, and keyboard-accessible day links without exposing drafts. Deployed September 21, 2026. |

@@ -62,6 +62,19 @@ export async function csmAuthority(request:Request,env:SharedEnv):Promise<Respon
   if(path.startsWith('/public/account/'))return handleAccountPublic(request,env,path);
   if(path.startsWith('/admin/switch/'))return sharedSwitch(request,env,path);
   if(['/admin/login','/admin/logout','/admin/password','/admin/session'].includes(path)||path.startsWith('/admin/account/'))return handleAdminRequest(request,env,path);
+  if(path==='/personal-gift-contacts'&&request.method==='GET'){
+   try{
+    const session=await authenticate(new Request('https://identity.internal/admin/session',{headers:request.headers}),env);
+    const raw=await env.DB.prepare('SELECT * FROM mmt_users WHERE id=?').bind(session.user_id).first<MmtIdentity>();
+    const hs=raw&&effectiveUser(raw,'hs'),csm=raw&&effectiveUser(raw,'csm');
+    if(!raw||raw.must_change_password||!hasPortal(raw,'hs')||!hasPortal(raw,'csm')||!hs||!csm||!hs.is_admin&&!['read','edit'].includes(JSON.parse(hs.permissions_json||'{}').contacts)||!csm.is_admin&&!['read','edit'].includes(JSON.parse(csm.permissions_json||'{}').giving))throw new AdminError(403,'ACCESS_DENIED','Access to CSM giving and Hope Sojourns contacts is required.');
+    const id=url.searchParams.get('id'),q=(url.searchParams.get('q')||'').trim();
+    if(!id&&q.length<2)return adminJson({contacts:[]});
+    if(q.length>100||id&&id.length>64)throw new AdminError(422,'INVALID_SEARCH','Use a shorter search.');
+    const result=id?await env.DB.prepare('SELECT id,first_name,last_name,email,phone FROM people WHERE id=?').bind(id).all():await env.DB.prepare("SELECT id,first_name,last_name,email,phone FROM people WHERE instr(lower(first_name||' '||last_name),lower(?))>0 OR instr(lower(COALESCE(email,'')),lower(?))>0 OR instr(COALESCE(phone,''),?)>0 ORDER BY last_name,first_name LIMIT 30").bind(q,q,q.replace(/[^0-9]/g,'')||q).all();
+    return adminJson({contacts:result.results});
+   }catch(e){if(e instanceof AdminError)return adminJson({error:e.message,code:e.code},e.status);throw e;}
+  }
   if(path==='/authorize'){
    try{
     // Authenticate using the self route, then enforce CSM route permissions.
@@ -69,7 +82,7 @@ export async function csmAuthority(request:Request,env:SharedEnv):Promise<Respon
     const b=await readAdminJson(request),session=await authenticate(authRequest,env,b.method!=='GET');
     const u=session.user,p=String(b.path||'');
     if(u.must_change_password)throw new AdminError(403,'PASSWORD_CHANGE_REQUIRED','Change your temporary password first.');
-    const section=/^\/(transactions|donors|distribution|paypal)(\/|$)/.test(p)?'giving':/^\/(data|settings|attachments|artifacts|invoices|invoice-assets|invoice-profiles|records|trips|donation-splits)(\/|$)/.test(p)?'finances':null;
+    const section=/^\/(transactions|donors|distribution|paypal|personal-gifts)(\/|$)/.test(p)?'giving':/^\/(data|settings|attachments|artifacts|invoices|invoice-assets|invoice-profiles|records|trips|donation-splits)(\/|$)/.test(p)?'finances':null;
     const permission=JSON.parse(u.permissions_json||'{}')[section||''];
     if(!section||(!u.is_admin&&!(permission==='edit'||b.method==='GET'&&permission==='read')))throw new AdminError(403,'ACCESS_DENIED','Your account does not have access to this action.');
     const raw=(await env.DB.prepare('SELECT * FROM mmt_users WHERE id=?').bind(u.id).first<MmtIdentity>())!;
