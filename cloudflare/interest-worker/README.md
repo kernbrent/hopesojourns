@@ -6,7 +6,7 @@ The trip-registration table is intentionally separate from public interest submi
 
 The same Worker protects the hidden response portal. The initial administrator password is a Cloudflare secret. After an administrator changes it in the portal, a uniquely salted PBKDF2-SHA256 hash in D1 takes precedence; the password itself is never stored. Sessions use secure HTTP-only cookies, an optional “Remember me” login lasts 30 days, and the login page always requires an explicit form submission before showing the dashboard even when the browser has saved and prefilled the password. State-changing requests require a CSRF token, failed logins are rate limited, and every reply, status change, team, relationship, password change, or permanent deletion is recorded.
 
-The `people` table is the master Hope Sojourns contact list. Public interest forms automatically reuse or create a person and classify that person as a prospective traveler. Administrators can also create and edit contacts with multiple roles, Hope Sojourns areas, languages, trips, addresses, organizations, notes, and active/inactive status. The portal includes card and spreadsheet views, contact filters, and a contact-oriented CSV export.
+The `people` table is the master Hope Sojourns contact list. Public interest forms create a prospective traveler only when no email or phone matches. Potential matches are held for an explicit Inbox decision; they never change contacts or relationships before review. Administrators can also create and edit contacts with multiple roles, Hope Sojourns areas, languages, trips, addresses, organizations, notes, and active/inactive status. The portal includes card and spreadsheet views, contact filters, and a contact-oriented CSV export.
 
 Ministries have their own profiles, contact information, notes, active/inactive status, connected trips, and linked people with ministry roles and primary-contact markers. Teams remain separate so travelers and leaders can be assigned without duplicating contact records. Confirmed deletion controls can remove an individual interest form, trip application, complete contact, team, or ministry while preserving unrelated records. CSV exports neutralize spreadsheet formulas before download.
 
@@ -39,3 +39,9 @@ Run `npm run validate:environments` before migrations or deployment. Apply migra
 If the D1-backed password is ever forgotten, an authorized operator can remove the `primary` row from `admin_credentials` in the affected environment to restore login with that environment's Cloudflare `ADMIN_PASSWORD` secret, then immediately set a new portal password.
 
 Outbound email stays on the free tier: the response portal stores the prepared reply, opens it in the administrator's normal email application, and records when the administrator marks it sent.
+
+## Isolated test portal
+
+The test admin portal runs at https://test.hopesojourns.com/admin/ using its own database and private bucket populated with a scoped copy of production business records. This is a one-time snapshot, not synchronization. Production authentication sessions, credentials, reset links, invite secrets, and outgoing email queues are excluded. Test mail and Christian Steps callbacks are blocked, and shared sign-in is disabled. Copies of trips start with public discovery and traveler access disabled until configured independently in test.
+
+Never bind test to production storage. Run `npm run validate:environments` before every release. Production public pages and data remain unchanged by a test release. Push review work to a `codex/` branch; pushing `main` automatically publishes the production Pages project. Deploy test Pages using its configured production branch `codex/test-admin-portal`.

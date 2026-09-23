@@ -7,7 +7,7 @@ import type {AdminEnv} from '../src/admin';
 export async function ministryFixture(through?:string){
  const sqlite=new DatabaseSync(':memory:');
  const directory=fileURLToPath(new URL('../migrations/',import.meta.url));
- for(const name of readdirSync(directory).filter(n=>n.endsWith('.sql')&&(!through||n<=through)).sort())sqlite.exec(readFileSync(directory+'/'+name,'utf8'));
+ for(const name of readdirSync(directory).filter(n=>n.endsWith('.sql')&&(!through||n<=through)).sort()){const sql=readFileSync(directory+'/'+name,'utf8');sqlite.exec(sql.includes('PRAGMA defer_foreign_keys=ON')?'BEGIN;'+sql+'COMMIT;':sql);}
  class Statement{
   values: (string|number|null)[]=[];
   constructor(readonly sql:string){}

@@ -180,6 +180,7 @@ function render(data) {
   const navigation = document.querySelector(".journey-nav");
   const content = document.querySelector("#journey-content");
   navigation.replaceChildren();
+  const packetButton=node('button','journey-packet-download','Download traveler packet');packetButton.type='button';packetButton.onclick=()=>window.HSTravelerPacket.download(data.trip,data.content,data.members);navigation.append(packetButton);
   content.replaceChildren();
   if(data.memories?.length){const section=node('section','journey-section');section.id='trip-memories';const link=node('a','', 'Photos & memories');link.href='#trip-memories';navigation.append(link);window.HSTripMemoriesView.collection(section,data.memories);content.append(section);}
   const grouped = new Map();

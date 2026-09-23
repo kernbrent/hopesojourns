@@ -44,10 +44,10 @@ assert(productionEnvironment.vars?.ENVIRONMENT === "production", "production ENV
 // ChristianSteps test integration is intentionally enabled.
 assert(JSON.stringify(testEnvironment.secrets?.required?.sort()) === JSON.stringify(["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET"].sort()), "test admin secret declarations are incomplete");
 assert(JSON.stringify(productionEnvironment.secrets?.required?.sort()) === JSON.stringify(["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET", "CSM_DISTRIBUTION_SECRET"].sort()), "production secret declarations are incomplete");
-assert(testDatabase.database_name === "hope-sojourns-forms-test", "the test database name changed unexpectedly");
+assert(testDatabase.database_name === "hope-sojourns-forms-test-copy-20260923", "the test database name changed unexpectedly");
 assert(productionDatabase.database_name === "hope-sojourns-forms-production", "the production database name changed unexpectedly");
 assert(testDatabase.database_id !== productionDatabase.database_id, "test and production database IDs must differ");
-assert(testReceiptBucket.bucket_name === "hope-sojourns-receipts-test", "the test receipt bucket name changed unexpectedly");
+assert(testReceiptBucket.bucket_name === "hope-sojourns-receipts-test-copy-20260923", "the test receipt bucket name changed unexpectedly");
 assert(productionReceiptBucket.bucket_name === "hope-sojourns-receipts-production", "the production receipt bucket name changed unexpectedly");
 assert(testReceiptBucket.bucket_name !== productionReceiptBucket.bucket_name, "test and production receipt buckets must differ");
 
@@ -80,3 +80,8 @@ assert(productionOriginList.includes("https://hopesojourns.com"), "production or
 assert(productionOriginList.includes("https://www.hopesojourns.com"), "production origins must include the www site");
 
 console.log("Verified isolated test and production Workers, routes, origins, D1 databases, and private R2 receipt buckets.");
+
+assert(!testEnvironment.services?.length, "test must not bind production services");
+assert(testEnvironment.vars.SHARED_SIGNIN === "disabled", "test shared sign-in must stay disabled");
+assert(testEnvironment.vars.EMAIL_DELIVERY_MODE === "capture" && testEnvironment.vars.MMT_EMAIL_DELIVERY_MODE === "capture", "test mail must stay captured");
+assert(testEnvironment.vars.HS_PORTAL_ORIGIN === "https://test.hopesojourns.com", "test account links must stay on test");

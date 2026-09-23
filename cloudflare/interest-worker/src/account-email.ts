@@ -1,10 +1,11 @@
 import type {AdminEnv} from './admin';
 
-type AccountEmailEnv = Pick<AdminEnv, 'MMT_EMAIL_PROVIDER' | 'MMT_EMAIL_DELIVERY_MODE' | 'RESEND_API_KEY' | 'EMAIL_DELIVERY_MODE' | 'EMAIL' | 'EMAIL_FROM_ADDRESS' | 'EMAIL_REPLY_TO'>;
+type AccountEmailEnv = {ENVIRONMENT?: string} & Pick<AdminEnv, 'MMT_EMAIL_PROVIDER' | 'MMT_EMAIL_DELIVERY_MODE' | 'RESEND_API_KEY' | 'EMAIL_DELIVERY_MODE' | 'EMAIL' | 'EMAIL_FROM_ADDRESS' | 'EMAIL_REPLY_TO'>;
 
 type AccountMessage = {to: string; subject: string; text: string};
 
 export function accountEmailReady(env: AccountEmailEnv): boolean {
+  if (env.ENVIRONMENT === 'test') return false;
   if (env.MMT_EMAIL_PROVIDER === 'resend') {
     return env.MMT_EMAIL_DELIVERY_MODE === 'live' && !!env.RESEND_API_KEY?.trim();
   }

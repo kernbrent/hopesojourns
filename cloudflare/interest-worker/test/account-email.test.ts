@@ -50,3 +50,10 @@ it('does not log exception messages or arbitrary exception names', async () => {
  expect(await sendAccountEmail(config,message,'unique')).toBe(false);
  expect(log).toHaveBeenCalledExactlyOnceWith(JSON.stringify({event:'mmt_email_failed',provider:'resend',failure:'Error'}));
 });
+
+it('blocks real delivery in test even if live settings are accidentally supplied', async () => {
+ const send=vi.fn();vi.stubGlobal('fetch',send);
+ expect(accountEmailReady({...config,ENVIRONMENT:'test'})).toBe(false);
+ expect(await sendAccountEmail({...config,ENVIRONMENT:'test'},message,'isolated-test')).toBe(false);
+ expect(send).not.toHaveBeenCalled();
+});

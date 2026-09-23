@@ -3,20 +3,30 @@
   "name": "hope-sojourns-interest",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-23",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": false,
   "preview_urls": false,
   "observability": {
     "enabled": true,
-    "logs": { "head_sampling_rate": 1 },
-    "traces": { "enabled": true, "head_sampling_rate": 0.05 }
+    "logs": {
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.05
+    }
   },
   "env": {
     "test": {
       "workers_dev": true,
       "preview_urls": true,
       "secrets": {
-        "required": ["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET"]
+        "required": [
+          "ADMIN_PASSWORD",
+          "ADMIN_SESSION_SECRET"
+        ]
       },
       "routes": [
         {
@@ -34,31 +44,35 @@
         "ALLOWED_ORIGINS": "https://test.hopesojourns.com,https://hopesojourns-test.pages.dev,http://localhost:*,http://127.0.0.1:*",
         "EMAIL_DELIVERY_MODE": "capture",
         "EMAIL_FROM_ADDRESS": "admin@hopesojourns.com",
-        "EMAIL_REPLY_TO": "admin@hopesojourns.com"
+        "EMAIL_REPLY_TO": "admin@hopesojourns.com",
+        "MMT_EMAIL_DELIVERY_MODE": "capture",
+        "HS_PORTAL_ORIGIN": "https://test.hopesojourns.com"
       },
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "hope-sojourns-forms-test",
-          "database_id": "3b9a972b-6295-4736-80eb-4c0169ec31bb",
+          "database_name": "hope-sojourns-forms-test-copy-20260923",
+          "database_id": "35fd6f33-1c36-4f62-8509-af68647366a2",
           "migrations_dir": "migrations"
         }
       ],
       "r2_buckets": [
         {
           "binding": "RECEIPTS",
-          "bucket_name": "hope-sojourns-receipts-test"
+          "bucket_name": "hope-sojourns-receipts-test-copy-20260923"
         }
       ],
-      "services": [
-        { "binding": "CSM_STATUS", "service": "christian-steps-admin-api" }
-      ]
+      "services": []
     },
     "production": {
       "workers_dev": false,
       "preview_urls": false,
       "secrets": {
-        "required": ["ADMIN_PASSWORD", "ADMIN_SESSION_SECRET", "CSM_DISTRIBUTION_SECRET"]
+        "required": [
+          "ADMIN_PASSWORD",
+          "ADMIN_SESSION_SECRET",
+          "CSM_DISTRIBUTION_SECRET"
+        ]
       },
       "routes": [
         {
@@ -100,7 +114,10 @@
         }
       ],
       "services": [
-        { "binding": "CSM_STATUS", "service": "christian-steps-admin-api" }
+        {
+          "binding": "CSM_STATUS",
+          "service": "christian-steps-admin-api"
+        }
       ]
     }
   }

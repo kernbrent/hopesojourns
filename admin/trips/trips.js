@@ -251,6 +251,7 @@ function setGuidedHelp(enabled) {
   document.querySelector("#trip-guide-toggle").checked = enabled;
   try { localStorage.setItem(TRIP_GUIDED_HELP_KEY, String(enabled)); } catch { /* Storage is optional. */ }
   renderSetupGuide();
+
 }
 
 function initializeGuidedHelp() {
@@ -476,7 +477,7 @@ function tripSetupSteps() {
     { id: "charge", done: state.workspace.charges.some(item => item.status !== "canceled"), title: "Add a payment plan charge", copy: "Record what the traveler, group, or organization is expected to pay and when it is due.", tab: "accounts", target: "#trip-charge-form", requirements: () => state.workspace.accounts.some(item => item.status === "active") ? [] : ["a trip account"] },
     { id: "invite", done: state.workspace.invites.some(item => item.status === "active"), title: "Create a traveler invitation", copy: "Create a friendly private link that sends travelers to the correct interest form.", tab: "communications", target: "#trip-invite-form" },
     { id: "public", done: Boolean(trip.public_enabled && trip.interest_enabled), title: "Open the public trip for interest", copy: "Use Edit trip to make the dated trip visible and accept interest when its public information is ready.", action: "edit", requirements: () => [...(!(trip.start_date && trip.end_date) ? ["the travel dates"] : []), ...(!trip.opportunity_id ? ["the public trip idea"] : [])] },
-  ];
+  ].filter(step=>!state.workspace.readiness?.sections.some(s=>s.section==='budget'&&s.state==='not_applicable')||!['budget','allocation','account','charge','request'].includes(step.id));
 }
 
 function guideStepRequirements(step) {
@@ -608,6 +609,7 @@ async function openTrip(tripId, scroll = true) {
   state.tripId = tripId;
   setStatus(pageStatus, "Opening trip…");
   state.workspace = await api(`/admin/trips/${tripId}`);
+  document.body.classList.add('trip-is-open');
   tripListPanel.hidden = true;
   tripWorkspace.hidden = false;
   renderWorkspace();
@@ -617,6 +619,7 @@ async function openTrip(tripId, scroll = true) {
 }
 
 function closeTrip() {
+  document.body.classList.remove('trip-is-open');
   state.tripId = null;
   state.workspace = null;
   tripWorkspace.hidden = true;
@@ -733,6 +736,7 @@ function renderWorkspace() {
   renderPublicContent();
   renderPrerequisiteGuidance();
   renderSetupGuide();
+  window.HSTripPlanning.attach({workspace:state.workspace,activate:activateTab,editContent,reload:()=>openTrip(state.tripId,false)});
 }
 
 function record(title, body, metaItems = [], actions = []) {
@@ -1083,6 +1087,7 @@ function renderSetupLists() {
 
 function activateTab(name) {
   state.activeTab = name;
+  window.HSTripPlanning?.activate(name);
   if (name === "memories" || name === "story") window.HSMemories.open(name);
   document.querySelectorAll("[data-trip-tab]").forEach(button => {
     const active = button.dataset.tripTab === name;
@@ -1113,6 +1118,7 @@ function openTripDialog(trip = null) {
     form.elements.status.value = "draft";
     form.elements.publicCallToAction.value = "I'm interested in this trip";
   }
+  window.HSTripPlanning.templateOptions(!trip);
   tripDialog.showModal();
 }
 
@@ -1294,12 +1300,14 @@ function wireForms() {
     const form = event.currentTarget;
     const status = form.querySelector("[data-form-status]");
     const payload = serializeForm(form);
+    if(payload.templateId==='none'){payload.templateId='';payload.useTemplate=false;}
+    if(payload.status==='completed'&&payload.endDate>new Date().toLocaleDateString('en-CA')&&!confirm('The trip end date is still ahead. Mark it Completed anyway?'))return;
     setStatus(status, "Saving trip…");
     try {
       const editing = Boolean(payload.id);
       const result = await api(editing ? `/admin/trips/${payload.id}` : "/admin/trips", { method: editing ? "PUT" : "POST", body: JSON.stringify(payload) });
       tripDialog.close();
-      if (!editing) state.activeTab = "content";
+      if (!editing) state.activeTab = "planner";
       await loadBootstrap(editing ? payload.id : result.id);
     } catch (error) { setStatus(status, error.message, "error"); }
   });

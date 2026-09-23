@@ -181,7 +181,7 @@ async function inboxRecord(env: CsmEnv, id: string): Promise<{ row: InboxRow; me
 async function notifyCsm(env: CsmEnv, row: InboxRow, status: InboxStatus, reason: string | null): Promise<"sent" | "failed"> {
   const now = new Date().toISOString();
   try {
-    if (!env.CSM_STATUS || !env.CSM_DISTRIBUTION_SECRET) throw new Error("CSM status binding is not configured");
+    if (env.ENVIRONMENT === "test" || !env.CSM_STATUS || !env.CSM_DISTRIBUTION_SECRET) throw new Error("CSM status binding is not configured");
     const response = await env.CSM_STATUS.fetch("https://csm.internal/internal/csm-distribution/status", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSM-Distribution-Secret": env.CSM_DISTRIBUTION_SECRET },

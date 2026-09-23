@@ -1,0 +1,34 @@
+/* Compact shared workspace components, using the approved palette. */
+.planning-heading,.planning-dialog header,.planning-dialog footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.planning-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+.planning-card{padding:1rem;background:var(--paper);border:1px solid var(--forest-soft);border-radius:12px;margin:.75rem 0;overflow-wrap:anywhere}
+.planning-card h3{margin:0 0 .5rem}.planning-card p{white-space:pre-wrap}
+.planning-dialog{max-width:800px;width:calc(100% - 2rem);max-height:90dvh;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--forest-soft);border-radius:12px;padding:1.5rem}
+.planning-dialog::backdrop{background:rgba(var(--forest-deep-rgb),.5)}
+.planning-dialog label{display:grid;gap:.35rem;margin:.8rem 0}.planning-dialog input,.planning-dialog select,.planning-dialog textarea{font:inherit;width:100%;box-sizing:border-box;padding:.65rem;border:1px solid var(--forest-soft);border-radius:6px;background:var(--paper);color:var(--ink)}
+.planning-dialog input[type=checkbox]{width:auto}.planning-dialog .planning-check{display:flex;align-items:start}
+.planning-dialog button,.planning-card button,.planning-heading button,#trip-workspace button[data-group]{font:inherit;padding:.55rem .9rem;border:1px solid var(--forest-soft);border-radius:7px;background:var(--paper);color:var(--forest-deep);cursor:pointer}
+.planning-dialog [role=status]{color:var(--coral-dark)}
+.planning-dialog :focus-visible,.planning-card :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+body.mmt-navigation-ready .trip-workspace-hero{padding:1.25rem;border-radius:16px;box-shadow:none}
+body.mmt-navigation-ready .trip-admin-header{padding-block:1rem;margin-bottom:1rem}
+body.mmt-navigation-ready .trip-summary-grid{margin-block:.75rem;gap:.75rem}
+body.mmt-navigation-ready .trip-summary-grid article{padding:.75rem}
+body.mmt-navigation-ready .trip-workspace-help{font-size:.85rem;padding:.6rem 1rem}
+body.mmt-navigation-ready .trip-mobile-nav{display:none}
+.trip-work-groups{display:flex;gap:.4rem;flex-wrap:wrap;padding:.75rem 0}
+#trip-workspace button[data-group][aria-pressed=true]{background:var(--forest);color:var(--paper)}
+body.mmt-navigation-ready .trip-tabs{padding:.35rem;box-shadow:none;border-radius:8px;justify-content:start}
+.trip-setup-disclosure{margin-top:.75rem}.trip-setup-disclosure>summary{cursor:pointer;font-weight:600}.trip-setup-disclosure .trip-setup-guide{margin:.5rem 0 0;padding:1rem}
+.planner-days>details{border:1px solid var(--forest-soft);border-radius:9px;padding:1rem;margin:1rem 0;background:var(--paper)}.planner-days summary{font-weight:700;cursor:pointer}.planner-days article{border-top:1px solid var(--forest-soft);padding:.75rem 0}.planner-days article p{white-space:pre-wrap}
+body.mmt-navigation-ready .admin-header{display:none}body.mmt-navigation-ready .admin-dashboard-heading{padding-block:1rem}body.mmt-navigation-ready .admin-dashboard-heading h1{font-size:2rem}
+@media(max-width:760px){body.mmt-navigation-ready .trip-mobile-nav{display:grid}.trip-work-groups{display:none}.planning-grid{grid-template-columns:1fr}.planning-dialog{padding:1rem}}
+
+body.trip-is-open .trip-admin-topbar{align-items:center;margin:0 0 .8rem;padding:0}
+body.trip-is-open .trip-admin-topbar>div:first-child{display:none}
+body.trip-is-open .trip-admin-topbar-actions{margin-left:auto}
+body.trip-is-open .trip-summary-grid{display:flex;flex-wrap:wrap}
+body.trip-is-open .trip-summary-grid article{flex:1;min-width:120px;padding:.5rem .75rem}
+body.trip-is-open .trip-summary-grid strong{font-size:1.15rem}
+body.trip-is-open .trip-workspace-hero{padding:1rem}
+.planning-check{display:flex;align-items:start;gap:.6rem}.planning-check input[type=checkbox]{width:auto;margin-top:.3rem}

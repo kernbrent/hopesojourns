@@ -1,3 +1,4 @@
+import {templateStatements,readiness} from './planning';
 import {handleMemoriesAdmin,handleTripStories,portalMemories,portalPhoto} from './trip-memories';
 import { handleDevotionalLibrary, masterStatement, requireDevotional } from "./devotional-library";
 import {can} from './mmt-permissions';
@@ -408,7 +409,7 @@ async function createTrip(request: Request, env: AdminEnv): Promise<Response> {
       input.startDate, input.endDate, input.status, input.capacity, input.publicSummary, input.publicDescription,
       input.publicCallToAction, input.publicEnabled, input.interestEnabled, input.portalEnabled, session.id, now,
     ),
-    ...(body.useTemplate === false ? [] : standardTripStatements(env,id,input.startDate,input.endDate,now)),
+    ...(body.templateId ? await templateStatements(env,String(body.templateId),id,input.startDate,input.endDate,now) : body.useTemplate === false ? [] : standardTripStatements(env,id,input.startDate,input.endDate,now)),
     env.DB.prepare('UPDATE trips SET paying_traveler_count=?1 WHERE id=?2').bind(positiveInteger(body.payingTravelerCount??1,'Paying travelers'),id),
     env.DB.prepare(`INSERT INTO ministry_events(id,event_key,title,detail,action_url,status,created_at) VALUES(?1,?2,?3,?4,?5,'activity',?6)`).bind(crypto.randomUUID(),'trip-created:'+id,input.title,'Trip created with standard budget and content drafts.','/admin/ministry/#trip/'+id,now),
     auditStatement(env, "trip", id, "created", { code: input.code, title: input.title }),
@@ -550,6 +551,7 @@ async function tripWorkspace(request: Request, env: AdminEnv, tripId: string): P
     });
   }
   return adminJson({
+    readiness: await readiness(env,tripId),
     portalCredential: { canReveal, available: Boolean(savedPassword) },
     trip, content: content.results, members: members.results, interests: interests.results, organizations: organizations.results,
     accounts: accountRows, costs: costs.results, allocations: allocations.results, charges: charges.results,
@@ -1381,7 +1383,7 @@ async function sendTripMessage(request: Request, env: AdminEnv, tripId: string, 
   if (!message) throw new AdminError(404, "MESSAGE_NOT_FOUND", "That message could not be found.");
   if (message.status === "sent") throw new AdminError(409, "MESSAGE_ALREADY_SENT", "That message was already sent.");
   if (message.status === "canceled") throw new AdminError(409, "MESSAGE_CANCELED", "A canceled message cannot be sent.");
-  if (env.EMAIL_DELIVERY_MODE !== "live" || !env.EMAIL) {
+  if (env.ENVIRONMENT === "test" || env.EMAIL_DELIVERY_MODE !== "live" || !env.EMAIL) {
     throw new AdminError(409, "EMAIL_DELIVERY_NOT_ENABLED", "Email delivery is safely disabled in this environment. The message remains in the outbox for review.");
   }
   const from = env.EMAIL_FROM_ADDRESS ?? "admin@hopesojourns.com";
@@ -1571,7 +1573,7 @@ async function portalSession(request: Request, env: AdminEnv, photoTrip?:string,
   if (!trip) throw new AdminError(401, "PORTAL_AUTH_REQUIRED", "This trip portal is not available.");
   if(photoTrip){if(photoTrip!==session.trip_id)throw new AdminError(404,"NOT_FOUND","Photo not found.");return portalPhoto(env,photoTrip,photoId!,request);}
   const [content, members, costs] = await Promise.all([
-    env.DB.prepare(`SELECT id, content_type, title, content, event_date, event_time, location, link_url, visibility, sort_order
+    env.DB.prepare(`SELECT id, content_type, title, content, event_date, event_time, location, link_url, visibility, publication_status, sort_order
       FROM trip_content WHERE trip_id = ?1 AND publication_status = 'published' AND visibility IN ('public', 'travelers')
       ORDER BY content_type, event_date, sort_order, title`).bind(session.trip_id).all(),
     env.DB.prepare(`SELECT p.preferred_name, p.first_name, p.last_name,

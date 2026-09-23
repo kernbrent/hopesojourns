@@ -1,9 +1,11 @@
+import {receiveInterest,handleInterestReview,receipt} from './interest-review';
+import {handlePlanning} from './planning';
 export {CsmIdentity} from './identity-entrypoint';
 import {sharedSwitch} from './shared-signin';
 import {storedPhone,matchPhone} from './phone';
 import {actorContext} from './mmt-permissions';
 import {handleAccountPublic} from './mmt-users';
-import { handleAdminRequest } from "./admin";
+import { AdminError, handleAdminRequest } from "./admin";
 import { handleMinistryAdminRequest } from "./ministry-admin";
 import { handleFinanceAdminRequest } from "./finance-admin";
 import { handleDestinations } from "./destinations";
@@ -18,7 +20,7 @@ const MAX_OPPORTUNITIES = 12;
 type ContactPreference = "email" | "phone";
 type FieldErrors = Record<string, string>;
 
-type InterestSubmission = {
+export type InterestSubmission = {
   firstName: string;
   lastName: string;
   firstNameNormalized: string;
@@ -341,26 +343,8 @@ function existingSubmissionResult(
       code: "IDEMPOTENCY_KEY_REUSED",
     }, 409);
   }
-  if (existing.idempotency_key === idempotencyKey && existing.request_fingerprint === fingerprint) {
-    if (existing.result_json) {
-      try {
-        return json(request, env, { ...JSON.parse(existing.result_json) as Record<string, unknown>, replayed: true });
-      } catch {
-        // Fall through to the safe retry response if a cached response is malformed.
-      }
-    }
-    return json(request, env, {
-      success: true,
-      replayed: true,
-      submissionId: existing.id,
-      message: "We received your interest. A Hope Sojourns team member will follow up with you.",
-    });
-  }
-  return json(request, env, {
-    error: "We already received this exact information. Your interests are safely on file.",
-    code: "DUPLICATE_SUBMISSION",
-    duplicate: true,
-  }, 409);
+  return json(request,env,receipt(existing.id));
+
 }
 
 async function activeOpportunities(env: Env, slugs: string[]): Promise<OpportunityRow[]> {
@@ -434,124 +418,9 @@ async function submitInterest(request: Request, env: Env): Promise<Response> {
   if (existing) return existingSubmissionResult(request, env, existing, input.idempotencyKey, fingerprint);
   const actualTrip = await requestedTrip(env, input);
 
-  const personId = crypto.randomUUID();
-  const submissionId = crypto.randomUUID();
-  const now = new Date().toISOString();
-  const insertPerson = env.DB.prepare(
-    `INSERT INTO people (
-       id, first_name, last_name, first_name_normalized, last_name_normalized,
-       email, email_normalized, phone, phone_normalized, contact_preference,
-       field_of_study, created_at, updated_at
-     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-     ON CONFLICT (email_normalized, first_name_normalized, last_name_normalized)
-     DO UPDATE SET
-       first_name = excluded.first_name,
-       last_name = excluded.last_name,
-       email = excluded.email,
-       phone = COALESCE(excluded.phone, people.phone),
-       phone_normalized = COALESCE(excluded.phone_normalized, people.phone_normalized),
-       contact_preference = excluded.contact_preference,
-       field_of_study = COALESCE(excluded.field_of_study, people.field_of_study),
-       updated_at = excluded.updated_at`,
-  ).bind(
-    personId, input.firstName, input.lastName, input.firstNameNormalized, input.lastNameNormalized,
-    input.email, input.emailNormalized, input.phone, input.phoneNormalized, input.contactPreference,
-    input.fieldOfStudy, now, now,
-  );
-  const insertSubmission = env.DB.prepare(
-    `INSERT INTO interest_submissions (
-       id, person_id, idempotency_key, request_fingerprint, selected_opportunities_json,
-       preferred_timing, message, source_page, consent_at, created_at, updated_at
-     )
-     SELECT ?1, people.id, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10
-     FROM people
-     WHERE email_normalized = ?11 AND first_name_normalized = ?12 AND last_name_normalized = ?13`,
-  ).bind(
-    submissionId, input.idempotencyKey, fingerprint, JSON.stringify(input.opportunities),
-    input.preferredTiming, input.message, sourcePage(request.headers.get("referer")), now, now, now,
-    input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized,
-  );
-  const interestStatements = opportunities.map(opportunity => env.DB.prepare(
-    `INSERT OR IGNORE INTO interests (
-       id, person_id, opportunity_id, submission_id, status, created_at, updated_at
-     )
-     SELECT ?1, people.id, opportunities.id, ?2, 'new', ?3, ?4
-     FROM people
-     JOIN opportunities ON opportunities.slug = ?5 AND opportunities.active = 1
-     WHERE people.email_normalized = ?6
-       AND people.first_name_normalized = ?7
-       AND people.last_name_normalized = ?8`,
-  ).bind(
-    crypto.randomUUID(), submissionId, now, now, opportunity.slug,
-    input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized,
-  ));
-  const tagProspectiveTraveler = env.DB.prepare(
-    `INSERT OR IGNORE INTO contact_types (person_id, contact_type, created_at)
-     SELECT people.id, 'prospective_traveler', ?1 FROM people
-     WHERE people.email_normalized = ?2
-       AND people.first_name_normalized = ?3
-       AND people.last_name_normalized = ?4`,
-  ).bind(now, input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized);
-  const tripStatements: D1PreparedStatement[] = [];
-  if (actualTrip) {
-    tripStatements.push(
-      env.DB.prepare(`INSERT INTO trip_interests (
-        id, trip_id, person_id, submission_id, invite_id, status, created_at, updated_at
-      ) SELECT ?1, ?2, people.id, ?3, ?4, 'interested', ?5, ?5 FROM people
-        WHERE people.email_normalized = ?6 AND people.first_name_normalized = ?7 AND people.last_name_normalized = ?8
-      ON CONFLICT (trip_id, person_id) DO UPDATE SET submission_id = excluded.submission_id,
-        invite_id = COALESCE(excluded.invite_id, trip_interests.invite_id), updated_at = excluded.updated_at`).bind(
-        crypto.randomUUID(), actualTrip.id, submissionId, actualTrip.invite_id, now,
-        input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized,
-      ),
-      env.DB.prepare(`INSERT OR IGNORE INTO trip_members (
-        trip_id, person_id, role, status, directory_visible, directory_email_visible,
-        directory_phone_visible, created_at, updated_at
-      ) SELECT ?1, people.id, 'traveler', 'interested', 0, 0, 0, ?2, ?2 FROM people
-        WHERE people.email_normalized = ?3 AND people.first_name_normalized = ?4 AND people.last_name_normalized = ?5`).bind(
-        actualTrip.id, now, input.emailNormalized, input.firstNameNormalized, input.lastNameNormalized,
-      ),
-    );
-    if (actualTrip.invite_id) {
-      tripStatements.push(env.DB.prepare(
-        "UPDATE trip_invites SET use_count = use_count + 1, updated_at = ?1 WHERE id = ?2",
-      ).bind(now, actualTrip.invite_id));
-    }
-  }
-  const insertAudit = env.DB.prepare(
-    `INSERT INTO audit_events (id, entity_type, entity_id, event_type, metadata_json, created_at)
-     VALUES (?1, 'interest_submission', ?2, 'created', ?3, ?4)`,
-  ).bind(crypto.randomUUID(), submissionId, JSON.stringify({ opportunities: input.opportunities, tripId: actualTrip?.id ?? null }), now);
+  try { return json(request,env,await receiveInterest(env,input,fingerprint,opportunities,actualTrip,sourcePage(request.headers.get('referer'))),201); }
+  catch(error){if(error instanceof AdminError)throw new HttpError(error.status,error.code,error.message);throw error;}
 
-  let results: D1Result[];
-  try {
-    results = await env.DB.batch([insertPerson, insertSubmission, ...interestStatements, ...tripStatements, tagProspectiveTraveler, insertAudit]);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
-      const racedExisting = await findExistingSubmission(env, input.idempotencyKey, fingerprint);
-      if (racedExisting) return existingSubmissionResult(request, env, racedExisting, input.idempotencyKey, fingerprint);
-    }
-    throw error;
-  }
-
-  const addedCount = results.slice(2, 2 + opportunities.length)
-    .reduce((count, result) => count + Number(result.meta.changes ?? 0), 0);
-  const alreadyInterestedCount = opportunities.length - addedCount;
-  const responseBody = {
-    success: true,
-    submissionId,
-    addedCount,
-    alreadyInterestedCount,
-    message: addedCount > 0
-      ? `Thank you. We saved ${addedCount === 1 ? "your interest" : `your ${addedCount} interests`}. A Hope Sojourns team member will follow up with you.`
-      : "These interests were already on file. A Hope Sojourns team member can help you update your plans.",
-  };
-  await env.DB.prepare("UPDATE interest_submissions SET result_json = ?1, updated_at = ?2 WHERE id = ?3")
-    .bind(JSON.stringify(responseBody), now, submissionId)
-    .run();
-
-  console.log(JSON.stringify({ event: "interest_submission_saved", submissionId, addedCount, alreadyInterestedCount }));
-  return json(request, env, responseBody, 201);
 }
 
 async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -577,6 +446,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   if(path.startsWith('/public/account/'))return handleAccountPublic(request,env,path);
   if (path.startsWith('/admin/destinations') || path.startsWith('/public/destinations')) return handleDestinations(request,env,path);
   if (path.startsWith('/admin/finance/')) return handleFinanceAdminRequest(request,env,path);
+  if (path.startsWith('/admin/interest-reviews/')) return handleInterestReview(request,env,path);
+  if (path.startsWith('/admin/planning/')) return handlePlanning(request,env,path);
   if (path.startsWith('/admin/ministry/')) return handleMinistryAdminRequest(request,env,path);
   if (path.startsWith("/admin/trip-platform") || path.startsWith("/admin/trips")) {
     return handleTripAdminRequest(request, env, path);

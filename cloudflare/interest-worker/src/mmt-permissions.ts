@@ -17,6 +17,8 @@ export function can(user:MmtIdentity,section:Section,edit=false){const p=permiss
 // budgets and participant details; bulk import/export also requires contact access.
 export function routeSection(path:string):Section|'self'|'admin'{
  if(['/admin/session','/admin/logout','/admin/password','/admin/account/profile','/admin/switch/issue'].includes(path))return 'self';
+ if(path.startsWith('/admin/interest-reviews/'))return 'contacts';
+ if(path.startsWith('/admin/planning/'))return 'self'; // Each planning record enforces linked workspace permissions.
  if(path.startsWith('/admin/account/'))return 'admin';
  if(path.startsWith('/admin/destinations'))return 'destinations';
  if(path.startsWith('/admin/ministry/documents'))return 'documents';

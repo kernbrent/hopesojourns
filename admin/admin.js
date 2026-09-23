@@ -2984,6 +2984,7 @@ function renderPersonDetail(person) {
     renderContactEditor(person);
   });
   hero.append(edit);
+  const followup=element('a','admin-button','Tasks & next contact date');followup.href='/admin/ministry/#tasks/'+encodeURIComponent(person.id);hero.append(followup);
   hero.append(renderPersonStats(person));
   fragment.append(hero);
 

@@ -1,8 +1,21 @@
 # Hope Sojourns website style guide
 
-Version 4.8.3
+Version 4.9
 
-Last reviewed: September 22, 2026
+Last reviewed: September 23, 2026
+
+## Planning workspace and interested submission review
+
+Version 4.9 is a portal refinement for the isolated test site using the existing forest, gold, and neutral palette. Public website appearance is unchanged. Trips has one primary entry point; legacy overview links open that workspace. Keep task controls and actions consistent with the existing rounded buttons, visible focus rings, and labeled form fields.
+
+The trip header is compact while a trip is open. Setup help is collapsed by default. Six work areas organize the existing tools: Overview, Prepare, Money, Travelers, Public pages, and Setup. The second row shows only tools belonging to the selected area. On phones, use the workspace selector instead of duplicate navigation rows. Keep every tool available through its group or the phone selector.
+
+The day planner groups dated content into expandable days, shows missing itinerary/devotional assignments, and puts other dates and undated material in a separate group. Content previews collapse independently. Home highlights upcoming departures, preparation reviews, tasks, and recently opened trips. Readiness labels distinguish Not reviewed, Needs review, Reviewed, and Not applicable; never present mere record existence as a completed review.
+
+Task forms include an owner, due or next-contact date, optional trip/contact links, and status. Contact follow-up uses the same task workflow. Readiness confirmation and template creation use focused dialogs with unsaved-change confirmation. Traveler packets provide a plain readable offline document with print styles, visible preparation date, and a notice that downloaded copies do not refresh.
+
+Duplicate review presents submitted information alongside every matching contact. State the match reason explicitly as Email, Phone, or Email and phone. Do not preselect an existing contact or any replacement fields. Show current and submitted values beside each field checkbox. Use the exact action meanings Add as a new contact, Update an existing contact, and Reject. Disable decision buttons while saving, show conflicts clearly, and retain the resolved review history. Public submission confirmation acknowledges receipt without revealing whether any contact matched.
+
 
 ## Trip photos and past trip stories
 
@@ -629,6 +642,7 @@ Place Delete user beside the existing user actions, except on the signed-in admi
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
 | September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
+| 2026-09-22 | 4.9 | Portal planning, reviewed readiness, templates, offline packets, follow-up tasks, staged duplicate interest review, and isolated test hosting with copied business records. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
 | 2026-09-21 | 4.5.8 | Added collapsed devotional day banners and day navigation. Deployed September 21, 2026. |
 | 2026-09-21 | 4.5.7 | Added readable traveler study sections, Scripture emphasis, real lists, underlined reading links, and italic prayers. Deployed September 21, 2026. |

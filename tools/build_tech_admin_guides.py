@@ -713,7 +713,7 @@ def add_contents_page(doc: Document, headings: list[str], numbering_ids: dict[st
     for item in headings:
         paragraph = doc.add_paragraph()
         apply_numbering(paragraph, numbering_ids["contents"], 0)
-        paragraph.paragraph_format.space_after = Pt(2 if len(headings) > 30 else 3)
+        paragraph.paragraph_format.space_after = Pt(1 if len(headings) > 30 else 3)
         paragraph.paragraph_format.line_spacing = 1
         display = re.sub(r"^\d+\.\s*", "", item)
         add_inline_text(paragraph, display, base_size=10.5)
