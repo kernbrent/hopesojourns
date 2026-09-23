@@ -1224,7 +1224,7 @@ function renderCsmCard(message) {
   const meta = element("div", "admin-csm-meta");
   meta.append(
     csmMeta("Display Name", message.displayName),
-    csmMeta("PayPal date", formatDate(message.transaction.eventDate)),
+    csmMeta(message.personalGift ? "Original gift date" : "PayPal date", formatDate(message.transaction.eventDate)),
     csmMeta("Item", message.transaction.itemName || message.transaction.itemId || "No item supplied"),
     csmMeta("Email", message.party.email || "Not supplied"),
   );
@@ -1331,6 +1331,13 @@ function renderCsmCard(message) {
     });
     callback.append(retry);
     card.append(callback);
+  }
+  if(message.personalGift){
+    const p=message.personalGift,details=element("section","admin-csm-meta");
+    details.append(csmMeta("Original donor",message.displayName),csmMeta("Method",p.method),csmMeta("Held and transferred by",p.receivedBy),csmMeta("Payment reference",p.reference),csmMeta("Designation",p.designation));
+    for(const m of p.movements)details.append(csmMeta(m.kind+" · "+m.date,csmMoney(m.amountCents/100)+" · "+m.description+" · "+m.reference+(m.clearedDate?" · cleared "+m.clearedDate:"")));
+    details.append(element("p","","Original payment and settlement evidence is retained in CSM Personally received gifts. Bank transfers are not additional donations. Approving also records any listed expenses once."));
+    card.append(details);
   }
   return card;
 }

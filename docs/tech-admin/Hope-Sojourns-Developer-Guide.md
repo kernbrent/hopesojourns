@@ -1,8 +1,33 @@
 # Hope Sojourns developer guide
 
-Version 4.8.3
+Version 4.10
 
-Last reviewed: September 22, 2026
+Last reviewed: September 23, 2026
+
+## Portal planning and contact review
+
+Version 4.9 is approved for commit, push, and deployment to the isolated test portal. test.hopesojourns.com manages a one-time copy of live business records in a separate D1 database and private R2 bucket. Changes in test never synchronize to production. Live sessions, passwords, reset links, invite tokens, and email queues are excluded. Test email and Christian Steps callbacks are blocked in application code, shared sign-in is disabled, and production routes remain unchanged. The copied trips require independent traveler credentials before portal access. Production release remains a separate decision.
+
+Migration 0035 adds ministry_tasks, trip_reviews, and trip_templates. The authenticated /admin/planning APIs provide a permission-filtered dashboard, task editing with optimistic revisions, explicit readiness approvals, and reusable templates. Task access requires access to every linked workspace; a task linked to a contact and trip requires both. General tasks use Inbox permission. Tasks support active MMT owners, due dates, completion, cancellation, and reopening. Contact profiles link to their follow-up tasks. No automatic emails are sent.
+
+Readiness separates record entry from explicit human review. Team, content, logistics, and budget reviews record the reviewer, timestamp, note, and a fingerprint of the relevant data. Changing that data invalidates the approval. Placeholders, unpublished traveler drafts, missing team members, open tasks, and unfinished estimates prevent the corresponding review. A budget can be Not applicable only while there are no active monetary costs, charges, or received payments, and requires a reason. A Completed trip with future end dates produces a warning; no existing trip statuses are automatically changed.
+
+Templates snapshot only explicitly selected non-admin content and optional budget structure. Creating a new trip shifts dated content relative to the new start date, makes copied content traveler-only drafts, and resets cost estimates and actuals. It copies no travelers, accounts, payments, notes, credentials, media, or approvals. Content body text must be reviewed for destination-specific details before saving a template. Archived templates do not affect existing trips. A template that exceeds the new trip duration is rejected atomically.
+
+The shared admin/planning.js and planning.css provide task forms and home planning cards. admin/trips/planning.js supplies grouped trip work areas, daily content planning, readiness, templates, and traveler packets. Legacy trip overview links redirect to the single Trips workspace. Financial imports remain accessible within Finances. Home includes upcoming trips, open tasks, preparation counts, and session-only recent trips. The shared journey/traveler-packet.js downloads escaped, self-contained HTML for offline reading and browser printing or Save as PDF. Only published public/traveler content is included; selected admin-exported contacts honor directory visibility. Links require connectivity and a saved packet does not update automatically.
+
+### Interested submission review
+
+Migration 0036 adds a staged interest_intake and one-decision-per-submission ledger. Potential duplicates never create a people row, change contact types, or attach interests until reviewed. Matching compares nonempty normalized email OR phone, irrespective of names. Email comparisons trim surrounding spaces and ignore case; phone comparisons ignore formatting and equivalent US leading country codes. All matching contacts are returned with email, phone, or both as the reason.
+
+The legacy people uniqueness constraint is replaced with a partial unique index applying to ordinary contacts. An explicit approved_duplicate flag permits an intentionally separate, identical contact after review. The migration preserves contact types, languages, areas, trip links, ministry links, tasks, and nullable financial/account person references during the table rebuild. Run it transactionally with deferred foreign-key checks and validate existing relationships before release. Never apply only fragments of this migration.
+
+A contact revision counter and transactional guard recheck the contact set before a normal insertion or review approval. A racing insertion causes a fresh match pass; stale review screens return a conflict. Idempotency keys and request fingerprints deduplicate submissions. Each approval decision is inserted under a unique intake key in the same transaction as contact edits and interest attachment, so a retry cannot apply it twice. Public confirmation is identical for matched and unmatched submissions and does not disclose contact existence. Original submitted values remain in the intake snapshot; invite tokens are excluded from that snapshot.
+
+The /admin/interest-reviews/:id endpoint requires contact read/edit access, with trip edit access additionally required when approval attaches a dated trip. Add as new requires explicit separate-contact confirmation. Update existing permits choosing any current match and selecting a strict allowlist of submitted fields; unchecked fields and unrelated history remain unchanged. Reject changes no contact. Audit history records reviewer, action, selected fields, decision time, and resulting contact. Pending reviews appear as actionable Inbox items and cannot be dismissed using generic Complete or Delete. A review decision resolves that item; any attached interest keeps its normal follow-up workflow.
+
+Validation includes normalized and conflicting matches, all three decisions, intentional identical contacts, stale screens, concurrent matching, retry protection, permissions, CSRF, migration preservation, template isolation/date shifting, readiness invalidation, and escaped packet exports. Local previews use synthetic records only and must never enter a deployment bundle.
+
 
 ## Trip memories and public trip stories
 
@@ -367,7 +392,7 @@ Public submissions include opportunity choices, contact details, optional backgr
 
 | Environment | Worker | Route | D1 database | Private receipt bucket |
 |---|---|---|---|---|
-| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest` and `test.hopesojourns.com/api/interest/*` | `hope-sojourns-forms-test` | `hope-sojourns-receipts-test` |
+| Test | `hope-sojourns-interest-test` | `test.hopesojourns.com/api/interest` and `test.hopesojourns.com/api/interest/*` | Isolated `DB` copy; see config | Isolated `RECEIPTS` copy; see config |
 | Production | `hope-sojourns-interest-production` | `/api/interest` and `/api/interest/*` on `hopesojourns.com` and `www.hopesojourns.com` | `hope-sojourns-forms-production` | `hope-sojourns-receipts-production` |
 
 `/cloudflare/interest-worker/scripts/verify-environment-isolation.mjs` fails when routes, allowed origins, environment names, database IDs, or receipt-bucket names cross those boundaries. Both the exact `/api/interest` path and its `/api/interest/*` descendants must be routed so the public submission endpoint and admin endpoints reach the same environment-specific Worker. Never copy a test D1 export, R2 receipt object, backup, credential row, or user-data row into production. Production is initialized only by applying the numbered migrations to its database and uses a dedicated production receipt bucket; migrations seed the legitimate opportunity catalog but no contacts, submissions, teams, ministries, sessions, administrator credentials, or receipt files.
@@ -889,6 +914,18 @@ The new SQLite integration suite verifies authentication, CSRF, organization-wid
 
 Administrators can select Delete user in the user list and must type the exact username to confirm. The server rejects self-deletion, unauthorized requests, and stale edits. Migration 0022_mmt_user_deletion.sql adds deleted_at and prevents later changes to deleted accounts. Deletion disables access, clears credentials and section permissions, revokes sessions and setup links, and removes the account from the directory. The account identity remains for historical attribution; migration 0023 preserves its original username and email in deleted_username and deleted_email, and replaces the login identifiers with an inaccessible deleted:id marker. This releases those identifiers for a new account with a new ID, fresh access settings, and a new setup link. Previously deleted users are backfilled without changing their IDs or historical references. The existing last-administrator protection remains active. The re-creation fix is local pending a separately authorized release.
 
+## Personally received ministry gifts
+
+Version 4.10 adds local implementation only; it is not approved for deployment. CSM /admin/personal-gifts/ records original HS donors separately from personal Venmo, Zelle, or PayPal holders. CSM migration 0005 stores gifts, settlements, private evidence, immutable delivery payloads, and audit history. Original donor attribution is preserved in giving statements. The CSM process guide is worker/docs/personally-received-gifts-process.md and is also available from the entry screen.
+
+The private CsmIdentity /personal-gift-contacts route authenticates the actual shared session and requires CSM Giving read plus HS Contacts read access. It returns a bounded search result or one selected contact. Public APIs cannot impersonate an identity. CSM mutations require Giving edit, CSRF, and an allowed origin. Evidence uses private LEDGER_ATTACHMENTS storage with a 5 MB limit and PNG, JPEG, or PDF signature checks.
+
+The PERSONAL_GIFT contract is restricted to HopeSojourns. Settlements must reconcile exactly to the original gift; bank transfers require clearance dates. Fees and expenses require evidence. The source freezes before delivery, and retries reuse its payload and idempotency key. Approval enforces the selected HS contact and atomically adds donor income and expense entries once. Transfers never create a second donation. Legacy transport field names do not mean that personal gifts are imported as PayPal transactions. Denial leaves the source frozen for coordinated correction rather than silent editing.
+
+CSM callback handling updates personal-gift status and audit history. Only approved gifts appear in CSM giving statements. Reconciliation exports trace donor, holder, settlement, bank reference, and remaining funds. This dedicated report supplements the general CSM bank ledger; do not re-enter the original gift or its HS copy as additional income. Expenses recorded through this workflow must not already exist in HS.
+
+Regression coverage includes contact permissions, original donor attribution, exact contact approval, combined and partial deposits, over-allocation, evidence requirements, reversals, voiding, delivery retries, callbacks, fees, expenses, and giving statements. Release requires review, explicit deployment authorization, CSM migration 0005, and compatible receivers before sending. Never bind live CSM to the isolated HS test environment; its shared identity and callbacks remain disabled.
+
 ## Revision history
 
 | Date | Version | Change |
@@ -898,6 +935,8 @@ Administrators can select Delete user in the user list and must type the exact u
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
 | September 22, 2026 | 4.8.0 | Trip photo collections, traveler memories, and reviewed destination trip stories; prepared locally. |
 | September 22, 2026 | 4.7.0 | Shared, expandable MMT navigation and consistent portal home link. |
+| 2026-09-23 | 4.10 | Personally received gifts with HS contact selection, original donor attribution, settlement reconciliation, and reviewed delivery. Local implementation only. |
+| 2026-09-22 | 4.9 | Portal planning, reviewed readiness, templates, offline packets, follow-up tasks, staged duplicate interest review, and isolated test hosting with copied business records. |
 | 2026-09-22 | 4.6.0 | Added reusable devotional library, topic/Scripture search, trip copies, usage history, and recoverable deletion. Preserved approved public design. |
 | 2026-09-21 | 4.5.8 | Added date-grouped native disclosures, stable anchors, and keyboard-accessible day links without exposing drafts. Deployed September 21, 2026. |
 | 2026-09-21 | 4.5.7 | Added safe plain-text study rendering and responsive reading styles without changing saved content or publication filtering. Deployed September 21, 2026. |

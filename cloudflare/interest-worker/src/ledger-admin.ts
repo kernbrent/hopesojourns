@@ -679,7 +679,7 @@ async function generateContactDocuments(request: Request, env: AdminEnv): Promis
 export function csmLedgerStatement(env: AdminEnv, input: {
   ledgerId: string; financialTransactionId: string; idempotencyKey: string; transactionDate: string;
   direction: "received" | "sent"; displayName: string; personId: string | null; currency: string;
-  gross: number; fee: number; net: number; itemName: string | null; eventCode: string; createdAt: string;
+  gross: number; fee: number; net: number; itemName: string | null; eventCode: string; createdAt: string; paymentType?:string;
 }): D1PreparedStatement {
   const isBankTransfer = isPayPalBankTransferEvent(input.eventCode);
   const entryType = input.direction === "received" ? "income" : "expense";
@@ -693,13 +693,13 @@ export function csmLedgerStatement(env: AdminEnv, input: {
        transaction_date, entry_type, payment_type, expense_category, budget_category,
        amount, name, person_id, note, transaction_purpose, charitable_amount, currency, accounting_class,
        gross, fee, net, created_at, updated_at)
-     VALUES (?1, 'csm', ?2, ?3, ?4, ?5, ?6, 'PayPal', ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20)`,
+     VALUES (?1, 'csm', ?2, ?3, ?4, ?5, ?6, ?21, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20)`,
   ).bind(
     input.ledgerId, `csm:${input.idempotencyKey}`, input.idempotencyKey, input.financialTransactionId,
     input.transactionDate, entryType, isBankTransfer ? "Internal transfer" : input.direction === "sent" ? "Ministry support" : null,
     isBankTransfer ? "Balance transfer" : "General", amount, input.displayName, input.personId,
     input.itemName, transactionPurpose, charitableAmount, input.currency, accountingClass,
-    input.gross, input.fee, input.net, input.createdAt,
+    input.gross, input.fee, input.net, input.createdAt, input.paymentType||"PayPal",
   );
 }
 

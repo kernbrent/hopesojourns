@@ -47,6 +47,10 @@ async function matchDonor(env: CsmEnv, message: CsmDistributionMessage): Promise
   personId: string | null; method: "master_link" | "email" | null; status: "pending" | "needs_match";
 }> {
   if (message.transaction.direction === "sent") return { personId: null, method: null, status: "pending" };
+  if(message.personalGift){
+    const contact=await env.DB.prepare('SELECT id FROM people WHERE id=?').bind(message.personalGift.contactId).first<{id:string}>();
+    return {personId:contact?.id||null,method:contact?'master_link':null,status:contact?'pending':'needs_match'};
+  }
   const linked = await env.DB.prepare(
     "SELECT person_id AS personId FROM csm_donor_links WHERE master_donor_id = ?1",
   ).bind(message.masterDonorId).first<{ personId: string }>();
@@ -158,7 +162,7 @@ async function listInbox(request: Request, env: CsmEnv): Promise<Response> {
       callbackError: row.callback_error, receivedAt: row.received_at,
       updatedAt: row.updated_at, decidedAt: row.decided_at,
       displayName: message.displayName, direction: message.transaction.direction,
-      party: message.party, transaction: message.transaction,
+      party: message.party, transaction: message.transaction, personalGift:message.personalGift,
       matchedPerson: row.matched_person_id ? {
         id: row.matched_person_id, firstName: row.matched_first_name,
         lastName: row.matched_last_name, email: row.matched_email,
@@ -232,6 +236,7 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
     const requested = cleanLine(body.personId, 64);
     const refreshedMatch = !requested && !row.matched_person_id ? await matchDonor(env, message) : null;
     personId = requested || row.matched_person_id || refreshedMatch?.personId || null;
+    if(message.personalGift&&personId!==message.personalGift.contactId)throw new AdminError(409,"ORIGINAL_DONOR_REQUIRED","Use the original donor selected in CSM. Correct the source before receiving this gift.");
     if (personId) {
       const exists = await env.DB.prepare("SELECT id FROM people WHERE id = ?1").bind(personId).first<{ id: string }>();
       if (!exists) throw new AdminError(422, "PERSON_NOT_FOUND", "Choose an existing donor or create a new one.");
@@ -285,7 +290,7 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
       transactionDate: message.transaction.eventDate, direction: message.transaction.direction,
       displayName: message.displayName, personId, currency: message.transaction.currency,
       gross: message.transaction.gross, fee: message.transaction.fee, net: message.transaction.net,
-      itemName: message.transaction.itemName, eventCode: message.transaction.eventCode, createdAt: now,
+      itemName: message.transaction.itemName, eventCode: message.transaction.eventCode, createdAt: now, paymentType:message.personalGift?.method,
     }),
     env.DB.prepare(
       `UPDATE csm_distribution_inbox SET status = 'approved', matched_person_id = ?1, match_method = ?2,
@@ -294,6 +299,9 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
     ).bind(personId, matchMethod, recordId, now, session.id, id),
     auditStatement(env, "csm_distribution", id, "approved", { recordId, personId, matchMethod }),
   );
+  if(message.personalGift){
+    for(const m of message.personalGift.movements.filter(m=>m.kind==='expense'))statements.push(env.DB.prepare(`INSERT INTO ledger_entries(id,source_type,import_key,content_fingerprint,transaction_date,entry_type,payment_type,expense_category,budget_category,amount,name,note,transaction_purpose,charitable_amount,currency,accounting_class,created_at,updated_at) VALUES(?,'manual',?,?,?,'expense',?,'Ministry support',?,?,?,?,'general',0,'USD','operating',?,?)`).bind(crypto.randomUUID(),'personal-expense:'+m.id,m.id,m.date,message.personalGift.method,message.personalGift.designation,m.amountCents/100,m.description,'Paid from gift '+message.transaction.paypalTransactionId+'; evidence held in CSM; '+m.reference,now,now));
+  }
   if(message.donorAllocations?.length){
     const allocations=message.donorAllocations.map(a=>({...a,personId:undefined}));
     statements.push(...await allocationContacts(env,allocations,now));
