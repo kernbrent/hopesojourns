@@ -71,7 +71,13 @@ export async function csmAuthority(request:Request,env:SharedEnv):Promise<Respon
     const id=url.searchParams.get('id'),q=(url.searchParams.get('q')||'').trim();
     if(!id&&q.length<2)return adminJson({contacts:[]});
     if(q.length>100||id&&id.length>64)throw new AdminError(422,'INVALID_SEARCH','Use a shorter search.');
-    const result=id?await env.DB.prepare('SELECT id,first_name,last_name,email,phone FROM people WHERE id=?').bind(id).all():await env.DB.prepare("SELECT id,first_name,last_name,email,phone FROM people WHERE instr(lower(first_name||' '||last_name),lower(?))>0 OR instr(lower(COALESCE(email,'')),lower(?))>0 OR instr(COALESCE(phone,''),?)>0 ORDER BY last_name,first_name LIMIT 30").bind(q,q,q.replace(/[^0-9]/g,'')||q).all();
+    const field=url.searchParams.get('field')||'email';
+    if(!id&&!['email','name','phone'].includes(field))throw new AdminError(422,'INVALID_SEARCH','Choose Email, Name, or Phone number.');
+    const phone=q.replace(/[^0-9]/g,'');
+    if(!id&&field==='phone'&&(!/^[+()\d\s.-]+$/.test(q)||phone.length<2))throw new AdminError(422,'INVALID_SEARCH','Enter at least two phone digits, using only phone formatting.');
+    const phoneColumn="replace(replace(replace(replace(replace(replace(COALESCE(phone,''),'+',''),'(',''),')',''),'-',''),' ',''),'.','')";
+    const clause=field==='email'?"instr(lower(trim(COALESCE(email,''))),lower(?))>0":field==='name'?"instr(lower(first_name||' '||last_name),lower(?))>0":`instr(${phoneColumn},?)>0`;
+    const result=id?await env.DB.prepare('SELECT id,first_name,last_name,email,phone FROM people WHERE id=?').bind(id).all():await env.DB.prepare(`SELECT id,first_name,last_name,email,phone FROM people WHERE ${clause} ORDER BY last_name,first_name LIMIT 30`).bind(field==='phone'?phone:q).all();
     return adminJson({contacts:result.results});
    }catch(e){if(e instanceof AdminError)return adminJson({error:e.message,code:e.code},e.status);throw e;}
   }
