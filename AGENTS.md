@@ -28,6 +28,8 @@
 ## Living MMT user guide
 
 - Treat `docs/user/Hope-Sojourns-MMT-User-Guide.md` as the canonical user-facing operating guide, separate from the developer guide.
+- Update and review the user guide with every site or portal change. Keep all page numbers accurate: regenerate the Word edition, refresh its page-reference fields, and verify the table of contents against the final rendered pages before syncing or releasing it.
+- After rendering the final user guide PDF, run `tools/refresh_mmt_guide_page_references.py <rendered-pdf>` with the bundled Python runtime to verify all destinations and save the page numbers into the Word edition. Re-render after any content or layout change.
 - In the same work session as a change to MMT navigation, button labels, permissions, user-facing steps, imports, reports, trip tools, or other portal workflows, update the affected instructions, table of contents, alphabetical index, Last reviewed date, and revision history.
 - Regenerate `docs/user/Hope-Sojourns-MMT-User-Guide.docx` with the bundled Python runtime and `tools/build_mmt_user_guide.py`. Render and visually inspect every page before delivery.
 - Run `powershell -ExecutionPolicy Bypass -File .\Sync-MMT-User-Guide.ps1` after the canonical files are final. The daily document-library sync also includes this guide. Do not hand-edit the generated Word copy.

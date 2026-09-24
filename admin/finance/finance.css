@@ -17,3 +17,6 @@
 
 .finance .donation-split-dialog button.primary { color: var(--paper) !important; }
 .finance .donation-split-dialog [data-error] { color: var(--error); }
+
+.finance .transaction-income{background:var(--forest-wash);color:var(--forest-dark);font-weight:700}
+.finance .transaction-expense{background:var(--gold-wash);color:var(--ink);font-weight:700}

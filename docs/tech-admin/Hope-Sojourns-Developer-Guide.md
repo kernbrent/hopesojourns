@@ -1,12 +1,22 @@
 # Hope Sojourns developer guide
 
-Version 4.15
+Version 4.16
 
 Last reviewed: September 24, 2026
 
+## Expense purpose and transfer review
+
+Release authorized September 24, 2026. Migration 0038 adds nullable finance_review.expense_purpose: operations, outreach, trip, ministry_support. Existing rows stay unclassified. A trigger defaults only new operating expenses without a source trip or trip_expense purpose to operations. No business data are copied between environments.
+
+Finance bootstrap includes trip status. Selecting Trip expenses requires a draft, recruiting, confirmed, or full trip. API checks and database triggers enforce this. An unchanged previously classified trip remains reviewable after completion. Source-linked trip expenses keep their original trip. Expense purpose is separate from category, source transaction purpose, report status, and reimbursement flags. Purpose filtering applies to list totals, CSV, and printed reports.
+
+POST /admin/finance/review/:id/transfer requires finance edit permission, CSRF, current ledger/review timestamps, confirmation, and a reason. Only operating expenses without a source trip/account or charitable amount can be reclassified. The atomic update and audit retain the record, source, receipts, and review flags. Internal transfers remain in the full ledger and are excluded from operating totals. Review saves also check timestamps to prevent stale overwrites.
+
+Validation: finance-workspace regression tests, complete backend suite, TypeScript, browser controls, and color palette. Apply migration 0038 before the matching Worker and finance assets during an explicitly authorized release.
+
 ## Authenticated MMT user guide
 
-The canonical operating manual remains `docs/user/Hope-Sojourns-MMT-User-Guide.md`, with a private mirror in `ChristianStepsDoco/HopeSojourns/UserGuides`. The GitHub repository is public, so its Markdown and Word copies are Git-ignored. Running `tools/build_mmt_user_guide.py` regenerates the Word edition and escaped `.tmp/mmt-user-guide.html`. Never commit any of these files or place the guide HTML in the public Pages artifact or Worker source bundle. For an authorized release, upload that same generated file to `mmt-user-guide.html` in the private `hope-sojourns-guides-test` and `hope-sojourns-guides-production` R2 buckets. The `GUIDES` bindings are isolated from each other and from expense-receipt storage; neither bucket may have a public development URL or custom domain.
+The canonical operating manual remains `docs/user/Hope-Sojourns-MMT-User-Guide.md`, with a private mirror in `ChristianStepsDoco/HopeSojourns/UserGuides`. The GitHub repository is public, so its Markdown and Word copies are Git-ignored. Update this guide with every change and verify its refreshed page references against the final rendered pages before syncing or releasing. Running `tools/build_mmt_user_guide.py` regenerates the Word edition and escaped `.tmp/mmt-user-guide.html`. Never commit any of these files or place the guide HTML in the public Pages artifact or Worker source bundle. For an authorized release, upload that same generated file to `mmt-user-guide.html` in the private `hope-sojourns-guides-test` and `hope-sojourns-guides-production` R2 buckets. The `GUIDES` bindings are isolated from each other and from expense-receipt storage; neither bucket may have a public development URL or custom domain.
 
 Authenticated GET `/api/interest/admin/user-guide` runs the existing MMT session check before retrieving the private R2 object and requires an active Hope Sojourns account with its temporary-password change completed. `/admin/user-guide` maps to the self-access section, so any signed-in member can read it without receiving an unrelated work-area permission. The response streams the object without caching and disables indexing, framing, scripts, and form actions. An unauthenticated or expired session returns 401 without guide content; a missing guide object fails closed with 503. There is no website edit route; Word and Markdown remain the editable sources outside the portal.
 
@@ -962,6 +972,8 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+September 24, 2026 - Version 4.16: expense purposes, planned-trip validation, transfer review, and transaction type labels (local pending release).
 
 September 24, 2026 — Version 4.15: Moved the signed-in user guide to isolated private R2 storage because the GitHub repository is public; guide source and generated content are excluded from Git and public Pages assets.
 

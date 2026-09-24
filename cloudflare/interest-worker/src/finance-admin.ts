@@ -1,3 +1,4 @@
+import {expensePurpose, reviewSnapshot, checkReviewVersion, reclassifyTransfer} from './expense-review';
 import {AdminError, adminJson, authenticate, auditStatement, readAdminJson, type AdminEnv} from './admin';
 
 type Body = Record<string, unknown>;
@@ -33,7 +34,7 @@ async function exists(env: AdminEnv, table: string, id: string) {
 async function bootstrap(env: AdminEnv) {
   const [settings,trips,ministries,rates,routes] = await Promise.all([
     env.DB.prepare("SELECT * FROM finance_settings WHERE id='primary'").first(),
-    env.DB.prepare('SELECT id,title FROM trips ORDER BY start_date DESC').all(),
+    env.DB.prepare('SELECT id,title,status FROM trips ORDER BY start_date DESC').all(),
     env.DB.prepare('SELECT id,name FROM ministries ORDER BY name').all(),
     env.DB.prepare('SELECT * FROM finance_rates ORDER BY effective_from DESC').all(),
     env.DB.prepare('SELECT * FROM finance_routes WHERE archived=0 ORDER BY name').all()
@@ -42,10 +43,11 @@ async function bootstrap(env: AdminEnv) {
 }
 async function records(request: Request, env: AdminEnv) {
   const url = new URL(request.url), values: (string|number)[] = [], where: string[] = ["l.accounting_class = 'operating'"];
-  for (const [query,column] of [['from','l.transaction_date >='],['to','l.transaction_date <='],['type','l.entry_type ='],['source','l.source_type ='],['trip','COALESCE(r.trip_id,l.trip_id) ='],['ministry','r.ministry_id ='],['status',"COALESCE(r.status,'included') ="]]) {
+  for (const [query,column] of [['from','l.transaction_date >='],['to','l.transaction_date <='],['type','l.entry_type ='],['source','l.source_type ='],['trip','COALESCE(r.trip_id,l.trip_id) ='],['ministry','r.ministry_id ='],['status',"COALESCE(r.status,'included') ="],['purpose',"COALESCE(r.expense_purpose,'unclassified') ="]]) {
     const value = url.searchParams.get(query); if (value) { if (query==='from'||query==='to') date(value); where.push(`${column} ?`); values.push(value); }
   }
   if (url.searchParams.get('review')==='1') where.push('r.accountant_review=1');
+  if (url.searchParams.get('purpose')) where.push("l.entry_type='expense'");
   if (url.searchParams.get('reimbursable')==='1') where.push('r.reimbursable=1 AND r.reimbursed=0');
   if (url.searchParams.get('missing')==='1') where.push("l.entry_type='expense' AND NOT EXISTS(SELECT 1 FROM ledger_receipts WHERE ledger_entry_id=l.id)");
   const search=url.searchParams.get('search');
@@ -54,7 +56,7 @@ async function records(request: Request, env: AdminEnv) {
   const page=Math.max(1, Math.min(100000, Number(url.searchParams.get('page'))||1));
   const base=`FROM ledger_entries l LEFT JOIN finance_review r ON r.ledger_id=l.id ${clause}`;
   const [entries,summary]=await Promise.all([
-    env.DB.prepare(`SELECT l.*,COALESCE(r.trip_id,l.trip_id) AS linked_trip_id,r.ministry_id,COALESCE(r.status,'included') AS review_status,COALESCE(r.accountant_review,0) AS accountant_review,COALESCE(r.reimbursable,0) AS reimbursable,COALESCE(r.reimbursed,0) AS reimbursed,COALESCE(r.notes,'') AS review_notes,(SELECT COUNT(*) FROM ledger_receipts WHERE ledger_entry_id=l.id) AS receipt_count,(SELECT i.number FROM finance_invoice_payments p JOIN finance_invoices i ON i.id=p.invoice_id WHERE p.ledger_id=l.id) AS invoice_number ${base} ORDER BY l.transaction_date DESC,l.id LIMIT 100 OFFSET ?`).bind(...values,(page-1)*100).all(),
+    env.DB.prepare(`SELECT l.*,r.expense_purpose,r.updated_at AS review_updated_at,COALESCE(r.trip_id,l.trip_id) AS linked_trip_id,r.ministry_id,COALESCE(r.status,'included') AS review_status,COALESCE(r.accountant_review,0) AS accountant_review,COALESCE(r.reimbursable,0) AS reimbursable,COALESCE(r.reimbursed,0) AS reimbursed,COALESCE(r.notes,'') AS review_notes,(SELECT COUNT(*) FROM ledger_receipts WHERE ledger_entry_id=l.id) AS receipt_count,(SELECT i.number FROM finance_invoice_payments p JOIN finance_invoices i ON i.id=p.invoice_id WHERE p.ledger_id=l.id) AS invoice_number ${base} ORDER BY l.transaction_date DESC,l.id LIMIT 100 OFFSET ?`).bind(...values,(page-1)*100).all(),
     env.DB.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(CASE WHEN l.entry_type='income' THEN ROUND(l.amount*100) ELSE 0 END),0)/100.0 AS income,COALESCE(SUM(CASE WHEN l.entry_type='income' AND l.charitable_amount>0 THEN ROUND(l.charitable_amount*100) ELSE 0 END),0)/100.0 AS gross_giving,COALESCE(SUM(CASE WHEN l.entry_type='expense' THEN ROUND(l.amount*100) ELSE 0 END),0)/100.0 AS expenses ${base}`).bind(...values).first()
   ]);
   return adminJson({entries:entries.results,summary,page,pageSize:100});
@@ -111,7 +113,9 @@ async function invoicePayment(request:Request,env:AdminEnv,invoiceId:string){
 }
 export async function handleFinanceAdminRequest(request:Request,env:AdminEnv,path:string):Promise<Response>{
   try{
-    await authenticate(request,env,request.method!=='GET');
+    const session=await authenticate(request,env,request.method!=='GET');
+    const transfer=path.match(/^\/admin\/finance\/review\/([a-z0-9-]+)\/transfer$/i);
+    if(transfer && request.method==='POST')return await reclassifyTransfer(env,transfer[1],await readAdminJson(request),session.user_id);
     if(request.method==='GET'){
       if(path==='/admin/finance/bootstrap')return await bootstrap(env);
       if(path==='/admin/finance/records')return await records(request,env);
@@ -136,9 +140,20 @@ export async function handleFinanceAdminRequest(request:Request,env:AdminEnv,pat
         if(kind==='invoices')return await saveInvoice(request,env,id);
         const body=await readAdminJson(request),now=new Date().toISOString(),recordId=id??crypto.randomUUID();
         if(kind==='review'&&id){
-          await exists(env,'ledger_entries',id);const [trip,ministry]=await links(env,body);
+          const row=await reviewSnapshot(env,id),[trip,ministry]=await links(env,body);
+          if(body.updated_at!==undefined)checkReviewVersion(row,body);
+          if(row.accounting_class!=='operating')throw new AdminError(409,'TRANSFER_REVIEW','This entry is now a transfer. Refresh the list.');
+          const purpose=await expensePurpose(env,row,body,trip);
           if(flag(body.reimbursed)&&!flag(body.reimbursable))throw new AdminError(422,'INVALID_REIMBURSEMENT','Mark this expense reimbursable before marking it reimbursed.');
-          await env.DB.batch([env.DB.prepare('INSERT INTO finance_review(ledger_id,trip_id,ministry_id,status,accountant_review,reimbursable,reimbursed,notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(ledger_id) DO UPDATE SET trip_id=excluded.trip_id,ministry_id=excluded.ministry_id,status=excluded.status,accountant_review=excluded.accountant_review,reimbursable=excluded.reimbursable,reimbursed=excluded.reimbursed,notes=excluded.notes,updated_at=excluded.updated_at').bind(id,trip,ministry,choice(body.status,statuses),flag(body.accountant_review),flag(body.reimbursable),flag(body.reimbursed),text(body.notes,2000,true),now),auditStatement(env,'finance_review',id,'updated')]);return adminJson({ok:true});
+          const result=await env.DB.batch([env.DB.prepare(`INSERT INTO finance_review(ledger_id,trip_id,ministry_id,status,accountant_review,reimbursable,reimbursed,notes,updated_at,expense_purpose)
+            SELECT ?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM ledger_entries WHERE id=? AND updated_at=? AND accounting_class='operating')
+            AND COALESCE((SELECT updated_at FROM finance_review WHERE ledger_id=?),'')=?
+            ON CONFLICT(ledger_id) DO UPDATE SET trip_id=excluded.trip_id,ministry_id=excluded.ministry_id,status=excluded.status,accountant_review=excluded.accountant_review,reimbursable=excluded.reimbursable,reimbursed=excluded.reimbursed,notes=excluded.notes,updated_at=excluded.updated_at,expense_purpose=excluded.expense_purpose`)
+            .bind(id,trip,ministry,choice(body.status,statuses),flag(body.accountant_review),flag(body.reimbursable),flag(body.reimbursed),text(body.notes,2000,true),now,purpose,id,row.updated_at,id,row.review_updated_at||''),
+            env.DB.prepare(`INSERT INTO audit_events(id,entity_type,entity_id,event_type,metadata_json,created_at,actor_user_id) SELECT ?,'finance_review',?,'updated',?,?,? WHERE changes()=1`)
+              .bind(crypto.randomUUID(),id,JSON.stringify({expensePurpose:purpose,tripId:trip}),now,session.user_id)]);
+          if(!result[0].meta.changes)throw new AdminError(409,'STALE_REVIEW','This transaction changed. Refresh and try again.');
+          return adminJson({ok:true});
         }
         if(kind==='rates'){
           if(id)await exists(env,'finance_rates',id);const from=date(body.effective_from),to=date(body.effective_to);if(to<from)throw new AdminError(422,'INVALID_RANGE','End date must follow start date.');
@@ -163,6 +178,7 @@ export async function handleFinanceAdminRequest(request:Request,env:AdminEnv,pat
   }catch(error){
     if(error instanceof AdminError)return adminJson({error:error.message,code:error.code},error.status,error.headers);
     const message=error instanceof Error?error.message:'';
+    if(/Choose a planned trip/.test(message))return adminJson({error:'Choose a planned trip for this expense.'},422);
     if(/Mileage rate dates overlap/.test(message))return adminJson({error:'Active mileage rates cannot have overlapping dates.'},409);
     if(/Invoice payment exceeds|finance_invoice_payments.ledger_id/.test(message))return adminJson({error:'Choose an unmatched income entry that does not exceed this issued invoice’s remaining balance.'},409);
     if(/finance_invoices.number/.test(message))return adminJson({error:'That invoice number already exists.'},409);

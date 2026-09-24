@@ -1,8 +1,16 @@
 # Hope Sojourns website style guide
 
-Version 4.13
+Version 4.14
 
 Last reviewed: September 24, 2026
+
+## Finance labels and expense review
+
+Finance tables use an explicit Type column with Income and Expense badges on the dashboard, lists, and reports. Income uses forest-wash and forest-dark; Expense uses gold-wash and ink. Text remains the primary distinction.
+
+Expense Review offers General operations, Outreach & promotion, Trip expenses, and Direct ministry support. Show purpose under category and in report filters and exports. Planned trip is enabled and required for Trip expenses; eligible statuses are draft, recruiting, confirmed, and full, plus an unchanged historical selection. Keep purpose separate from reimbursement and reporting status.
+
+Reclassify as transfer opens a separate dialog naming the amount and payee and requiring a reason and confirmation. Explain that no money moves and that the record remains in the full ledger. These controls are included in the September 24, 2026 release.
 
 ## Private user guide and portal footer
 
@@ -658,6 +666,8 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
 ## Revision history
+
+September 24, 2026 - Version 4.14: expense purposes, planned-trip validation, transfer review, and transaction type labels (local pending release).
 
 September 24, 2026 — Version 4.12: Added optional automatic and per-gift thank-you emails, the approved signature template, giving@hopesojourns.com routing, and duplicate-send protection.
 
