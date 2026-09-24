@@ -3082,7 +3082,7 @@ function renderPersonDetail(person) {
   if (!person.interests.length && !person.trips.length) interests.append(element("p", "admin-reply-help", "No trips or interests are recorded for this person."));
 
   grid.append(profile, ministries);
-  if (person.giving) grid.append(renderContactGiving(person.giving));
+  if (person.giving?.gifts?.length > 0) grid.append(renderContactGiving(person.giving));
   grid.append(createTeamAssignments(person), interests, renderSubmissionHistory(person));
   const registrations = renderRegistrations(person);
   if (registrations) grid.append(registrations);
