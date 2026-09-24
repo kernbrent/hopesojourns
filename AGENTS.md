@@ -24,3 +24,11 @@
 - After updating either Markdown guide, regenerate both Word editions with the bundled Python runtime and `tools/build_tech_admin_guides.py`.
 - Render and visually inspect every page of each regenerated Word document before delivery.
 - After regeneration and review, run `powershell -ExecutionPolicy Bypass -File .\Sync-TechAdmin-Docs.ps1` to mirror the canonical copies immediately. The broader `Sync-Hope-Sojourns-Website-Documents.ps1` job also includes them in the daily 2:30 a.m. document-library sync.
+
+## Living MMT user guide
+
+- Treat `docs/user/Hope-Sojourns-MMT-User-Guide.md` as the canonical user-facing operating guide, separate from the developer guide.
+- In the same work session as a change to MMT navigation, button labels, permissions, user-facing steps, imports, reports, trip tools, or other portal workflows, update the affected instructions, table of contents, alphabetical index, Last reviewed date, and revision history.
+- Regenerate `docs/user/Hope-Sojourns-MMT-User-Guide.docx` with the bundled Python runtime and `tools/build_mmt_user_guide.py`. Render and visually inspect every page before delivery.
+- Run `powershell -ExecutionPolicy Bypass -File .\Sync-MMT-User-Guide.ps1` after the canonical files are final. The daily document-library sync also includes this guide. Do not hand-edit the generated Word copy.
+- The GitHub repository is public. Never commit the private guide Markdown, Word edition, or generated HTML. For an explicitly authorized release, upload the same HTML to the isolated private test and production guide R2 buckets; serve it only through the authenticated Worker route.

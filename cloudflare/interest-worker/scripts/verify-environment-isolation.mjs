@@ -20,10 +20,10 @@ function database(environment) {
   return binding;
 }
 
-function receiptBucket(environment) {
-  assert(environment.r2_buckets?.length === 1, "each environment must have exactly one R2 receipt bucket");
-  const [binding] = environment.r2_buckets;
-  assert(binding.binding === "RECEIPTS", "each environment must use the RECEIPTS binding");
+function bucket(environment, bindingName) {
+  assert(environment.r2_buckets?.length === 2, "each environment must have separate receipt and guide R2 buckets");
+  const binding = environment.r2_buckets.find(candidate => candidate.binding === bindingName);
+  assert(binding, `each environment must use the ${bindingName} binding`);
   return binding;
 }
 
@@ -35,8 +35,10 @@ const productionEnvironment = config.env.production;
 const testDatabase = database(testEnvironment);
 const productionDatabase = database(productionEnvironment);
 
-const testReceiptBucket = receiptBucket(testEnvironment);
-const productionReceiptBucket = receiptBucket(productionEnvironment);
+const testReceiptBucket = bucket(testEnvironment, "RECEIPTS");
+const productionReceiptBucket = bucket(productionEnvironment, "RECEIPTS");
+const testGuideBucket = bucket(testEnvironment, "GUIDES");
+const productionGuideBucket = bucket(productionEnvironment, "GUIDES");
 assert(testEnvironment.vars?.ENVIRONMENT === "test", "test ENVIRONMENT must be test");
 assert(productionEnvironment.vars?.ENVIRONMENT === "production", "production ENVIRONMENT must be production");
 // CSM distribution remains fail-closed in application code when its shared
@@ -50,6 +52,10 @@ assert(testDatabase.database_id !== productionDatabase.database_id, "test and pr
 assert(testReceiptBucket.bucket_name === "hope-sojourns-receipts-test-copy-20260923", "the test receipt bucket name changed unexpectedly");
 assert(productionReceiptBucket.bucket_name === "hope-sojourns-receipts-production", "the production receipt bucket name changed unexpectedly");
 assert(testReceiptBucket.bucket_name !== productionReceiptBucket.bucket_name, "test and production receipt buckets must differ");
+assert(testGuideBucket.bucket_name === "hope-sojourns-guides-test", "the test guide bucket name changed unexpectedly");
+assert(productionGuideBucket.bucket_name === "hope-sojourns-guides-production", "the production guide bucket name changed unexpectedly");
+assert(testGuideBucket.bucket_name !== productionGuideBucket.bucket_name, "test and production guide buckets must differ");
+assert(testGuideBucket.bucket_name !== testReceiptBucket.bucket_name && productionGuideBucket.bucket_name !== productionReceiptBucket.bucket_name, "guide and receipt buckets must differ");
 
 assert(
   JSON.stringify(routePatterns(testEnvironment)) === JSON.stringify([
@@ -79,7 +85,7 @@ assert(!productionOrigins.includes("test"), "production origins must not include
 assert(productionOriginList.includes("https://hopesojourns.com"), "production origins must include the apex site");
 assert(productionOriginList.includes("https://www.hopesojourns.com"), "production origins must include the www site");
 
-console.log("Verified isolated test and production Workers, routes, origins, D1 databases, and private R2 receipt buckets.");
+console.log("Verified isolated test and production Workers, routes, origins, D1 databases, and private R2 receipt and guide buckets.");
 
 assert(!testEnvironment.services?.length, "test must not bind production services");
 assert(testEnvironment.vars.SHARED_SIGNIN === "disabled", "test shared sign-in must stay disabled");

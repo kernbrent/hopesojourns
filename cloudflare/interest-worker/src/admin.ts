@@ -2771,6 +2771,18 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
 async function routeAdmin(request: Request, env: AdminEnv, path: string): Promise<Response> {
   if (request.method === "POST" && path === "/admin/login") return login(request, env);
   if (request.method === "GET" && path === "/admin/session") return sessionInfo(request, env);
+  if (request.method === "GET" && path === "/admin/user-guide") {
+    await authenticate(request, env);
+    const guide = await env.GUIDES.get("mmt-user-guide.html");
+    if (!guide || !('body' in guide) || !guide.body) {
+      return adminJson({error:"GUIDE_UNAVAILABLE",message:"The user guide is temporarily unavailable."},503);
+    }
+    const headers = securityHeaders();
+    headers.set("Content-Type", "text/html; charset=utf-8");
+    headers.set("Content-Security-Policy", "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+    headers.set("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
+    return new Response(guide.body, {headers});
+  }
   if (request.method === "POST" && path === "/admin/logout") return logout(request, env);
   if (request.method === "POST" && path === "/admin/password") return changeUserPassword(request, env);
   if(path.startsWith('/admin/account/'))return handleAccountRequest(request,env,path);

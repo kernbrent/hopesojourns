@@ -37,3 +37,11 @@ body.mmt-menu-collapsed .admin-main,body.mmt-menu-collapsed .admin-footer { widt
 @media print { body.mmt-navigation-ready .mmt-sidebar,body.mmt-navigation-ready .mmt-menu-toggle { display:none!important; } }
 
 body.mmt-navigation-ready .mmt-sidebar [hidden],body.mmt-navigation-ready .mmt-menu-toggle[hidden] { display:none!important; }
+
+.mmt-guide-footer { width:calc(100% - 32px);margin:20px 16px;padding:12px 16px;border-top:1px solid var(--line);text-align:right;font-size:.86rem; }
+.mmt-guide-footer-link { color:var(--forest-dark);font-weight:700;text-decoration:underline;text-underline-offset:3px; }
+.admin-footer .mmt-guide-footer-link { color:inherit; }
+.mmt-guide-footer-link:focus-visible { outline:3px solid var(--gold);outline-offset:3px; }
+body.mmt-navigation-ready .mmt-guide-footer { width:calc(100% - var(--mmt-menu-width) - 32px);margin-left:calc(var(--mmt-menu-width) + 16px); }
+body.mmt-menu-collapsed .mmt-guide-footer { width:calc(100% - 32px);margin-left:16px; }
+@media(max-width:760px) { body.mmt-navigation-ready .mmt-guide-footer { width:calc(100% - 32px);margin-left:16px; } }

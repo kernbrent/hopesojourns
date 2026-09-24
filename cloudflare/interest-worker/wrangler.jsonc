@@ -60,6 +60,10 @@
         {
           "binding": "RECEIPTS",
           "bucket_name": "hope-sojourns-receipts-test-copy-20260923"
+        },
+        {
+          "binding": "GUIDES",
+          "bucket_name": "hope-sojourns-guides-test"
         }
       ],
       "services": []
@@ -111,6 +115,10 @@
         {
           "binding": "RECEIPTS",
           "bucket_name": "hope-sojourns-receipts-production"
+        },
+        {
+          "binding": "GUIDES",
+          "bucket_name": "hope-sojourns-guides-production"
         }
       ],
       "services": [

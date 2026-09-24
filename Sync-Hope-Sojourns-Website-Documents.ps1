@@ -21,6 +21,7 @@ $syncSets = @(
     @{ Website = 'resources\do-you-see-me'; Destination = 'WebsiteResources\DoYouSeeMe' }
     @{ Website = 'outputs\contact-import-template'; Destination = 'BusinessAdmin\ContactManagement' }
     @{ Website = 'docs\tech-admin'; Destination = 'TechAdmin' }
+    @{ Website = 'docs\user'; Destination = 'UserGuides' }
 )
 
 function Write-SyncLog {

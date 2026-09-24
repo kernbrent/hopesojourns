@@ -1,8 +1,16 @@
 # Hope Sojourns developer guide
 
-Version 4.12
+Version 4.15
 
 Last reviewed: September 24, 2026
+
+## Authenticated MMT user guide
+
+The canonical operating manual remains `docs/user/Hope-Sojourns-MMT-User-Guide.md`, with a private mirror in `ChristianStepsDoco/HopeSojourns/UserGuides`. The GitHub repository is public, so its Markdown and Word copies are Git-ignored. Running `tools/build_mmt_user_guide.py` regenerates the Word edition and escaped `.tmp/mmt-user-guide.html`. Never commit any of these files or place the guide HTML in the public Pages artifact or Worker source bundle. For an authorized release, upload that same generated file to `mmt-user-guide.html` in the private `hope-sojourns-guides-test` and `hope-sojourns-guides-production` R2 buckets. The `GUIDES` bindings are isolated from each other and from expense-receipt storage; neither bucket may have a public development URL or custom domain.
+
+Authenticated GET `/api/interest/admin/user-guide` runs the existing MMT session check before retrieving the private R2 object and requires an active Hope Sojourns account with its temporary-password change completed. `/admin/user-guide` maps to the self-access section, so any signed-in member can read it without receiving an unrelated work-area permission. The response streams the object without caching and disables indexing, framing, scripts, and form actions. An unauthenticated or expired session returns 401 without guide content; a missing guide object fails closed with 503. There is no website edit route; Word and Markdown remain the editable sources outside the portal.
+
+`admin/mmt-navigation.js` places one guide link in the footer of each authenticated workspace and removes it on sign-out. The original admin page reuses its existing footer; other workspaces receive a shared footer. `admin/mmt-navigation.css` aligns it beside the sidebar and on phones. `admin/mmt-user-guide.css` styles the read-only HTML from shared palette tokens. Only portal workspaces link to the guide. Release the updated Worker, Pages assets, and private guide objects to the two isolated environments together only after explicit authorization; no database migration is needed. Test a copied URL in a signed-out browser and with an expired session, then verify the footer and guide in each signed-in workspace.
 
 ## Contact giving history
 
@@ -838,6 +846,8 @@ The canonical living guides are:
 - `/docs/tech-admin/Hope-Sojourns-Style-Guide.md`
 - `/docs/tech-admin/Hope-Sojourns-Developer-Guide.md`
 
+The separate user-facing operating manual is `/docs/user/Hope-Sojourns-MMT-User-Guide.md`. It covers actual MMT steps, roles, safeguards, and troubleshooting, with its own linked contents and alphabetical index. `/tools/build_mmt_user_guide.py` generates its Word and authenticated web editions. `Sync-MMT-User-Guide.ps1` mirrors the canonical user files to `ChristianStepsDoco/HopeSojourns/UserGuides`; the daily document-library sync also includes that directory. Do not replace user instructions with architecture notes in this developer guide.
+
 `/tools/build_tech_admin_guides.py` generates the polished Microsoft Word editions from those Markdown sources. The generator applies the shared document design, visible palette swatches, Word heading styles, fixed-width accessible tables, running headers, page numbers, and cover pages. Do not hand-edit the generated `.docx` files because those edits will be replaced the next time the guides are built.
 
 Generate both Word editions with the bundled workspace Python runtime:
@@ -857,6 +867,7 @@ Update documentation in the same work session when any of the following changes:
 | Color token or contrast pairing | Style guide and `/COLOR-PALETTE.md` |
 | New recurring maintenance procedure | Developer guide and TechAdmin README when navigation changes |
 | Any guide content change | Regenerate, visually verify, and synchronize both Word editions |
+| MMT navigation, label, permission, or user workflow | User guide, including contents, index, and revision history; regenerate, visually verify, and synchronize its Word edition |
 
 Update the “Last reviewed” date and add a concise revision-history entry for material changes. Run the sync script after the canonical files are final.
 
@@ -952,6 +963,12 @@ Validation includes provider mocks, duplicate/concurrent sends, stale previews, 
 
 ## Revision history
 
+September 24, 2026 — Version 4.15: Moved the signed-in user guide to isolated private R2 storage because the GitHub repository is public; guide source and generated content are excluded from Git and public Pages assets.
+
+September 24, 2026 — Version 4.14: Added the session-protected, read-only web user guide, shared signed-in footer link, and source-to-Worker generation workflow. Superseded source bundling with the private R2 design in version 4.15.
+
+September 24, 2026 — Version 4.13: Added the separate living MMT user guide, Word builder, and document-library synchronization workflow.
+
 September 24, 2026 — Version 4.12: Added optional automatic and per-gift thank-you emails, the approved signature template, giving@hopesojourns.com routing, and duplicate-send protection.
 
 September 23, 2026 — Version 4.11: Released contact giving history and planning/contact review to both portals (build 2026-09-23.3, commit 7f1e35d). All 190 tests passed. Production was backed up before migrations 0035 and 0036; record counts and foreign keys were verified. Future authorized releases target both environments with isolated data and settings.
@@ -1018,9 +1035,9 @@ September 23, 2026 — Version 4.11: Released contact giving history and plannin
 
 ### Public design restoration — September 21, 2026
 
-Restored the production homepage, shared navigation script, and shared stylesheet to the approved public design from c617a30 (archived deployment bcdaf6ac). The homepage again reads “Travel farther. Serve closer.” The experimental experience stylesheet is no longer imported globally. Current admin, finance, trip portal, and devotional formatting/day navigation remain intact. Experimental routes and assets remain available in source but are not linked by the restored public navigation. Do not run tools/build_front_door.py for production; that generator replaces the approved homepage with the experimental design.
+Restored the production homepage, navigation, and stylesheet to approved design c617a30 (archived deployment bcdaf6ac), including “Travel farther. Serve closer.” The experimental stylesheet is no longer global; admin, finance, trip portal, and devotional behavior remains intact. Experimental routes and assets remain unlinked. Do not run tools/build_front_door.py for production; it replaces the approved homepage.
 
 
 ### Traveler portal trip selection — September 21, 2026
 
-Portal restoration now checks the requested trip before rendering an existing session. Admin portal links include the stable tripId as well as the shared login ID. A different trip presents the requested login instead of displaying the previous trip. Successful sign-in verifies the returned session against the login response and updates the URL with its trip ID. Regression coverage includes mismatched sessions, matching trips, custom login IDs, and direct portal visits.
+Portal restoration requires trip-matched sessions. Admin links include trip and login IDs; mismatches show login. Sign-in verifies the trip and updates the URL. Tests cover session matches and mismatches, custom IDs, and direct visits.

@@ -14,4 +14,9 @@
 /node_modules/
 /output/
 
+# Staff-only MMT guide: the repository and its GitHub remote are public.
+/docs/user/Hope-Sojourns-MMT-User-Guide.md
+/docs/user/Hope-Sojourns-MMT-User-Guide.docx
+/cloudflare/interest-worker/src/mmt-user-guide-content.ts
+
 /tools/media-upload/node_modules/

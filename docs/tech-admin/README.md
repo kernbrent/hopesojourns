@@ -1,6 +1,6 @@
 # Hope Sojourns technical administration documents
 
-Last reviewed: September 10, 2026
+Last reviewed: September 24, 2026
 
 This folder contains the living design and technical standards for the Hope Sojourns website.
 
@@ -12,6 +12,8 @@ This folder contains the living design and technical standards for the Hope Sojo
 - `Hope-Sojourns-Developer-Guide.docx` — polished Microsoft Word edition generated from the developer-guide source.
 
 The focused color-token implementation reference remains `/COLOR-PALETTE.md` at the repository root. The complete approved palette is also included in the style guide so the external TechAdmin copy is self-contained.
+
+The separate staff operating manual is described in [`docs/user/`](../user/README.md). Its full source and Word edition are private, outside the public repository; it has its own Word builder and `UserGuides` document-library mirror.
 
 ## Source of truth and synchronization
 

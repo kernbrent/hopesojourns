@@ -1,0 +1,20 @@
+.mmt-guide-page { background:var(--cream);color:var(--ink); }
+.mmt-guide-header { display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px max(20px,calc((100vw - 1080px)/2));background:var(--forest-deep); }
+.mmt-guide-brand img { display:block;width:min(210px,42vw);height:auto; }
+.mmt-guide-return,.mmt-guide-page-footer a { color:var(--paper);font-weight:700;text-decoration:underline;text-underline-offset:3px; }
+.mmt-guide-main { width:min(1080px,calc(100% - 32px));margin:28px auto 36px;padding:clamp(22px,4vw,50px);border:1px solid var(--line);border-radius:20px;background:var(--paper);box-shadow:var(--shadow); }
+.mmt-guide-eyebrow { margin:0;color:var(--gold-ink);font-size:.82rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase; }
+.mmt-guide-main h1 { margin:.15rem 0 .3rem;color:var(--forest-deep);font-size:clamp(2rem,5vw,3.1rem);line-height:1.13; }
+.mmt-guide-meta { margin:0 0 20px;color:var(--muted);font-size:.88rem; }
+.mmt-guide-intro { max-width:74ch;padding-bottom:16px;border-bottom:1px solid var(--line);font-size:1.08rem; }
+.mmt-guide-main h2 { margin:2.3rem 0 .7rem;padding-top:.35rem;border-top:1px solid var(--line);color:var(--forest-dark);font-size:clamp(1.45rem,3vw,2rem);line-height:1.25;scroll-margin-top:20px; }
+.mmt-guide-main h3 { margin:1.5rem 0 .5rem;color:var(--forest-dark);font-size:1.18rem;line-height:1.35;scroll-margin-top:20px; }
+.mmt-guide-main p,.mmt-guide-main li { max-width:84ch; }
+.mmt-guide-main ol,.mmt-guide-main ul { padding-left:1.6rem; }
+.mmt-guide-main li { margin:.45rem 0; }
+.mmt-guide-main a { color:var(--forest-dark);text-decoration:underline;text-underline-offset:3px; }
+.mmt-guide-main a:focus-visible,.mmt-guide-return:focus-visible,.mmt-guide-page-footer a:focus-visible { outline:3px solid var(--gold);outline-offset:3px; }
+.mmt-guide-index-entry { margin:.45rem 0; }
+.mmt-guide-page-footer { padding:22px 20px;background:var(--forest-deep);color:var(--paper);text-align:center;font-size:.88rem; }
+@media(max-width:640px) { .mmt-guide-header { padding:12px 16px; } .mmt-guide-main { width:calc(100% - 20px);margin:10px auto 20px;border-radius:12px; } }
+@media print { .mmt-guide-header,.mmt-guide-page-footer { display:none; } .mmt-guide-main { width:100%;margin:0;padding:0;border:0;box-shadow:none; } }

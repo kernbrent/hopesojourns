@@ -1,8 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.12
+Version 4.13
 
 Last reviewed: September 24, 2026
+
+## Private user guide and portal footer
+
+Show one underlined MMT user guide link in the footer of every authenticated portal workspace. Align it with the content beside the shared sidebar on desktop and within the page width on phones. Do not display the link on the sign-in screen or during mandatory password setup. The guide itself is a read-only, responsive reading page: use a narrow text measure, distinct section headings, visible table-of-contents and index links, and a simple return-to-portal link. Draw its colors from the shared `styles.css` palette. Do not add editing controls, public navigation links, or guide content to a static public page.
 
 ## Contact giving history
 
@@ -661,6 +665,7 @@ September 23, 2026 — Version 4.11: Released the contact giving card to both po
 
 | Date | Version | Change |
 |---|---|---|
+| September 24, 2026 | 4.13 | Added the signed-in portal footer guide link and read-only responsive guide layout. |
 | September 22, 2026 | 4.8.3 | Automatic photo/video upload optimization, local processing, progress, cancellation, and storage savings. |
 | September 22, 2026 | 4.8.2 | Two-column dated photo/video tiles, video uploads and playback, and accessible full-image links. |
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
