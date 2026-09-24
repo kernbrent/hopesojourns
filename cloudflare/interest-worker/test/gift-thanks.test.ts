@@ -20,7 +20,7 @@ it('renders the approved template safely with the date, amount, payment method, 
  const msg=giftEmail({name:'<Dave & Joy>',amount:100,date:'2026-09-23',method:'Personal Venmo',currency:'USD'},'cid:signature');
  expect(msg.subject).toBe('Thank You for your support of Hope Sojourns');
  expect(msg.html).toContain('&lt;Dave &amp; Joy&gt;');expect(msg.html).toContain('September 23, 2026');expect(msg.html).toContain('$100.00');
- expect(msg.html).toContain('WitLooL,<br>');expect(msg.html.match(/WitLooL™/g)).toHaveLength(1);
+ expect(msg.html).toContain('WitLooL,<div>');expect(msg.html.match(/WitLooL™/g)).toHaveLength(1);
  expect(msg.html).toContain('972-505-0171');expect(msg.html).toContain('https://www.christiansteps.net');expect(msg.html).not.toContain('overflow:hidden');
  expect(['PayPal','Personal Venmo','Check','Zelle','Cash','Bank deposit'].map(paymentLabel)).toEqual(['PayPal','Venmo','Check','Zelle','Cash','Other']);
 });
