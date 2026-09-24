@@ -205,7 +205,7 @@ async function listLedger(request: Request, env: AdminEnv): Promise<Response> {
   const transfer = Number(summary?.transfer ?? 0);
   const ids=JSON.stringify(rows.results.map(r=>r.id));
   const [thanksRows,giftRows]=await Promise.all([
-    env.DB.prepare("SELECT entry_id,status FROM gift_thanks t WHERE entry_id IN(SELECT value FROM json_each(?)) AND EXISTS(SELECT 1 FROM donation_gifts g WHERE g.id=t.entry_id AND g.person_id=t.person_id)").bind(ids).all<{entry_id:string;status:string}>(),
+    env.DB.prepare("SELECT entry_id,status FROM gift_thanks t WHERE entry_id IN(SELECT value FROM json_each(?))").bind(ids).all<{entry_id:string;status:string}>(),
     env.DB.prepare("SELECT id,COUNT(*) AS count FROM donation_gifts WHERE id IN(SELECT value FROM json_each(?)) GROUP BY id").bind(ids).all<{id:string;count:number}>()
   ]);
   return adminJson({

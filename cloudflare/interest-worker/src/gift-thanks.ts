@@ -32,7 +32,9 @@ async function signatureContent(env:AdminEnv){
 const validEmail=(email:string)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const snapshotHash=(gift:Gift)=>hashText(JSON.stringify(gift));
 async function sentRow(env:AdminEnv,id:string,personId:string){
- return env.DB.prepare('SELECT * FROM gift_thanks WHERE entry_id=? AND person_id=?').bind(id,personId).first<SentRow>();
+ return env.DB.prepare(`SELECT * FROM gift_thanks WHERE entry_id=?1 AND (person_id=?2 OR
+ (status IN('sent','sending','uncertain') AND NOT EXISTS(SELECT 1 FROM donation_splits WHERE entry_id=?1 AND json_array_length(allocations_json)>0)))
+ ORDER BY CASE WHEN status='sent' THEN 0 WHEN status IN('sending','uncertain') THEN 1 ELSE 2 END LIMIT 1`).bind(id,personId).first<SentRow>();
 }
 function deliveryState(row:SentRow|null){
  const age=row?Date.now()-Date.parse(row.started_at):0;
@@ -49,6 +51,7 @@ export async function sendGiftThanks(env:AdminEnv,id:string,personId:string,acto
  const gift=await giftFor(env,id,personId);
  let existing=await sentRow(env,id,personId);
  if(existing?.status==='sent')return deliveryState(existing);
+ if(existing&&existing.person_id!==personId)throw new AdminError(409,'THANK_YOU_LOCKED','A thank-you for this gift was already attempted for its previous contact. Check delivery before changing the acknowledgment.');
  if(deliveryState(existing).locked)throw new AdminError(409,'THANK_YOU_LOCKED','This thank-you is already sending or needs its delivery checked before another attempt.');
  // A retry after a timeout must reuse exactly the same provider payload and key.
  const retry=existing&&['uncertain','sending'].includes(existing.status);

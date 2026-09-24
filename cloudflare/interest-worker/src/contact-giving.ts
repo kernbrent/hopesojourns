@@ -20,7 +20,7 @@ export async function contactGiving(env: AdminEnv, personId: string, now = new D
   const gifts = await env.DB.prepare(`
     SELECT g.id, g.transaction_date, g.charitable_amount, g.payment_type,
            g.budget_category, g.transaction_purpose, g.note, t.title AS trip_title,
-           (SELECT sent_at FROM gift_thanks WHERE entry_id=g.id AND person_id=g.person_id AND status='sent') AS thanks_sent_at
+           (SELECT sent_at FROM gift_thanks WHERE entry_id=g.id AND status='sent' AND (person_id=g.person_id OR NOT EXISTS(SELECT 1 FROM donation_splits WHERE entry_id=g.id AND json_array_length(allocations_json)>0)) LIMIT 1) AS thanks_sent_at
     FROM donation_gifts g LEFT JOIN trips t ON t.id = g.trip_id
     WHERE g.person_id = ?1 AND g.transaction_date >= ?2 AND g.transaction_date < ?3
     ORDER BY g.transaction_date DESC, g.created_at DESC, g.id

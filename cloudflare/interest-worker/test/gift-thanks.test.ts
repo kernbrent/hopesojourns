@@ -39,6 +39,16 @@ it('preview and failed validation never send, including missing email and change
  f.sqlite.exec("UPDATE people SET email='' WHERE id='donor'");
  await expect(sendGiftThanks(f.env,'gift','donor','primary')).rejects.toMatchObject({code:'EMAIL_REQUIRED'});expect(f.fetchMock).not.toHaveBeenCalled();
 });
+it('does not resend an acknowledged gift after its linked contact is changed',async()=>{
+ const f=await setup();
+ f.sqlite.exec("INSERT INTO gift_thanks(entry_id,person_id,status,attempt_key,payload_json,started_at,updated_at,actor) VALUES('gift','other','failed','old','{}','2026','2026','primary')");
+ await sendGiftThanks(f.env,'gift','donor','primary');
+ f.sqlite.exec("UPDATE ledger_entries SET person_id='other' WHERE id='gift'");
+ expect((await sendGiftThanks(f.env,'gift','other','primary')).status).toBe('sent');
+ expect(f.fetchMock).toHaveBeenCalledTimes(1);
+ const response=await f.call('/admin/ledger/entries/gift/thanks');
+ expect((await response.json() as {gifts:{status:string}[]}).gifts[0]?.status).toBe('sent');
+});
 it('retries a definitive failure and locks after acceptance',async()=>{
  const f=await setup();f.fetchMock.mockResolvedValueOnce(new Response('{}',{status:422}));
  expect((await sendGiftThanks(f.env,'gift','donor','primary')).status).toBe('failed');
