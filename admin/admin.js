@@ -2980,6 +2980,36 @@ function createTeamAssignments(person) {
   return section;
 }
 
+function renderContactGiving(giving) {
+  const section = element("section", "admin-detail-card admin-detail-card-wide");
+  section.append(element("h3", "", "Giving · Past two years"));
+  section.append(element("p", "admin-reply-help", `${formatDate(giving.startDate, false)} – ${formatDate(giving.endDate, false)} · Recorded gifts linked to this contact. Amounts are before processing fees; donor splits show only this person's share.`));
+  section.append(detailList([["Total giving", formatMoney(giving.total)], ["Number of gifts", String(giving.gifts.length)]]));
+  if (!giving.gifts.length) {
+    section.append(element("p", "admin-reply-help", "No giving is recorded for this contact during the past two years."));
+    return section;
+  }
+  const table = element("table", "admin-import-table");
+  table.append(element("caption", "", "Giving history, newest first"));
+  const head = document.createElement("thead"), headings = document.createElement("tr");
+  for (const label of ["Date", "Amount", "Payment method", "Purpose / trip", "Notes"]) {
+    const cell = element("th", "", label); cell.scope = "col"; headings.append(cell);
+  }
+  head.append(headings);
+  const body = document.createElement("tbody");
+  for (const gift of giving.gifts) {
+    const row = document.createElement("tr");
+    for (const value of [formatDate(gift.date, false), formatMoney(gift.amount), gift.paymentMethod,
+      [gift.category || titleCase(gift.purpose), gift.tripTitle].filter(Boolean).join(" · "), gift.note || "—"]) {
+      row.append(element("td", "", value));
+    }
+    body.append(row);
+  }
+  table.append(head, body);
+  section.append(prepareResponsiveTable(table));
+  return section;
+}
+
 function renderPersonDetail(person) {
   const fragment = document.createDocumentFragment();
   const hero = createContactHero(person, "Latest activity", formatDate(person.submissions[0]?.createdAt || person.updatedAt));
@@ -3051,7 +3081,9 @@ function renderPersonDetail(person) {
   person.interests.forEach(interest => interests.append(createInterestRow(person, interest, "person")));
   if (!person.interests.length && !person.trips.length) interests.append(element("p", "admin-reply-help", "No trips or interests are recorded for this person."));
 
-  grid.append(profile, ministries, createTeamAssignments(person), interests, renderSubmissionHistory(person));
+  grid.append(profile, ministries);
+  if (person.giving) grid.append(renderContactGiving(person.giving));
+  grid.append(createTeamAssignments(person), interests, renderSubmissionHistory(person));
   const registrations = renderRegistrations(person);
   if (registrations) grid.append(registrations);
   grid.append(

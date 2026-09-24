@@ -1,8 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.10
+Version 4.11
 
 Last reviewed: September 23, 2026
+
+## Contact giving history
+
+The complete contact record includes a full-width Giving · Past two years card after the profile and ministry relationships. Reuse the existing detail cards, summary list, and responsive table styles. Show the exact date range, total giving, gift count, and gifts newest first with date, amount, payment method, purpose or trip, and notes. On phones, retain the table's field labels. Explain that amounts are before processing fees and donor splits include only the contact's share. An empty history says no giving is recorded for this contact during the period. Hide the section when the viewer lacks finance access. This is a local implementation pending release.
 
 ## Planning workspace and interested submission review
 
@@ -640,6 +644,8 @@ Version 4.10 adds local presentation for gifts received through personal payment
 CSM provides a separate Personally received gifts workspace with HS contact search, original gift entry, expandable reconciliation rows, evidence attachments, and a step-by-step guide. Status labels distinguish funds still held, queued review, approved, and denied. Present the original donor on statements and identify the gift as Christian Steps Ministries — Hope Sojourns. Bank transfers are settlement information, not additional gifts.
 
 ## Revision history
+
+September 23, 2026 — Version 4.11: Added the contact record's rolling two-year giving card, totals, responsive gift history, and empty state using existing visual components.
 
 | Date | Version | Change |
 |---|---|---|

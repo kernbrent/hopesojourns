@@ -1,8 +1,16 @@
 # Hope Sojourns developer guide
 
-Version 4.10
+Version 4.11
 
 Last reviewed: September 23, 2026
+
+## Contact giving history
+
+GET /admin/people/:id includes a giving object for viewers with Finances read or edit permission (or administrators); other contact viewers receive giving: null. The existing Contacts permission remains required. src/contact-giving.ts reads donation_gifts by person ID, joining trip titles, without changing financial records. This shared view preserves each split donor's original gift date and charitable share and avoids counting the parent donation again. Pending payment inbox items, unlinked gifts, expenses, and noncharitable trip payments are not included. Existing approved CSM, manual, and imported gifts are included when linked to the contact and assigned a charitable amount.
+
+The rolling date window starts two calendar years before today and includes today in America/Chicago. A leap-day start is clamped to February 28. Future gifts are excluded. All matching gift rows are returned, newest first, with no silent result limit; totals sum rounded integer cents. The response supplies startDate, endDate, total, and gifts with date, amount, paymentMethod, category, purpose, note, and tripTitle. admin/admin.js renders the card with existing responsive components and safe text nodes. No migration is required. Local implementation only; not deployed.
+
+Validate with the contact-giving, donation-splits, and contact-card-disclosure test suites, TypeScript checking, JavaScript syntax checking, and Check-Color-Palette.ps1. Coverage includes the inclusive period boundaries, Chicago date rollover, leap days, unrelated contacts, unlinked gifts, noncharitable payments, split attribution, pre-fee totals, empty history, and finance permission filtering.
 
 ## Portal planning and contact review
 
@@ -927,6 +935,8 @@ CSM callback handling updates personal-gift status and audit history. Only appro
 Regression coverage includes contact permissions, original donor attribution, exact contact approval, combined and partial deposits, over-allocation, evidence requirements, reversals, voiding, delivery retries, callbacks, fees, expenses, and giving statements. Release requires review, explicit deployment authorization, CSM migration 0005, and compatible receivers before sending. Never bind live CSM to the isolated HS test environment; its shared identity and callbacks remain disabled.
 
 ## Revision history
+
+September 23, 2026 — Version 4.11: Added permission-filtered contact giving history using donation_gifts, with a rolling two-year date window and regression coverage. Local implementation pending release.
 
 | Date | Version | Change |
 |---|---|---|

@@ -1,5 +1,6 @@
 import {storedPhone} from './phone';
 import {actorContext,can,routeSection,currentPortal,effectiveUser,hasPortal,type MmtIdentity} from './mmt-permissions';
+import { contactGiving } from './contact-giving';
 import {verifyUserPassword,publicUser,handleAccountRequest,changeUserPassword} from './mmt-users';
 import {
   CONTACT_IMPORT_MAX_FILE_BYTES,
@@ -1351,7 +1352,7 @@ async function updateContact(request: Request, env: AdminEnv, personId: string):
 }
 
 async function personDetail(request: Request, env: AdminEnv, personId: string): Promise<Response> {
-  await authenticate(request, env);
+  const session = await authenticate(request, env);
   const person = await env.DB.prepare(
     `SELECT id, first_name, last_name, preferred_name, email, phone, contact_preference, field_of_study,
             address_line_1, address_line_2, city, region, postal_code, country,
@@ -1473,6 +1474,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
       createdAt: person.created_at,
       updatedAt: person.updated_at,
       latestSubmissionId: submissionHistory[0]?.id ?? null,
+      giving: can(session.user, 'finances') ? await contactGiving(env, personId) : null,
       interests: interests.results.map(row => ({
         id: row.id,
         status: row.status,
