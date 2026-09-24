@@ -1,5 +1,11 @@
 # Hope Sojourns project instructions
 
+## Deployment destinations
+
+- Until Brent says otherwise, an authorized Hope Sojourns release must deploy the same application version to both test.hopesojourns.com and production (hopesojourns.com and www.hopesojourns.com).
+- Keep test and production databases, uploaded files, secrets, and environment-specific integration settings isolated. Synchronize application code and required schema migrations; do not copy or merge business data between environments.
+- This destination preference does not independently authorize a commit, push, or deployment; those actions still require the user's explicit request.
+
 ## Color system
 
 - Treat the `:root` color block at the top of `styles.css` as the single source of truth for the entire site, including the private response portal.
