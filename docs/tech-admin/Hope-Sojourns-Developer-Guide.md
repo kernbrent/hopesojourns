@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.11
+Version 4.12
 
-Last reviewed: September 23, 2026
+Last reviewed: September 24, 2026
 
 ## Contact giving history
 
@@ -934,7 +934,25 @@ CSM callback handling updates personal-gift status and audit history. Only appro
 
 Regression coverage includes contact permissions, original donor attribution, exact contact approval, combined and partial deposits, over-allocation, evidence requirements, reversals, voiding, delivery retries, callbacks, fees, expenses, and giving statements. Release requires review, explicit deployment authorization, CSM migration 0005, and compatible receivers before sending. Never bind live CSM to the isolated HS test environment; its shared identity and callbacks remain disabled.
 
+## Gift thank-you email acknowledgments
+
+The Ledger offers an optional automatic thank-you switch, initially off. When enabled, newly approved CSM gifts and newly created manual charitable ledger entries are acknowledged after the financial transaction commits. Existing gifts and spreadsheet imports remain manual to avoid unexpectedly emailing historical donors. Delivery failure never rolls back the saved gift. Annual giving letters remain unchanged.
+
+The sender and reply-to are Hope Sojourns <giving@hopesojourns.com>. Cloudflare Email Routing forwards that address to christianstepsministries@gmail.com. Portal account emails continue using admin@hopesojourns.com. Gift emails use the existing Resend configuration and a separate database setting. Test always captures the message without contacting the provider, even when credentials are present.
+
+Migration 0037_gift_thanks.sql adds the automatic setting and acknowledgment history keyed by ledger entry plus donor. GET/PUT /admin/ledger/gift-thanks/settings controls the option. GET /admin/ledger/entries/:id/thanks lists donor acknowledgments; GET /admin/ledger/entries/:id/thanks/:personId previews the message and returns a contact/gift snapshot hash; POST to the same donor route validates that hash and sends. Finance read permission is required for previews; finance edit and CSRF are required for settings and sending. Contact giving history supplies sent timestamps and a gift thank-you action.
+
+The server reads the donor email from the linked contact and the charitable share, original date, method and currency from donation_gifts. Split donors receive individual acknowledgments; ambiguous multiple allocations to the same donor require review. Missing email addresses block sending without losing the gift. Once a send is pending, uncertain or accepted, allocation changes are blocked to protect acknowledgment identity. The history remains when a contact or entry is deleted. Gift updates do not reset sent history.
+
+An atomic database claim prevents concurrent manual/automatic sends. A successful provider acceptance permanently disables sending for that gift and donor; this records acceptance, not guaranteed inbox delivery. Definitive provider rejection remains retryable. Timeouts and ambiguous responses retain the exact payload and idempotency key for safe retry within 23 hours. Older uncertain sends remain locked: inspect Resend delivery history before an administrator reconciles the record; never clear it merely to resend. A stale pending attempt can be retried after one minute within that same window.
+
+The signature is private R2 object branding/brent-kern-signature.png in each environment's RECEIPTS bucket. It is attached inline using a content ID; do not publish the signature in website assets or commit it. Authorized previews embed it for finance users. The oval logo uses the existing public image. tools/build-gift-email-colors.mjs generates src/gift-email-colors.ts from the styles.css root palette; rerun after palette changes. The approved HTML/text template lives in src/gift-email-template.ts and the dialog/settings in admin/gift-thanks.js.
+
+Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
+
 ## Revision history
+
+September 24, 2026 — Version 4.12: Added optional automatic and per-gift thank-you emails, the approved signature template, giving@hopesojourns.com routing, and duplicate-send protection.
 
 September 23, 2026 — Version 4.11: Released contact giving history and planning/contact review to both portals (build 2026-09-23.3, commit 7f1e35d). All 190 tests passed. Production was backed up before migrations 0035 and 0036; record counts and foreign keys were verified. Future authorized releases target both environments with isolated data and settings.
 

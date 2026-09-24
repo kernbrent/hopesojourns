@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.11
+Version 4.12
 
-Last reviewed: September 23, 2026
+Last reviewed: September 24, 2026
 
 ## Contact giving history
 
@@ -643,7 +643,19 @@ Version 4.10 adds local presentation for gifts received through personal payment
 
 CSM provides a separate Personally received gifts workspace with HS contact search, original gift entry, expandable reconciliation rows, evidence attachments, and a step-by-step guide. Status labels distinguish funds still held, queued review, approved, and denied. Present the original donor on statements and identify the gift as Christian Steps Ministries — Hope Sojourns. Bank transfers are settlement information, not additional gifts.
 
+## Gift thank-you email acknowledgments
+
+Use the approved subject, Thank You for your support of Hope Sojourns. Greet the donor by preferred name when available, otherwise first name. The gift summary contains date given, charitable amount and payment method. Keep the thank-you copy warm and concise. Use the same template for automatic and manual acknowledgments.
+
+Place the complete Hope Sojourns oval, without its wordmark, to the left of the closing. Preserve its aspect ratio and full outline; do not clip it. Its visible height should match the closing on a full-width email, with responsive scaling on narrower screens. The right column reads WitLooL, followed by Brent's handwritten signature, Brent Kern, Hope Sojourns, 972-505-0171, and Christian Steps Ministries. Do not add a trademark mark beside the closing.
+
+The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLooL is a trademark. Include links to https://hopesojourns.com and https://www.christiansteps.net. The sender and reply-to are giving@hopesojourns.com. Derive email colors from the shared root palette through tools/build-gift-email-colors.mjs; email clients receive inline styles and table layout.
+
+The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
+
 ## Revision history
+
+September 24, 2026 — Version 4.12: Added optional automatic and per-gift thank-you emails, the approved signature template, giving@hopesojourns.com routing, and duplicate-send protection.
 
 September 23, 2026 — Version 4.11: Released the contact giving card to both portals. Build 2026-09-23.4 hides the entire card for contacts with no gifts in the displayed period.
 

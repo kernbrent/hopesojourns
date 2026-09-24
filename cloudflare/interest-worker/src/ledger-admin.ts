@@ -1,3 +1,4 @@
+import {handleGiftThanks,automaticallyThankGift} from './gift-thanks';
 import {
   AdminError, adminJson, authenticate, auditStatement, cleanLastContactedNote, readAdminJson, type AdminEnv,
 } from "./admin";
@@ -202,8 +203,13 @@ async function listLedger(request: Request, env: AdminEnv): Promise<Response> {
   const income = Number(summary?.income ?? 0);
   const expense = Number(summary?.expense ?? 0);
   const transfer = Number(summary?.transfer ?? 0);
+  const ids=JSON.stringify(rows.results.map(r=>r.id));
+  const [thanksRows,giftRows]=await Promise.all([
+    env.DB.prepare("SELECT entry_id,status FROM gift_thanks t WHERE entry_id IN(SELECT value FROM json_each(?)) AND EXISTS(SELECT 1 FROM donation_gifts g WHERE g.id=t.entry_id AND g.person_id=t.person_id)").bind(ids).all<{entry_id:string;status:string}>(),
+    env.DB.prepare("SELECT id,COUNT(*) AS count FROM donation_gifts WHERE id IN(SELECT value FROM json_each(?)) GROUP BY id").bind(ids).all<{id:string;count:number}>()
+  ]);
   return adminJson({
-    entries: rows.results.map(mappedLedgerRow), page, pageSize, total, pages: Math.max(1, Math.ceil(total / pageSize)),
+    entries: rows.results.map(row=>({...mappedLedgerRow(row),thanksSent:thanksRows.results.filter(t=>t.entry_id===row.id&&t.status==='sent').length,giftCount:giftRows.results.find(g=>g.id===row.id)?.count||0})), page, pageSize, total, pages: Math.max(1, Math.ceil(total / pageSize)),
     summary: { income, expense, transfer, balance: income - expense, count: total }, categories,
   });
 }
@@ -258,7 +264,8 @@ async function createLedgerEntry(request: Request, env: AdminEnv): Promise<Respo
     ).bind(id, `manual:${id}`, entry.contentFingerprint, entry.transactionDate, entry.entryType, entry.paymentType, entry.expenseCategory, entry.budgetCategory, entry.amount, entry.name, entry.personId, entry.checkNumber, entry.note, entry.transactionPurpose, entry.charitableAmount, session.id, now),
     auditStatement(env, "ledger_entry", id, "created", { sourceType: "manual", entryType: entry.entryType, amount: entry.amount, transactionPurpose: entry.transactionPurpose, charitableAmount: entry.charitableAmount, transactionDate: entry.transactionDate }),
   ]);
-  return adminJson({ entryId: id, success: true }, 201);
+  const thanks=await automaticallyThankGift(env,id,session.user_id);
+  return adminJson({ entryId: id, success: true, thanks }, 201);
 }
 
 async function updateLedgerEntry(request: Request, env: AdminEnv, id: string): Promise<Response> {
@@ -711,6 +718,8 @@ function recognizedAdminError(error: unknown): AdminError | null {
 
 export async function handleLedgerAdminRequest(request: Request, env: AdminEnv, path: string): Promise<Response> {
   try {
+    const thanksResponse=await handleGiftThanks(request,env,path);
+    if(thanksResponse)return thanksResponse;
     if (request.method === "GET" && path === "/admin/ledger") return await listLedger(request, env);
     if (request.method === "POST" && path === "/admin/ledger/entries") return await createLedgerEntry(request, env);
     const splitRoute=path.match(/^\/admin\/ledger\/entries\/([^/]+)\/donor-splits$/);

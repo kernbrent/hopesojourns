@@ -1,3 +1,4 @@
+import {automaticallyThankGift} from './gift-thanks';
 import {allocationContacts} from './donation-splits';
 import { parseDistributionMessage, type CsmDistributionMessage } from "./csm-distribution-contract";
 import {
@@ -308,9 +309,10 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
     statements.push(env.DB.prepare('INSERT INTO donation_splits(entry_id,revision,allocations_json,updated_at,actor) VALUES(?,1,?,?,?)').bind(ledgerId,JSON.stringify(allocations),now,session.user_id));
   }
   await env.DB.batch(statements);
+  const thanks=await automaticallyThankGift(env,ledgerId,session.user_id);
   const callbackStatus = await notifyCsm(env, { ...row, recipient_record_id: recordId }, "approved", null);
   return adminJson({ success: true, status: "approved", recordId, personId, matchMethod,
-    createdPerson: matchMethod === "new_donor", callbackStatus });
+    createdPerson: matchMethod === "new_donor", callbackStatus, thanks });
 }
 
 async function deny(request: Request, env: CsmEnv, id: string): Promise<Response> {

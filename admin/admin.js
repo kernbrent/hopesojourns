@@ -1280,7 +1280,7 @@ function renderCsmCard(message) {
         } : {};
         const { result } = await api(`/csm-inbox/${message.id}/approve`, { method: "POST", body });
         await loadCsmInbox();
-        submissionsStatus.textContent = `${message.displayName} was approved.${result.createdPerson ? " A new donor was added to People." : ""}`;
+        submissionsStatus.textContent = `${message.displayName} was approved.${result.createdPerson ? " A new donor was added to People." : ""}${window.HsGiftThanks.summary(result.thanks)}`;
       } catch (error) {
         submissionsStatus.textContent = error.message;
       } finally {
@@ -1400,6 +1400,7 @@ async function approveAllCsmInbox() {
     const failures = [];
     let approved = 0;
     let createdPeople = 0;
+    let thanksNeedingAttention = 0;
     while (processed.size < 5000) {
       const messages = page.messages.filter(message => !processed.has(message.id));
       if (!messages.length) break;
@@ -1413,6 +1414,7 @@ async function approveAllCsmInbox() {
           });
           approved += 1;
           if (result.createdPerson) createdPeople += 1;
+          thanksNeedingAttention += (result.thanks||[]).filter(t=>!['sent','captured'].includes(t.status)).length;
         } catch (error) {
           failures.push({ name: message.displayName, error: error.message || "Approval failed" });
         }
@@ -1427,6 +1429,7 @@ async function approveAllCsmInbox() {
     submissionsStatus.textContent = [
       `${approved} transaction${approved === 1 ? "" : "s"} approved.`,
       createdPeople ? `${createdPeople} new donor${createdPeople === 1 ? "" : "s"} added to People.` : "",
+      thanksNeedingAttention ? `${thanksNeedingAttention} thank-you emails need attention in the Ledger.` : "",
       remaining ? `${remaining} transaction${remaining === 1 ? "" : "s"} still need attention.` : "The queue is clear.",
     ].filter(Boolean).join(" ");
   } catch (error) {
@@ -1744,6 +1747,7 @@ function renderLedgerTable(entries) {
       }
     });
     actions.append(edit, remove);
+    if(entry.entryType==='income'&&entry.charitableAmount>0) actions.append(window.HsGiftThanks.button(api,entry.id,null,entry.giftCount>0&&entry.thanksSent>=entry.giftCount));
     actionsCell.append(actions);
     row.append(actionsCell);
     body.append(row);
@@ -1982,6 +1986,7 @@ async function loadLedger() {
   try {
     const { result } = await api(`/ledger?${ledgerFilterQuery()}`);
     ledgerTableShell.replaceChildren(renderLedgerTable(result.entries || []));
+    await window.HsGiftThanks.settings(api);
     ledgerIncome.textContent = formatMoney(result.summary?.income);
     ledgerExpense.textContent = formatMoney(result.summary?.expense);
     ledgerTransfer.textContent = formatMoney(result.summary?.transfer);
@@ -2992,7 +2997,7 @@ function renderContactGiving(giving) {
   const table = element("table", "admin-import-table");
   table.append(element("caption", "", "Giving history, newest first"));
   const head = document.createElement("thead"), headings = document.createElement("tr");
-  for (const label of ["Date", "Amount", "Payment method", "Purpose / trip", "Notes"]) {
+  for (const label of ["Date", "Amount", "Payment method", "Purpose / trip", "Notes", "Thank-you"]) {
     const cell = element("th", "", label); cell.scope = "col"; headings.append(cell);
   }
   head.append(headings);
@@ -3003,6 +3008,9 @@ function renderContactGiving(giving) {
       [gift.category || titleCase(gift.purpose), gift.tripTitle].filter(Boolean).join(" · "), gift.note || "—"]) {
       row.append(element("td", "", value));
     }
+    const thanksCell=element('td','');
+    thanksCell.append(window.HsGiftThanks.button(api,gift.id,gift.personId,!!gift.thanksSentAt,gift.thanksSentAt));
+    row.append(thanksCell);
     body.append(row);
   }
   table.append(head, body);
@@ -3848,7 +3856,7 @@ ledgerEntryForm.addEventListener("submit", async event => {
   try {
     const editingEntryId = state.ledgerEditingEntryId;
     const entryPath = editingEntryId ? `/ledger/entries/${encodeURIComponent(editingEntryId)}` : "/ledger/entries";
-    await api(entryPath, {
+    const {result:savedGift} = await api(entryPath, {
       method: editingEntryId ? "PUT" : "POST",
       body: {
         charitableAmount: String(formData.get("charitableAmount") || "").trim() ? Number(formData.get("charitableAmount")) : null,
@@ -3866,9 +3874,9 @@ ledgerEntryForm.addEventListener("submit", async event => {
       },
     });
     ledgerEntryStatus.classList.add("is-success");
-    ledgerEntryStatus.textContent = editingEntryId ? "Ledger entry updated." : "Ledger entry saved.";
+    ledgerEntryStatus.textContent = (editingEntryId ? "Ledger entry updated." : "Ledger entry saved.")+window.HsGiftThanks.summary(savedGift.thanks);
     await loadLedger();
-    setTimeout(() => ledgerEntryDialog.close(), 450);
+    if(!savedGift.thanks?.some(t=>!['sent','captured'].includes(t.status)))setTimeout(() => ledgerEntryDialog.close(), 450);
   } catch (error) {
     ledgerEntryStatus.classList.remove("is-success");
     ledgerEntryStatus.textContent = error.message;
