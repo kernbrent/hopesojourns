@@ -6,7 +6,7 @@ Last reviewed: September 23, 2026
 
 ## Contact giving history
 
-The complete contact record includes a full-width Giving · Past two years card after the profile and ministry relationships. Reuse the existing detail cards, summary list, and responsive table styles. Show the exact date range, total giving, gift count, and gifts newest first with date, amount, payment method, purpose or trip, and notes. On phones, retain the table's field labels. Explain that amounts are before processing fees and donor splits include only the contact's share. An empty history says no giving is recorded for this contact during the period. Hide the section when the viewer lacks finance access. This is a local implementation pending release.
+The complete contact record includes a full-width Giving · Past two years card after the profile and ministry relationships. Reuse the existing detail cards, summary list, and responsive table styles. Show the exact date range, total giving, gift count, and gifts newest first with date, amount, payment method, purpose or trip, and notes. On phones, retain the table's field labels. Explain that amounts are before processing fees and donor splits include only the contact's share. An empty history says no giving is recorded for this contact during the period. Hide the section when the viewer lacks finance access. Released to test and production September 23, 2026.
 
 ## Planning workspace and interested submission review
 
@@ -645,7 +645,7 @@ CSM provides a separate Personally received gifts workspace with HS contact sear
 
 ## Revision history
 
-September 23, 2026 — Version 4.11: Added the contact record's rolling two-year giving card, totals, responsive gift history, and empty state using existing visual components.
+September 23, 2026 — Version 4.11: Released the contact record's rolling two-year giving card, totals, responsive gift history, and empty state to both test and production.
 
 | Date | Version | Change |
 |---|---|---|

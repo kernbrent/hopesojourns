@@ -8,13 +8,13 @@ Last reviewed: September 23, 2026
 
 GET /admin/people/:id includes a giving object for viewers with Finances read or edit permission (or administrators); other contact viewers receive giving: null. The existing Contacts permission remains required. src/contact-giving.ts reads donation_gifts by person ID, joining trip titles, without changing financial records. This shared view preserves each split donor's original gift date and charitable share and avoids counting the parent donation again. Pending payment inbox items, unlinked gifts, expenses, and noncharitable trip payments are not included. Existing approved CSM, manual, and imported gifts are included when linked to the contact and assigned a charitable amount.
 
-The rolling date window starts two calendar years before today and includes today in America/Chicago. A leap-day start is clamped to February 28. Future gifts are excluded. All matching gift rows are returned, newest first, with no silent result limit; totals sum rounded integer cents. The response supplies startDate, endDate, total, and gifts with date, amount, paymentMethod, category, purpose, note, and tripTitle. admin/admin.js renders the card with existing responsive components and safe text nodes. No migration is required. Local implementation only; not deployed.
+The rolling date window starts two calendar years before today and includes today in America/Chicago. A leap-day start is clamped to February 28. Future gifts are excluded. All matching gift rows are returned, newest first, with no silent result limit; totals sum rounded integer cents. The response supplies startDate, endDate, total, and gifts with date, amount, paymentMethod, category, purpose, note, and tripTitle. admin/admin.js renders the card with existing responsive components and safe text nodes. No migration is required. Released to test and production September 23, 2026.
 
 Validate with the contact-giving, donation-splits, and contact-card-disclosure test suites, TypeScript checking, JavaScript syntax checking, and Check-Color-Palette.ps1. Coverage includes the inclusive period boundaries, Chicago date rollover, leap days, unrelated contacts, unlinked gifts, noncharitable payments, split attribution, pre-fee totals, empty history, and finance permission filtering.
 
 ## Portal planning and contact review
 
-Version 4.9 is approved for commit, push, and deployment to the isolated test portal. test.hopesojourns.com manages a one-time copy of live business records in a separate D1 database and private R2 bucket. Changes in test never synchronize to production. Live sessions, passwords, reset links, invite tokens, and email queues are excluded. Test email and Christian Steps callbacks are blocked in application code, shared sign-in is disabled, and production routes remain unchanged. The copied trips require independent traveler credentials before portal access. Production release remains a separate decision.
+Version 4.9 planning and contact review reached both portals on September 23, 2026. test.hopesojourns.com manages a one-time copy of live business records in a separate D1 database and private R2 bucket. Business data in test never synchronize to production. Live sessions, passwords, reset links, invite tokens, and email queues are excluded. Test email and Christian Steps callbacks are blocked in application code, shared sign-in is disabled, and production routes remain unchanged. The copied trips require independent traveler credentials before portal access. Future authorized releases deploy the same application to both portals until Brent says otherwise; data and environment settings remain isolated.
 
 Migration 0035 adds ministry_tasks, trip_reviews, and trip_templates. The authenticated /admin/planning APIs provide a permission-filtered dashboard, task editing with optimistic revisions, explicit readiness approvals, and reusable templates. Task access requires access to every linked workspace; a task linked to a contact and trip requires both. General tasks use Inbox permission. Tasks support active MMT owners, due dates, completion, cancellation, and reopening. Contact profiles link to their follow-up tasks. No automatic emails are sent.
 
@@ -936,7 +936,7 @@ Regression coverage includes contact permissions, original donor attribution, ex
 
 ## Revision history
 
-September 23, 2026 — Version 4.11: Added permission-filtered contact giving history using donation_gifts, with a rolling two-year date window and regression coverage. Local implementation pending release.
+September 23, 2026 — Version 4.11: Released contact giving history and planning/contact review to both portals (build 2026-09-23.3, commit 7f1e35d). All 190 tests passed. Production was backed up before migrations 0035 and 0036; record counts and foreign keys were verified. Future authorized releases target both environments with isolated data and settings.
 
 | Date | Version | Change |
 |---|---|---|
