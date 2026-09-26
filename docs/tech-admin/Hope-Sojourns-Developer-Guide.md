@@ -1,8 +1,20 @@
 # Hope Sojourns developer guide
 
-Version 4.16
+Version 4.18
 
-Last reviewed: September 24, 2026
+Last reviewed: September 26, 2026
+
+## Scripture links and Day 1 hymns
+
+`journey/content-format.js` recognizes canonical book names, chapter and verse ranges, and same-book shorthand such as `Revelation 21:1–7; 22:1–5`. It builds individual Bible Gateway passage URLs with the NIV version using DOM text nodes and anchors, not HTML substitution. Links open in a new tab with `noopener noreferrer`. The formatter is shared by the traveler portal, past-trip stories, and downloaded traveler packets; the admin trip content cards, day planner, and devotional library metadata use its link helper. Editor text remains plain text. Keep the formatter loaded before the dependent scripts and update asset versions when changing it.
+
+Migration `0039_day_one_hymns.sql` inserts the user-supplied To God Be the Glory and Amazing Grace section before the closing prayer in the Day 1 Feast Bible Study master and its existing trip copy. The migration targets those two IDs, preserves the surrounding content and visibility, and skips an existing hymn section. Apply the same migration separately to isolated test and production databases only as part of an authorized release. It does not synchronize later edits between master and trip copy.
+
+## Ministry Home presentation
+
+Local redesign pending separate release. admin/ministry/ministry.js scopes the Home presentation with the ministry-home body class, clears it on other routes, and places the planning region after the action shortcuts and before Next actions. admin/planning.js retains the existing dashboard and readiness APIs, trip eligibility, permissions, task links, and session-only recent trips. It adds date/status markup and accessible native progress indicators with text counts. Missing dates show Dates pending. No business records, readiness states, routes, or database schema change.
+
+All added styles are scoped to ministry-home in admin/ministry/ministry.css. The ministry HTML versions its stylesheet and both changed scripts as 2026-09-24.3. Validate desktop and mobile layouts, non-Home route styling, syntax, and the palette. Refresh the private user guide's page-reference fields from its final rendered PDF using tools/refresh_mmt_guide_page_references.py before synchronization.
 
 ## Expense purpose and transfer review
 
@@ -108,9 +120,9 @@ Day links open, focus, and scroll to the matching banner, including when the sam
 
 ## Traveler study formatting
 
-`journey/content-format.js` exposes `HSJourneyContent.render(text, { study })`. The journey page loads it before `journey.js`; both scripts and the journey stylesheet use asset version `2026-09-21.1`. Render saved content with DOM creation and textContent, never innerHTML. Blank lines form paragraphs; devotional content additionally recognizes short uppercase section headings, talking-point sections, and closing prayers. Explicit numbered and bulleted lines become native lists. Known Scripture, focus, and leader-reminder labels are emphasized. Whole-line `NIV reading: https://...` entries become descriptive HTTPS links with noopener and noreferrer; invalid links and raw HTML stay plain text.
+`journey/content-format.js` exposes `HSJourneyContent.render(text, { study })` and `HSJourneyContent.appendScriptureLinks(element, text)`. The journey page loads it before `journey.js`; the changed scripts use asset version `2026-09-26.1`. Render saved content with DOM creation and textContent, never HTML substitution. Blank lines form paragraphs; devotional content additionally recognizes short uppercase section headings, talking-point sections, and closing prayers. Explicit numbered and bulleted lines become native lists. Known Scripture, focus, and leader-reminder labels are emphasized. Whole-line `NIV reading: https://...` entries remain descriptive HTTPS links; individual Scripture references become separate Bible Gateway anchors. Invalid links and raw HTML stay plain text.
 
-Study-specific presentation applies to every record whose content_type is devotional, including Bible studies in that category. All other content keeps paragraph breaks and explicit lists without study-heading inference. No database migration, record rewrite, visibility change, or publication action is required. Existing drafts gain the formatting when normally published. The typography update was deployed September 21, 2026 as Pages deployment 7f15e692. Preserve the portal session API and its existing publication filtering.
+Study-specific presentation applies to every record whose content_type is devotional, including Bible studies in that category. All other content keeps paragraph breaks and explicit lists without study-heading inference. Existing drafts gain the formatting when normally published. The original typography update required no data migration and was deployed September 21, 2026 as Pages deployment 7f15e692; the Day 1 hymns use migration 0039. Preserve the portal session API and its existing publication filtering.
 
 ## Dated trip preview layout
 
@@ -972,6 +984,10 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+September 26, 2026 — Version 4.18: Documented per-reference Bible Gateway links across study and devotional views and the guarded Day 1 hymn migration; local pending release.
+
+September 24, 2026 — Version 4.17: Documented the local Ministry Home presentation, unchanged APIs, scoped styling, and page-reference verification.
 
 September 24, 2026 - Version 4.16: expense purposes, planned-trip validation, transfer review, and transaction type labels (local pending release).
 

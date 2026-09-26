@@ -147,7 +147,9 @@ function studyDays(section, items, trip) {
       ? first.title.replace(/^Day\s+\d+\s*/i, '').replace(/^[—–:-]\s*/, '')
       : `${entries.length} studies and devotionals`));
     const readings = [...new Set(entries.map(item => String(item.content || '').match(/^(?:Read aloud from the NIV|Scripture(?: reading)?|Bible reading):[ \t]*(.+)$/im)?.[1]?.trim()).filter(Boolean))];
-    summary.append(node('span', 'journey-study-scripture', readings.length ? `Scripture: ${readings.join(' · ')}` : 'Scripture readings inside the study'));
+    const scripture = node('span', 'journey-study-scripture');
+    window.HSJourneyContent.appendScriptureLinks(scripture, readings.length ? `Scripture: ${readings.join(' · ')}` : 'Scripture readings inside the study');
+    summary.append(scripture);
     const cue = node('span', 'journey-study-toggle', 'Open study');
     summary.append(cue);
     details.addEventListener('toggle', () => { cue.textContent = details.open ? 'Close study' : 'Open study'; });

@@ -761,6 +761,16 @@ function record(title, body, metaItems = [], actions = []) {
   return article;
 }
 
+function contentRecord(item, metaItems, actions = []) {
+  const article = record(item.title, item.content, metaItems, actions);
+  const body = article.querySelector('.trip-record-body');
+  if (body) {
+    body.replaceChildren();
+    window.HSJourneyContent.appendScriptureLinks(body, item.content);
+  }
+  return article;
+}
+
 function renderMembers() {
   const interests = document.querySelector("#trip-interest-list");
   interests.replaceChildren();
@@ -819,9 +829,8 @@ async function removeResource(resource, id, label) {
 function renderContent() {
   const list = document.querySelector("#trip-content-list");
   list.replaceChildren();
-  state.workspace.content.forEach(item => list.append(record(
-    item.title,
-    item.content,
+  state.workspace.content.forEach(item => list.append(contentRecord(
+    item,
     [titleCase(item.content_type), titleCase(item.visibility), titleCase(item.publication_status), item.event_date ? dateLabel(item.event_date) : ""],
     [{ label: "Edit", run: () => editContent(item) }, { label: "Remove", kind: "danger", run: () => removeResource("content", item.id, item.title) }],
   )));
@@ -1071,7 +1080,7 @@ function renderPublicContent() {
   const list = document.querySelector("#trip-public-content-list");
   list.replaceChildren();
   const items = state.workspace.content.filter(item => item.visibility === "public");
-  items.forEach(item => list.append(record(item.title, item.content, [titleCase(item.content_type), titleCase(item.publication_status)])));
+  items.forEach(item => list.append(contentRecord(item, [titleCase(item.content_type), titleCase(item.publication_status)])));
   if (!items.length) list.append(record("No public content yet", "Public content must be intentionally marked Public and Published."));
 }
 

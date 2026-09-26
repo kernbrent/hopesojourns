@@ -28,12 +28,17 @@
     const list = document.querySelector('#devotional-library-list');
     list.replaceChildren();
     filtered.forEach(item => {
+      const result = node('div', 'devotional-library-result');
       const button = node('button', 'devotional-library-entry');
       button.type = 'button';
       button.setAttribute('aria-pressed', String(selected?.id === item.id));
-      button.append(node('strong', '', item.title), node('span', '', item.scripture || 'No Scripture reference'), node('small', '', item.topics || 'No topics added'));
+      button.append(node('strong', '', item.title), node('small', '', item.topics || 'No topics added'));
       button.addEventListener('click', safe(async () => { if (discard()) await select(item.id); }));
-      list.append(button);
+      result.append(button);
+      const scripture = node('div', 'devotional-library-scripture-links');
+      window.HSJourneyContent.appendScriptureLinks(scripture, item.scripture || 'No Scripture reference');
+      result.append(scripture);
+      list.append(result);
     });
     if (!filtered.length) list.append(node('p', '', 'No devotionals match. Try another topic or Scripture reference.'));
   }

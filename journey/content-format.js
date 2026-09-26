@@ -1,5 +1,66 @@
 /* Render saved plain-text studies as safe, readable document sections. */
 (() => {
+  const books = [
+    'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth',
+    '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra',
+    'Nehemiah', 'Esther', 'Job', 'Psalm', 'Psalms', 'Proverbs', 'Ecclesiastes',
+    'Song of Solomon', 'Song of Songs', 'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel',
+    'Daniel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk',
+    'Zephaniah', 'Haggai', 'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John',
+    'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
+    'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy',
+    '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter',
+    '1 John', '2 John', '3 John', 'Jude', 'Revelation'
+  ].sort((a, b) => b.length - a.length);
+  const passage = '\\d{1,3}(?::\\d{1,3})?(?:\\s*[-–—]\\s*\\d{1,3})?';
+  const numberedBook = '[1-3]\\s+(?:Samuel|Kings|Chronicles|Corinthians|Thessalonians|Timothy|Peter|John)\\b';
+  const scripturePattern = new RegExp(`\\b(${books.join('|')})\\s+(${passage}(?:\\s*[,;]\\s*(?!${numberedBook})${passage})*)`, 'gi');
+  const cleanPassage = value => value.replace(/[–—]/g, '-').replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').trim();
+  function references(value) {
+    const text = String(value || '');
+    const found = [];
+    for (const match of text.matchAll(new RegExp(scripturePattern.source, 'gi'))) {
+      const book = match[1];
+      const parts = match[0].split(/([;,]\s*)/);
+      let offset = match.index;
+      let chapter = '';
+      let verseContext = false;
+      parts.forEach((part, index) => {
+        if (index % 2) { offset += part.length; return; }
+        const first = index === 0;
+        const reference = first ? part.slice(book.length).trim() : part;
+        const separator = index > 0 ? parts[index - 1][0] : '';
+        let passageText;
+        if (first || reference.includes(':') || separator === ';' || !verseContext) {
+          chapter = reference.match(/^\d{1,3}/)?.[0] || chapter;
+          verseContext = reference.includes(':');
+          passageText = `${book} ${reference}`;
+        } else {
+          passageText = `${book} ${chapter}:${reference}`;
+        }
+        found.push({ start: offset, end: offset + part.length, passage: cleanPassage(passageText) });
+        offset += part.length;
+      });
+    }
+    return found;
+  }
+  function appendScriptureLinks(element, value) {
+    const text = String(value || '');
+    let cursor = 0;
+    for (const reference of references(text)) {
+      element.append(document.createTextNode(text.slice(cursor, reference.start)));
+      const link = document.createElement('a');
+      link.textContent = text.slice(reference.start, reference.end);
+      link.href = `https://www.biblegateway.com/passage/?search=${encodeURIComponent(reference.passage)}&version=NIV`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.setAttribute('aria-label', `Read ${reference.passage} in the NIV on Bible Gateway (opens in a new tab)`);
+      element.append(link);
+      cursor = reference.end;
+    }
+    element.append(document.createTextNode(text.slice(cursor)));
+    return element;
+  }
   function render(text, { study = false } = {}) {
     const root = document.createElement('div');
     root.className = 'journey-prose';
@@ -9,7 +70,7 @@
     const append = (tag, value, className = '') => {
       const element = document.createElement(tag);
       element.className = className;
-      element.textContent = value;
+      appendScriptureLinks(element, value);
       root.append(element);
       return element;
     };
@@ -34,7 +95,7 @@
         for (const line of lines) {
           const item = document.createElement('li');
           if (numbered) item.value = Number(line.match(/^\d+/)[0]);
-          item.textContent = line.replace(numbered ? /^\d+[.)]\s+/ : bulleted ? /^[-•]\s+/ : /$^/, '');
+          appendScriptureLinks(item, line.replace(numbered ? /^\d+[.)]\s+/ : bulleted ? /^[-•]\s+/ : /$^/, ''));
           list.append(item);
         }
         continue;
@@ -61,18 +122,19 @@
       if (label) {
         const strong = document.createElement('strong');
         strong.textContent = label[1];
-        p.append(strong, document.createTextNode(' ' + value.slice(label[0].length)));
+        p.append(strong, document.createTextNode(' '));
+        appendScriptureLinks(p, value.slice(label[0].length));
         if (label[1] === 'Read aloud from the NIV:') p.classList.add('journey-scripture');
       } else if (study && section === 'CLOSING PRAYER') {
         const em = document.createElement('em');
-        em.textContent = value;
+        appendScriptureLinks(em, value);
         p.className = 'journey-prayer';
         p.append(em);
       } else {
-        p.textContent = value;
+        appendScriptureLinks(p, value);
       }
     }
     return root;
   }
-  globalThis.HSJourneyContent = { render };
+  globalThis.HSJourneyContent = { render, references, appendScriptureLinks };
 })();

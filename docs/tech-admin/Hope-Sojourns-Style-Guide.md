@@ -1,8 +1,20 @@
 # Hope Sojourns website style guide
 
-Version 4.14
+Version 4.16
 
-Last reviewed: September 24, 2026
+Last reviewed: September 26, 2026
+
+## Scripture reference links and hymns
+
+Make each displayed Scripture reference an underlined text link to its exact Bible Gateway passage. Preserve the written book and verse text, including shortened second references; the accessible link name should state the full resolved passage and NIV destination. Use the existing forest link colors and visible keyboard focus treatment. In the devotional library, place passage links outside the button that selects a master so link navigation and editing remain separate actions.
+
+The Day 1 Bible Study uses the existing devotional heading hierarchy for its Hymns for Day 1 section and the two hymn titles. Keep each stanza's original line breaks and space between stanzas and the refrain. Do not add decorative colors or reformat the lyrics as a continuous paragraph. The downloadable traveler packet retains this hierarchy and reminds readers that its Scripture links require internet access.
+
+## Ministry Home presentation
+
+The local Home redesign uses a forest-dark header with paper text and a restrained gold edge. Keep the shared serif headings, cream page, paper cards, and existing palette; introduce no new colors. Show the attention, trip preparation, and document shortcuts first. Use a gold-tinted attention card and one gold inbox action to establish priority.
+
+Upcoming journey cards show a compact month/day badge, written trip status, date range, and a labeled preparation progress bar. Preserve the early-completion warning in a gold-wash notice. Tasks and recently opened trips occupy separate paper and forest-wash panels. Keep meaningful empty states and existing navigation labels. On phones, stack cards and panels in one column; preserve visible focus and wrap long titles. These visual changes are local pending a separate release.
 
 ## Finance labels and expense review
 
@@ -70,7 +82,7 @@ Begin the devotional section with wrapping day-and-date links. Each dated group 
 
 ## Traveler study typography
 
-Bible studies and devotionals in the traveler portal use a reading column limited to 70 characters, generous paragraph spacing, forest-green bold section headings, bulleted talking points, and numbered group questions. Scripture references are bold; NIV reading links are descriptive and underlined. Closing prayers use italics and the existing dark gold-ink token. Keep body copy at 17px on desktop and 16px on small phones, with a 1.8 line height. Underlining denotes links rather than decorative emphasis. Use semantic headings, lists, strong text, and emphasis so the organization remains clear without color.
+Bible studies and devotionals in the traveler portal use a reading column limited to 70 characters, generous paragraph spacing, forest-green bold section headings, bulleted talking points, and numbered group questions. Scripture references and NIV reading links are descriptive and underlined; Scripture callouts retain their bold treatment. Closing prayers use italics and the existing dark gold-ink token. Keep body copy at 17px on desktop and 16px on small phones, with a 1.8 line height. Underlining denotes links rather than decorative emphasis. Use semantic headings, lists, strong text, and emphasis so the organization remains clear without color.
 
 Apply this presentation when displaying devotional records, including Bible studies stored in that category. Existing drafts receive the same presentation when their owner publishes them. Formatting does not change publication status, visibility, or saved text. The typography update was deployed September 21, 2026.
 
@@ -666,6 +678,10 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
 ## Revision history
+
+September 26, 2026 — Version 4.16: Added underlined per-passage Scripture links, separate library-link controls, and hymn stanza presentation; local pending release.
+
+September 24, 2026 — Version 4.15: Refined Ministry Home hierarchy, journey cards, progress indicators, task panels, and responsive layout; local review.
 
 September 24, 2026 - Version 4.14: expense purposes, planned-trip validation, transfer review, and transaction type labels (local pending release).
 
