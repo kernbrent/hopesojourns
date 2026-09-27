@@ -1241,7 +1241,7 @@ function renderCsmCard(message) {
       }));
       if (people.size) {
         const label = element("label", "admin-csm-person-select");
-        label.append(element("span", "", "Existing donor match"));
+        label.append(element("span", "", message.party.email ? "Existing donor match" : "Possible donor match — verify email"));
         personSelect = document.createElement("select");
         const create = element("option", "", "Create a new donor instead");
         create.value = "";
@@ -1253,6 +1253,7 @@ function renderCsmCard(message) {
           personSelect.append(option);
         }
         label.append(personSelect);
+        if (!message.party.email) label.append(element("small", "", "CSM did not supply an email. Confirm this person's identity before selecting the contact."));
         form.append(label);
       }
       const names = csmNameParts(message.displayName);

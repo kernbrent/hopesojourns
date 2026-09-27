@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.20
+Version 4.21
 
-Last reviewed: September 26, 2026
+Last reviewed: September 27, 2026
 
 ## Separate travel entries
 
@@ -534,6 +534,8 @@ The portal's **Approve all awaiting** action processes the open queue in repeate
 
 Immediately before creating a new donor, the Worker repeats its exact normalized-email match when no person was selected or stored. This final check prevents a duplicate Person when an earlier approval in the same bulk run already created the donor. Approval responses include `createdPerson`, allowing the portal to report how many new donors were added. **View donors in People** resets the People filters, selects Donor, sorts newest first, and opens the People view so approved donors are immediately visible.
 
+For a CSM `LEDGER_DONATION` without a source email, the inbox suggests HS People with the same normalized first and last name, but the reviewer must verify identity before selecting one. During approval, if no Person was selected, the Worker checks the submitted donor's normalized email and full name against existing People before attempting an insert. One exact match is reused; multiple matches return `DONOR_CHOICE_REQUIRED` (409) for an explicit choice. A concurrent duplicate insert returns the same actionable response instead of an unhandled server error. The approval transaction and retry remain idempotent, so the CSM bank receipt is represented only once in HS financial records. Regression tests are in `test/csm-ledger-donation-approval.test.ts`.
+
 ### Unified financial ledger
 
 
@@ -999,6 +1001,8 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+- September 27, 2026 - Version 4.21. Fixed direct-bank gift approval when CSM has no donor email but HS already has the donor; documented name-only suggestions, exact submitted-identity matching, and safe conflict handling.
 
 - September 26, 2026 - Version 4.20. Implemented the documented Travel category, storage migration, privacy safeguards, workbook round trips, and traveler packet details; local pending release.
 

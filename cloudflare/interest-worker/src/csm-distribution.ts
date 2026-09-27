@@ -124,7 +124,16 @@ async function receive(request: Request, env: CsmEnv): Promise<Response> {
 }
 
 async function candidates(env: CsmEnv, message: CsmDistributionMessage): Promise<PersonRow[]> {
-  if (!message.party.email) return [];
+  if (!message.party.email) {
+    const [firstName, ...lastName] = message.displayName.trim().split(/\s+/);
+    if (!firstName || !lastName.length) return [];
+    const result = await env.DB.prepare(
+      `SELECT id, first_name, last_name, email FROM people
+       WHERE first_name_normalized = ?1 AND last_name_normalized = ?2
+       ORDER BY updated_at DESC LIMIT 10`,
+    ).bind(normalizedName(firstName), normalizedName(lastName.join(" "))).all<PersonRow>();
+    return result.results;
+  }
   const result = await env.DB.prepare(
     "SELECT id, first_name, last_name, email FROM people WHERE email_normalized = ?1 ORDER BY updated_at DESC LIMIT 10",
   ).bind(normalizedEmail(message.party.email)).all<PersonRow>();
@@ -244,22 +253,35 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
       matchMethod = requested ? "manual" : row.match_method || refreshedMatch?.method || null;
     } else {
       const input = newDonor(body, message);
-      personId = crypto.randomUUID();
-      matchMethod = "new_donor";
-      statements.push(env.DB.prepare(
-        `INSERT INTO people
-          (id, first_name, last_name, first_name_normalized, last_name_normalized,
-           email, email_normalized, phone, phone_normalized, contact_preference,
-           preferred_name, address_line_1, address_line_2, city, region, postal_code, country,
-           record_source, contact_status, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'email', NULL, ?10, ?11, ?12, ?13, ?14, ?15,
-           'manual', 'active', ?16, ?16)`,
-      ).bind(
-        personId, input.firstName, input.lastName, normalizedName(input.firstName), normalizedName(input.lastName),
-        input.email, normalizedEmail(input.email), input.phone, normalizedPhone(input.phone),
-        message.party.address?.line1 ?? null, message.party.address?.line2 ?? null, message.party.address?.city ?? null,
-        message.party.address?.state ?? null, message.party.address?.postalCode ?? null, message.party.address?.countryCode ?? null, now,
-      ));
+      const exactMatches = await env.DB.prepare(
+        `SELECT id FROM people WHERE email_normalized = ?1
+         AND first_name_normalized = ?2 AND last_name_normalized = ?3 LIMIT 2`,
+      ).bind(normalizedEmail(input.email), normalizedName(input.firstName), normalizedName(input.lastName))
+        .all<{ id: string }>();
+      if (exactMatches.results.length > 1) {
+        throw new AdminError(409, "DONOR_CHOICE_REQUIRED", "More than one donor has this name and email. Select the correct existing donor before approving.");
+      }
+      if (exactMatches.results.length === 1) {
+        personId = exactMatches.results[0]!.id;
+        matchMethod = "email";
+      } else {
+        personId = crypto.randomUUID();
+        matchMethod = "new_donor";
+        statements.push(env.DB.prepare(
+          `INSERT INTO people
+            (id, first_name, last_name, first_name_normalized, last_name_normalized,
+             email, email_normalized, phone, phone_normalized, contact_preference,
+             preferred_name, address_line_1, address_line_2, city, region, postal_code, country,
+             record_source, contact_status, created_at, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'email', NULL, ?10, ?11, ?12, ?13, ?14, ?15,
+             'manual', 'active', ?16, ?16)`,
+        ).bind(
+          personId, input.firstName, input.lastName, normalizedName(input.firstName), normalizedName(input.lastName),
+          input.email, normalizedEmail(input.email), input.phone, normalizedPhone(input.phone),
+          message.party.address?.line1 ?? null, message.party.address?.line2 ?? null, message.party.address?.city ?? null,
+          message.party.address?.state ?? null, message.party.address?.postalCode ?? null, message.party.address?.countryCode ?? null, now,
+        ));
+      }
     }
     statements.push(
       env.DB.prepare("INSERT OR IGNORE INTO contact_types (person_id, contact_type, created_at) VALUES (?1, 'donor', ?2)").bind(personId, now),
@@ -308,7 +330,14 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
     statements.push(...await allocationContacts(env,allocations,now));
     statements.push(env.DB.prepare('INSERT INTO donation_splits(entry_id,revision,allocations_json,updated_at,actor) VALUES(?,1,?,?,?)').bind(ledgerId,JSON.stringify(allocations),now,session.user_id));
   }
-  await env.DB.batch(statements);
+  try {
+    await env.DB.batch(statements);
+  } catch (error) {
+    if (matchMethod === "new_donor" && error instanceof Error && error.message.includes("UNIQUE constraint failed: people.")) {
+      throw new AdminError(409, "DONOR_CHOICE_REQUIRED", "This donor already exists. Refresh the Payment inbox and select the existing donor before approving.");
+    }
+    throw error;
+  }
   const thanks=await automaticallyThankGift(env,ledgerId,session.user_id);
   const callbackStatus = await notifyCsm(env, { ...row, recipient_record_id: recordId }, "approved", null);
   return adminJson({ success: true, status: "approved", recordId, personId, matchMethod,
