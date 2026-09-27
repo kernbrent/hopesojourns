@@ -42,6 +42,20 @@ const receivedMessage = (): CsmDistributionMessage => ({
 });
 
 describe("CSM distribution contract", () => {
+  it("accepts one linked direct-bank donation, not a second PayPal payment", () => {
+    const id = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const message = parseDistributionMessage({
+      ...receivedMessage(), destination: "HopeSojourns", product: "HopeSojourns",
+      idempotencyKey: `HopeSojourns:ledger-income:${id}`,
+      transaction: { ...receivedMessage().transaction, sourceRecordId: `ledger-income:${id}`,
+        paypalTransactionId: id, eventCode: "LEDGER_DONATION", status: "Completed",
+        gross: 100, fee: 0, net: 100 },
+      ledgerIncome: { incomeId: id, paymentMethod: "Check", paymentReference: "1234" },
+    });
+    expect(message.ledgerIncome).toMatchObject({ incomeId: id, paymentMethod: "Check" });
+    expect(() => parseDistributionMessage({ ...message, transaction: { ...message.transaction, fee: -2 } })).toThrow("Invalid ledger donation source");
+    expect(() => parseDistributionMessage({ ...message, ledgerIncome: undefined })).toThrow("Ledger income details are required");
+  });
   it("accepts completed received and sent payment events", () => {
     expect(isEligibleDistributionSource({
       product: "HopeSojourns", eventCode: "T0006", status: "Completed", currency: "USD", direction: "received", gross: 100,

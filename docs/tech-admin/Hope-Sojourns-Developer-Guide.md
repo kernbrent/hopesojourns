@@ -1,8 +1,16 @@
 # Hope Sojourns developer guide
 
-Version 4.18
+Version 4.19
 
 Last reviewed: September 26, 2026
+
+## CSM direct-bank donation review
+
+CSM Ledger remains the source of record for direct-bank income. Its ledger migration `0008_income_donation_delivery.sql` adds `income_kind`, optional `donor_email`, and frozen HS delivery payload/status columns to the existing `income` table. Existing entries default to `other` and must be explicitly classified as donations; no data are migrated or sent automatically. The CSM Income form and list support this classification and the **Send to HS review** action. The CSM Giving activity list remains PayPal plus personally received gifts and links to Ledger Income for manual donations.
+
+Authenticated, CSRF-checked `POST /api/admin/records/income/:id/send-to-hope` accepts only included, paid, HS-designated donations with exactly one full-amount recorded payment. PayPal/Venmo/Zelle sources are rejected to avoid duplicating the existing giving workflows. An explicit confirmation rejects an already recorded CSM gift. The Worker stores a frozen message before the service-binding call; retries reuse `HopeSojourns:ledger-income:<income-id>` so an uncertain response cannot create another HS inbox item. CSM refuses edits/deletes to the source income and payment once queued. Approval and denial callbacks update the CSM income delivery status and audit trail.
+
+Both CSM and HS distribution contracts accept `LEDGER_DONATION` only with matching `ledgerIncome.incomeId`, source ID, positive USD amount, zero fee, completed status, and Hope Sojourns destination. HS uses the existing secret-protected inbox, donor matching, approval, financial transaction, and ledger write. The inbox displays the CSM payment method/reference and explicitly explains that approval is a second ministry view of the same CSM bank receipt. No CSM business data are copied to HS test. Apply the CSM ledger migration before deploying the CSM Worker/assets; deploy matching HS contract/Worker/assets to isolated test and production. Validate retry/idempotency, finance permissions, donor attribution, and absence of duplicate bank income.
 
 ## Scripture links and Day 1 hymns
 
@@ -984,6 +992,8 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+September 26, 2026 — Version 4.19: Documented direct-bank CSM donation classification, frozen source delivery, HS inbox review, callback, and migration order; local pending release.
 
 September 26, 2026 — Version 4.18: Documented per-reference Bible Gateway links across study and devotional views and the guarded Day 1 hymn migration; local pending release.
 

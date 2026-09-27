@@ -163,7 +163,7 @@ async function listInbox(request: Request, env: CsmEnv): Promise<Response> {
       callbackError: row.callback_error, receivedAt: row.received_at,
       updatedAt: row.updated_at, decidedAt: row.decided_at,
       displayName: message.displayName, direction: message.transaction.direction,
-      party: message.party, transaction: message.transaction, personalGift:message.personalGift,
+      party: message.party, transaction: message.transaction, personalGift:message.personalGift, ledgerIncome:message.ledgerIncome,
       matchedPerson: row.matched_person_id ? {
         id: row.matched_person_id, firstName: row.matched_first_name,
         lastName: row.matched_last_name, email: row.matched_email,
@@ -291,7 +291,7 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
       transactionDate: message.transaction.eventDate, direction: message.transaction.direction,
       displayName: message.displayName, personId, currency: message.transaction.currency,
       gross: message.transaction.gross, fee: message.transaction.fee, net: message.transaction.net,
-      itemName: message.transaction.itemName, eventCode: message.transaction.eventCode, createdAt: now, paymentType:message.personalGift?.method,
+      itemName: message.transaction.itemName, eventCode: message.transaction.eventCode, createdAt: now, paymentType:message.personalGift?.method || message.ledgerIncome?.paymentMethod || undefined,
     }),
     env.DB.prepare(
       `UPDATE csm_distribution_inbox SET status = 'approved', matched_person_id = ?1, match_method = ?2,
