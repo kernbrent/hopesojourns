@@ -177,11 +177,11 @@ addDataSheet({
 });
 addDataSheet({
   name: "Content",
-  purpose: "Load itinerary entries, devotionals, instructions, resources, updates, and overview content.",
-  headers: ["Import Ref", "Content Type", "Title", "Content", "Event Date", "Event Time", "Location", "Link URL", "Visibility", "Publication Status", "Sort Order"],
-  widths: { "Import Ref": 20, Title: 28, Content: 48, Location: 24, "Link URL": 34 },
-  validations: { "Content Type": ["overview", "devotional", "instruction", "itinerary", "resource", "update"], Visibility: ["public", "travelers", "admin"], "Publication Status": ["draft", "published"] },
-  formats: { "Event Date": "yyyy-mm-dd", "Sort Order": "0" },
+  purpose: "Use travel for transport legs and itinerary for daily activities. Travel Event Date, Event Time, and Location describe departure; use local times and travelers or admin visibility.",
+  headers: ["Import Ref", "Content Type", "Title", "Content", "Event Date", "Event Time", "Location", "Link URL", "Visibility", "Publication Status", "Sort Order", "Arrival Date", "Arrival Time", "Arrival Location", "Travel Mode", "Service Number"],
+  widths: { "Import Ref": 20, Title: 28, Content: 48, Location: 24, "Link URL": 34, "Arrival Location": 24, "Service Number": 20 },
+  validations: { "Content Type": ["overview", "devotional", "instruction", "itinerary", "travel", "resource", "update"], Visibility: ["public", "travelers", "admin"], "Publication Status": ["draft", "published"] },
+  formats: { "Event Date": "yyyy-mm-dd", "Arrival Date": "yyyy-mm-dd", "Sort Order": "0" },
 });
 addDataSheet({
   name: "Accounts",
@@ -238,8 +238,9 @@ addDataSheet({
   formats: { "Expires Date": "yyyy-mm-dd", "Max Uses": "0" },
 });
 
-for (const name of ["Instructions", "People", "Ministries", "Team", "Partners", "Content", "Accounts", "Budget", "Allocations", "Charges", "Support", "Payments", "Invites"]) {
-  const preview = await workbook.render({ sheetName: name, autoCrop: "all", scale: 1, format: "png" });
+const previewSheets = process.env.PREVIEW_SHEET ? [process.env.PREVIEW_SHEET] : ["Instructions", "People", "Ministries", "Team", "Partners", "Content", "Accounts", "Budget", "Allocations", "Charges", "Support", "Payments", "Invites"];
+for (const name of previewSheets) {
+  const preview = await workbook.render({ sheetName: name, ...(process.env.PREVIEW_SHEET ? {range:'A1:S10'} : {autoCrop:'all'}), scale: 1, format: "png" });
   await fs.writeFile(path.join(previewDir, `${name.toLowerCase()}.png`), new Uint8Array(await preview.arrayBuffer()));
 }
 const output = await SpreadsheetFile.exportXlsx(workbook);

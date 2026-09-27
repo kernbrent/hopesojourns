@@ -103,7 +103,8 @@ const labels = {
   overview: "Overview",
   devotional: "Daily devotionals",
   instruction: "Instructions",
-  itinerary: "Itinerary",
+  itinerary: "Daily itinerary",
+  travel: "Travel",
   resource: "Resources",
   update: "Updates",
 };
@@ -202,7 +203,8 @@ function render(data) {
       [item.event_date ? dateLabel(item.event_date) : "", item.event_time, item.location]
         .filter(Boolean)
         .forEach(value => meta.append(node("span", "", value)));
-      if (meta.childNodes.length) article.append(meta);
+      if (meta.childNodes.length && item.content_type !== "travel") article.append(meta);
+      if (item.content_type === "travel") article.append(window.HSTravelDetails.render(item));
       article.append(window.HSJourneyContent.render(item.content, { study: item.content_type === "devotional" }));
       if (item.link_url) {
         const link = node("a", "text-link", "Open resource \u2192");

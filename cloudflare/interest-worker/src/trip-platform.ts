@@ -27,7 +27,7 @@ const PORTAL_LOGIN_ATTEMPT_RETENTION_DAYS = 7;
 
 const TRIP_STATUSES = new Set(["draft", "recruiting", "confirmed", "full", "traveling", "completed", "archived", "canceled"]);
 const SOURCE_TYPES = new Set(["traveler", "hope_sojourns", "church_ministry", "individual_sponsor", "external_partner", "grant", "other"]);
-const CONTENT_TYPES = new Set(["overview", "devotional", "instruction", "itinerary", "resource", "update"]);
+const CONTENT_TYPES = new Set(["overview", "devotional", "instruction", "itinerary", "travel", "resource", "update"]);
 const VISIBILITIES = new Set(["public", "travelers", "admin"]);
 const MEMBER_ROLES = new Set(["traveler", "leader", "staff", "host", "other"]);
 const MEMBER_STATUSES = new Set(["interested", "invited", "applied", "approved", "confirmed", "waitlisted", "withdrawn"]);
@@ -553,7 +553,7 @@ async function tripWorkspace(request: Request, env: AdminEnv, tripId: string): P
   return adminJson({
     readiness: await readiness(env,tripId),
     portalCredential: { canReveal, available: Boolean(savedPassword) },
-    trip, content: content.results, members: members.results, interests: interests.results, organizations: organizations.results,
+    trip, content: (content.results as JsonRecord[]).map(presentContent), members: members.results, interests: interests.results, organizations: organizations.results,
     accounts: accountRows, costs: costs.results, allocations: allocations.results, charges: charges.results,
     awards: awards.results, payments: payments.results, paymentRequests: requests.results,
     invites: invites.results, outbox: outbox.results,
@@ -619,6 +619,10 @@ async function saveCostCategory(request: Request, env: AdminEnv): Promise<Respon
   return adminJson({ id }, existingId ? 200 : 201);
 }
 
+function presentContent(row: JsonRecord): JsonRecord {
+  return { ...row, content_type: row.itinerary_kind === "travel" ? "travel" : row.content_type };
+}
+
 async function saveContent(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
   await authenticate(request, env, true);
   await requireTrip(env, tripId);
@@ -638,6 +642,16 @@ async function saveContent(request: Request, env: AdminEnv, tripId: string): Pro
     publicationStatus: choice(body.publicationStatus, "publication status", new Set(["draft", "published"]), "draft"),
     sortOrder: Number.isFinite(Number(body.sortOrder)) ? Math.trunc(Number(body.sortOrder)) : 0,
   };
+  const travel = values.type === "travel";
+  if (travel && (values.visibility === "public" || !values.eventDate || !values.location)) {
+    throw new AdminError(422, "INVALID_FIELD", "Travel requires a departure date and location and cannot be public.");
+  }
+  const arrivalDate = travel ? date(body.arrivalDate, "arrival date") : null;
+  const arrivalTime = travel ? optionalText(body.arrivalTime, "arrival time", 40) : null;
+  const arrivalLocation = travel ? optionalText(body.arrivalLocation, "arrival location", 200) : null;
+  const travelMode = travel ? optionalText(body.travelMode, "travel mode", 60) : null;
+  const serviceNumber = travel ? optionalText(body.serviceNumber, "service number", 80) : null;
+  const storageType = travel ? "itinerary" : values.type;
   const existing = existingId ? await env.DB.prepare("SELECT devotional_id FROM trip_content WHERE id=?1 AND trip_id=?2").bind(id,tripId).first<{devotional_id:string|null}>() : null;
   if(existingId && !existing) throw new AdminError(404,"CONTENT_NOT_FOUND","That content item could not be found.");
   let devotionalId = values.type === "devotional" ? existing?.devotional_id ?? null : null;
@@ -654,16 +668,16 @@ async function saveContent(request: Request, env: AdminEnv, tripId: string): Pro
   const statement = existingId
     ? env.DB.prepare(`UPDATE trip_content SET content_type = ?1, title = ?2, content = ?3, event_date = ?4,
         event_time = ?5, location = ?6, link_url = ?7, visibility = ?8, publication_status = ?9,
-        sort_order = ?10, updated_at = ?11, devotional_id = ?14 WHERE id = ?12 AND trip_id = ?13`).bind(
-        values.type, values.title, values.content, values.eventDate, values.eventTime, values.location, values.linkUrl,
-        values.visibility, values.publicationStatus, values.sortOrder, now, id, tripId, devotionalId,
+        sort_order = ?10, updated_at = ?11, devotional_id = ?14, itinerary_kind = ?15, arrival_date = ?16, arrival_time = ?17, arrival_location = ?18, travel_mode = ?19, service_number = ?20 WHERE id = ?12 AND trip_id = ?13`).bind(
+        storageType, values.title, values.content, values.eventDate, values.eventTime, values.location, values.linkUrl,
+        values.visibility, values.publicationStatus, values.sortOrder, now, id, tripId, devotionalId, travel ? "travel" : "activity", arrivalDate, arrivalTime, arrivalLocation, travelMode, serviceNumber,
       )
     : env.DB.prepare(`INSERT INTO trip_content (
         id, trip_id, content_type, title, content, event_date, event_time, location, link_url,
-        visibility, publication_status, sort_order, created_at, updated_at, devotional_id
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13, ?14)`).bind(
-        id, tripId, values.type, values.title, values.content, values.eventDate, values.eventTime, values.location,
-        values.linkUrl, values.visibility, values.publicationStatus, values.sortOrder, now, devotionalId,
+        visibility, publication_status, sort_order, created_at, updated_at, devotional_id, itinerary_kind, arrival_date, arrival_time, arrival_location, travel_mode, service_number
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)`).bind(
+        id, tripId, storageType, values.title, values.content, values.eventDate, values.eventTime, values.location,
+        values.linkUrl, values.visibility, values.publicationStatus, values.sortOrder, now, devotionalId, travel ? "travel" : "activity", arrivalDate, arrivalTime, arrivalLocation, travelMode, serviceNumber,
       );
   statements.push(statement, auditStatement(env, "trip_content", id, existingId ? "updated" : "created", { tripId, title: values.title, visibility: values.visibility }));
   const results = await env.DB.batch(statements);
@@ -1474,11 +1488,11 @@ async function publicTrip(env: AdminEnv, slug: string): Promise<Response> {
   if (!trip) throw new AdminError(404, "TRIP_NOT_FOUND", "That public trip could not be found.");
   const content = await env.DB.prepare(
     `SELECT id, content_type, title, content, event_date, event_time, location, link_url, sort_order
-     FROM trip_content WHERE trip_id = ?1 AND visibility = 'public' AND publication_status = 'published' AND content_type IN ('overview','itinerary')
+     FROM trip_content WHERE trip_id = ?1 AND visibility = 'public' AND publication_status = 'published' AND itinerary_kind != 'travel' AND content_type IN ('overview','itinerary')
      ORDER BY content_type, event_date, sort_order, title`,
   ).bind((trip as JsonRecord).id).all();
   const ministries=await env.DB.prepare('SELECT DISTINCT m.name FROM trip_organizations o JOIN ministries m ON m.id=o.ministry_id WHERE o.trip_id=?1 ORDER BY m.name').bind((trip as JsonRecord).id).all();
-  return adminJson({ trip, content: content.results, ministries:ministries.results }, 200, { "Cache-Control": "public, max-age=60" });
+  return adminJson({ trip, content: (content.results as JsonRecord[]).map(presentContent), ministries:ministries.results }, 200, { "Cache-Control": "public, max-age=60" });
 }
 
 type PortalLoginAttempt = {
@@ -1573,7 +1587,7 @@ async function portalSession(request: Request, env: AdminEnv, photoTrip?:string,
   if (!trip) throw new AdminError(401, "PORTAL_AUTH_REQUIRED", "This trip portal is not available.");
   if(photoTrip){if(photoTrip!==session.trip_id)throw new AdminError(404,"NOT_FOUND","Photo not found.");return portalPhoto(env,photoTrip,photoId!,request);}
   const [content, members, costs] = await Promise.all([
-    env.DB.prepare(`SELECT id, content_type, title, content, event_date, event_time, location, link_url, visibility, publication_status, sort_order
+    env.DB.prepare(`SELECT id, content_type, title, content, event_date, event_time, location, link_url, visibility, publication_status, sort_order, itinerary_kind, arrival_date, arrival_time, arrival_location, travel_mode, service_number
       FROM trip_content WHERE trip_id = ?1 AND publication_status = 'published' AND visibility IN ('public', 'travelers')
       ORDER BY content_type, event_date, sort_order, title`).bind(session.trip_id).all(),
     env.DB.prepare(`SELECT p.preferred_name, p.first_name, p.last_name,
@@ -1587,7 +1601,7 @@ async function portalSession(request: Request, env: AdminEnv, photoTrip?:string,
       FROM trip_cost_items WHERE trip_id = ?1 AND payment_status != 'canceled'`).bind(session.trip_id).first(),
   ]);
   await env.DB.prepare("UPDATE trip_portal_sessions SET last_seen_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), session.id).run();
-  return adminJson({ trip, content: content.results, memories: await portalMemories(env,session.trip_id), members: members.results, financialOverview: costs }, 200, { "Cache-Control": "no-store" });
+  return adminJson({ trip, content: (content.results as JsonRecord[]).map(presentContent), memories: await portalMemories(env,session.trip_id), members: members.results, financialOverview: costs }, 200, { "Cache-Control": "no-store" });
 }
 
 async function portalLogout(request: Request, env: AdminEnv): Promise<Response> {
@@ -1637,7 +1651,7 @@ const TRIP_WORKBOOK_HEADERS = {
   Ministries: ["Import Ref", "Organization Name", "Description", "Address Line 1", "Address Line 2", "City", "State Province Region", "Postal Code", "Country", "Email", "Phone", "Website", "Notes", "Status", ...WORKBOOK_META_HEADERS],
   Team: ["Import Ref", "Person Email", "Organization Name", "Role", "Status", "Directory Visible", "Show Email", "Show Phone", "Notes", ...WORKBOOK_META_HEADERS],
   Partners: ["Import Ref", "Organization Name", "Role", "Notes", "Original Role", ...WORKBOOK_META_HEADERS],
-  Content: ["Import Ref", "Content Type", "Title", "Content", "Event Date", "Event Time", "Location", "Link URL", "Visibility", "Publication Status", "Sort Order", ...WORKBOOK_META_HEADERS],
+  Content: ["Import Ref", "Content Type", "Title", "Content", "Event Date", "Event Time", "Location", "Link URL", "Visibility", "Publication Status", "Sort Order", "Arrival Date", "Arrival Time", "Arrival Location", "Travel Mode", "Service Number", ...WORKBOOK_META_HEADERS],
   Accounts: ["Import Ref", "Account Type", "Account Name", "Person Email", "Organization Name", "Billing Email", "Billing Phone", "Financial Access", "Status", "Notes", ...WORKBOOK_META_HEADERS],
   Budget: ["Import Ref", "Category Name", "Description", "Expense Scope", "Account Ref", "Calculation Method", "Percentage Rate", "Quantity", "Estimated Unit Cost", "Estimated Total", "Actual Total", "Vendor Name", "Vendor Organization Name", "Settlement Route", "Payment Status", "Payment Method", "External Reference", "Due Date", "Paid Date", "Notes", ...WORKBOOK_META_HEADERS],
   Allocations: ["Import Ref", "Budget Item Ref", "Funding Source Name", "Amount", "Status", "Notes", ...WORKBOOK_META_HEADERS],
@@ -1772,8 +1786,8 @@ async function exportTripSpreadsheet(request: Request, env: AdminEnv, tripId: st
   )));
   const content = await Promise.all(resultRows(contentResult).map(row => exportedWorkbookRow(
     TRIP_WORKBOOK_HEADERS.Content,
-    [ref("content", row.id), row.content_type, row.title, row.content, row.event_date, row.event_time, row.location,
-      row.link_url, row.visibility, row.publication_status, row.sort_order],
+    [ref("content", row.id), presentContent(row).content_type, row.title, row.content, row.event_date, row.event_time, row.location,
+      row.link_url, row.visibility, row.publication_status, row.sort_order, row.arrival_date, row.arrival_time, row.arrival_location, row.travel_mode, row.service_number],
     workbookValue(row.id), workbookValue(row.updated_at),
   )));
   const accounts = await Promise.all(resultRows(accountsResult).map(row => exportedWorkbookRow(
@@ -2003,6 +2017,11 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
       return {
         id,
         contentType: value("content type", true),
+        arrivalDate: importDate(row, "arrival date"),
+        arrivalTime: value("arrival time"),
+        arrivalLocation: value("arrival location"),
+        travelMode: value("travel mode"),
+        serviceNumber: value("service number"),
         title: value("title", true),
         content: value("content"),
         eventDate: importDate(row, "event date"),

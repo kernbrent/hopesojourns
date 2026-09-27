@@ -1,8 +1,15 @@
 # Hope Sojourns developer guide
 
-Version 4.19
+Version 4.20
 
 Last reviewed: September 26, 2026
+
+## Separate travel entries
+
+Migration `0040_trip_travel.sql` adds an itinerary subtype and arrival date/time/location, travel mode, and service number to `trip_content`. Existing entries remain activities. To preserve content IDs and devotional foreign keys without rebuilding the table, storage uses `content_type=itinerary` and `itinerary_kind=travel`; the admin and traveler APIs and workbooks expose `content_type=travel`. Saves validate the departure date/location and prohibit public visibility, backed by insert/update triggers. Changing the type away from Travel clears transport fields.
+
+The Content form offers Daily itinerary and Travel (departures and arrivals). `admin/trips/travel-form.js` handles labels, required fields, and visibility; `journey/travel-details.js` renders escaped text for admin, traveler, and offline packet views. Departure and arrival dates/times are local, so no chronological comparison is made across time zones. Workbook exports/imports retain the five additional travel columns. Day planner, reusable templates, and public story selection exclude Travel entries; travelers see a separate Travel section. Apply migration 0040 before deploying the matching application to both isolated environments. Tests cover CRUD, visibility, migration constraints, traveler access, and adjacent trip workflows.
+
 
 ## CSM direct-bank donation review
 
@@ -992,6 +999,8 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+- September 26, 2026 - Version 4.20. Implemented the documented Travel category, storage migration, privacy safeguards, workbook round trips, and traveler packet details; local pending release.
 
 September 26, 2026 — Version 4.19: Documented direct-bank CSM donation classification, frozen source delivery, HS inbox review, callback, and migration order; local pending release.
 

@@ -10,6 +10,7 @@
   const safe = action => async event => { try { await action(event); } catch (error) { notice(error.message, 'error'); } };
   function discard() { return !dirty || window.confirm('Discard unsaved changes to this library master?'); }
   function syncTripForm() {
+    window.HSTravelForm.sync();
     const form = document.querySelector('#trip-content-form');
     const linked = Boolean(form.elements.devotionalId.value);
     const isDevotional = form.elements.contentType.value === 'devotional';

@@ -18,13 +18,13 @@ export async function readiness(env:AdminEnv,id:string){
  rows(env,'SELECT * FROM trip_reviews WHERE trip_id=?',id),rows(env,"SELECT id,amount,status FROM trip_charges WHERE trip_id=? AND status NOT IN ('canceled','waived') ORDER BY id",id),rows(env,"SELECT id,amount,status FROM trip_payments WHERE trip_id=? AND status='received' ORDER BY id",id)]);
  const incomplete=content.filter(c=>placeholder.test(String(c.content))||!String(c.content).trim());
  const activeTasks=tasks.filter(x=>x.status==='open');
- const values:Record<string,unknown>={team:members,content,logistics:[t.start_date,t.end_date,t.location,activeTasks,content.filter(c=>c.content_type==='itinerary')],budget:[costs,charges,payments,t.budget_completed_at]};
+ const values:Record<string,unknown>={team:members,content,logistics:[t.start_date,t.end_date,t.location,activeTasks,content.filter(c=>c.content_type==='itinerary'&&c.itinerary_kind!=='travel')],budget:[costs,charges,payments,t.budget_completed_at]};
  const result=await Promise.all(sections.map(async section=>{
   const fingerprint=await digest(values[section]),saved=reviews.find(r=>r.section===section);
   const issues:string[]=[];
   if(section==='team'&&!members.some(m=>m.status!=='withdrawn'))issues.push('No active team members.');
   if(section==='content'){if(!content.length)issues.push('No trip content.');if(incomplete.length)issues.push(`${incomplete.length} content items have placeholders or empty text.`);if(content.some(c=>c.publication_status==='draft'&&c.visibility!=='admin'))issues.push('Traveler content drafts still need review.');}
-  if(section==='logistics'){if(!t.start_date||!t.end_date)issues.push('Trip dates are missing.');if(activeTasks.length)issues.push(`${activeTasks.length} trip tasks remain open.`);if(!content.some(c=>c.content_type==='itinerary'))issues.push('No itinerary entered.');}
+  if(section==='logistics'){if(!t.start_date||!t.end_date)issues.push('Trip dates are missing.');if(activeTasks.length)issues.push(`${activeTasks.length} trip tasks remain open.`);if(!content.some(c=>c.content_type==='itinerary'&&c.itinerary_kind!=='travel'))issues.push('No itinerary entered.');}
   const money=costs.some(c=>Number(c.estimated_total)||Number(c.actual_total))||charges.length>0||payments.length>0;
   const na=section==='budget'&&saved?.status==='not_applicable'&&!money&&saved.fingerprint===fingerprint;
   if(section==='budget'&&!na){if(costs.some(c=>c.needs_estimate))issues.push('Budget items still need estimates.');if(!t.budget_completed_at)issues.push('Budget has not been finished.');}
@@ -77,7 +77,7 @@ export async function handlePlanning(request:Request,env:AdminEnv,path:string):P
  if(suffix==='/templates'){requireAccess(user,'trips',edit);if(!edit)return adminJson({templates:await rows(env,'SELECT id,title,created_at FROM trip_templates WHERE archived=0 ORDER BY title')});
  const b=await readAdminJson(request);if(b.archive){await env.DB.prepare('UPDATE trip_templates SET archived=1,updated_at=? WHERE id=?').bind(now,String(b.archive)).run();return adminJson({ok:true});}
  const source=await trip(env,String(b.tripId)),selected=Array.isArray(b.contentIds)?b.contentIds.map(String):[];
- const content=(await rows(env,"SELECT * FROM trip_content WHERE trip_id=? AND visibility!='admin' ORDER BY sort_order,event_date",String(source.id))).filter(c=>selected.includes(String(c.id))).map(c=>({content_type:c.content_type,title:c.title,content:c.content,event_time:c.event_time,sort_order:c.sort_order,day_offset:c.event_date&&source.start_date?Math.round((Date.parse(String(c.event_date))-Date.parse(String(source.start_date)))/86400000):null}));
+ const content=(await rows(env,"SELECT * FROM trip_content WHERE trip_id=? AND visibility!='admin' AND itinerary_kind!='travel' ORDER BY sort_order,event_date",String(source.id))).filter(c=>selected.includes(String(c.id))).map(c=>({content_type:c.content_type,title:c.title,content:c.content,event_time:c.event_time,sort_order:c.sort_order,day_offset:c.event_date&&source.start_date?Math.round((Date.parse(String(c.event_date))-Date.parse(String(source.start_date)))/86400000):null}));
  if(content.some(c=>c.day_offset!=null&&(c.day_offset<0||c.day_offset>365)))throw new AdminError(422,'TEMPLATE_DATES','Selected content must fall within the trip dates.');
  const costs=b.includeBudget?await rows(env,"SELECT category_id,description,quantity,calculation_method,percentage_rate,budget_group,travel_eligible,bill_to_traveler FROM trip_cost_items WHERE trip_id=? AND payment_status!='canceled'",String(source.id)):[];
  const id=crypto.randomUUID();await env.DB.batch([env.DB.prepare('INSERT INTO trip_templates(id,title,snapshot,created_at,updated_at) VALUES(?,?,?,?,?)').bind(id,text(b.title),JSON.stringify({content,costs}),now,now),auditStatement(env,'trip_template',id,'created',{sourceTrip:source.id})]);return adminJson({id},201);

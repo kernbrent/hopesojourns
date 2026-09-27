@@ -1,8 +1,15 @@
 # Hope Sojourns website style guide
 
-Version 4.16
+Version 4.17
 
 Last reviewed: September 26, 2026
+
+## Travel and daily itinerary presentation
+
+Use **Daily itinerary** for ministry activities, visits, and tours, and **Travel (departures and arrivals)** for transportation legs in the Content type selector. Selecting Travel relabels the existing date, time, and location as departure fields and reveals one Arrival and transport fieldset. Mark optional fields explicitly, explain that times are local, and retain the shared form typography, spacing, and palette. Public visibility is disabled for Travel.
+
+In the traveler portal, give Travel its own navigation link and section, separate from Daily itinerary. Display departure, arrival, mode, and service number as readable text, with an explicit to-be-confirmed arrival when details are missing. Include the same details in the offline traveler packet. Keep travel bookings out of the daily activity planner and reusable templates.
+
 
 ## Scripture reference links and hymns
 
@@ -678,6 +685,8 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
 ## Revision history
+
+- September 26, 2026 - Version 4.17. Added the separate Travel form and traveler section using shared components; local pending release.
 
 September 26, 2026 — Version 4.16: Added underlined per-passage Scripture links, separate library-link controls, and hymn stanza presentation; local pending release.
 

@@ -768,6 +768,7 @@ function contentRecord(item, metaItems, actions = []) {
     body.replaceChildren();
     window.HSJourneyContent.appendScriptureLinks(body, item.content);
   }
+  if (item.content_type === "travel") article.append(window.HSTravelDetails.render(item));
   return article;
 }
 
@@ -815,6 +816,7 @@ function editContent(item) {
   const form = document.querySelector("#trip-content-form");
   form.reset();
   setFormValues(form, item);
+  window.HSTravelForm.sync();
   window.HSDevotionals.syncTripForm();
   form.querySelector("[data-cancel-edit]").hidden = false;
   form.scrollIntoView({ behavior: "smooth", block: "start" });
