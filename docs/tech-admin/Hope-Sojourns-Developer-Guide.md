@@ -1,8 +1,13 @@
 # Hope Sojourns developer guide
 
-Version 4.21
+Version 4.22
 
-Last reviewed: September 27, 2026
+Last reviewed: September 28, 2026
+
+## People column filtering
+
+`admin/contact-column-filters.js` supplies the People list header checklists and local selection matching. `loadPeople` continues to retrieve every page matching the main search/filter form before supplying records to the column filters. Choices come from those records, with selected values retained when the main search changes. Match any selected contact type, match the selected organization, and require both columns when both are active. Blank values are selectable. The list count and alphabet navigation use the resulting records; zero matches retain filter controls. A form reset clears both selections. People CSV downloads retain the existing server-generated columns and escaping, then filter complete CSV records by the selected contact IDs, including quoted multiline notes. Selections last only for this page session and apply to the People list, not Contact spreadsheet or other workspaces. No API, schema, record, or permission change is required.
+
 
 ## Separate travel entries
 
@@ -1001,6 +1006,8 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+- September 28, 2026 - Version 4.22. Added People column checklist filters and responsive accessibility guidance (local, pending release).
 
 - September 27, 2026 - Version 4.21. Fixed direct-bank gift approval when CSM has no donor email but HS already has the donor; documented name-only suggestions, exact submitted-identity matching, and safe conflict handling.
 

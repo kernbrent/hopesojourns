@@ -1,8 +1,13 @@
 # Hope Sojourns website style guide
 
-Version 4.17
+Version 4.18
 
-Last reviewed: September 26, 2026
+Last reviewed: September 28, 2026
+
+## Contact column filters
+
+On the People list, Contact type and Organization headings use keyboard-accessible disclosure controls with a downward filter indicator. Use the shared paper surface, forest text, gold active state, and focus outline. The checklist panel includes search, Select all, Select none, Clear filter, Apply, and Cancel. Escape and outside clicks dismiss without applying. Keep these two controls visible above the cards on phones, and retain the headings when no contacts match. Name and Phone number remain plain labels.
+
 
 ## Travel and daily itinerary presentation
 
@@ -685,6 +690,8 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
 ## Revision history
+
+- September 28, 2026 - Version 4.18. Added People column checklist filters and responsive accessibility guidance (local, pending release).
 
 - September 26, 2026 - Version 4.17. Added the separate Travel form and traveler section using shared components; local pending release.
 

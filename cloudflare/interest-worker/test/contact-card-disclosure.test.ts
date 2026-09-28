@@ -9,7 +9,8 @@ const adminStyles = readFileSync(resolve(testDirectory, "../../../admin/admin.cs
 
 describe("Admin contact progressive disclosure contract", () => {
   it("renders only the requested directory fields in the compact state", () => {
-    expect(adminScript).toContain('for (const label of ["Name", "Contact type", "Organization", "Phone number"])');
+    expect(adminScript).toContain('contactColumnFilters.header("contactTypes", "Contact type")');
+    expect(adminScript).toContain('contactColumnFilters.header("organization", "Organization")');
     expect(adminScript).toContain('personCompactField("Contact type"');
     expect(adminScript).toContain('personCompactField("Organization"');
     expect(adminScript).toContain('personCompactField("Phone number"');

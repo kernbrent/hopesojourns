@@ -1452,6 +1452,22 @@
   text-transform: uppercase;
 }
 
+.admin-column-filter { position: relative; min-width: 0; }
+.admin-column-filter summary { display: flex; align-items: center; justify-content: space-between; gap: .4rem; min-height: 36px; padding: .3rem .5rem; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; list-style: none; color: var(--forest-dark); background: var(--paper); }
+.admin-column-filter summary::-webkit-details-marker { display: none; }
+.admin-column-filter.is-active summary { background: var(--gold-wash); border-color: var(--gold); }
+.admin-column-filter summary:focus-visible, .admin-column-filter-panel button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.admin-column-filter-panel { position: absolute; z-index: 20; top: calc(100% + .4rem); left: 0; width: min(310px, calc(100vw - 48px)); padding: .9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: var(--shadow); color: var(--ink); font-size: .8rem; font-weight: 400; letter-spacing: normal; text-transform: none; }
+.admin-column-filter-panel > label { display: grid; gap: .3rem; }
+.admin-column-filter-panel input[type="search"] { width: 100%; min-width: 0; padding: .4rem; border: 1px solid var(--line); border-radius: 6px; background: var(--white); color: var(--ink); }
+.admin-column-filter-panel fieldset { margin: .7rem 0 0; padding: .4rem; border: 1px solid var(--line); max-height: 240px; overflow: auto; }
+.admin-column-filter-panel fieldset label { display: flex; align-items: start; gap: .5rem; padding: .35rem; overflow-wrap: anywhere; }
+.admin-column-filter-panel fieldset label[hidden] { display: none; }
+.admin-column-filter-panel input[type="checkbox"] { flex: 0 0 auto; margin-top: .3rem; accent-color: var(--forest); }
+.admin-column-filter-actions { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .65rem; }
+.admin-column-filter-actions button { padding: .35rem .55rem; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; color: var(--forest-dark); background: var(--forest-wash); cursor: pointer; font: inherit; }
+.admin-person-list-heading > span { align-self: center; }
+
 .admin-person-card {
   min-height: 54px;
   padding: .45rem .85rem;
@@ -2031,8 +2047,11 @@
 
 @media (max-width: 760px) {
   .admin-person-list-heading {
-    display: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0;
   }
+  .admin-person-list-heading > span { display: none; }
+  .admin-column-filter[data-contact-column="organization"] .admin-column-filter-panel { left: auto; right: 0; }
 
   .admin-person-card,
   .admin-person-card.is-expanded {

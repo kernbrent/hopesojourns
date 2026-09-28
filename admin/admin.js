@@ -584,8 +584,7 @@ function personCompactField(label, value, className = "") {
 
 function renderPersonListHeading() {
   const heading = element("div", "admin-person-list-heading");
-  heading.setAttribute("aria-hidden", "true");
-  for (const label of ["Name", "Contact type", "Organization", "Phone number"]) heading.append(element("span", "", label));
+  heading.append(element("span", "", "Name"), contactColumnFilters.header("contactTypes", "Contact type"), contactColumnFilters.header("organization", "Organization"), element("span", "", "Phone number"));
   return heading;
 }
 function renderPersonCard(person) {
@@ -1125,8 +1124,9 @@ function applyResultMeta(result, recordCount, unit, pluralUnit) {
 function applyListResult(result, records, renderCard, unit, pluralUnit) {
   const list = state.view === "people" ? peopleList : submissionsList;
   const content = records.map(renderCard);
-  if (state.view === "people" && records.length) {
+  if (state.view === "people") {
     content.unshift(renderContactAlphabet(records, content), renderPersonListHeading());
+    if (!records.length) content.push(element("p", "admin-empty-state", "No contacts match these filters. Clear a column filter or use Clear all filters to start over."));
   }
   list.replaceChildren(...content);
   applyResultMeta(result, records.length, unit, pluralUnit);
@@ -1469,6 +1469,16 @@ function viewCsmDonors() {
 }
 
 let peopleLoadVersion = 0;
+let peopleColumnResult = null;
+const contactColumnFilters = window.HSContactColumnFilters.create(renderFilteredPeople, contactTypeLabel);
+filterForm.addEventListener("reset", () => contactColumnFilters.reset());
+function renderFilteredPeople() {
+  if (!peopleColumnResult) return;
+  const people = contactColumnFilters.filter();
+  applyListResult({ ...peopleColumnResult, pagination: { ...peopleColumnResult.pagination, page: 1, pages: 1, total: people.length } }, people, renderPersonCard, "person", "people");
+  submissionsEmpty.hidden = true;
+  recordsPagination.hidden = true;
+}
 async function loadPeople() {
   const version = ++peopleLoadVersion;
   submissionsStatus.textContent = "Loading people…";
@@ -1487,7 +1497,9 @@ async function loadPeople() {
     }
     if (version !== peopleLoadVersion || state.view !== "people") return;
     const uniquePeople = [...new Map(people.map(person => [person.id, person])).values()];
-    applyListResult({ ...result, pagination: { ...result.pagination, page: 1, pages: 1, total: uniquePeople.length } }, uniquePeople, renderPersonCard, "person", "people");
+    peopleColumnResult = result;
+    contactColumnFilters.setRecords(uniquePeople);
+    renderFilteredPeople();
     recordsPagination.hidden = true;
     submissionsStatus.textContent = "";
   } catch (error) {
@@ -4086,12 +4098,14 @@ exportButton.addEventListener("click", async event => {
     params.delete("page");
     params.delete("pageSize");
     params.set("view", state.view === "requests" ? "requests" : "people");
+    const columnIds = state.view === "people" && contactColumnFilters.active()
+      ? new Set(contactColumnFilters.filter().map(person => String(person.id))) : null;
     const response = await fetch(`${API_BASE}/export.csv?${params}`, { cache: "no-store", credentials: "same-origin" });
     if (!response.ok) {
       if (response.status === 401) showLogin("Your session ended. Sign in again.");
       throw new Error("The export could not be prepared.");
     }
-    const blob = await response.blob();
+    const blob = columnIds ? new Blob([window.HSContactColumnFilters.filterCsv(await response.text(), columnIds)], { type: "text/csv;charset=utf-8" }) : await response.blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const disposition = response.headers.get("content-disposition") || "";
