@@ -1,20 +1,23 @@
 # Hope Sojourns website style guide
 
-Version 4.18
+Version 4.19
 
-Last reviewed: September 28, 2026
+Last reviewed: September 30, 2026
 
 ## Contact column filters
 
 On the People list, Contact type and Organization headings use keyboard-accessible disclosure controls with a downward filter indicator. Use the shared paper surface, forest text, gold active state, and focus outline. The checklist panel includes search, Select all, Select none, Clear filter, Apply, and Cancel. Escape and outside clicks dismiss without applying. Keep these two controls visible above the cards on phones, and retain the headings when no contacts match. Name and Phone number remain plain labels.
 
 
-## Travel and daily itinerary presentation
+## Itinerary categories and traveler views
 
-Use **Daily itinerary** for ministry activities, visits, and tours, and **Travel (departures and arrivals)** for transportation legs in the Content type selector. Selecting Travel relabels the existing date, time, and location as departure fields and reveals one Arrival and transport fieldset. Mark optional fields explicitly, explain that times are local, and retain the shared form typography, spacing, and palette. Public visibility is disabled for Travel.
+Use **Itinerary** as the primary content type with a labeled **Category** selector. Default to **Daily overview** and explain that the whole day can be written in one item. Keep optional specialty fields secondary and show only those relevant to the selected category. Use **Also show under** checkboxes for Daily overview and General, so one entry can be found in multiple traveler sections without duplicate entry.
 
-In the traveler portal, give Travel its own navigation link and section, separate from Daily itinerary. Display departure, arrival, mode, and service number as readable text, with an explicit to-be-confirmed arrival when details are missing. Include the same details in the offline traveler packet. Keep travel bookings out of the daily activity planner and reusable templates.
+Use **Transportation** for all transport modes, **Lodging**, **Meals / Restaurants**, **Ministry / Service**, **Bible Studies & Worship**, **Meetings / Training**, **Activities / Visits**, **Free Time / Rest**, and **General**. Transportation uses departure/arrival labels and local-time guidance; public visibility is disabled. Lodging identifies check-in and check-out. Put internal reservation references and notes behind the clearly labeled Private booking information disclosure.
 
+Ministry lookup uses labeled search, matching record buttons, and an optional Add a ministry dialog. Show duplicate matches and the explicit Create separate ministry action only after review; never imply that a match has been automatically merged. Retain the itinerary form while the dialog is open. Use existing dialog, form, button, focus, spacing, and palette styles.
+
+In the traveler portal, a labeled **Show** selector and category links choose All sections, By day, or an available category. Hide unrelated sections when a category is selected, with a clear All sections option. Use date disclosures for the daily schedule and worship studies. Devotionals appear in Bible Studies & Worship; preserve their links and Scripture formatting. Show lodging on stay dates and transportation on its departure/arrival dates. Shared details use readable text in the admin cards, traveler view, and packet. All new styling uses shared palette variables.
 
 ## Scripture reference links and hymns
 
@@ -690,6 +693,8 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
 ## Revision history
+
+- September 30, 2026 - Version 4.19. Added itinerary category controls, optional daily overview tags, ministry duplicate review, private booking disclosure, and traveler category views. Local pending release.
 
 - September 28, 2026 - Version 4.18. Added People column checklist filters and responsive accessibility guidance (local, pending release).
 

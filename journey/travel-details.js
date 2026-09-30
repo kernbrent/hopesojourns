@@ -1,7 +1,7 @@
 /* Shared, text-only travel details for admin, travelers, and offline packets. */
 (() => {
   function lines(item) {
-    if (item.content_type !== 'travel') return [];
+    if (item.content_type !== 'travel' && item.itinerary_category !== 'transportation') return [];
     const joined = parts => parts.filter(Boolean).join(' · ');
     return [
       'Departure: ' + joined([item.event_date, item.event_time, item.location]),

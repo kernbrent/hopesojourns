@@ -769,6 +769,7 @@ function contentRecord(item, metaItems, actions = []) {
     window.HSJourneyContent.appendScriptureLinks(body, item.content);
   }
   if (item.content_type === "travel") article.append(window.HSTravelDetails.render(item));
+  if (window.HSItinerary.isItinerary(item)) article.append(window.HSItinerary.render(item));
   return article;
 }
 
@@ -816,7 +817,7 @@ function editContent(item) {
   const form = document.querySelector("#trip-content-form");
   form.reset();
   setFormValues(form, item);
-  window.HSTravelForm.sync();
+  window.HSTravelForm.load(item);
   window.HSDevotionals.syncTripForm();
   form.querySelector("[data-cancel-edit]").hidden = false;
   form.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -828,12 +829,13 @@ async function removeResource(resource, id, label) {
   await openTrip(state.tripId, false);
 }
 
+window.HSTravelForm.configure(api, () => state.tripId);
 function renderContent() {
   const list = document.querySelector("#trip-content-list");
   list.replaceChildren();
   state.workspace.content.forEach(item => list.append(contentRecord(
     item,
-    [titleCase(item.content_type), titleCase(item.visibility), titleCase(item.publication_status), item.event_date ? dateLabel(item.event_date) : ""],
+    [window.HSItinerary.isItinerary(item) ? window.HSItinerary.labels[window.HSItinerary.category(item)] : titleCase(item.content_type), titleCase(item.visibility), titleCase(item.publication_status), item.event_date ? dateLabel(item.event_date) : ""],
     [{ label: "Edit", run: () => editContent(item) }, { label: "Remove", kind: "danger", run: () => removeResource("content", item.id, item.title) }],
   )));
   if (!state.workspace.content.length) list.append(record("No trip content yet", "Add a devotional, itinerary item, instruction, resource, or public update."));
@@ -1249,7 +1251,7 @@ async function submitJsonForm(form, path, transform = value => value, after = "w
   setStatus(status, "Saving…");
   submit.disabled = true;
   try {
-    const payload = transform(serializeForm(form));
+    const payload = transform(form.getAttribute('id') === 'trip-content-form' ? window.HSTravelForm.payload(serializeForm(form)) : serializeForm(form));
     await api(path(payload), { method: payload.id && path.updateMethod ? path.updateMethod : "POST", body: JSON.stringify(payload) });
     setStatus(status, "Saved.", "success");
     form.reset();

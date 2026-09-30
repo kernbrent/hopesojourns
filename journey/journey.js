@@ -101,7 +101,7 @@ document.querySelector("#journey-password-toggle").addEventListener("click", eve
 
 const labels = {
   overview: "Overview",
-  devotional: "Daily devotionals",
+  devotional: "Bible Studies & Worship",
   instruction: "Instructions",
   itinerary: "Daily itinerary",
   travel: "Travel",
@@ -114,6 +114,8 @@ function openStudyAnchor() {
   try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
   const day = document.getElementById(id);
   if (!day?.matches('details.journey-study-day')) return;
+  const section=day.closest('.journey-section');
+  if(section?.hidden){section.hidden=false;const view=document.querySelector('#journey-view');if(view){view.value=section.id;view.dispatchEvent(new Event('change'));}}
   day.open = true;
   day.querySelector('summary').focus({ preventScroll: true });
   day.scrollIntoView({ block: 'start', behavior: 'instant' });
@@ -186,40 +188,34 @@ function render(data) {
   const packetButton=node('button','journey-packet-download','Download traveler packet');packetButton.type='button';packetButton.onclick=()=>window.HSTravelerPacket.download(data.trip,data.content,data.members);navigation.append(packetButton);
   content.replaceChildren();
   if(data.memories?.length){const section=node('section','journey-section');section.id='trip-memories';const link=node('a','', 'Photos & memories');link.href='#trip-memories';navigation.append(link);window.HSTripMemoriesView.collection(section,data.memories);content.append(section);}
-  const grouped = new Map();
-  data.content.forEach(item => {
-    if (!grouped.has(item.content_type)) grouped.set(item.content_type, []);
-    grouped.get(item.content_type).push(item);
+  const I=window.HSItinerary;
+  const sorted=data.content.slice().sort((a,b)=>(a.event_date||'9999').localeCompare(b.event_date||'9999')||(a.event_time||'').localeCompare(b.event_time||'')||(a.sort_order||0)-(b.sort_order||0));
+  function entry(item){
+    const article=node('article','journey-item');article.append(node('h3','',item.title));
+    article.append(node('p','journey-item-meta',[I.isItinerary(item)?I.labels[I.category(item)]:'',item.event_date?dateLabel(item.event_date):'Date to be announced',item.event_time,item.location].filter(Boolean).join(' · ')));
+    if(I.category(item)==='transportation')article.append(window.HSTravelDetails.render(item));
+    article.append(I.render(item),window.HSJourneyContent.render(item.content,{study:item.content_type==='devotional'}));
+    if(item.link_url){const a=node('a','text-link','Open resource →');a.href=item.link_url;a.target='_blank';a.rel='noopener noreferrer';article.append(a);}return article;
+  }
+  function section(id,title){const host=node('section','journey-section');host.id=id;host.append(node('h2','',title));content.append(host);const link=node('a','',title);link.href='#'+id;navigation.append(link);return host;}
+  const schedule=sorted.filter(I.isItinerary);
+  if(schedule.length){
+    const host=section('journey-by-day','By day'),days=new Map();
+    schedule.forEach(item=>I.dates(item).forEach(day=>{if(!days.has(day))days.set(day,[]);days.get(day).push(item);}));
+    [...days].sort(([a],[b])=>a.localeCompare(b)).forEach(([day,items])=>{const group=node('details','journey-study-day');group.append(node('summary','journey-study-summary',day==='undated'?'Dates to be announced':dateLabel(day)));items.forEach(item=>group.append(entry(item)));host.append(group);});
+  }
+  const grouped=new Map();sorted.forEach(item=>I.sections(item).forEach(type=>{if(!grouped.has(type))grouped.set(type,[]);grouped.get(type).push(item);}));
+  grouped.forEach((items,type)=>{
+    if(type==='daily')return; // Daily overviews are already in By day; tags add specialty views.
+    const host=section(type==='worship'?'journey-devotional':'journey-'+type,I.labels[type]||labels[type]||type);
+    const dayHosts=type==='worship'?studyDays(host,items,data.trip):null;
+    items.forEach(item=>(dayHosts?.get(item)||host).append(entry(item)));
   });
-  grouped.forEach((items, type) => {
-    const section = node("section", "journey-section");
-    section.id = `journey-${type}`;
-    section.append(node("h2", "", labels[type] || type));
-    const dayHosts = type === 'devotional' ? studyDays(section, items, data.trip) : null;
-    items.forEach(item => {
-      const article = node("article", "journey-item");
-      article.append(node("h3", "", item.title));
-      const meta = node("div", "journey-item-meta");
-      [item.event_date ? dateLabel(item.event_date) : "", item.event_time, item.location]
-        .filter(Boolean)
-        .forEach(value => meta.append(node("span", "", value)));
-      if (meta.childNodes.length && item.content_type !== "travel") article.append(meta);
-      if (item.content_type === "travel") article.append(window.HSTravelDetails.render(item));
-      article.append(window.HSJourneyContent.render(item.content, { study: item.content_type === "devotional" }));
-      if (item.link_url) {
-        const link = node("a", "text-link", "Open resource \u2192");
-        link.href = item.link_url;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        article.append(link);
-      }
-      (dayHosts?.get(item) || section).append(article);
-    });
-    content.append(section);
-    const link = node("a", "", labels[type] || type);
-    link.href = `#${section.id}`;
-    navigation.append(link);
-  });
+  const viewLabel=node('label','journey-view-label','Show '),view=node('select','journey-view');view.id='journey-view';view.add(new Option('All sections','all'));
+  content.querySelectorAll('.journey-section').forEach(host=>view.add(new Option(host.querySelector('h2')?.textContent||'Photos & memories',host.id)));
+  view.addEventListener('change',()=>content.querySelectorAll('.journey-section').forEach(host=>host.hidden=view.value!=='all'&&host.id!==view.value));
+  navigation.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{view.value=link.hash.slice(1);view.dispatchEvent(new Event('change'));}));
+  viewLabel.append(view);navigation.prepend(viewLabel);
   if (!data.content.length && !data.memories?.length) {
     content.append(node("section", "journey-section", "Your trip leader is still preparing the portal. Please check back soon."));
   }

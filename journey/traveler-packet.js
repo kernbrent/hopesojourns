@@ -12,7 +12,7 @@
         : `<div>${esc(item.content)}</div>`;
       const resource = /^https:\/\//i.test(item.link_url || '')
         ? `<p><a href="${esc(item.link_url)}">Open resource</a></p>` : '';
-      return `<article><h2>${esc(item.title)}</h2>${item.content_type === 'travel' ? '' : `<p>${esc([item.event_date, item.event_time, item.location].filter(Boolean).join(' · '))}</p>`}${item.content_type === "travel" ? window.HSTravelDetails.render(item).outerHTML : ""}${body}${resource}</article>`;
+      return `<article><h2>${esc(item.title)}</h2>${item.content_type === 'travel' ? '' : `<p>${esc([item.event_date, item.event_time, item.location].filter(Boolean).join(' · '))}</p>`}${item.content_type === "travel" ? window.HSTravelDetails.render(item).outerHTML : ""}${window.HSItinerary?.render(item).outerHTML || ""}${body}${resource}</article>`;
     }).join('');
     const teamHtml = members.length ? '<h2>Selected team contacts</h2>' + members.map(member =>
       `<article><h3>${esc((member.preferred_name || member.first_name) + ' ' + member.last_name)}</h3><p>${esc([member.role, member.email, member.phone].filter(Boolean).join(' · '))}</p></article>`

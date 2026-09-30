@@ -10,9 +10,9 @@
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
   <link rel="stylesheet" href="/admin/trips/trips.css?v=2026-09-26.1">
-<script src="/admin/mmt-navigation.js?v=2026-09-24.1" defer></script><script src="/phone-ui.js?v=1" defer></script><script src="/admin/mmt-session.js?v=2026-09-22.1" defer></script><link rel="stylesheet" href="/admin/mmt-navigation.css?v=2026-09-24.1"><link rel="stylesheet" href="/journey/journey.css?v=2026-09-22.2"><link rel="stylesheet" href="/journey/memories.css?v=2026-09-22.4"><script src="/journey/travel-details.js?v=2026-09-26.2" defer></script>
-  <script src="/admin/trips/travel-form.js?v=2026-09-26.2" defer></script>
-  <script src="/journey/content-format.js?v=2026-09-26.1" defer></script><script src="/journey/memories-view.js?v=2026-09-22.4" defer></script><script src="/admin/trips/media-optimize.js?v=2026-09-22.5" defer></script><script src="/admin/trips/memories.js?v=2026-09-22.5" defer></script><link rel="stylesheet" href="/admin/planning.css?v=2026-09-22.6"><script src="/admin/planning.js?v=2026-09-26.2" defer></script><script src="/admin/trips/planning.js?v=2026-09-26.2" defer></script><script src="/journey/traveler-packet.js?v=2026-09-26.2" defer></script></head>
+<script src="/admin/mmt-navigation.js?v=2026-09-24.1" defer></script><script src="/phone-ui.js?v=1" defer></script><script src="/admin/mmt-session.js?v=2026-09-22.1" defer></script><link rel="stylesheet" href="/admin/mmt-navigation.css?v=2026-09-24.1"><link rel="stylesheet" href="/journey/journey.css?v=2026-09-30.1"><link rel="stylesheet" href="/journey/memories.css?v=2026-09-22.4"><script src="/journey/itinerary.js?v=2026-09-30.1" defer></script><script src="/journey/travel-details.js?v=2026-09-30.1" defer></script>
+  <script src="/admin/trips/itinerary-form.js?v=2026-09-30.1" defer></script>
+  <script src="/journey/content-format.js?v=2026-09-26.1" defer></script><script src="/journey/memories-view.js?v=2026-09-22.4" defer></script><script src="/admin/trips/media-optimize.js?v=2026-09-22.5" defer></script><script src="/admin/trips/memories.js?v=2026-09-22.5" defer></script><link rel="stylesheet" href="/admin/planning.css?v=2026-09-22.6"><script src="/admin/planning.js?v=2026-09-30.1" defer></script><script src="/admin/trips/planning.js?v=2026-09-30.1" defer></script><script src="/journey/traveler-packet.js?v=2026-09-30.1" defer></script></head>
 <body class="trip-admin-page">
   <a class="skip-link" href="#trip-main">Skip to trip workspace</a>
 
@@ -216,7 +216,7 @@
               <p id="trip-devotional-source" class="trip-form-status" aria-live="polite"></p>
               <input name="id" type="hidden">
               <p class="eyebrow">One publishing workflow</p><h3>Add trip content</h3>
-              <div class="trip-form-row"><label><span>Type</span><select name="contentType"><option value="devotional">Daily devotional</option><option value="instruction">Instruction</option><option value="itinerary">Daily itinerary</option><option value="travel">Travel (departures and arrivals)</option><option value="resource">Resource</option><option value="update">Trip update</option><option value="overview">Overview</option></select></label><label><span>Visibility</span><select name="visibility"><option value="travelers">Travelers only</option><option value="public">Public</option><option value="admin">Admin only</option></select></label></div>
+              <div class="trip-form-row"><label><span>Type</span><select name="contentType"><option value="devotional">Bible study / Devotional</option><option value="instruction">Instruction</option><option value="itinerary">Itinerary</option><option value="resource">Resource</option><option value="update">Trip update</option><option value="overview">Overview</option></select></label><label><span>Visibility</span><select name="visibility"><option value="travelers">Travelers only</option><option value="public">Public</option><option value="admin">Admin only</option></select></label></div>
               <label><span>Title</span><input name="title" required maxlength="180"></label>
               <label><span data-content-label>Content</span><textarea name="content" rows="7" maxlength="12000" required></textarea></label>
               <div class="trip-form-row"><label><span data-event-date-label>Date (optional)</span><input name="eventDate" type="date"></label><label><span data-event-time-label>Time (optional)</span><input name="eventTime" maxlength="40"></label></div>
@@ -431,6 +431,6 @@
   </dialog>
 
   <script src="/admin/trips/devotional-library.js?v=2026-09-26.2" defer></script>
-  <script src="/admin/trips/trips.js?v=2026-09-26.2" defer></script>
+  <script src="/admin/trips/trips.js?v=2026-09-30.1" defer></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+import {categories, details as itineraryDetails, tags as itineraryTags, itineraryMinistries} from './itinerary';
 import {templateStatements,readiness} from './planning';
 import {handleMemoriesAdmin,handleTripStories,portalMemories,portalPhoto} from './trip-memories';
 import { handleDevotionalLibrary, masterStatement, requireDevotional } from "./devotional-library";
@@ -642,7 +643,18 @@ async function saveContent(request: Request, env: AdminEnv, tripId: string): Pro
     publicationStatus: choice(body.publicationStatus, "publication status", new Set(["draft", "published"]), "draft"),
     sortOrder: Number.isFinite(Number(body.sortOrder)) ? Math.trunc(Number(body.sortOrder)) : 0,
   };
-  const travel = values.type === "travel";
+  const prior = existingId ? await env.DB.prepare('SELECT itinerary_category,itinerary_tags,itinerary_details,itinerary_private,end_date,end_time,ministry_id FROM trip_content WHERE id=?1 AND trip_id=?2').bind(id,tripId).first<JsonRecord>() : null;
+  const category = values.type === 'travel' ? 'transportation' : choice(body.itineraryCategory,'itinerary category',new Set(categories),String(prior?.itinerary_category === 'transportation' ? 'daily' : prior?.itinerary_category || 'daily'));
+  const travel = values.type === 'travel' || (values.type === 'itinerary' && category === 'transportation');
+  if(values.type === 'itinerary' && body.itineraryCategory !== undefined && !values.eventDate) throw new AdminError(422,'INVALID_FIELD','Choose the itinerary date.');
+  const tags = itineraryTags(body.itineraryTags ?? prior?.itinerary_tags ?? []);
+  const detail = itineraryDetails(body.itineraryDetails ?? prior?.itinerary_details ?? {});
+  const privateDetail = itineraryDetails(body.itineraryPrivate ?? prior?.itinerary_private ?? {},true);
+  const endDate = date(body.endDate === undefined ? prior?.end_date : body.endDate,'end date');
+  const endTime = optionalText(body.endTime === undefined ? prior?.end_time : body.endTime,'end time',40);
+  if(endDate && (!values.eventDate || endDate < values.eventDate)) throw new AdminError(422,'INVALID_FIELD','End date must be on or after the start date.');
+  const ministryId = uuid(body.ministryId === undefined ? prior?.ministry_id : body.ministryId,'ministry',true);
+  if(ministryId && !await env.DB.prepare('SELECT id FROM ministries WHERE id=?1').bind(ministryId).first()) throw new AdminError(422,'INVALID_FIELD','Select an existing ministry.');
   if (travel && (values.visibility === "public" || !values.eventDate || !values.location)) {
     throw new AdminError(422, "INVALID_FIELD", "Travel requires a departure date and location and cannot be public.");
   }
@@ -679,9 +691,9 @@ async function saveContent(request: Request, env: AdminEnv, tripId: string): Pro
         id, tripId, storageType, values.title, values.content, values.eventDate, values.eventTime, values.location,
         values.linkUrl, values.visibility, values.publicationStatus, values.sortOrder, now, devotionalId, travel ? "travel" : "activity", arrivalDate, arrivalTime, arrivalLocation, travelMode, serviceNumber,
       );
-  statements.push(statement, auditStatement(env, "trip_content", id, existingId ? "updated" : "created", { tripId, title: values.title, visibility: values.visibility }));
+  statements.push(statement, env.DB.prepare('UPDATE trip_content SET itinerary_category=?1,itinerary_tags=?2,itinerary_details=?3,itinerary_private=?4,end_date=?5,end_time=?6,ministry_id=?7 WHERE id=?8 AND trip_id=?9').bind(category,tags,detail,privateDetail,endDate,endTime,ministryId,id,tripId), auditStatement(env, "trip_content", id, existingId ? "updated" : "created", { tripId, title: values.title, visibility: values.visibility }));
   const results = await env.DB.batch(statements);
-  const result = results[results.length - 2];
+  const result = results[results.length - 3];
   if (existingId && !result.meta.changes) throw new AdminError(404, "CONTENT_NOT_FOUND", "That content item could not be found.");
   return adminJson({ id }, existingId ? 200 : 201);
 }
@@ -1587,7 +1599,7 @@ async function portalSession(request: Request, env: AdminEnv, photoTrip?:string,
   if (!trip) throw new AdminError(401, "PORTAL_AUTH_REQUIRED", "This trip portal is not available.");
   if(photoTrip){if(photoTrip!==session.trip_id)throw new AdminError(404,"NOT_FOUND","Photo not found.");return portalPhoto(env,photoTrip,photoId!,request);}
   const [content, members, costs] = await Promise.all([
-    env.DB.prepare(`SELECT id, content_type, title, content, event_date, event_time, location, link_url, visibility, publication_status, sort_order, itinerary_kind, arrival_date, arrival_time, arrival_location, travel_mode, service_number
+    env.DB.prepare(`SELECT id, content_type, title, content, event_date, event_time, location, link_url, visibility, publication_status, sort_order, itinerary_kind, arrival_date, arrival_time, arrival_location, travel_mode, service_number, itinerary_category, itinerary_tags, itinerary_details, end_date, end_time
       FROM trip_content WHERE trip_id = ?1 AND publication_status = 'published' AND visibility IN ('public', 'travelers')
       ORDER BY content_type, event_date, sort_order, title`).bind(session.trip_id).all(),
     env.DB.prepare(`SELECT p.preferred_name, p.first_name, p.last_name,
@@ -1651,7 +1663,7 @@ const TRIP_WORKBOOK_HEADERS = {
   Ministries: ["Import Ref", "Organization Name", "Description", "Address Line 1", "Address Line 2", "City", "State Province Region", "Postal Code", "Country", "Email", "Phone", "Website", "Notes", "Status", ...WORKBOOK_META_HEADERS],
   Team: ["Import Ref", "Person Email", "Organization Name", "Role", "Status", "Directory Visible", "Show Email", "Show Phone", "Notes", ...WORKBOOK_META_HEADERS],
   Partners: ["Import Ref", "Organization Name", "Role", "Notes", "Original Role", ...WORKBOOK_META_HEADERS],
-  Content: ["Import Ref", "Content Type", "Title", "Content", "Event Date", "Event Time", "Location", "Link URL", "Visibility", "Publication Status", "Sort Order", "Arrival Date", "Arrival Time", "Arrival Location", "Travel Mode", "Service Number", ...WORKBOOK_META_HEADERS],
+  Content: ["Import Ref", "Content Type", "Title", "Content", "Event Date", "Event Time", "Location", "Link URL", "Visibility", "Publication Status", "Sort Order", "Arrival Date", "Arrival Time", "Arrival Location", "Travel Mode", "Service Number", "Itinerary Category", "Also Show Under", "Itinerary Details", "Private Itinerary Details", "End Date", "End Time", "Ministry ID", ...WORKBOOK_META_HEADERS],
   Accounts: ["Import Ref", "Account Type", "Account Name", "Person Email", "Organization Name", "Billing Email", "Billing Phone", "Financial Access", "Status", "Notes", ...WORKBOOK_META_HEADERS],
   Budget: ["Import Ref", "Category Name", "Description", "Expense Scope", "Account Ref", "Calculation Method", "Percentage Rate", "Quantity", "Estimated Unit Cost", "Estimated Total", "Actual Total", "Vendor Name", "Vendor Organization Name", "Settlement Route", "Payment Status", "Payment Method", "External Reference", "Due Date", "Paid Date", "Notes", ...WORKBOOK_META_HEADERS],
   Allocations: ["Import Ref", "Budget Item Ref", "Funding Source Name", "Amount", "Status", "Notes", ...WORKBOOK_META_HEADERS],
@@ -1787,7 +1799,7 @@ async function exportTripSpreadsheet(request: Request, env: AdminEnv, tripId: st
   const content = await Promise.all(resultRows(contentResult).map(row => exportedWorkbookRow(
     TRIP_WORKBOOK_HEADERS.Content,
     [ref("content", row.id), presentContent(row).content_type, row.title, row.content, row.event_date, row.event_time, row.location,
-      row.link_url, row.visibility, row.publication_status, row.sort_order, row.arrival_date, row.arrival_time, row.arrival_location, row.travel_mode, row.service_number],
+      row.link_url, row.visibility, row.publication_status, row.sort_order, row.arrival_date, row.arrival_time, row.arrival_location, row.travel_mode, row.service_number, row.itinerary_category, row.itinerary_tags, row.itinerary_details, row.itinerary_private, row.end_date, row.end_time, row.ministry_id],
     workbookValue(row.id), workbookValue(row.updated_at),
   )));
   const accounts = await Promise.all(resultRows(accountsResult).map(row => exportedWorkbookRow(
@@ -2022,6 +2034,13 @@ function tripImportPayload(row: TripImportRow, lookups: TripImportLookups): Json
         arrivalLocation: value("arrival location"),
         travelMode: value("travel mode"),
         serviceNumber: value("service number"),
+        itineraryCategory: value('itinerary category') || undefined,
+        itineraryTags: value('also show under') || undefined,
+        itineraryDetails: value('itinerary details') || undefined,
+        itineraryPrivate: value('private itinerary details') || undefined,
+        endDate: row.values['end date'] === undefined ? undefined : importDate(row,'end date'),
+        endTime: row.values['end time'] === undefined ? undefined : value('end time'),
+        ministryId: row.values['ministry id'] === undefined ? undefined : value('ministry id'),
         title: value("title", true),
         content: value("content"),
         eventDate: importDate(row, "event date"),
@@ -2492,6 +2511,8 @@ async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Pr
   const accountLink = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/accounts\/([0-9a-f-]{36})\/access-links$/i);
   if (accountLink && request.method === "POST") return createAccountLink(request, env, accountLink[1], accountLink[2]);
 
+  const ministryLookup = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/itinerary-ministries$/i);
+  if(ministryLookup && ['GET','POST'].includes(request.method)) return itineraryMinistries(request,env,ministryLookup[1]);
   const resourceCreate = path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/(content|organizations|members|accounts|cost-items|allocations|charges|awards|payments|payment-requests|invites|messages)$/i);
   if (resourceCreate && request.method === "POST") {
     const [, tripId, resource] = resourceCreate;

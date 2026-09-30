@@ -1,20 +1,27 @@
 # Hope Sojourns developer guide
 
-Version 4.22
+Version 4.23
 
-Last reviewed: September 28, 2026
+Last reviewed: September 30, 2026
 
 ## People column filtering
 
 `admin/contact-column-filters.js` supplies the People list header checklists and local selection matching. `loadPeople` continues to retrieve every page matching the main search/filter form before supplying records to the column filters. Choices come from those records, with selected values retained when the main search changes. Match any selected contact type, match the selected organization, and require both columns when both are active. Blank values are selectable. The list count and alphabet navigation use the resulting records; zero matches retain filter controls. A form reset clears both selections. People CSV downloads retain the existing server-generated columns and escaping, then filter complete CSV records by the selected contact IDs, including quoted multiline notes. Selections last only for this page session and apply to the People list, not Contact spreadsheet or other workspaces. No API, schema, record, or permission change is required.
 
 
-## Separate travel entries
+## Itinerary categories and compatibility
 
-Migration `0040_trip_travel.sql` adds an itinerary subtype and arrival date/time/location, travel mode, and service number to `trip_content`. Existing entries remain activities. To preserve content IDs and devotional foreign keys without rebuilding the table, storage uses `content_type=itinerary` and `itinerary_kind=travel`; the admin and traveler APIs and workbooks expose `content_type=travel`. Saves validate the departure date/location and prohibit public visibility, backed by insert/update triggers. Changing the type away from Travel clears transport fields.
+Migration `0041_itinerary_categories.sql` adds `itinerary_category`, JSON `itinerary_tags`, public JSON `itinerary_details`, private JSON `itinerary_private`, `end_date`, `end_time`, and an optional `ministry_id` foreign key to `trip_content`. It backfills existing travel subtypes as transportation and leaves existing IDs, content, travel fields, timestamps, devotional links, visibility, photos, and other records intact. Other existing itinerary records default to daily. Apply the additive migration before the matching application release; migrate test and production independently, without copying business data.
 
-The Content form offers Daily itinerary and Travel (departures and arrivals). `admin/trips/travel-form.js` handles labels, required fields, and visibility; `journey/travel-details.js` renders escaped text for admin, traveler, and offline packet views. Departure and arrival dates/times are local, so no chronological comparison is made across time zones. Workbook exports/imports retain the five additional travel columns. Day planner, reusable templates, and public story selection exclude Travel entries; travelers see a separate Travel section. Apply migration 0040 before deploying the matching application to both isolated environments. Tests cover CRUD, visibility, migration constraints, traveler access, and adjacent trip workflows.
+The editor now selects Type Itinerary followed by category: daily, transportation, lodging, meal, ministry, worship, meeting, activity, rest, or general. `admin/trips/itinerary-form.js` keeps the `HSTravelForm` interface used by the Content form. Date and title suffice for a quick itinerary; transportation still requires departure location. Existing API/workbook travel types remain accepted and are mapped to `content_type=itinerary` with `itinerary_kind=travel`, retaining migration 0040 visibility triggers. Admin/traveler APIs still expose travel types for legacy compatibility. Explicit reclassification away from transportation clears old transport fields, as before. Departure and arrival times are local; cross-zone date ordering is not rejected.
 
+`src/itinerary.ts` validates category tags and allowlisted public/private detail fields. `saveContent` writes metadata and content in one database batch. Omitted new metadata is preserved on legacy edits and old workbook imports. Current workbook exports include all metadata, including private fields for authenticated staff; do not share those workbooks with travelers. Templates retain category/tags, exclude transportation, and omit booking details and ministry links. Readiness permits itinerary items with an empty optional description.
+
+Authenticated `GET /admin/trips/:id/itinerary-ministries?q=` requires Contacts read access. POST requires Contacts editing plus trip editing and CSRF. Search uses names, city/region, email, phone, and website. Creation normalizes names, compares similar names and email/phone/site, blocks an exact normalized name, and returns possible matches for explicit review. A review token is bound to the proposed details and catalog version. The insert is conditional on the catalog remaining unchanged; concurrent changes require a new check. No automatic merge occurs. Creation is audited and links the selected ministry ID only when the itinerary is saved.
+
+`journey/itinerary.js` supplies category labels, safe text rendering, category tags, and date grouping shared with the admin planner and traveler packet. Devotionals always belong to worship regardless of legacy metadata; existing devotional anchors remain stable. The traveler portal offers All sections, By day, and populated category views. Lodging appears through check-out; transport appears across departure/arrival dates. Private booking JSON and linked ministry IDs are excluded from the portal response. The renderer only uses the allowlisted public details. Publication status and audience checks remain in force.
+
+Validate migration against pre-0041 fixtures, legacy travel CRUD, quick entry, date validation, duplicate ministry review, publication privacy, templates, workbook round trips, and traveler category/day rendering. Preview against an isolated fixture database. Never use live business data as a test fixture. Update cache versions for the shared helper and dependent scripts together.
 
 ## CSM direct-bank donation review
 
@@ -1006,6 +1013,8 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+- September 30, 2026 - Version 4.23. Documented additive itinerary categories, compatible record mapping, ministry review endpoint, traveler grouping, privacy, and workbook/template behavior. Local pending release.
 
 - September 28, 2026 - Version 4.22. Added People column checklist filters and responsive accessibility guidance (local, pending release).
 
