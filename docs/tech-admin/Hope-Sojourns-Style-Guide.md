@@ -1,10 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.20
+Version 4.21
 
 Last reviewed: October 2, 2026
 
 ## Home financial summary
+
+Keep this summary compact: 1.35rem amounts, 0.8rem tile labels, 1.15rem section heading and 0.95rem period headings. Use 0.75rem by 1rem tile padding and 1rem panel padding. Preserve paper and forest-wash surfaces, rounded tiles, visible focus and responsive stacking.
 
 Home places the Financial summary beside the stacked Tasks and Recently opened trips panels. Show Current year with its year and All time, each with Total income and Total expenses links. Use the shared forest, paper, muted and border tokens, tabular currency figures, responsive stacking, a loading state and an unavailable state instead of false zeroes.
 
@@ -697,6 +699,8 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
 ## Revision history
+
+October 2, 2026 — Version 4.21: Reduced Home summary typography and spacing while preserving tiles and colors; local pending release.
 
 October 2, 2026 — Version 4.20: Added Home current-year and all-time financial totals; local pending release.
 
