@@ -1,8 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.19
+Version 4.20
 
-Last reviewed: September 30, 2026
+Last reviewed: October 2, 2026
+
+## Home financial summary
+
+Home places the Financial summary beside the stacked Tasks and Recently opened trips panels. Show Current year with its year and All time, each with Total income and Total expenses links. Use the shared forest, paper, muted and border tokens, tabular currency figures, responsive stacking, a loading state and an unavailable state instead of false zeroes.
 
 ## Contact column filters
 
@@ -693,6 +697,8 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
 ## Revision history
+
+October 2, 2026 — Version 4.20: Added Home current-year and all-time financial totals; local pending release.
 
 - September 30, 2026 - Version 4.19. Added itinerary category controls, optional daily overview tags, ministry duplicate review, private booking disclosure, and traveler category views. Local pending release.
 

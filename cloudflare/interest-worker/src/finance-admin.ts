@@ -44,7 +44,7 @@ async function bootstrap(env: AdminEnv) {
 async function records(request: Request, env: AdminEnv) {
   const url = new URL(request.url), values: (string|number)[] = [], where: string[] = ["l.accounting_class = 'operating'"];
   for (const [query,column] of [['from','l.transaction_date >='],['to','l.transaction_date <='],['type','l.entry_type ='],['source','l.source_type ='],['trip','COALESCE(r.trip_id,l.trip_id) ='],['ministry','r.ministry_id ='],['status',"COALESCE(r.status,'included') ="],['purpose',"COALESCE(r.expense_purpose,'unclassified') ="]]) {
-    const value = url.searchParams.get(query); if (value) { if (query==='from'||query==='to') date(value); where.push(`${column} ?`); values.push(value); }
+    const value = url.searchParams.get(query); if (value) { if (query==='from'||query==='to') date(value); if(query==='to'){where.push("l.transaction_date < date(?, '+1 day')");values.push(value);}else{where.push(`${column} ?`); values.push(value);} }
   }
   if (url.searchParams.get('review')==='1') where.push('r.accountant_review=1');
   if (url.searchParams.get('purpose')) where.push("l.entry_type='expense'");

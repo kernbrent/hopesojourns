@@ -1,0 +1,13 @@
+/* Home financial summary beside tasks and recent trips. */
+.home-financial-layout{display:grid;gap:1rem;margin:1.5rem 0;grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:start}
+.home-planning-notes{display:grid;gap:1rem;min-width:0}
+.home-financial-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin:1.5rem 0}
+.home-financial-totals a{display:grid;gap:.65rem;padding:1.5rem;border:1px solid var(--forest-soft);border-radius:12px;background:var(--forest-wash);text-decoration:none;min-width:0}
+.home-financial-totals strong{font-size:clamp(1.5rem,2.5vw,2.5rem);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;color:var(--forest-dark)}
+.home-financial-totals span{font-weight:700}
+.home-financial-totals a:hover{border-color:var(--forest)}
+@media(max-width:900px){.home-financial-layout{grid-template-columns:1fr}}
+@media(max-width:480px){.home-financial-totals{grid-template-columns:1fr}}
+
+.home-financial-summary{padding:1.5rem;border:1px solid var(--forest-soft);background:var(--paper);border-radius:14px;min-width:0}
+.home-financial-summary h2,.home-financial-summary h3{margin-top:0}

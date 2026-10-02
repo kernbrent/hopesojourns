@@ -32,7 +32,7 @@ async function renderInbox(home){
   b.disabled=true;try{await api('/admin/ministry/inbox',{itemId:b.dataset.id,action});await render();status.textContent=({complete:'Inbox item marked completed.',reopen:'Inbox item reopened using its current source status.',delete:'Inbox item moved to Trash.',restore:'Inbox item restored.'})[action];}catch(error){message(error);b.disabled=false;}
  });};
  if(!home){const filter=document.querySelector('#inbox-filter');filter.value=inboxFilter;filter.onchange=()=>{inboxFilter=filter.value;show();};}show();
- if(home){const planning=document.createElement('section');planning.id='home-planning';content.prepend(planning);await window.HSPlanning.home(planning);}
+ if(home){const planning=document.createElement('section');planning.id='home-planning';content.prepend(planning);await window.HSPlanning.home(planning);await window.HSHomeFinance.render(planning);}
 }
 async function getBootstrap(){bootstrap=await api('/admin/trip-platform/bootstrap');return bootstrap;}
 async function renderTrips(){await getBootstrap();content.innerHTML=`<div class="actions"><p>Create once, then review the budget, travelers, and content.</p><button class="primary" data-action="new-trip">Create a trip</button></div><div class="cards">${bootstrap.trips.map(t=>`<article class="card"><span class="tag">${esc(t.status)}</span><h2>${esc(t.title)}</h2><p>${esc(t.start_date||'Dates pending')} · ${esc(t.location)}</p>${link('#trip/'+t.id,'Prepare trip')} ${link('/admin/trips/?trip='+t.id,'All trip tools')}</article>`).join('')||'<p>No trips yet. Create your first trip from the standard template.</p>'}</div>`;}

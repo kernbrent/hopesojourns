@@ -135,3 +135,16 @@ describe('HS bookkeeping extensions',()=>{
   });
 
 });
+
+it('home totals separate calendar-year and all-time income and expenses, including December 31 timestamps',async()=>{
+ const f=await setup();
+ const add=async(amount:number,day:string,type='income')=>{const id=await income(f,amount);f.sqlite.prepare('UPDATE ledger_entries SET transaction_date=?,entry_type=? WHERE id=?').run(day,type,id);return id;};
+ await add(100,'2025-12-31');await add(2000,'2026-09-29T12:00:00.000Z');await add(10,'2026-12-31T23:59:59.999Z');await add(30,'2027-01-01');await add(40,'2026-06-01','expense');
+ const excluded=await add(500,'2026-08-01');await f.call('review/'+excluded,{status:'excluded'},'PUT');
+ const review=await add(600,'2026-08-01');await f.call('review/'+review,{status:'needs_review'},'PUT');
+ const transfer=await add(700,'2026-08-01');f.sqlite.prepare("UPDATE ledger_entries SET accounting_class='internal_transfer' WHERE id=?").run(transfer);
+ const current=await (await f.call('records?status=included&from=2026-01-01&to=2026-12-31')).json() as any;
+ expect(current.summary).toMatchObject({income:2010,expenses:40,count:3});
+ const all=await (await f.call('records?status=included')).json() as any;
+ expect(all.summary).toMatchObject({income:2140,expenses:40,count:5});
+});

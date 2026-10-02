@@ -1,8 +1,12 @@
 # Hope Sojourns developer guide
 
-Version 4.23
+Version 4.24
 
-Last reviewed: September 30, 2026
+Last reviewed: October 2, 2026
+
+## Home financial summary
+
+`admin/ministry/home-finance.js` loads included operating ledger totals from the existing authenticated `/admin/finance/records` endpoint for the America/Chicago current calendar year and all time. Server aggregates include every matching record, not only the first page; transfers and excluded/needs-review records are omitted. Income uses net ledger amounts. Ministry Home calls the helper after planning renders; stale detached responses are ignored. Finance Through-date queries use an exclusive next-day boundary so timestamped December 31 records count. No schema or financial-record changes. Links open the full Income/Expenses lists, with their normal filters.
 
 ## People column filtering
 
@@ -1013,6 +1017,8 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+October 2, 2026 — Version 4.24: Added Home current-year and all-time financial totals; local pending release.
 
 - September 30, 2026 - Version 4.23. Documented additive itinerary categories, compatible record mapping, ministry review endpoint, traveler grouping, privacy, and workbook/template behavior. Local pending release.
 
