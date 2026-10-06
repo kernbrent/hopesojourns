@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.38
+Version 4.40
 
 Last reviewed: October 6, 2026
 
@@ -1020,6 +1020,24 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
+## Isolated public story preview
+
+Brent authorized the prototype and subsequent five-direction revision on `preview.hopesojourns.com` on October 5, 2026. This is a preview-only exception to the normal paired test/production application release. The dedicated Cloudflare Pages project is `hopesojourns-preview`, with production branch `preview`; it has no Git deployment integration and no Worker, database, bucket, or secret bindings. Do not deploy this prototype to the normal test or production projects.
+
+Edit content and layout generation in `tools/build_preview_options.py`, presentation in `preview/directions.css`, and progressive enhancements in `preview/directions.js`. Run the generator, then `tools/build_story_preview.py` with the bundled Python runtime. The build copies an explicit public-file allowlist to `outputs/story-preview-site` and rejects unexpected files. It includes generated HTML, canonical styles, preview scripts, selected public ministry images, and no-index/security files. Never upload the repository root, manuscript, documentation, portal, or other output folders. Run `Check-Color-Palette.ps1` against authored sources.
+
+The root is a comparison page. Routes `/open-door/`, `/field-journal/`, `/people-first/`, `/wide-horizon/`, and `/your-next-step/` are complete design alternatives. Each has native `details` stories at `#red-story` and `#john-story`; JavaScript opens direct fragment links, handles repeated links, and returns focus after closing. Native reading works without JavaScript. Starting-point buttons in the fifth direction update a live region with fixed trusted copy. No responses are stored or transmitted. Existing journey, about, internship, and scheduling links use absolute production URLs. The first draft remains at `/first-draft.html` with its original CSS and six-moment script.
+
+Run `tools/check-story-preview.cjs` with the bundled Node runtime and a local or deployed origin. It checks the comparison and five directions at 1440, 768, 390, and 320 pixels, both stories, direct and repeated links, focus restoration, choices, image loading, overflow, storage, runtime errors, and no-JavaScript reading. Review screenshots in `outputs/story-options-qa`. Publish only the allowlisted directory with Wrangler Pages, project `hopesojourns-preview`, branch `preview`. Earlier deployments can be restored independently. Robots metadata and response headers request no indexing; this remains a public preview. CSP restricts assets to this origin and denies connections, forms, and framing. Re-run deployed checks and confirm the custom domain certificate.
+
+### Local motion exploration
+
+The October 6 local route `/in-motion/` is authored in `preview/in-motion/index.html`, with `preview/motion.css` and `preview/motion.js`. It reuses the original `preview.js` six-moment navigation and reflection logic, leaving the five published directions unchanged. The allowlisted builder includes these three files. Run `tools/build_story_preview.py`, serve its output locally, and open `/in-motion/`. This revision is local and requires an explicit publication request before deployment.
+
+Motion uses CSS transforms and opacity for the photographic opening, orbit lines, illustrated objects, and scene entrances. The motion script inserts compact AI-labeled story figures, manages the pause button, follows changes to reduced-motion preferences, and observes section visibility. Motion state is neither stored nor transmitted. No external animation package, service, video, or additional color token is required.
+
+Run `tools/check-motion-preview.cjs` against the local route to verify both complete stories, navigation/history, reflections, images, overflow at five widths, pause/resume state, reduced motion, and the no-JavaScript reading link. Screenshots are saved under `outputs/story-options-qa/motion`. The original draft and previous design checks remain available. Public output is still allowlisted and separate from private guide renderings.
+
 ## Contact relationships and donor matching
 
 Migration 0044 adds people.email_shared and contact_relationships. A canonical ordered pair stores one relationship; reverse reads invert parent/child. GET/POST/PUT/DELETE /admin/people/:id/relationships support listing, saving a relationship, changing the shared-email preference, and removing a link. Contact permissions and CSRF protect mutations; audit events record changes. Contact deletion cascades only its relationship links. Relationships do not change gifts or donor categories.
@@ -1027,6 +1045,10 @@ Migration 0044 adds people.email_shared and contact_relationships. A canonical o
 CSM matching checks donor name and shared-email evidence even for established master links. Explicit personal-gift donor IDs remain authoritative. A single unshared email requires a matching full name (or preferred first name plus last name). Multiple email matches, an explicit shared-email flag, or a name mismatch require individual confirmation. The inbox refreshes suggestions and approval rechecks current identity; stale saved matches cannot bypass review. Individually reviewed requests supply confirmDonor:true. Bulk approval skips unresolved donors. No family-level giving or tax assumptions are introduced.
 
 October 6 release destination: test.hopesojourns.com only, explicitly requested by Brent. Apply migrations 0042–0044 and donor cleanup only to isolated test D1. Upload the private guide only to the test guide bucket. Do not deploy or migrate production; subsequent production promotion requires separate authorization.
+
+## Local book reader
+
+preview/book/chapters.json is the single ordered catalog for book metadata and complete chapter paragraphs. tools/build_book_preview.py renders navigation, current-chapter state, previous/next links, reading times, and separate static /book/prologue/, /book/chapter-1/, /book/chapter-2/ pages. Add one catalog entry to add a chapter; never hand-edit generated navigation. tools/build_story_preview.py invokes this builder and allowlists generated pages plus book.css/book.js. The catalog itself and the source Word manuscript are not copied to the public artifact. Source: Hope-Sojourns-Prologue-and-Chapters-1-and-2.docx in the existing Book document library; chapter paragraphs are preserved verbatim. An invitation and An evening with John are web display titles for sections without manuscript subtitles. preview/motion.js adds the two final-scene links. book.js enhances static reading with local text-size/motion preferences and progress; content and chapter links work without JavaScript. No deployment or portal behavior changes.
 
 ## Portal account/contact associations
 
@@ -1042,14 +1064,35 @@ Regression coverage in portal-contacts.test.ts exercises association, shared-ema
 
 ## Revision history
 
+- October 6, 2026 — Version 4.40. Local preview destinations.js reads /api/destinations with no-store. tools/serve_story_preview.py serves localhost:8099 and relays only the fixed production public destinations endpoint, without credentials or writes. Titles, locations, images, summaries and dates_text come from MMT; unpublished destinations are omitted. Errors retain static destination links. A matching Pages GET function is staged at preview/functions/api/destinations.js for a future authorized release; run Pages deploy from preview to discover its functions directory. Public assets exclude function source. No production API/CORS changes or deployment.
+
+- October 6, 2026 — Version 4.39. Preview-only group photo replacement uses assets/ministry-gathering-athens-with-brent.png. Updated preview references, option generator and asset allowlist. Publish the existing public preview snapshot with only image references changed; keep unrelated local prototype work out of this release. Original asset and production/test deployments are unchanged.
+
+- October 6, 2026 — Version 4.38. Adjusted only the desktop hero image object-position and transform-origin in preview/motion.css. Verified both animation endpoints at 1920px and the unchanged 560px hero height. No route or behavior changes.
+
 - October 6, 2026 — Version 4.37. Added migration 0045, managed Portal Access, Board Member, transactional account/contact association, lookup, and access-request handling. Authorized release to test and production.
 
+- October 6, 2026 — Version 4.36. Compact opening overrides in preview/motion.css replace the previous near-viewport-height hero. The desktop headline hides its line break; mobile and tablet retain it. Phone invitation and bottom links use normal flow to prevent overlap. No routes or data changes.
+
+- October 6, 2026 — Version 4.35. Added local full-chapter reader and shared chapter navigation. Local review only.
+
+- October 6, 2026 — Version 4.34. The local preview loads preview/intro.js, an isolated copy of the production welcome controller using shared styles.css. The build allowlist includes intro.js. Preview daily storage is separate; reload replays, direct story/trip links skip autoplay, and hash changes or reduced-motion changes dismiss the intro. Production script.js is not loaded.
+
+- October 6, 2026 — Version 4.33. Local motion.js now replaces decorative story objects with labeled photographic-style figures. Two generated PNG assets are included in the public build allowlist. Story routing and reflections are unchanged; no publication.
 
 October 6, 2026 — Version 4.33: Added related-contact APIs, shared-email protection, current donor revalidation and individual approval. Test-only release including migrations 0042–0044; production unchanged.
+
+- October 6, 2026 — Version 4.32. Updated the local /in-motion/ prototype with production menu markup, accessible mobile menu controls, local Trips navigation, and eight static public destination links. The featured order is England, Mexico City, Athens; five smaller offerings follow. England uses a saved public destination photo. Build allowlist and responsive checks include the new assets. No publication.
 
 October 6, 2026 — Version 4.31: Migration 0043 adds atomic D1 triggers on ledger gift inserts/updates and split allocation inserts/updates/deletes. They use the scoped donation_gifts view to add Donor, remove only Potential Donor, and update changed contacts' timestamps. They cover manual/import/CSM/trip gifts, new donation contacts, and later donor linking. Positive charitable income is required; pending inbox rows, transfers, expenses, and non-gift income do not promote contacts. Existing CSM and split code no longer assigns donor types before the gift is saved. Repeat gifts preserve the original donor timestamp; failed batches roll back category changes. Removing or correcting a gift does not automatically demote prior donors. Apply after 0042 separately in each environment. Local pending authorized release.
 
 October 6, 2026 — Version 4.30: Added `potential_donor` to contact editing, filters, contact imports, and trip imports. Migration 0042 preserves existing relationships and expands the type constraint, then reclassifies only Donor contacts with no lifetime donation_gifts, linked income, matching unlinked income, duplicate-identity gift, or pending CSM gift evidence. It preserves other types and records each change with the original donor timestamp in audit_events. Split allocations and older gifts count. This is a one-time cleanup, not an automatic ongoing rule. Apply independently to each environment; do not copy business records. Local pending authorized release.
+
+October 6, 2026 — Version 4.29: Documented the local motion route, reused story navigation, CSS animation and pause behavior, and validation command.
+
+October 5, 2026 — Version 4.28: Documented the five-direction generator, public routes, native story disclosures, starting-point choices, isolated allowlist, and responsive checks.
+
+October 5, 2026 — Version 4.27: Documented the authorized independent story preview, allowlisted build, fragment navigation, privacy behavior, and deployment checks.
 
 October 5, 2026 — Version 4.26: Added completed one-time gift handoff to a thank-you page with PayPal's captured amount; tested pending/canceled payments, refreshes, and unavailable storage. Local pending release.
 

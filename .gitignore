@@ -20,3 +20,10 @@
 /cloudflare/interest-worker/src/mmt-user-guide-content.ts
 
 /tools/media-upload/node_modules/
+
+# Preview build and QA output includes private staff-guide renderings.
+/outputs/story-preview-site/
+/outputs/story-preview-qa/
+/outputs/story-preview-docs/
+/outputs/story-options-qa/
+/outputs/story-options-docs/

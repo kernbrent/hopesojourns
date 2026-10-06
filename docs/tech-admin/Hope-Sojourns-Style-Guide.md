@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.32
+Version 4.34
 
 Last reviewed: October 6, 2026
 
@@ -698,9 +698,27 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
+## Story preview presentation
+
+The October 5, 2026 second design round is a separate public preview at `preview.hopesojourns.com`. The comparison page links five complete visitor-facing directions: The open door, The field journal, People first, The wide horizon, and Your next step. The original six-moment draft remains at `/first-draft.html` for comparison. This exploration is independent of the approved public design.
+
+Each direction explains the Christian mission travel ministry before inviting visitors into the stories. Use open sections, generous spacing, Georgia headings, existing ministry photography, and a visible next action. Distinguish the directions through arched imagery, editorial composition, personal portraits, a full-width landscape, or three optional starting-point choices. All colors come from the canonical `/styles.css` palette; no new tokens are needed.
+
+Both Athens stories are faithful abridgements credited to Brent's chapters. Keep the endings within the reading experience, preserve dialogue and order, and separate reader prompts from the account. Native expandable sections reveal continuous prose without requiring repeated slide navigation. Keep summaries keyboard accessible, readable without JavaScript, and large enough to select on a phone. Direct story links open the relevant section; closing a story returns focus to its summary. Respect reduced motion. Choices in Your next step update the invitation locally without saving information. All directions retain clear links to ministry information, existing journey pages, and a conversation with Brent.
+
+### Local motion exploration
+
+The October 6 local direction at `/in-motion/` responds to Brent's preference for a more animated, colorful experience. Keep the recognizable invitation and six manually paced moments per story. The opening uses existing team photography with a slow camera movement, large gold typography, orbit lines, and a floating red-carton invitation. Coral and forest story entrances lead to ministry photography, featured destination images, smaller additional destination tiles, and a closing invitation. The production menu sits above the opening. Do not use a scrolling text band. Avoid large empty cream sections.
+
+Story scenes use naturalistic AI-created images: a small red carton on stone and a weathered bench in an olive-lined park. Keep these images compact beside the reading column, and use a small thumbnail beside the scene note on phones. They do not claim to depict the actual woman, John, or his bench. Scene changes reveal the next passage while its reading surface stays steady. Pause motion is available below the navigation and pauses decorative movement; reduced-motion preferences disable it automatically. Navigation, copy, and reading remain usable without motion. This local direction has not been published or adopted as the production design.
+
 ## Related contact card
 
 Use a full-width Related contacts card in the complete person record, following existing detail-card, linked-record, and responsive editor-grid styles. Display the other person's name and relationship, with Open contact and Remove relationship actions. Label the direction explicitly as Their relationship to the current contact. Offer a shared-email checkbox with a plain explanation. Show search results with name and email or phone so people with shared addresses can be distinguished. At phone widths, fields and actions stack without horizontal scrolling. Keep giving visibly separate and avoid household or tax language that implies combined giving.
+
+## Book reading pages
+
+Use a forest photographic opening and warm cream reading surface. Book text uses Georgia at 22px (20px on phones), 1.8–1.85 line height, and a reading column up to 740px. Text size controls offer 25px and 28px alternatives. Keep chapter imagery compact and label AI-created scenes. Animate only the cover image and decorative orbit; provide Pause animation and respect reduced motion. Chapter contents stay sticky on desktop and use a disclosure on phones. Full chapter calls to action appear at the end of both local story paths.
 
 ## Managed contact access categories
 
@@ -710,10 +728,31 @@ Within the account editor, group contact association under Hope Sojourns contact
 
 ## Revision history
 
+- October 6, 2026 — Version 4.34. Local destination cards reveal public MMT summaries and date labels over a dimmed photograph; smaller cards expand beneath the image. Use the details button for touch and keyboard, Escape to close, shared palette tokens and reduced-motion support. Keep England, Mexico City and Athens featured in that order.
+
+- October 6, 2026 — Version 4.33. Preview group imagery now uses the approved AI composite including Brent, assets/ministry-gathering-athens-with-brent.png. Preserve the original photograph and existing crops/layout. Production imagery is unchanged.
+
+- October 6, 2026 — Version 4.32. Keep all three foreground faces visible in the local compact hero: desktop photo crop uses center 25% and a top-centered zoom origin. Hero dimensions remain unchanged.
+
 - October 6, 2026 — Version 4.31. Added Board Member and accessible managed Portal Access guidance, contact association choices, and duplicate-match display. Authorized release to test and production.
 
+- October 6, 2026 — Version 4.30. Shortened the local opening to a 560px desktop minimum with smaller headline type and tighter spacing. On phones, use natural content height and place the story invitation and footer in normal flow.
+
+- October 6, 2026 — Version 4.29. Added local full-chapter reader and shared chapter navigation. Local review only.
+
+- October 6, 2026 — Version 4.28. The local in-motion preview reuses the production “You are Invited” welcome, Athens backdrop, and logo flight. Replay intro sits beside Pause motion; it is hidden on story pages and with reduced or paused motion.
+
+- October 6, 2026 — Version 4.27. Replaced cartoon story objects with naturalistic AI-created imagery. Story images use a compact 30-percent desktop column and a small phone thumbnail; reading remains primary.
 
 October 6, 2026 — Version 4.27: Added related-contact controls and shared-email guidance using existing palette, responsive fields and accessible labels. Test-only release.
+
+- October 6, 2026 — Version 4.26. Removed the scrolling text band from the local motion direction; restored the production navigation and added featured England, Mexico City, and Athens images above smaller images for all other destinations.
+
+October 6, 2026 — Version 4.26: Added the local animated direction, saturated brand surfaces, illustrated walk-through scenes, and motion controls.
+
+October 5, 2026 — Version 4.24: Added five complete design directions, comparison navigation, clear visitor orientation, open layouts, and continuous accessible story reading.
+
+October 5, 2026 — Version 4.23: Added the isolated story preview's typography, symbolic illustrations, six-moment pacing, optional reflection, and responsive accessibility standards.
 
 October 5, 2026 — Version 4.22: Added a giving thank-you page using the shared opening-section and giving-status components, forest-colored amount, wrapping payment reference, and spaced return links. Personalize the heading with the PayPal donor name, with a generic fallback and wrapping for long names. Hide the floating Donate now control on this confirmation page. Local pending release.
 

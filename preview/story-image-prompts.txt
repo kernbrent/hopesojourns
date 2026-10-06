@@ -1,0 +1,11 @@
+Generation method: built-in image_gen (not CLI).
+
+Saved assets:
+assets/story-red-juice-realistic.png
+assets/story-park-bench-realistic.png
+
+Red juice prompt:
+Create a photorealistic editorial still-life photograph for a thoughtful adult Christian travel story website, landscape 3:2 composition. A single small realistic 200 ml red juice carton with a thin white bendable straw stands on a weathered pale stone ledge in a quiet Athens park at dusk. Carton is modest in scale, occupies about one quarter of image height, slightly left of center. Unbranded deep muted coral-red packaging, subtle paper folds, no typography, no logo, no cartoon drawings. Out-of-focus olive foliage and warm amber evening light in the distance, deep forest-green shadows, natural texture, restrained cinematic color grading. Close observational photography, 50mm lens, believable proportions, mature and contemplative, not glossy advertising, not an illustration. No people, no extra cartons, no text. This is evocative symbolic imagery, not a recreation of a documented event.
+
+Bench prompt:
+Create a photorealistic editorial photograph for a thoughtful adult travel story website, landscape 3:2 composition. A modest empty weathered wooden park bench with dark iron legs beside a gravel walking path in an Athens neighborhood park, olive trees and Mediterranean foliage, late evening golden light fading into deep forest-green shadows. Bench sits slightly left of center, photographed from a natural standing viewpoint at a gentle three-quarter angle, occupies about one third of frame width, whole bench visible. Real wood grain, worn edges, natural imperfections, realistic proportions. Restrained cinematic photography, mature contemplative mood inviting a quiet conversation. Rich forest greens, warm muted gold, earthy wood tones. No people, no text, no logos, no fantasy, no cartoon rendering, no oversized bench, no artificial glow. An evocative symbolic image, not the actual bench from a documented event.
