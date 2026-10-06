@@ -134,7 +134,8 @@ async function paypalRequest<T>(
   const headers = new Headers(init.headers);
   headers.set("accept", "application/json");
   headers.set("authorization", `Bearer ${accessToken}`);
-  if (init.body) headers.set("content-type", "application/json");
+  // PayPal requires this header for capture POSTs even when the body is empty.
+  headers.set("content-type", "application/json");
   if (requestId) headers.set("paypal-request-id", requestId);
   headers.set("prefer", "return=representation");
 

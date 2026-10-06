@@ -1,5 +1,30 @@
-import { describe, expect, it } from "vitest";
-import { isAllowedOrigin, parseAmount, routePath } from "../src/index";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import worker, { isAllowedOrigin, parseAmount, routePath } from "../src/index";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("one-time gift capture", () => {
+  it("sends the required JSON header on an empty capture POST and returns completion", async () => {
+    const upstream = vi.fn(async (url: string, init: RequestInit) => {
+      if (url.endsWith('/v1/oauth2/token')) return Response.json({ access_token: 'test-token' });
+      expect(url).toBe('https://api-m.sandbox.paypal.com/v2/checkout/orders/TEST-ORDER/capture');
+      expect(init.method).toBe('POST');
+      const headers = new Headers(init.headers);
+      if (headers.get('content-type') !== 'application/json') {
+        return Response.json({ message: 'The request payload is not supported' }, { status: 415 });
+      }
+      expect(headers.get('paypal-request-id')).toBeTruthy();
+      return Response.json({ id: 'TEST-ORDER', status: 'COMPLETED', purchase_units: [{ payments: { captures: [{ id: 'TEST-CAPTURE', status: 'COMPLETED' }] } }] });
+    });
+    vi.stubGlobal('fetch', upstream);
+    const env = { PAYPAL_CLIENT_ID: 'test-client', PAYPAL_CLIENT_SECRET: 'test-secret', PAYPAL_API_BASE: 'https://api-m.sandbox.paypal.com', ALLOWED_ORIGINS: 'https://hopesojourns.com' } as unknown as Env;
+    const request = new Request('https://giving.example/orders/TEST-ORDER/capture', { method: 'POST', headers: { origin: 'https://hopesojourns.com' } });
+    const response = await worker.fetch(request as Parameters<typeof worker.fetch>[0], env);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: 'COMPLETED', captureStatus: 'COMPLETED', captureId: 'TEST-CAPTURE' });
+    expect(upstream).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("parseAmount", () => {
   it("normalizes whole-dollar and two-decimal donations", () => {
