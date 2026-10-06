@@ -8,11 +8,12 @@ async function setup(){const f=await ministryFixture();fixtures.push(f);f.sqlite
 const rows=[{firstName:'Alice',lastName:'Example',email:'alice@example.test',date:'2025-12-31',amountCents:10000,note:'First gift'},{firstName:'Bob',lastName:'Example',email:'bob@example.test',date:'2026-09-16',amountCents:20000,note:''}];
 it('allocates gross to donors, preserves net and original payer, supports three donors and undo',async()=>{
  const f=await setup();const first=await saveSplit(f.env,'split-test',{revision:0,parentVersion:'now',allocations:rows},'admin');
- expect(first.allocations).toHaveLength(2);expect(first.parent.amount).toBe(291);expect(first.parent.name).toBe('Transfer agent');
+ expect(first.allocations).toHaveLength(2);expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM contact_types WHERE contact_type='donor'").get()?.n).toBe(2);expect(first.parent.amount).toBe(291);expect(first.parent.name).toBe('Transfer agent');
  expect(f.sqlite.prepare('SELECT SUM(charitable_amount) AS total,COUNT(*) AS n FROM donation_gifts').get()).toMatchObject({total:300,n:2});
  expect(f.sqlite.prepare("SELECT SUM(charitable_amount) AS total FROM donation_gifts WHERE transaction_date<'2026-01-01'").get()).toMatchObject({total:100});
  expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM ledger_entries').get()?.n).toBe(1);
- const third=await saveSplit(f.env,'split-test',{revision:1,parentVersion:'now',allocations:[rows[0],{...rows[1],amountCents:15000},{...rows[0],firstName:'Carol',email:'carol@example.test',amountCents:5000}]},'admin');expect(third.allocations).toHaveLength(3);
+ f.sqlite.prepare("INSERT INTO contact_types VALUES(?,'potential_donor','now'),(?,'volunteer','now')").run(first.allocations[0]!.personId!,first.allocations[0]!.personId!);
+ const third=await saveSplit(f.env,'split-test',{revision:1,parentVersion:'now',allocations:[rows[0],{...rows[1],amountCents:15000},{...rows[0],firstName:'Carol',email:'carol@example.test',amountCents:5000}]},'admin');expect(third.allocations).toHaveLength(3);expect(f.sqlite.prepare('SELECT contact_type FROM contact_types WHERE person_id=? ORDER BY contact_type').all(first.allocations[0]!.personId!)).toEqual([{contact_type:'donor'},{contact_type:'volunteer'}]);
  const undo=await saveSplit(f.env,'split-test',{revision:2,parentVersion:'now',allocations:[]},'admin');expect(undo.history).toHaveLength(3);expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM donation_gifts').get()?.n).toBe(1);
 });
 it('rejects incorrect totals, negatives, fractional cents, invalid dates and stale saves without creating donors',async()=>{
@@ -37,7 +38,7 @@ it('carries allocations through inbox approval and lets CSM edit the same approv
  expect(delivery.status).toBe(202);
  const inbox=f.sqlite.prepare('SELECT id FROM csm_distribution_inbox').get()!;
  const path=`/admin/csm-inbox/${inbox.id}/approve`;
- const approved=await handleCsmAdminRequest(f.request(path,{donor:{firstName:'Transfer',lastName:'Agent',email:'transfer@example.test'}}),f.env,path);
+ const approved=await handleCsmAdminRequest(f.request(path,{confirmDonor:true,donor:{firstName:'Transfer',lastName:'Agent',email:'transfer@example.test'}}),f.env,path);
  expect(await approved.json()).toMatchObject({success:true,status:'approved'});
  expect(f.sqlite.prepare('SELECT COUNT(*) AS n,SUM(amount) AS total FROM ledger_entries').get()).toMatchObject({n:1,total:291});
  expect(f.sqlite.prepare('SELECT COUNT(*) AS n,SUM(charitable_amount) AS total FROM donation_gifts').get()).toMatchObject({n:2,total:300});

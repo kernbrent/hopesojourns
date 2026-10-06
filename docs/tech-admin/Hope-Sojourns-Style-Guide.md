@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.22
+Version 4.27
 
-Last reviewed: October 5, 2026
+Last reviewed: October 6, 2026
 
 ## Home financial summary
 
@@ -698,7 +698,13 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
+## Related contact card
+
+Use a full-width Related contacts card in the complete person record, following existing detail-card, linked-record, and responsive editor-grid styles. Display the other person's name and relationship, with Open contact and Remove relationship actions. Label the direction explicitly as Their relationship to the current contact. Offer a shared-email checkbox with a plain explanation. Show search results with name and email or phone so people with shared addresses can be distinguished. At phone widths, fields and actions stack without horizontal scrolling. Keep giving visibly separate and avoid household or tax language that implies combined giving.
+
 ## Revision history
+
+October 6, 2026 — Version 4.27: Added related-contact controls and shared-email guidance using existing palette, responsive fields and accessible labels. Test-only release.
 
 October 5, 2026 — Version 4.22: Added a giving thank-you page using the shared opening-section and giving-status components, forest-colored amount, wrapping payment reference, and spaced return links. Personalize the heading with the PayPal donor name, with a generic fallback and wrapping for long names. Hide the floating Donate now control on this confirmation page. Local pending release.
 

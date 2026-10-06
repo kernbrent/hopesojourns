@@ -52,17 +52,19 @@ async function matchDonor(env: CsmEnv, message: CsmDistributionMessage): Promise
     const contact=await env.DB.prepare('SELECT id FROM people WHERE id=?').bind(message.personalGift.contactId).first<{id:string}>();
     return {personId:contact?.id||null,method:contact?'master_link':null,status:contact?'pending':'needs_match'};
   }
-  const linked = await env.DB.prepare(
-    "SELECT person_id AS personId FROM csm_donor_links WHERE master_donor_id = ?1",
-  ).bind(message.masterDonorId).first<{ personId: string }>();
-  if (linked) return { personId: linked.personId, method: "master_link", status: "pending" };
-  if (!message.party.email) return { personId: null, method: null, status: "needs_match" };
-  const candidates = await env.DB.prepare(
-    "SELECT id FROM people WHERE email_normalized = ?1 ORDER BY updated_at DESC LIMIT 2",
-  ).bind(normalizedEmail(message.party.email)).all<{ id: string }>();
-  return candidates.results.length === 1
-    ? { personId: candidates.results[0]!.id, method: "email", status: "pending" }
-    : { personId: null, method: null, status: "needs_match" };
+  const email=normalizedEmail(message.party.email||'');
+  const candidates=await env.DB.prepare(`SELECT p.id,p.first_name,p.last_name,p.preferred_name,p.email_normalized,p.email_shared,
+    EXISTS(SELECT 1 FROM csm_donor_links d WHERE d.master_donor_id=?1 AND d.person_id=p.id) AS linked,
+    (SELECT COUNT(*) FROM people q WHERE (p.email_normalized<>'' AND q.email_normalized=p.email_normalized) OR (?2<>'' AND q.email_normalized=?2)) AS email_count
+    FROM people p WHERE p.id=(SELECT person_id FROM csm_donor_links WHERE master_donor_id=?1) OR (?2<>'' AND p.email_normalized=?2) LIMIT 3`).bind(message.masterDonorId,email)
+    .all<{id:string;first_name:string;last_name:string;preferred_name:string|null;email_normalized:string;email_shared:number;linked:number;email_count:number}>();
+  const linked=candidates.results.find(p=>p.linked);
+  const person=linked||(candidates.results.length===1?candidates.results[0]:null);
+  if(!person)return {personId:null,method:null,status:'needs_match'};
+  const sourceName=normalizedName(message.party.displayName||message.displayName);
+  const names=[normalizedName(person.first_name+' '+person.last_name),person.preferred_name?normalizedName(person.preferred_name+' '+person.last_name):''];
+  if(person.email_shared||person.email_count>1||!names.includes(sourceName))return {personId:null,method:null,status:'needs_match'};
+  return {personId:person.id,method:linked?'master_link':'email',status:'pending'};
 }
 
 export async function currentGivingSummary(env: CsmEnv, at = new Date()): Promise<{
@@ -124,19 +126,11 @@ async function receive(request: Request, env: CsmEnv): Promise<Response> {
 }
 
 async function candidates(env: CsmEnv, message: CsmDistributionMessage): Promise<PersonRow[]> {
-  if (!message.party.email) {
-    const [firstName, ...lastName] = message.displayName.trim().split(/\s+/);
-    if (!firstName || !lastName.length) return [];
-    const result = await env.DB.prepare(
-      `SELECT id, first_name, last_name, email FROM people
-       WHERE first_name_normalized = ?1 AND last_name_normalized = ?2
-       ORDER BY updated_at DESC LIMIT 10`,
-    ).bind(normalizedName(firstName), normalizedName(lastName.join(" "))).all<PersonRow>();
-    return result.results;
-  }
-  const result = await env.DB.prepare(
-    "SELECT id, first_name, last_name, email FROM people WHERE email_normalized = ?1 ORDER BY updated_at DESC LIMIT 10",
-  ).bind(normalizedEmail(message.party.email)).all<PersonRow>();
+  const name=normalizedName(message.party.displayName||message.displayName),email=normalizedEmail(message.party.email||'');
+  const result=await env.DB.prepare(`SELECT id,first_name,last_name,email FROM people WHERE
+    (?<>'' AND email_normalized=?) OR lower(trim(first_name||' '||last_name))=?
+    OR id IN(SELECT person_id FROM csm_donor_links WHERE master_donor_id=?)
+    ORDER BY last_name,first_name LIMIT 25`).bind(email,email,name,message.masterDonorId).all<PersonRow>();
   return result.results;
 }
 
@@ -165,17 +159,22 @@ async function listInbox(request: Request, env: CsmEnv): Promise<Response> {
   const givingSummary = await currentGivingSummary(env);
   const messages = await Promise.all(result.results.map(async row => {
     const message = parseDistributionMessage(JSON.parse(String(row.payload_json)));
+    const open=['pending','needs_match','failed'].includes(String(row.status));
+    const current=open?await matchDonor(env,message):null;
+    const matchId=open?current?.personId:row.matched_person_id;
+    const matched=matchId?await env.DB.prepare('SELECT id,first_name,last_name,email FROM people WHERE id=?').bind(matchId).first<PersonRow>():null;
     return {
-      id: row.id, idempotencyKey: row.idempotency_key, status: row.status,
-      matchMethod: row.match_method, decisionReason: row.decision_reason,
+      requiresDonorReview:open&&message.transaction.direction==='received'&&!current?.personId,
+      id: row.id, idempotencyKey: row.idempotency_key, status: open&&current?.status==='needs_match'?'needs_match':row.status,
+      matchMethod: open?current?.method:row.match_method, decisionReason: row.decision_reason,
       recordId: row.recipient_record_id, callbackStatus: row.callback_status,
       callbackError: row.callback_error, receivedAt: row.received_at,
       updatedAt: row.updated_at, decidedAt: row.decided_at,
       displayName: message.displayName, direction: message.transaction.direction,
       party: message.party, transaction: message.transaction, personalGift:message.personalGift, ledgerIncome:message.ledgerIncome,
-      matchedPerson: row.matched_person_id ? {
-        id: row.matched_person_id, firstName: row.matched_first_name,
-        lastName: row.matched_last_name, email: row.matched_email,
+      matchedPerson: matched ? {
+        id: matched.id, firstName: matched.first_name,
+        lastName: matched.last_name, email: matched.email,
       } : null,
       candidates: await candidates(env, message),
     };
@@ -244,13 +243,16 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
   let matchMethod: string | null = null;
   if (message.transaction.direction === "received") {
     const requested = cleanLine(body.personId, 64);
-    const refreshedMatch = !requested && !row.matched_person_id ? await matchDonor(env, message) : null;
-    personId = requested || row.matched_person_id || refreshedMatch?.personId || null;
+    const refreshedMatch = await matchDonor(env, message);
+    if ((!refreshedMatch.personId || (requested && requested!==refreshedMatch.personId)) && body.confirmDonor!==true) {
+      throw new AdminError(409,'DONOR_REVIEW_REQUIRED','Review this gift individually and confirm the actual donor. Shared email or a different name cannot select the donor automatically.');
+    }
+    personId = requested || refreshedMatch.personId || null;
     if(message.personalGift&&personId!==message.personalGift.contactId)throw new AdminError(409,"ORIGINAL_DONOR_REQUIRED","Use the original donor selected in CSM. Correct the source before receiving this gift.");
     if (personId) {
       const exists = await env.DB.prepare("SELECT id FROM people WHERE id = ?1").bind(personId).first<{ id: string }>();
       if (!exists) throw new AdminError(422, "PERSON_NOT_FOUND", "Choose an existing donor or create a new one.");
-      matchMethod = requested ? "manual" : row.match_method || refreshedMatch?.method || null;
+      matchMethod = requested ? "manual" : refreshedMatch.method;
     } else {
       const input = newDonor(body, message);
       const exactMatches = await env.DB.prepare(
@@ -284,7 +286,6 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
       }
     }
     statements.push(
-      env.DB.prepare("INSERT OR IGNORE INTO contact_types (person_id, contact_type, created_at) VALUES (?1, 'donor', ?2)").bind(personId, now),
       env.DB.prepare(
         `INSERT INTO csm_donor_links (master_donor_id, person_id, created_from_inbox_id, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?4)
@@ -294,6 +295,7 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
   }
   const recordId = crypto.randomUUID();
   const ledgerId = crypto.randomUUID();
+  // Gift-save triggers (0043) add Donor and remove Potential Donor atomically.
   statements.push(
     env.DB.prepare(
       `INSERT INTO financial_transactions

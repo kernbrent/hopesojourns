@@ -1,3 +1,4 @@
+import {contactRelationships} from './contact-relationships';
 import {storedPhone} from './phone';
 import {actorContext,can,routeSection,currentPortal,effectiveUser,hasPortal,type MmtIdentity} from './mmt-permissions';
 import { contactGiving } from './contact-giving';
@@ -32,6 +33,7 @@ const CONTACT_TYPE_OPTIONS = [
   ["traveler", "Traveler"],
   ["leader", "Leader"],
   ["donor", "Donor"],
+  ["potential_donor", "Potential Donor"],
   ["ministry_contact", "Ministry Contact"],
   ["staff", "Hope Sojourns Staff"],
   ["volunteer", "Volunteer"],
@@ -457,7 +459,7 @@ function contactInput(body: Record<string, unknown>): ContactInput {
   const requestedPreference = body.contactPreference === "phone" ? "phone" : "email";
   const contactPreference = requestedPreference === "phone" && !phone ? "email" : requestedPreference === "email" && !email ? "phone" : requestedPreference;
   const contactStatus = body.contactStatus === "inactive" ? "inactive" : "active";
-  const contactTypes = cleanChoiceArray(body.contactTypes, ALLOWED_CONTACT_TYPES, 8, "Choose valid contact types.");
+  const contactTypes = cleanChoiceArray(body.contactTypes, ALLOWED_CONTACT_TYPES, 9, "Choose valid contact types.");
   return {
     firstName,
     lastName,
@@ -2797,6 +2799,8 @@ async function routeAdmin(request: Request, env: AdminEnv, path: string): Promis
   if (request.method === "GET" && path === "/admin/submissions") return listSubmissions(request, env);
   if (request.method === "GET" && path === "/admin/export.csv") return exportCsv(request, env);
 
+  const relationshipsMatch = path.match(/^\/admin\/people\/([0-9a-f-]{36})\/relationships$/i);
+  if (relationshipsMatch) return contactRelationships(request, env, relationshipsMatch[1]);
   const personTeamsMatch = path.match(/^\/admin\/people\/([0-9a-f-]{36})\/teams$/i);
   if (request.method === "POST" && personTeamsMatch) return setPersonTeams(request, env, personTeamsMatch[1]);
   const personMatch = path.match(/^\/admin\/people\/([0-9a-f-]{36})$/i);

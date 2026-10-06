@@ -247,6 +247,7 @@ const CONTACT_TYPE_LABELS = {
   traveler: "Traveler",
   leader: "Leader",
   donor: "Donor",
+  potential_donor: "Potential Donor",
   ministry_contact: "Ministry Contact",
   staff: "Hope Sojourns Staff",
   volunteer: "Volunteer",
@@ -1232,6 +1233,7 @@ function renderCsmCard(message) {
 
   if (["pending", "needs_match", "failed"].includes(message.status)) {
     const form = element("form", "admin-csm-review");
+    if(message.requiresDonorReview) form.append(element("p","admin-reply-help","Verify the actual donor. A shared email or different name requires individual review; family giving stays separate."));
     let personSelect = null;
     if (message.direction === "received") {
       const people = new Map();
@@ -1273,7 +1275,8 @@ function renderCsmCard(message) {
       try {
         const formData = new FormData(form);
         const personId = personSelect?.value || "";
-        const body = personId ? { personId } : message.direction === "received" ? {
+        const body = personId ? { personId, confirmDonor: true } : message.direction === "received" ? {
+          confirmDonor: true,
           donor: {
             firstName: formData.get("firstName"), lastName: formData.get("lastName"),
             email: formData.get("email"), phone: formData.get("phone"),
@@ -1415,6 +1418,7 @@ async function approveAllCsmInbox() {
         processed.add(message.id);
         approveAllCsmInboxButton.textContent = `Approving ${Math.min(processed.size, total)} of ${total}…`;
         try {
+          if(message.requiresDonorReview) throw new Error("Review this gift individually and confirm the actual donor.");
           const { result } = await api(`/csm-inbox/${message.id}/approve`, {
             method: "POST",
             body: csmApprovalBody(message),
@@ -3037,6 +3041,57 @@ function renderContactGiving(giving) {
   return section;
 }
 
+function renderRelatedContacts(person) {
+  const section=element('section','admin-detail-card admin-detail-card-wide');
+  section.append(element('h3','','Related contacts'),element('p','admin-reply-help','Relationships appear on both contact cards. Giving remains separate for each person.'));
+  const content=element('div'),status=element('p','admin-reply-help','Loading relationships…');
+  status.setAttribute('role','status');section.append(content,status);
+  const path=`/people/${person.id}/relationships`;
+  const labels={spouse:'Spouse',parent:'Parent',child:'Child',sibling:'Sibling',other:'Other'};
+  async function refresh(){
+    try{
+      const {result}=await api(path);content.replaceChildren();status.textContent='';
+      if(!result.relationships.length)content.append(element('p','admin-reply-help','No related contacts have been linked.'));
+      for(const related of result.relationships){
+        const row=element('div','admin-linked-record'),copy=element('div');
+        copy.append(element('strong','',`${related.firstName} ${related.lastName}`),element('span','',`${labels[related.relationship]} · ${related.email||related.phone||'No contact details'}`));
+        const open=element('button','admin-button admin-button-outline','Open contact');open.type='button';open.addEventListener('click',()=>openPerson(related.id));row.append(copy,open);
+        if(result.canEdit){const remove=element('button','admin-button admin-button-quiet','Remove relationship');remove.type='button';remove.addEventListener('click',async()=>{
+          if(!window.confirm(`Remove the relationship with ${related.firstName} ${related.lastName}? Both contacts and their giving will remain.`))return;
+          remove.disabled=true;try{await api(path,{method:'DELETE',body:{personId:related.id}});await refresh();}catch(e){status.textContent=e.message;remove.disabled=false;}
+        });row.append(remove);}content.append(row);
+      }
+      const sharedLabel=element('label','admin-reply-help'),shared=document.createElement('input');shared.type='checkbox';shared.checked=result.emailShared;shared.disabled=!result.canEdit;
+      sharedLabel.append(shared,document.createTextNode(' This contact’s email is shared with another person'));
+      content.append(sharedLabel,element('p','admin-reply-help','Mark shared email even if the other person is not in Contacts yet. Gifts using it require donor review.'));
+      shared.addEventListener('change',async()=>{shared.disabled=true;try{await api(path,{method:'PUT',body:{emailShared:shared.checked}});status.textContent='Shared-email preference saved.';}catch(e){shared.checked=!shared.checked;status.textContent=e.message;}finally{shared.disabled=false;}});
+      if(!result.canEdit)return;
+      const form=element('form','admin-editor-grid');
+      const searchLabel=editorField('Find an existing contact','relatedSearch','',{maximum:100});
+      const search=searchLabel.querySelector('input'),find=element('button','admin-button admin-button-outline','Search contacts');find.type='button';
+      const choiceLabel=element('label','admin-editor-field'),choice=document.createElement('select');choice.required=true;choice.setAttribute('aria-label','Related person');choiceLabel.append(element('span','','Related person'),choice);
+      const typeLabel=element('label','admin-editor-field'),type=document.createElement('select');
+      type.setAttribute('aria-label',`Their relationship to ${person.preferredName||person.firstName}`);
+      typeLabel.append(element('span','',`Their relationship to ${person.preferredName||person.firstName}`),type);
+      for(const [value,label] of Object.entries(labels)){const option=element('option','',label);option.value=value;type.append(option);}
+      const save=element('button','admin-button admin-button-primary','Save relationship');save.type='submit';save.disabled=true;
+      find.addEventListener('click',async()=>{
+        find.disabled=true;save.disabled=true;choice.replaceChildren();
+        try{const {result:found}=await api(`/people?search=${encodeURIComponent(search.value.trim())}&pageSize=50&sort=name_asc`);
+          const blank=element('option','','Choose a contact');blank.value='';choice.append(blank);
+          for(const p of found.people.filter(p=>p.id!==person.id)){const option=element('option','',`${p.firstName} ${p.lastName} · ${p.email||p.phone||'No contact details'}`);option.value=p.id;choice.append(option);}
+          save.disabled=choice.options.length<2;status.textContent=save.disabled?'No matching contacts. Add a contact first, then link them here.':found.pagination.total>50?'Showing the first 50 matches. Narrow your search if needed.':'Choose the person and how they are related.';
+        }catch(e){status.textContent=e.message;}finally{find.disabled=false;}
+      });
+      choice.addEventListener('change',()=>{const existing=result.relationships.find(r=>r.id===choice.value);if(existing)type.value=existing.relationship;});
+      form.append(searchLabel,find,choiceLabel,typeLabel,save);
+      form.addEventListener('submit',async event=>{event.preventDefault();save.disabled=true;try{await api(path,{method:'POST',body:{personId:choice.value,relationship:type.value}});await refresh();status.textContent='Relationship saved on both contact cards.';}catch(e){status.textContent=e.message;save.disabled=false;}});
+      content.append(form);
+    }catch(e){status.textContent=e.message;}
+  }
+  refresh();return section;
+}
+
 function renderPersonDetail(person) {
   const fragment = document.createDocumentFragment();
   const hero = createContactHero(person, "Latest activity", formatDate(person.submissions[0]?.createdAt || person.updatedAt));
@@ -3108,7 +3163,7 @@ function renderPersonDetail(person) {
   person.interests.forEach(interest => interests.append(createInterestRow(person, interest, "person")));
   if (!person.interests.length && !person.trips.length) interests.append(element("p", "admin-reply-help", "No trips or interests are recorded for this person."));
 
-  grid.append(profile, ministries);
+  grid.append(profile, ministries, renderRelatedContacts(person));
   if (person.giving?.gifts?.length > 0) grid.append(renderContactGiving(person.giving));
   grid.append(createTeamAssignments(person), interests, renderSubmissionHistory(person));
   const registrations = renderRegistrations(person);

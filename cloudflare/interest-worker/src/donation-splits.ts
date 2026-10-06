@@ -18,6 +18,7 @@ export async function saveSplit(env:AdminEnv,id:string,body:Record<string,unknow
  const statements:D1PreparedStatement[]=[env.DB.prepare(`INSERT INTO donation_split_guards(value) SELECT 0 WHERE NOT EXISTS(SELECT 1 FROM ledger_entries WHERE id=? AND updated_at=?) OR COALESCE((SELECT revision FROM donation_splits WHERE entry_id=?),0)!=?`).bind(id,snapshot.parent.updated_at,id,snapshot.revision)],now=new Date().toISOString();
  statements.push(...await allocationContacts(env,rows,now));
  // The optimistic update and all contact inserts are one atomic D1 batch.
+ // Gift-save triggers (0043) classify the allocation contacts when the split is saved.
  statements.push(env.DB.prepare(`INSERT INTO donation_splits(entry_id,revision,allocations_json,updated_at,actor) VALUES(?,?,?,?,?) ON CONFLICT(entry_id) DO UPDATE SET revision=excluded.revision,allocations_json=excluded.allocations_json,updated_at=excluded.updated_at,actor=excluded.actor WHERE donation_splits.revision=?`).bind(id,snapshot.revision+1,JSON.stringify(rows),now,actor,snapshot.revision));
  // Force rollback, including contact creation, when a concurrent save won.
  statements.push(env.DB.prepare(`INSERT INTO donation_split_guards(value) SELECT 0 WHERE NOT EXISTS(SELECT 1 FROM donation_splits WHERE entry_id=? AND revision=? AND updated_at=? AND actor=?)`).bind(id,snapshot.revision+1,now,actor));
@@ -68,19 +69,18 @@ export async function allocationContacts(env:AdminEnv,rows:DonationAllocation[],
  const identity=(first:string,last:string,email:string)=>JSON.stringify([first.toLowerCase(),last.toLowerCase(),email.toLowerCase()]);
  const byId=new Map(candidates.results.map(p=>[p.id,p]));
  const byIdentity=new Map(candidates.results.map(p=>[identity(p.first_name,p.last_name,p.email),p]));
- const created:Person[]=[],donors=new Set<string>();
+ const created:Person[]=[];
  for(const row of rows){
   const key=identity(row.firstName,row.lastName,row.email);
   let person=row.personId?byId.get(row.personId):byIdentity.get(key);
   if(row.personId&&!person)throw new AdminError(422,'PERSON_NOT_FOUND','Choose a donor who still exists.');
   if(!person){person={id:crypto.randomUUID(),first_name:row.firstName,last_name:row.lastName,email:row.email};created.push(person);byIdentity.set(key,person);}
-  row.personId=person.id;row.firstName=person.first_name;row.lastName=person.last_name;row.email=person.email;donors.add(person.id);
+  row.personId=person.id;row.firstName=person.first_name;row.lastName=person.last_name;row.email=person.email;
  }
  // Chunk bindings below D1's per-statement parameter limit; all writes join the caller's atomic batch.
  for(let i=0;i<created.length;i+=8){
   const chunk=created.slice(i,i+8);
   statements.push(env.DB.prepare(`INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,contact_preference,record_source,contact_status,created_at,updated_at) VALUES ${chunk.map(()=>"(?,?,?,?,?,?,?,'email','manual','active',?,?)").join(',')}`).bind(...chunk.flatMap(p=>[p.id,p.first_name,p.last_name,p.first_name.toLowerCase(),p.last_name.toLowerCase(),p.email,p.email,now,now])));
  }
- const ids=[...donors];for(let i=0;i<ids.length;i+=40){const chunk=ids.slice(i,i+40);statements.push(env.DB.prepare(`INSERT OR IGNORE INTO contact_types(person_id,contact_type,created_at) VALUES ${chunk.map(()=>"(?,'donor',?)").join(',')}`).bind(...chunk.flatMap(id=>[id,now])));}
  return statements;
 }

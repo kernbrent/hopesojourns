@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.26
+Version 4.33
 
-Last reviewed: October 5, 2026
+Last reviewed: October 6, 2026
 
 ## Home financial summary
 
@@ -1020,7 +1020,21 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
+## Contact relationships and donor matching
+
+Migration 0044 adds people.email_shared and contact_relationships. A canonical ordered pair stores one relationship; reverse reads invert parent/child. GET/POST/PUT/DELETE /admin/people/:id/relationships support listing, saving a relationship, changing the shared-email preference, and removing a link. Contact permissions and CSRF protect mutations; audit events record changes. Contact deletion cascades only its relationship links. Relationships do not change gifts or donor categories.
+
+CSM matching checks donor name and shared-email evidence even for established master links. Explicit personal-gift donor IDs remain authoritative. A single unshared email requires a matching full name (or preferred first name plus last name). Multiple email matches, an explicit shared-email flag, or a name mismatch require individual confirmation. The inbox refreshes suggestions and approval rechecks current identity; stale saved matches cannot bypass review. Individually reviewed requests supply confirmDonor:true. Bulk approval skips unresolved donors. No family-level giving or tax assumptions are introduced.
+
+October 6 release destination: test.hopesojourns.com only, explicitly requested by Brent. Apply migrations 0042–0044 and donor cleanup only to isolated test D1. Upload the private guide only to the test guide bucket. Do not deploy or migrate production; subsequent production promotion requires separate authorization.
+
 ## Revision history
+
+October 6, 2026 — Version 4.33: Added related-contact APIs, shared-email protection, current donor revalidation and individual approval. Test-only release including migrations 0042–0044; production unchanged.
+
+October 6, 2026 — Version 4.31: Migration 0043 adds atomic D1 triggers on ledger gift inserts/updates and split allocation inserts/updates/deletes. They use the scoped donation_gifts view to add Donor, remove only Potential Donor, and update changed contacts' timestamps. They cover manual/import/CSM/trip gifts, new donation contacts, and later donor linking. Positive charitable income is required; pending inbox rows, transfers, expenses, and non-gift income do not promote contacts. Existing CSM and split code no longer assigns donor types before the gift is saved. Repeat gifts preserve the original donor timestamp; failed batches roll back category changes. Removing or correcting a gift does not automatically demote prior donors. Apply after 0042 separately in each environment. Local pending authorized release.
+
+October 6, 2026 — Version 4.30: Added `potential_donor` to contact editing, filters, contact imports, and trip imports. Migration 0042 preserves existing relationships and expands the type constraint, then reclassifies only Donor contacts with no lifetime donation_gifts, linked income, matching unlinked income, duplicate-identity gift, or pending CSM gift evidence. It preserves other types and records each change with the original donor timestamp in audit_events. Split allocations and older gifts count. This is a one-time cleanup, not an automatic ongoing rule. Apply independently to each environment; do not copy business records. Local pending authorized release.
 
 October 5, 2026 — Version 4.26: Added completed one-time gift handoff to a thank-you page with PayPal's captured amount; tested pending/canceled payments, refreshes, and unavailable storage. Local pending release.
 

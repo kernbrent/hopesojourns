@@ -131,7 +131,7 @@ describe("admin security helpers", () => {
   it("sorts contact types alphabetically for the search filter", () => {
     expect(contactTypeFilterOptions().map(option => option.label)).toEqual([
       "Donor", "Hope Sojourns Staff", "Leader", "Ministry Contact", "Other",
-      "Prospective Traveler", "Traveler", "Volunteer",
+      "Potential Donor", "Prospective Traveler", "Traveler", "Volunteer",
     ]);
   });
 });

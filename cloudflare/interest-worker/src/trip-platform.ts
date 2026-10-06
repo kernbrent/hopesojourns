@@ -49,7 +49,7 @@ const PAYMENT_STATUSES = new Set(["pending", "received", "refunded", "voided"]);
 const SOURCE_SYSTEMS = new Set(["manual", "csm", "paypal", "venmo", "import", "other"]);
 const REQUEST_STATUSES = new Set(["draft", "ready", "sent", "partially_paid", "paid", "canceled"]);
 const MESSAGE_TYPES = new Set(["invitation", "payment_request", "statement", "trip_update", "other"]);
-const CONTACT_TYPES = new Set(["prospective_traveler", "traveler", "leader", "donor", "ministry_contact", "staff", "volunteer", "other"]);
+const CONTACT_TYPES = new Set(["prospective_traveler", "traveler", "leader", "donor", "potential_donor", "ministry_contact", "staff", "volunteer", "other"]);
 
 type JsonRecord = Record<string, unknown>;
 
