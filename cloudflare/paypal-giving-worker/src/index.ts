@@ -185,7 +185,8 @@ async function captureOrder(request: Request, env: Env, orderId: string): Promis
   const result = await paypalRequest<{
     id: string;
     status: string;
-    purchase_units?: Array<{ payments?: { captures?: Array<{ id: string; status: string }> } }>;
+    payer?: { name?: { given_name?: string; surname?: string } };
+    purchase_units?: Array<{ payments?: { captures?: Array<{ id: string; status: string; amount?: { value: string; currency_code: string } }> } }>;
   }>(env, `/v2/checkout/orders/${orderId}/capture`, { method: "POST" }, crypto.randomUUID());
 
   const capture = result.purchase_units?.[0]?.payments?.captures?.[0];
@@ -194,6 +195,9 @@ async function captureOrder(request: Request, env: Env, orderId: string): Promis
     status: result.status,
     captureId: capture?.id,
     captureStatus: capture?.status,
+    amount: capture?.amount?.value,
+    currency: capture?.amount?.currency_code,
+    donorName: [result.payer?.name?.given_name, result.payer?.name?.surname].filter(Boolean).join(" ").trim().slice(0, 200),
   });
 }
 

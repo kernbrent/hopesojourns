@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.25
+Version 4.26
 
 Last reviewed: October 5, 2026
 
@@ -693,6 +693,8 @@ Supported placeholder forms include `[[FIELD_NAME]]` and `{{FIELD_NAME}}`. The c
 
 `/giving/giving.js` fetches public configuration, loads the PayPal SDK, creates or captures one-time orders through the Worker, and renders subscription buttons for recurring plans.
 
+Completed one-time captures return PayPal's capture amount, currency, and payer name. The thank-you heading uses that name as plain text, with a generic fallback; it never places donor identity in the URL or document title. The browser validates the matching order, completed capture, USD amount, and capture ID before storing a tab-scoped `hs-gift-confirmation` and navigating to `/giving/thank-you/`. This page displays the amount and reference for 30 minutes, including refreshes, without putting payment details in URLs. It is a convenience confirmation, not a tax receipt or ledger authority; PayPal remains the receipt source. Missing, expired, or malformed storage shows an unavailable message, never success. Storage restrictions preserve the inline success and amount. Canceled, failed, and pending captures do not navigate. Recurring subscription authorization keeps its existing distinct message. Deploy the Worker response change before the frontend; no schema changes.
+
 The PayPal request helper must send `Content-Type: application/json` even for an empty capture POST. Omitting it causes PayPal to reject the final request with “The request payload is not supported” after checkout approval. The capture regression test mocks PayPal's 415 rejection when this header is absent and requires a completed capture response. A return to the giving page alone does not prove payment; require confirmed capture and reconcile with PayPal before retrying. Never capture a donor's old approved order as a diagnostic.
 
 The Worker lives in `/cloudflare/paypal-giving-worker/`. Secrets must not be committed:
@@ -1019,6 +1021,8 @@ The signature is private R2 object branding/brent-kern-signature.png in each env
 Validation includes provider mocks, duplicate/concurrent sends, stale previews, missing emails, retries and expiry, split shares, permission/CSRF checks, and test isolation. No donor email is sent during automated validation. Deploy migration and private signature before Worker and frontend release to both environments. Initial automatic setting remains off until chosen in the Ledger.
 
 ## Revision history
+
+October 5, 2026 — Version 4.26: Added completed one-time gift handoff to a thank-you page with PayPal's captured amount; tested pending/canceled payments, refreshes, and unavailable storage. Local pending release.
 
 October 5, 2026 — Version 4.25: Corrected the missing JSON header on one-time PayPal capture requests and added a regression test. Local correction pending authorized release.
 

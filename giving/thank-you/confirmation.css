@@ -1,0 +1,5 @@
+.giving-confirmation .floating-donate { display: none; }
+.giving-confirmation .hero-actions { margin-top: 1.5rem; }
+.giving-confirmation #gift-amount { font-size: 1.5rem; color: var(--forest); }
+.giving-confirmation #gift-reference { overflow-wrap: anywhere; }
+.giving-confirmation #confirmation-title { overflow-wrap: anywhere; }

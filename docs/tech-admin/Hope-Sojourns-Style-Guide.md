@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.21
+Version 4.22
 
-Last reviewed: October 2, 2026
+Last reviewed: October 5, 2026
 
 ## Home financial summary
 
@@ -699,6 +699,8 @@ The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLo
 The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
 
 ## Revision history
+
+October 5, 2026 — Version 4.22: Added a giving thank-you page using the shared opening-section and giving-status components, forest-colored amount, wrapping payment reference, and spaced return links. Personalize the heading with the PayPal donor name, with a generic fallback and wrapping for long names. Hide the floating Donate now control on this confirmation page. Local pending release.
 
 October 2, 2026 — Version 4.21: Reduced Home summary typography and spacing while preserving tiles and colors; local pending release.
 

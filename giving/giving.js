@@ -141,6 +141,7 @@
     ...commonButtonOptions("once"),
     async createOrder() {
       const amount = readAmount();
+      try { sessionStorage.removeItem("hs-gift-confirmation"); } catch { /* Checkout also works without storage. */ }
       setStatus("Opening secure PayPal checkout…");
       const response = await fetch(`${apiBase}/orders`, {
         method: "POST",
@@ -157,10 +158,23 @@
         headers: { "Content-Type": "application/json" },
       });
       const capture = await readApiResponse(response);
-      if (capture.status !== "COMPLETED" && capture.captureStatus !== "COMPLETED") {
+      if (capture.captureStatus !== "COMPLETED") {
         throw new Error("PayPal has not confirmed the gift yet.");
       }
       setStatus("Thank you. Your one-time gift is complete, and PayPal will send your receipt.", "success");
+      // Use PayPal's captured amount, never the editable amount field or URL parameters.
+      if (capture.id === data.orderID && capture.captureId && /^\d+(?:\.\d{1,2})?$/.test(capture.amount)
+          && Number(capture.amount) > 0 && capture.currency === "USD") {
+        const formatted = new Intl.NumberFormat("en-US", { style: "currency", currency: capture.currency }).format(Number(capture.amount));
+        setStatus(`Thank you for giving ${formatted} to Hope Sojourns. Your gift is complete, and PayPal will send your receipt.`, "success");
+        try {
+          sessionStorage.setItem("hs-gift-confirmation", JSON.stringify({ amount: capture.amount, currency: capture.currency, captureId: capture.captureId, donorName: capture.donorName, confirmedAt: Date.now() }));
+          window.location.assign("/giving/thank-you/");
+        } catch {
+          // A storage restriction must not turn a completed payment into a checkout error.
+          statusMessage.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+      }
     },
   });
 

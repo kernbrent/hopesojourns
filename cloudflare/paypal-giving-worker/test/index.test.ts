@@ -14,14 +14,14 @@ describe("one-time gift capture", () => {
         return Response.json({ message: 'The request payload is not supported' }, { status: 415 });
       }
       expect(headers.get('paypal-request-id')).toBeTruthy();
-      return Response.json({ id: 'TEST-ORDER', status: 'COMPLETED', purchase_units: [{ payments: { captures: [{ id: 'TEST-CAPTURE', status: 'COMPLETED' }] } }] });
+      return Response.json({ id: 'TEST-ORDER', status: 'COMPLETED', payer: { name: { given_name: 'Brent', surname: 'Kern' } }, purchase_units: [{ payments: { captures: [{ id: 'TEST-CAPTURE', status: 'COMPLETED', amount: { value: '123.45', currency_code: 'USD' } }] } }] });
     });
     vi.stubGlobal('fetch', upstream);
     const env = { PAYPAL_CLIENT_ID: 'test-client', PAYPAL_CLIENT_SECRET: 'test-secret', PAYPAL_API_BASE: 'https://api-m.sandbox.paypal.com', ALLOWED_ORIGINS: 'https://hopesojourns.com' } as unknown as Env;
     const request = new Request('https://giving.example/orders/TEST-ORDER/capture', { method: 'POST', headers: { origin: 'https://hopesojourns.com' } });
     const response = await worker.fetch(request as Parameters<typeof worker.fetch>[0], env);
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ status: 'COMPLETED', captureStatus: 'COMPLETED', captureId: 'TEST-CAPTURE' });
+    expect(await response.json()).toMatchObject({ status: 'COMPLETED', captureStatus: 'COMPLETED', captureId: 'TEST-CAPTURE', amount: '123.45', currency: 'USD', donorName: 'Brent Kern' });
     expect(upstream).toHaveBeenCalledTimes(2);
   });
 });
