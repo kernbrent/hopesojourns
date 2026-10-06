@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.27
+Version 4.32
 
 Last reviewed: October 6, 2026
 
@@ -702,7 +702,16 @@ The Ledger and contact giving list expose Gift thank-you. The preview identifies
 
 Use a full-width Related contacts card in the complete person record, following existing detail-card, linked-record, and responsive editor-grid styles. Display the other person's name and relationship, with Open contact and Remove relationship actions. Label the direction explicitly as Their relationship to the current contact. Offer a shared-email checkbox with a plain explanation. Show search results with name and email or phone so people with shared addresses can be distinguished. At phone widths, fields and actions stack without horizontal scrolling. Keep giving visibly separate and avoid household or tax language that implies combined giving.
 
+## Managed contact access categories
+
+Board Member uses the existing contact-type checkbox and filters. Portal Access appears checked only for active HS access and uses a greyed managed-control treatment. Keep the category label focusable so keyboard users can request the same explanation as pointer users. A visible help sentence links to Account & settings → Users & access requests; the message asks users to save the contact first. Grey styling uses opacity and existing palette tokens.
+
+Within the account editor, group contact association under Hope Sojourns contact. Use plain labels: Contact association, Find by name, email, or phone, and Find contacts. Distinguish automatic matching from the deliberate Create a separate new contact choice. Search results include name, email, and phone and identify people already linked to accounts. Linked contact is read-only when the account already has an association. Preserve the existing responsive account form layout and live status messages.
+
 ## Revision history
+
+- October 6, 2026 — Version 4.31. Added Board Member and accessible managed Portal Access guidance, contact association choices, and duplicate-match display. Authorized release to test and production.
+
 
 October 6, 2026 — Version 4.27: Added related-contact controls and shared-email guidance using existing palette, responsive fields and accessible labels. Test-only release.
 

@@ -49,7 +49,7 @@ const PAYMENT_STATUSES = new Set(["pending", "received", "refunded", "voided"]);
 const SOURCE_SYSTEMS = new Set(["manual", "csm", "paypal", "venmo", "import", "other"]);
 const REQUEST_STATUSES = new Set(["draft", "ready", "sent", "partially_paid", "paid", "canceled"]);
 const MESSAGE_TYPES = new Set(["invitation", "payment_request", "statement", "trip_update", "other"]);
-const CONTACT_TYPES = new Set(["prospective_traveler", "traveler", "leader", "donor", "potential_donor", "ministry_contact", "staff", "volunteer", "other"]);
+const CONTACT_TYPES = new Set(["prospective_traveler", "traveler", "leader", "donor", "potential_donor", "board_member", "portal_access", "ministry_contact", "staff", "volunteer", "other"]);
 
 type JsonRecord = Record<string, unknown>;
 
@@ -740,7 +740,8 @@ function importedContactTypes(value: unknown): string[] {
   const requested = Array.isArray(value) ? value : [];
   const selected = [...new Set(requested.filter((item): item is string => typeof item === "string").map(item => item.trim()).filter(Boolean))];
   if (selected.some(item => !CONTACT_TYPES.has(item))) throw new AdminError(422, "INVALID_CONTACT_TYPE", "Choose valid contact types.");
-  return selected.length ? selected : ["traveler"];
+  const editable = selected.filter(type => type !== "portal_access");
+  return editable.length ? editable : ["traveler"];
 }
 
 async function saveImportedPerson(request: Request, env: AdminEnv, tripId: string): Promise<Response> {

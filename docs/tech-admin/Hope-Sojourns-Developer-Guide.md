@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.33
+Version 4.38
 
 Last reviewed: October 6, 2026
 
@@ -1028,7 +1028,22 @@ CSM matching checks donor name and shared-email evidence even for established ma
 
 October 6 release destination: test.hopesojourns.com only, explicitly requested by Brent. Apply migrations 0042–0044 and donor cleanup only to isolated test D1. Upload the private guide only to the test guide bucket. Do not deploy or migrate production; subsequent production promotion requires separate authorization.
 
+## Portal account/contact associations
+
+Migration 0045 expands contact_types with board_member and portal_access, preserving all rows and recreating the five gift-classification triggers from 0043. mmt_users.hs_person_id is a foreign key to people with deletion restricted. A partial unique index permits only one undeleted account per contact; deleted accounts retain historical links. Existing accounts receive a link only for a unique exact normalized name-and-email match. Other old accounts remain available for explicit association through Users & access requests.
+
+shared-users.ts uses portal-contacts.ts to plan association for active HS access, both direct account saves and access-request approvals. Automatic matching requires one candidate with a matching full name and email or phone; any other email, phone, or full-name candidate requires an explicit choice. New contact creation, account mutation, session invalidation, association audit, and managed classification share one D1 batch. portal_contact_guards checks the account revision and contact_match_revision before applying the batch. Duplicate accounts, racing associations, or stale records roll back all contact/account changes. Existing associations cannot be repointed by ordinary account editing. Self-profile changes leave contact profiles unchanged.
+
+GET /admin/account/contact-matches?search= returns up to 50 literal substring matches with contact IDs, names, email, phone, and whether an undeleted account is linked. Only HS administrators or Organization Administrators can use it. CSM-only administrators cannot choose or look up HS contacts. CSM-only membership creates no HS contact. User responses include hs_person_id and the list includes hs_contact_name for display.
+
+Database triggers derive portal_access from linked, active, undeleted HS membership. They preserve it during ordinary category replacement and reject unauthorized direct category inserts/updates. Removing membership, global suspension, or account deletion removes only that category. Contact editors and imports strip submitted portal_access values; Board Member remains editable and importable. Account-linked contacts cannot be deleted and return a specific instruction to use Inactive. Apply 0045 independently in each authorized environment before deploying dependent code. The October 6 release is authorized for both test and production, with databases and integration settings kept separate.
+
+Regression coverage in portal-contacts.test.ts exercises association, shared-email choice, atomic rollback, account lifecycle, category integrity, request approvals, and upgrade preservation. Existing shared-account and donor suites cover permissions and gift promotion. Browser checks exercise disabled-category guidance and contact search on desktop and mobile.
+
 ## Revision history
+
+- October 6, 2026 — Version 4.37. Added migration 0045, managed Portal Access, Board Member, transactional account/contact association, lookup, and access-request handling. Authorized release to test and production.
+
 
 October 6, 2026 — Version 4.33: Added related-contact APIs, shared-email protection, current donor revalidation and individual approval. Test-only release including migrations 0042–0044; production unchanged.
 

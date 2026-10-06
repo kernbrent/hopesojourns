@@ -248,6 +248,8 @@ const CONTACT_TYPE_LABELS = {
   leader: "Leader",
   donor: "Donor",
   potential_donor: "Potential Donor",
+  board_member: "Board Member",
+  portal_access: "Portal Access",
   ministry_contact: "Ministry Contact",
   staff: "Hope Sojourns Staff",
   volunteer: "Volunteer",
@@ -2871,9 +2873,29 @@ function editorCheckboxGroup(title, name, choices, selectedValues = []) {
     input.value = value;
     input.checked = selectedValues.includes(value);
     label.append(input, element("span", "", text));
+    if (name === "contactTypes" && value === "portal_access") {
+      input.disabled = true;
+      label.classList.add("admin-managed-category");
+      label.tabIndex = 0;
+      label.setAttribute("role", "button");
+      label.setAttribute("aria-label", "Portal Access — managed in Users & access requests");
+      const explain = event => {
+        event.preventDefault();
+        window.alert("Save the contact first, then add access through Account & settings → Users & access requests.");
+      };
+      label.addEventListener("click", explain);
+      label.addEventListener("keydown", event => { if (["Enter", " "].includes(event.key)) explain(event); });
+    }
     choicesShell.append(label);
   });
   fieldset.append(choicesShell);
+  if (name === "contactTypes") {
+    const help = element("p", "", "Portal Access is managed automatically. Save the contact first, then grant access through ");
+    const link = element("a", "", "Account & settings → Users & access requests");
+    link.href = "/admin/account/#users";
+    help.append(link, ". Board Member does not grant portal permissions.");
+    fieldset.append(help);
+  }
   return fieldset;
 }
 

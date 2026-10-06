@@ -34,6 +34,8 @@ const CONTACT_TYPE_OPTIONS = [
   ["leader", "Leader"],
   ["donor", "Donor"],
   ["potential_donor", "Potential Donor"],
+  ["board_member", "Board Member"],
+  ["portal_access", "Portal Access"],
   ["ministry_contact", "Ministry Contact"],
   ["staff", "Hope Sojourns Staff"],
   ["volunteer", "Volunteer"],
@@ -459,7 +461,7 @@ function contactInput(body: Record<string, unknown>): ContactInput {
   const requestedPreference = body.contactPreference === "phone" ? "phone" : "email";
   const contactPreference = requestedPreference === "phone" && !phone ? "email" : requestedPreference === "email" && !email ? "phone" : requestedPreference;
   const contactStatus = body.contactStatus === "inactive" ? "inactive" : "active";
-  const contactTypes = cleanChoiceArray(body.contactTypes, ALLOWED_CONTACT_TYPES, 9, "Choose valid contact types.");
+  const contactTypes = cleanChoiceArray(body.contactTypes, ALLOWED_CONTACT_TYPES, 11, "Choose valid contact types.").filter(type => type !== "portal_access");
   return {
     firstName,
     lastName,
@@ -2085,6 +2087,9 @@ async function deleteRegistration(request: Request, env: AdminEnv, registrationI
 
 async function deletePerson(request: Request, env: AdminEnv, personId: string): Promise<Response> {
   await authenticate(request, env, true);
+  if (await env.DB.prepare("SELECT id FROM mmt_users WHERE hs_person_id=? LIMIT 1").bind(personId).first()) {
+    throw new AdminError(409, "CONTACT_HAS_ACCOUNT", "This contact is linked to a portal account and must remain for account history. You can mark the contact inactive instead.");
+  }
   const person = await env.DB.prepare(
     `SELECT p.id,
             (SELECT COUNT(*) FROM interest_submissions s WHERE s.person_id = p.id) AS submission_count,

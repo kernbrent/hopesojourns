@@ -68,3 +68,8 @@ describe("contact spreadsheet import", () => {
       .toThrow("unfinished quoted cell");
   });
 });
+
+it('accepts Board Member while treating imported Portal Access as managed metadata',()=>{
+ const parsed=parseContactImportFile('contacts.csv',new TextEncoder().encode('First Name,Last Name,Email,Cell Phone,Contact Types\nAlice,Example,alice@example.test,9725550123,Board Member; Portal Access'));
+ const result=validateContactImportRow(parsed.rows[0],[]);expect(result.errors).toEqual([]);expect(result.input.contactTypes).toEqual(['board_member']);
+});

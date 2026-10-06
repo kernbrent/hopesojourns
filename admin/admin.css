@@ -2134,3 +2134,9 @@
 .gift-thanks-content { padding: 24px; }
 .gift-thanks-preview { display: block; width: 100%; height: 720px; border: 1px solid var(--line); background: var(--white); margin-bottom: 18px; }
 .gift-thanks-content > button:first-child { float: right; }
+
+/* Managed access category remains explainable by mouse and keyboard. */
+.admin-managed-category { opacity: .6; cursor: help; }
+.admin-managed-category:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; }
+
+.admin-managed-category input { pointer-events: none; }
