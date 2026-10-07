@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.40
+Version 4.43
 
 Last reviewed: October 6, 2026
 
@@ -1062,7 +1062,21 @@ Database triggers derive portal_access from linked, active, undeleted HS members
 
 Regression coverage in portal-contacts.test.ts exercises association, shared-email choice, atomic rollback, account lifecycle, category integrity, request approvals, and upgrade preservation. Existing shared-account and donor suites cover permissions and gift promotion. Browser checks exercise disabled-category guidance and contact search on desktop and mobile.
 
+## Preview checkpoint and pathway exploration
+
+Checkpoint 94dfcaa was pushed on codex/hope-preview-journeys and deployed only to hopesojourns-preview; /in-motion/ and its /api/destinations gateway were verified live. Later pathway work remains local and uncommitted. tools/build_path_preview.py generates /mission-journeys/, /internships/, and /corporate/ with one shared navigation template; tools/build_story_preview.py includes their allowlisted assets. preview/internships/opportunities.json is a separate fictional catalog, never MMT data. internships.js combines destination, area, text, and shortlist filters; area selections match any selected area, combined with the other filters. Filters persist in the URL; sample IDs persist in sessionStorage for the current browser tab. Dialogs support Escape and focus return. corporate.js creates editable conversation notes locally and copies them only on request; no booking or form submission occurs. Existing destinations.js still reads the live public MMT feed. Run tools/serve_story_preview.py for localhost:8099 and tools/check-path-preview.cjs for responsive and interaction checks. Future MMT integration should replace the sample catalog with a dedicated published-ministry/placement feed; no portal schema changes are included.
+
+## Generated margin variant
+
+tools/build_margin_preview.py derives /in-motion-margins/ and nested internships, corporate, mission-journeys and book routes from the original built HTML. It adds only the production-margins body class and stylesheet, rewrites internal navigation to retain the variant, and derives margin-motion.js for chapter links. No duplicated authored content or portal changes. tools/check-margin-preview.cjs checks widths at six sizes, navigation, filtering and original preservation. The user authorized publishing both current pathway work and the comparison options to hopesojourns-preview only. This supersedes the earlier local-only status; no new commit or push is included in this release.
+
 ## Revision history
+
+- October 6, 2026 — Version 4.43. Added corporate-house-service-mexico.png to the public preview asset allowlist and corporate pathway card. Generated margin variant inherits the image. Local review only; no deployment, portal or corporate hero change.
+
+- October 6, 2026 — Version 4.42. Documented generated margin variant.
+
+- October 6, 2026 — Version 4.41. Documented preview checkpoint and pathway exploration.
 
 - October 6, 2026 — Version 4.40. Local preview destinations.js reads /api/destinations with no-store. tools/serve_story_preview.py serves localhost:8099 and relays only the fixed production public destinations endpoint, without credentials or writes. Titles, locations, images, summaries and dates_text come from MMT; unpublished destinations are omitted. Errors retain static destination links. A matching Pages GET function is staged at preview/functions/api/destinations.js for a future authorized release; run Pages deploy from preview to discover its functions directory. Public assets exclude function source. No production API/CORS changes or deployment.
 

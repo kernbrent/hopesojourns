@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.34
+Version 4.37
 
 Last reviewed: October 6, 2026
 
@@ -726,7 +726,21 @@ Board Member uses the existing contact-type checkbox and filters. Portal Access 
 
 Within the account editor, group contact association under Hope Sojourns contact. Use plain labels: Contact association, Find by name, email, or phone, and Find contacts. Distinguish automatic matching from the deliberate Create a separate new contact choice. Search results include name, email, and phone and identify people already linked to accounts. Linked contact is read-only when the account already has an association. Preserve the existing responsive account form layout and live status messages.
 
+## Three ways to serve in the local preview
+
+Retain the cinematic welcome and shared Athens stories while presenting Mission Journeys, Internships, and Corporate Humanitarian Journeys as equally visible paths. Use forest, gold, and coral palette tokens, photographic cards, restrained motion, and reduced-motion support. The internship explorer uses ministry-first cards, destination and service-area filters, and a details dialog. Mark the catalog and every card as sample; ministry names and placements are fictional. Use people-first service labels, including Women & exploitation recovery; search also recognizes prostitution and trafficking. Corporate planning choices are exploratory, not bookable offers.
+
+## Production-margin comparison
+
+Keep /in-motion/ as the original full-width design. The comparison at /in-motion-margins/ uses the live production outer frame: min(100% - 32px, 1240px), 18px total gutters at widths up to 850px, and full width up to 560px. Content, imagery, interactions and internal component styling remain shared. Apply the same frame to the linked pathway and chapter pages. The comparison index presents both newest versions before the five earlier options.
+
 ## Revision history
+
+- October 6, 2026 — Version 4.37. Corporate pathway card uses the selected AI-created exterior home repair scene in a Mexico City neighborhood. Preserve existing overlay and layout; this is illustrative imagery, not an actual trip photograph. Both width variants share the card.
+
+- October 6, 2026 — Version 4.36. Documented production-margin comparison.
+
+- October 6, 2026 — Version 4.35. Documented three ways to serve in the local preview.
 
 - October 6, 2026 — Version 4.34. Local destination cards reveal public MMT summaries and date labels over a dimmed photograph; smaller cards expand beneath the image. Use the details button for touch and keyboard, Escape to close, shared palette tokens and reduced-motion support. Keep England, Mexico City and Athens featured in that order.
 

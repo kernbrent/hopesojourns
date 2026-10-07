@@ -1,0 +1,165 @@
+{
+  "mode": "illustrative",
+  "notice": "These ministry names and placements are fictional examples for exploring the design. They are not confirmed partners or open positions.",
+  "ministries": [
+    {
+      "id": "athens-welcome",
+      "name": "Athens Welcome House",
+      "destination": "Athens",
+      "country": "Greece",
+      "areas": [
+        "Refugees & displacement",
+        "Community outreach"
+      ],
+      "image": "athens.jpg",
+      "summary": "Help newcomers find welcome, connection, and practical support.",
+      "role": "Language practice, welcoming activities, resource preparation, and support for a supervised community program.",
+      "skills": [
+        "Listening",
+        "Languages",
+        "Hospitality"
+      ],
+      "duration": "6–12 weeks",
+      "support": "Work alongside a local coordinator; language support and boundaries would be agreed before placement."
+    },
+    {
+      "id": "city-table",
+      "name": "The Open Table",
+      "destination": "Mexico City",
+      "country": "Mexico",
+      "areas": [
+        "Homelessness",
+        "Community outreach"
+      ],
+      "image": "mexico-city.jpg",
+      "summary": "Build relationships around meals and consistent, practical care.",
+      "role": "Prepare meal supplies, support community outreach, and help the team organize donations.",
+      "skills": [
+        "Organization",
+        "Hospitality",
+        "Spanish"
+      ],
+      "duration": "4–8 weeks",
+      "support": "Join staff-led outreach; the host team would set the role and provide orientation."
+    },
+    {
+      "id": "learning-garden",
+      "name": "The Learning Garden",
+      "destination": "Kenya",
+      "country": "Kenya",
+      "areas": [
+        "Children & education"
+      ],
+      "image": "kenya.jpg",
+      "summary": "Support a community where children can learn and belong.",
+      "role": "Prepare learning resources, assist trained educators, and support supervised creative activities.",
+      "skills": [
+        "Teaching",
+        "Creative arts",
+        "Administration"
+      ],
+      "duration": "8–16 weeks",
+      "support": "Child-facing work would require host approval, appropriate screening, and supervised responsibilities."
+    },
+    {
+      "id": "safe-harbor",
+      "name": "Safe Harbor Collective",
+      "destination": "Athens",
+      "country": "Greece",
+      "areas": [
+        "Women & exploitation recovery",
+        "Community outreach"
+      ],
+      "image": "athens.jpg",
+      "summary": "Support the practical work behind a place of safety and dignity.",
+      "role": "Help with supplies, administration, communications, and staff-led community activities.",
+      "skills": [
+        "Administration",
+        "Communications",
+        "Organization"
+      ],
+      "duration": "8–12 weeks",
+      "support": "Specialist care remains with qualified staff. The host would agree suitable roles and confidentiality requirements."
+    },
+    {
+      "id": "neighborhood-room",
+      "name": "The Neighborhood Room",
+      "destination": "England",
+      "country": "United Kingdom",
+      "areas": [
+        "Homelessness",
+        "Community outreach"
+      ],
+      "image": "england-halifax.jpg",
+      "summary": "Make space for conversation, shared meals, and neighborhood connection.",
+      "role": "Assist a community café, prepare outreach materials, and help coordinate volunteer activities.",
+      "skills": [
+        "Hospitality",
+        "Communications",
+        "Organization"
+      ],
+      "duration": "4–12 weeks",
+      "support": "Build a consistent rhythm with a local supervisor and agreed learning goals."
+    },
+    {
+      "id": "rainforest-roots",
+      "name": "Rainforest Roots Ministry",
+      "destination": "Belize",
+      "country": "Belize",
+      "areas": [
+        "Children & education",
+        "Community development"
+      ],
+      "image": "belize-cotton-wood-lodge-loft.png",
+      "summary": "Learn alongside a community-led ministry serving families.",
+      "role": "Support learning activities, prepare materials, and assist practical community projects.",
+      "skills": [
+        "Teaching",
+        "Practical skills",
+        "Creative arts"
+      ],
+      "duration": "6–12 weeks",
+      "support": "Activities would follow locally identified priorities and the host’s supervision arrangements."
+    },
+    {
+      "id": "creative-welcome",
+      "name": "Creative Welcome",
+      "destination": "Nice",
+      "country": "France",
+      "areas": [
+        "Children & education",
+        "Refugees & displacement"
+      ],
+      "image": "nice-old-town-tile.png",
+      "summary": "Bring creativity to activities that help families feel welcome.",
+      "role": "Assist with art and language activities and prepare resources for supervised family programs.",
+      "skills": [
+        "Creative arts",
+        "Languages",
+        "Hospitality"
+      ],
+      "duration": "4–8 weeks",
+      "support": "The host would confirm language expectations and screening for family-facing work."
+    },
+    {
+      "id": "camp-community",
+      "name": "Camp & Community Project",
+      "destination": "Arkansas",
+      "country": "United States",
+      "areas": [
+        "Community development",
+        "Children & education"
+      ],
+      "image": "soto-buffalo-conference-center.png",
+      "summary": "Use practical skills to support a ministry’s everyday work.",
+      "role": "Assist with program preparation, facilities projects suited to your skills, and supervised group activities.",
+      "skills": [
+        "Practical skills",
+        "Organization",
+        "Hospitality"
+      ],
+      "duration": "4–10 weeks",
+      "support": "Project scope, equipment training, and supervision would be agreed before arrival."
+    }
+  ]
+}

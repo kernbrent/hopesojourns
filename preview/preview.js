@@ -53,7 +53,9 @@
     const view = target?.matches('[data-view]') ? target : document.getElementById('home');
     document.querySelectorAll('[data-view]').forEach(item => { item.hidden = item!==view; });
     document.title = view.id==='home' ? originalTitle : `${stories[view.id.split('-')[0]].title} • Hope Sojourns`;
-    if (hash==='encounters') {
+    if (hash==='pathways') {
+      document.getElementById('pathways')?.scrollIntoView({behavior:'instant'});
+    } else if (hash==='encounters') {
       document.getElementById('encounters').scrollIntoView({behavior:'instant'});
       if(focus) {const heading=document.getElementById('encounter-title');heading.tabIndex=-1;heading.focus({preventScroll:true});}
     } else {
