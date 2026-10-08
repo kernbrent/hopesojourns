@@ -897,7 +897,7 @@ async function saveMember(request: Request, env: AdminEnv, tripId: string): Prom
     ),
     auditStatement(env, "trip", tripId, "member_saved", { personId, role, status }),
   );
-  if (role === 'traveler' && status !== 'withdrawn') statements.push(...await assignTravelerBudget(env,tripId,personId,now));
+  if (role === 'traveler' && status === 'confirmed') statements.push(...await assignTravelerBudget(env,tripId,personId,now));
   await env.DB.batch(statements);
   return adminJson({ ok: true, id: personId });
 }

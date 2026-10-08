@@ -10,7 +10,7 @@
  function records(value){if(Array.isArray(value)){value.forEach(records);return value;}if(value&&typeof value==='object'){for(const [key,v] of Object.entries(value)){if(/^(phone|billing_phone|billingPhone|cellPhone)$/.test(key))value[key]=format(v,value.country);else if(v&&typeof v==='object')records(v);}}return value;}
  window.HSPhones={format,records};
  const selector='input[type=tel],input[name=phone],input[name=billingPhone],input[name=billing_phone]';
- function apply(input){if(!(input instanceof HTMLInputElement)||!input.matches(selector))return;const country=input.form?.elements.namedItem('country')?.value||'';input.value=format(input.value,country);}
+ function apply(input){if(input?.form?.id==='interest-form')return;if(!(input instanceof HTMLInputElement)||!input.matches(selector))return;const country=input.form?.elements.namedItem('country')?.value||'';input.value=format(input.value,country);}
  document.addEventListener('focusout',e=>apply(e.target));
  document.addEventListener('input',e=>{const el=e.target;if(el instanceof HTMLInputElement&&el.matches(selector)&&el.selectionStart===el.value.length)apply(el);});
  const observer=new MutationObserver(()=>document.querySelectorAll(selector).forEach(el=>{if(el!==document.activeElement)apply(el);}));

@@ -1,3 +1,4 @@
+import {inquiryPayload,deliverInquiryEmail} from './inquiry-email';
 import {contactRelationships} from './contact-relationships';
 import {storedPhone} from './phone';
 import {actorContext,can,routeSection,currentPortal,effectiveUser,hasPortal,type MmtIdentity} from './mmt-permissions';
@@ -2216,42 +2217,29 @@ async function updateInterestStatus(request: Request, env: AdminEnv, submissionI
   return adminJson({ success: true, interestId, status, updatedAt: now });
 }
 
-function mailtoUrl(email: string, subject: string, body: string): string {
-  return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
 async function createReply(request: Request, env: AdminEnv, submissionId: string): Promise<Response> {
   await authenticate(request, env, true);
   const body = await readAdminJson(request);
-  const subject = cleanLine(body.subject, 160);
-  const message = cleanMessage(body.message, 3000);
-  if (!subject || !message) throw new AdminError(422, "INVALID_REPLY", "Add a subject and a message before opening the email.");
-  const recipient = await env.DB.prepare(
-    `SELECT p.email FROM interest_submissions s JOIN people p ON p.id = s.person_id WHERE s.id = ?1`,
-  ).bind(submissionId).first<{ email: string }>();
-  if (!recipient) throw new AdminError(404, "SUBMISSION_NOT_FOUND", "This request was not found.");
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-  await env.DB.prepare(
-    `INSERT INTO submission_replies (
-       id, submission_id, recipient_email, subject, body, delivery_method, delivery_status, created_at, updated_at
-     ) VALUES (?1, ?2, ?3, ?4, ?5, 'email_client', 'draft', ?6, ?7)`,
-  ).bind(id, submissionId, recipient.email, subject, message, now, now).run();
-  await audit(env, "submission_reply", id, "email_client_opened", { submissionId });
-  return adminJson({
-    success: true,
-    reply: {
-      id,
-      recipientEmail: recipient.email,
-      subject,
-      body: message,
-      deliveryMethod: "email_client",
-      deliveryStatus: "draft",
-      createdAt: now,
-    },
-    mailtoUrl: mailtoUrl(recipient.email, subject, message),
-    message: "The reply was saved. Your email app can send it now.",
-  }, 201);
+  const subject = cleanLine(body.subject, 160), message = cleanMessage(body.message, 3000);
+  const id=typeof body.sendId==='string'?body.sendId:'';
+  if (!/^[a-f0-9-]{36}$/i.test(id)) throw new AdminError(422,'SEND_ID_REQUIRED','Refresh the reply form before sending.');
+  if (!subject || !message) throw new AdminError(422, 'INVALID_REPLY', 'Add a subject and a message before sending.');
+  const recipient = await env.DB.prepare('SELECT p.email FROM interest_submissions s JOIN people p ON p.id=s.person_id WHERE s.id=?').bind(submissionId).first<{email:string}>();
+  if (!recipient) throw new AdminError(404,'SUBMISSION_NOT_FOUND','This request was not found.');
+  if(!recipient.email?.trim())throw new AdminError(422,'EMAIL_REQUIRED','Add an email address to the contact first.');
+  const prior=await env.DB.prepare('SELECT inquiry_id,payload_json FROM inquiry_emails WHERE id=?').bind(id).first<{inquiry_id:string;payload_json:string}>();
+  if(prior){const payload=JSON.parse(prior.payload_json);if(prior.inquiry_id!==submissionId||payload.subject!==subject||payload.text!==message)throw new AdminError(409,'CHANGED_REPLY','This send request was already used. Refresh and review the saved email.');}
+  else {
+   const pending=await env.DB.prepare("SELECT id FROM inquiry_emails WHERE inquiry_id=? AND kind='reply' AND status IN ('sending','uncertain')").bind(submissionId).first();
+   if(pending)throw new AdminError(409,'VERIFY_DELIVERY','An earlier reply has uncertain delivery. Retry or verify that saved email before composing another.');
+   const now=new Date().toISOString(),payload=JSON.stringify(inquiryPayload(env,recipient.email,subject,message));
+   await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO submission_replies(id,submission_id,recipient_email,subject,body,delivery_method,delivery_status,created_at,updated_at) VALUES(?,?,?,?,?,'email_service','draft',?,?)").bind(id,submissionId,recipient.email,subject,message,now,now),
+    env.DB.prepare("INSERT OR IGNORE INTO inquiry_emails(id,inquiry_id,kind,payload_json,attempt_key,updated_at) VALUES(?,?,'reply',?,?,?)").bind(id,submissionId,payload,id,now)
+   ]);
+  }
+  const result=await deliverInquiryEmail(env,id);
+  return adminJson({success:result.status==='sent'||result.status==='captured',...result,message:result.status==='sent'?'Email accepted for delivery.':result.status==='captured'?'Test capture saved; no email was sent.':result.error||'Check the saved email status before retrying.'});
 }
 
 async function markReplySent(request: Request, env: AdminEnv, replyId: string): Promise<Response> {

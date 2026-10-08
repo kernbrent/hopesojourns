@@ -1103,6 +1103,7 @@ main > .section.journeys-section {
     linear-gradient(135deg, var(--forest-dark) 0%, var(--forest) 58%, var(--coral) 140%);
 }
 .image-credit {
+  overflow-wrap: anywhere;
   width: min(calc(100% - 48px), 1180px);
   margin: -1rem auto 1.25rem;
   color: var(--muted);
@@ -1432,6 +1433,10 @@ main > .section.journeys-section {
 .prose h2 { font-size: clamp(2rem, 2.7vw, 2.15rem); }
 .prose p, .prose li { color: var(--muted); font-size: 1rem; }
 .prose strong { color: var(--ink); }
+.destination-partner { display:flex; flex-wrap:wrap; align-items:center; gap:24px; margin:24px 0; }
+.destination-partner a { flex:0 0 112px; }
+.destination-partner img { display:block; width:112px; height:112px; object-fit:contain; }
+.destination-partner p { flex:1 1 220px; margin:0; }
 .prose ul { padding-left: 1.2rem; }
 .prose li + li { margin-top: 10px; }
 

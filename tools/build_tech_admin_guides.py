@@ -709,7 +709,7 @@ def add_contents_page(doc: Document, headings: list[str], numbering_ids: dict[st
     heading = doc.add_paragraph("Guide map", style="Heading 1")
     heading.paragraph_format.space_before = Pt(0)
     intro = doc.add_paragraph()
-    add_inline_text(intro, "Use Word’s Navigation Pane or the section list below to move through this living reference guide.")
+    add_inline_text(intro, "Use Word’s Navigation Pane or this guide map to find a section.")
     for item in headings:
         paragraph = doc.add_paragraph()
         apply_numbering(paragraph, numbering_ids["contents"], 0)

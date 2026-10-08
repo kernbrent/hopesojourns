@@ -18,8 +18,8 @@ async function openCharges(env:AdminEnv,accountId:string,includeInactive=false) 
 async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  const [requests,payments,messages,events,budgets]=await Promise.all([
  env.DB.prepare(`SELECT s.id,p.first_name || ' ' || p.last_name AS title,s.created_at,
- CASE WHEN EXISTS(SELECT 1 FROM interests i WHERE i.submission_id=s.id AND i.status='new') THEN 'action' ELSE 'completed' END AS status
- FROM interest_submissions s JOIN people p ON p.id=s.person_id ORDER BY s.created_at DESC LIMIT 250`).all<Row>(),
+ CASE WHEN w.stage='closed' THEN 'completed' ELSE 'action' END AS status, w.due_date,w.owner_id,w.next_action
+ FROM interest_submissions s JOIN people p ON p.id=s.person_id JOIN inquiry_workflows w ON w.submission_id=s.id ORDER BY s.created_at DESC LIMIT 250`).all<Row>(),
  env.DB.prepare(`SELECT id,display_name AS title,status,callback_status,received_at AS created_at FROM csm_distribution_inbox ORDER BY received_at DESC LIMIT 250`).all<Row>(),
  env.DB.prepare(`SELECT id,trip_id,subject AS title,status,created_at FROM trip_message_outbox WHERE status IN ('failed','sent') ORDER BY created_at DESC LIMIT 100`).all<Row>(),
  env.DB.prepare('SELECT * FROM ministry_events ORDER BY created_at DESC LIMIT 250').all<Row>(),
@@ -27,11 +27,13 @@ async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  const accessRequests=user.is_admin?(await env.DB.prepare("SELECT id,kind,first_name||' '||last_name AS title,status,created_at FROM mmt_access_requests WHERE (?=1 OR portal='hs') ORDER BY created_at DESC LIMIT 250").bind(user.is_org_admin?1:0).all<Row>()).results:[];
  const failedEmails=user.is_admin?(await env.DB.prepare("SELECT e.id,e.recipient AS title,e.kind,e.created_at FROM mmt_email_events e JOIN mmt_users u ON u.id=e.user_id WHERE e.status='not_sent' AND (?=1 OR u.hs_access=1) ORDER BY e.created_at DESC LIMIT 100").bind(user.is_org_admin?1:0).all<Row>()).results:[];
  const duplicates=can(user,'contacts')?(await env.DB.prepare("SELECT id,payload_json,status,created_at FROM interest_intake WHERE decision IS NULL OR decision IN ('new','update','reject') ORDER BY created_at DESC").all<Row>()).results:[];
+ const inquiryEmails=can(user,'contacts')?(await env.DB.prepare("SELECT e.id,e.inquiry_id,e.kind,e.status,e.error,e.updated_at created_at,s.id submission_id FROM inquiry_emails e LEFT JOIN interest_submissions s ON s.id=e.inquiry_id WHERE e.status IN ('queued','sending','failed','uncertain') ORDER BY e.updated_at DESC").all<Row>()).results:[];
  const items:Row[]=[
+ ...inquiryEmails.map(r=>({...r,id:'inquiry-email:'+r.id,kind:'Inquiry email',title:'Review '+r.kind+' delivery',status:'action',detail:r.error||'Delivery needs review.',action_url:r.submission_id?'/admin/?inquiry='+r.inquiry_id+'#requests':'/admin/ministry/#interest-review/'+r.inquiry_id})),
  ...duplicates.map(r=>({...r,id:'duplicate:'+r.id,kind:'Contact match review',title:(JSON.parse(String(r.payload_json)).firstName+' '+JSON.parse(String(r.payload_json)).lastName),payload_json:undefined,status:r.status==='pending'?'action':'completed',detail:r.status==='pending'?'Possible existing contact. Review before attaching interests.':'Contact review resolved.',reviewRequired:r.status==='pending',action_url:'/admin/ministry/#interest-review/'+r.id})),
  ...failedEmails.map(r=>({...r,id:'account-email:'+r.id,kind:'Account email',status:'action',detail:'Account email was not sent. Review delivery and send fresh instructions.',action_url:'/admin/account/#users'})),
  ...accessRequests.map(r=>({...r,id:'access:'+r.id,kind:r.kind==='access'?'Access request':'Account recovery',detail:'Review account access and verify identity before approving recovery.',status:r.status==='pending'?'action':'completed',action_url:'/admin/account/#users'})),
- ...(can(user,'contacts')?requests.results:[]).map(r=>({...r,id:'request:'+r.id,kind:'Traveler request',detail:'Review the submitted interest and update its follow-up status.',action_url:'/admin/#requests'})),
+ ...(can(user,'contacts')?requests.results:[]).map(r=>({...r,id:'request:'+r.id,kind:'Traveler request',detail:[r.next_action,r.due_date?'Follow up: '+r.due_date:'No follow-up date',r.owner_id?'':'Unassigned'].filter(Boolean).join(' · '),action_url:'/admin/?inquiry='+r.id+'#requests'})),
  ...(can(user,'finances')?payments.results:[]).map(r=>({...r,id:'payment:'+r.id,kind:'Payment',detail:r.callback_status==='failed'?'Decision callback failed. Review the payment inbox.':`Payment ${r.status}.`,status:['pending','needs_match','failed'].includes(String(r.status))||r.callback_status==='failed'?'action':'completed',action_url:'/admin/#csm-inbox'})),
  ...(can(user,'trips')?messages.results:[]).map(r=>({...r,id:'message:'+r.id,kind:'Trip message',status:r.status==='failed'?'action':'completed',detail:r.status==='failed'?'Review the failed message before retrying.':'Message sent.',action_url:'/admin/trips/?trip='+r.trip_id})),
  ...(can(user,'trips')?budgets.results:[]).map(r=>({...r,id:'budget:'+r.id,kind:'Trip preparation',detail:'Finish estimates and review traveler charges.',action_url:'/admin/trips/?trip='+r.id})),
@@ -39,7 +41,7 @@ async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  ].sort((a,b)=>String((b as Row).created_at).localeCompare(String((a as Row).created_at)));
  const saved=(await env.DB.prepare('SELECT * FROM ministry_inbox_states').all<Row>()).results;
  const states=new Map(saved.map(row=>[row.item_id,row]));
- return items.map(item=>{const saved=states.get(item.id);return {...item,source_status:item.status,status:saved?.status||item.status,manually_completed:saved?.status==='completed',inbox_updated_at:saved?.updated_at||null};});
+ return items.map(item=>{const saved=states.get(item.id);return {...item,source_status:item.status,status:String(item.id).startsWith('request:')?item.status:saved?.status||item.status,manually_completed:saved?.status==='completed',inbox_updated_at:saved?.updated_at||null};});
 }
 
 async function updateInbox(request:Request,env:AdminEnv,user:MmtIdentity){
@@ -48,6 +50,7 @@ async function updateInbox(request:Request,env:AdminEnv,user:MmtIdentity){
  if(!['complete','reopen','delete','restore'].includes(action))throw new AdminError(422,'INVALID_ACTION','Choose Complete, Reopen, Delete, or Restore.');
  const item=(await inboxItems(env,user)).find(item=>item.id===itemId);
  if(!item)throw new AdminError(404,'INBOX_ITEM_NOT_FOUND','This inbox item is no longer available to you. Refresh the inbox.');
+ if(itemId.startsWith('request:')&&['complete','delete','reopen'].includes(action))throw new AdminError(409,'INQUIRY_WORKFLOW','Open the inquiry and update its stage or close it with a reason.');
  if(item.reviewRequired)throw new AdminError(409,'REVIEW_REQUIRED','Choose Add as new, Update existing, or Reject in the contact review.');
  const now=new Date().toISOString();
  const existing=await env.DB.prepare('SELECT status,previous_status FROM ministry_inbox_states WHERE item_id=?').bind(itemId).first<{status:string;previous_status:string|null}>();

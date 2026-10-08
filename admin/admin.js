@@ -1214,6 +1214,73 @@ function renderCsmGivingSummary(summary = {}) {
 const CSM_BANK_WITHDRAWAL_EVENT_CODES = new Set(["T0400", "T0401", "T0403"]);
 function isCsmBankTransfer(message) { return CSM_BANK_WITHDRAWAL_EVENT_CODES.has(message?.transaction?.eventCode); }
 
+function csmContactPicker(message) {
+  const container = element("div", "admin-csm-person-select");
+  const label = element("label");
+  label.append(element("span", "", "Associate this gift with a contact"));
+  const select = document.createElement("select");
+  const create = element("option", "", "New contact — review details below");
+  create.value = "";
+  select.append(create);
+  const people = new Map();
+  const add = person => {
+    if (people.has(person.id)) return;
+    people.set(person.id, person);
+    const option = element("option", "", `${person.firstName} ${person.lastName} · ${person.email || "No email"}${person.phone ? ` · ${person.phone}` : ""}`);
+    option.value = person.id;
+    select.append(option);
+  };
+  if (message.matchedPerson) add(message.matchedPerson);
+  (message.candidates || []).forEach(person => add({id:person.id,firstName:person.first_name,lastName:person.last_name,email:person.email}));
+  select.value = message.matchedPerson?.id || "";
+  label.append(select);
+  const searchLabel = element("label");
+  searchLabel.append(element("span", "", "Find an existing contact"));
+  const search = document.createElement("input");
+  search.type = "search";
+  search.placeholder = "Name, email, or phone";
+  searchLabel.append(search);
+  const button = element("button", "admin-button admin-button-quiet", "Search contacts");
+  button.type = "button";
+  const status = element("p", "admin-reply-help", "Search all contacts, including people who have not donated before. Selecting a contact links the gift and preserves their existing details.");
+  status.setAttribute("role", "status");
+  const distinctLabel = element("label", "admin-csm-new-contact-confirmation");
+  const distinct = document.createElement("input");
+  distinct.type = "checkbox";
+  distinct.name = "confirmNewDonor";
+  distinctLabel.append(distinct, document.createTextNode(" I verified this is a different person from the existing contacts. Create a new contact."));
+  const update = () => {
+    distinctLabel.hidden = !!select.value || !people.size;
+    distinct.disabled = distinctLabel.hidden;
+    distinct.required = !distinctLabel.hidden;
+  };
+  select.addEventListener("change", update);
+  const find = async () => {
+    const term = search.value.trim();
+    if (!term) { status.textContent = "Enter a name, email, or phone to search."; return; }
+    let searchTerm = term;
+    if (/^[+().\d\s-]+$/.test(term)) {
+      const digits = term.replace(/\D/g, "");
+      if (digits.length >= 7) searchTerm = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+    }
+    setBusy(button, true, "Searching…");
+    try {
+      const {result} = await api(`/people?search=${encodeURIComponent(searchTerm)}&page=1&pageSize=50&sort=name_asc`);
+      (result.people || []).forEach(add);
+      status.textContent = result.people?.length
+        ? `${result.total || result.people.length} contacts found. Choose the correct person in “Associate this gift with a contact.”${result.total > 50 ? " Showing the first 50; narrow the search if needed." : ""}`
+        : "No contacts found. Try another name, email, or phone before creating a new contact.";
+      update();
+    } catch (error) { status.textContent = error.message; }
+    finally { setBusy(button, false); }
+  };
+  button.addEventListener("click", find);
+  search.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); if (!button.disabled) find(); } });
+  container.append(label, searchLabel, button, status, distinctLabel);
+  update();
+  return {container, select};
+}
+
 function renderCsmCard(message) {
   const bankTransfer = isCsmBankTransfer(message);
   const card = element("article", "admin-csm-card");
@@ -1238,28 +1305,9 @@ function renderCsmCard(message) {
     if(message.requiresDonorReview) form.append(element("p","admin-reply-help","Verify the actual donor. A shared email or different name requires individual review; family giving stays separate."));
     let personSelect = null;
     if (message.direction === "received") {
-      const people = new Map();
-      if (message.matchedPerson) people.set(message.matchedPerson.id, message.matchedPerson);
-      (message.candidates || []).forEach(person => people.set(person.id, {
-        id: person.id, firstName: person.first_name, lastName: person.last_name, email: person.email,
-      }));
-      if (people.size) {
-        const label = element("label", "admin-csm-person-select");
-        label.append(element("span", "", message.party.email ? "Existing donor match" : "Possible donor match — verify email"));
-        personSelect = document.createElement("select");
-        const create = element("option", "", "Create a new donor instead");
-        create.value = "";
-        personSelect.append(create);
-        for (const person of people.values()) {
-          const option = element("option", "", `${person.firstName} ${person.lastName} · ${person.email}`);
-          option.value = person.id;
-          option.selected = person.id === message.matchedPerson?.id;
-          personSelect.append(option);
-        }
-        label.append(personSelect);
-        if (!message.party.email) label.append(element("small", "", "CSM did not supply an email. Confirm this person's identity before selecting the contact."));
-        form.append(label);
-      }
+      const picker = csmContactPicker(message);
+      personSelect = picker.select;
+      form.append(picker.container);
       const names = csmNameParts(message.displayName);
       form.append(
         csmInput("First name", "firstName", names.firstName),
@@ -1267,6 +1315,11 @@ function renderCsmCard(message) {
         csmInput("Email", "email", message.party.email),
         csmInput("Phone", "phone", message.party.phone),
       );
+      const updateDonorFields = () => {
+        for (const name of ["firstName", "lastName", "email", "phone"]) form.elements[name].disabled = !!personSelect.value;
+      };
+      personSelect.addEventListener("change", updateDonorFields);
+      updateDonorFields();
     }
     const approve = element("button", "admin-button admin-button-primary", message.direction === "received" ? "Approve gift" : bankTransfer ? "Approve transfer" : "Approve sent payment");
     approve.type = "submit";
@@ -1279,6 +1332,7 @@ function renderCsmCard(message) {
         const personId = personSelect?.value || "";
         const body = personId ? { personId, confirmDonor: true } : message.direction === "received" ? {
           confirmDonor: true,
+          confirmNewDonor: formData.get("confirmNewDonor") === "on",
           donor: {
             firstName: formData.get("firstName"), lastName: formData.get("lastName"),
             email: formData.get("email"), phone: formData.get("phone"),
@@ -1521,6 +1575,10 @@ async function loadSubmissions() {
   try {
     const { result } = await api(`/submissions?${filterQuery()}`);
     applyListResult(result, result.submissions, renderSubmissionCard, "request", "requests");
+    const manage = element('button','admin-button admin-button-primary','Manage inquiries & future-interest lists');
+    manage.type='button';manage.onclick=()=>window.HSInquiries.list(api,openSubmission);submissionsList.prepend(manage);
+    const inquiryId=new URLSearchParams(location.search).get('inquiry');
+    if(inquiryId){history.replaceState(null,'','/admin/#requests');openSubmission(inquiryId);}
     submissionsStatus.textContent = "";
   } catch (error) {
     if (error.status !== 401) submissionsStatus.textContent = error.message;
@@ -2533,7 +2591,7 @@ function createReplyItem(reply, record, recordType) {
     ? `Marked sent ${formatDate(reply.sentAt)}`
     : `Saved ${formatDate(reply.createdAt)}`));
   if (recordType === "person" && reply.submissionId) footer.append(element("span", "", `For request received ${formatDate(reply.submissionCreatedAt, false)}`));
-  if (reply.deliveryStatus !== "sent") {
+  if (reply.deliveryStatus !== "sent" && reply.deliveryMethod === "email_client") {
     const markSent = element("button", "admin-button admin-button-outline", "Mark sent");
     markSent.type = "button";
     markSent.addEventListener("click", async () => {
@@ -2549,6 +2607,9 @@ function createReplyItem(reply, record, recordType) {
       }
     });
     footer.append(markSent);
+  }
+  if(reply.deliveryMethod==='email_service'&&reply.deliveryStatus!=='sent'){
+    const review=element('button','admin-button admin-button-outline','Review delivery / retry');review.type='button';review.onclick=()=>openSubmission(reply.submissionId||record.id);footer.append(review);
   }
   item.append(header, body, footer);
   if (reply.errorMessage) item.append(element("p", "admin-reply-error", `Delivery note: ${reply.errorMessage}`));
@@ -2575,6 +2636,9 @@ function createReplyComposer(record, submissionId, recordType) {
   }
   const form = element("form", "admin-reply-form");
   const draft = replyDraft(record);
+  const sendId = crypto.randomUUID();
+  reply.dataset.inquiryReply = submissionId;
+  reply.append(element("p", "", `To: ${record.email}`));
   const subjectLabel = element("label");
   subjectLabel.append(element("span", "", "Subject"));
   const subject = document.createElement("input");
@@ -2591,9 +2655,9 @@ function createReplyComposer(record, submissionId, recordType) {
   replyMessage.required = true;
   replyMessage.value = draft.message;
   messageLabel.append(replyMessage);
-  const send = element("button", "admin-button admin-button-primary", "Open in email app");
+  const send = element("button", "admin-button admin-button-primary", "Send email from portal");
   send.type = "submit";
-  form.append(subjectLabel, messageLabel, element("p", "admin-reply-help", "The portal saves this reply, then opens your normal email app with the recipient, subject, and message filled in. Return here afterward and mark it sent."), send);
+  form.append(subjectLabel, messageLabel, element("p", "admin-reply-help", "Review the recipient and message, then send directly from Hope Sojourns. Delivery status is saved here. Test mode captures the message without sending."), send);
   form.addEventListener("submit", async event => {
     event.preventDefault();
     setBusy(send, true, "Preparing…");
@@ -2601,10 +2665,10 @@ function createReplyComposer(record, submissionId, recordType) {
     try {
       const { result } = await api(`/submissions/${submissionId}/replies`, {
         method: "POST",
-        body: { subject: subject.value, message: replyMessage.value },
+        body: { subject: subject.value, message: replyMessage.value, sendId },
       });
       detailStatus.textContent = result.message;
-      window.location.href = result.mailtoUrl;
+
       await Promise.all([detailReload(recordType, record.id), loadRecords()]);
     } catch (error) {
       detailStatus.textContent = error.message;
@@ -2738,6 +2802,13 @@ function renderSubmissionDetail(submission) {
     }),
   );
   fragment.append(grid);
+  const workflow = element('section','admin-detail-card admin-detail-card-wide');
+  grid.prepend(workflow);
+  window.HSInquiries.panel(workflow,submission.id,api,w=>{
+    const composer=grid.querySelector('[data-inquiry-reply]');
+    if(w){composer.querySelector('[name=subject]').value='An invitation to '+w.trip_title;composer.querySelector('[name=message]').value=`Dear ${submission.firstName},\n\nWe would love to talk with you about joining ${w.trip_title}. Please reply to let us know whether you would like to explore this journey. This invitation does not reserve a place or create a financial commitment.\n\nHope Sojourns\n972-505-0171`;}
+    composer.scrollIntoView({behavior:'smooth',block:'center'});composer.querySelector('[name=message]').focus();
+  });
   submissionDetail.replaceChildren(fragment);
 }
 

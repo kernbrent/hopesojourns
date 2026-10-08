@@ -1,6 +1,24 @@
 const interestForm = document.getElementById("interest-form");
 
 if (interestForm) {
+  const phoneControl = interestForm.elements.phone;
+  phoneControl.placeholder = '(972) 555-0123';
+  phoneControl.addEventListener('input', event => {
+    const input=event.target,raw=input.value;
+    if(raw.startsWith('+')&&!raw.startsWith('+1'))return;
+    let digits=raw.replace(/\D/g,'');
+    const prefix=raw.startsWith('+1')||digits.length===11&&digits.startsWith('1');
+    if(prefix)digits=digits.slice(1);
+    if(digits.length>10)return;
+    const caret=input.selectionStart, count=raw.slice(0,caret).replace(/\D/g,'').length;
+    const deleting=event.inputType?.startsWith('delete');
+    let formatted=digits.length>6?`(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`:digits.length>3?`(${digits.slice(0,3)}) ${digits.slice(3)}`:digits?`(${digits}`:'';
+    if(prefix)formatted='+1 '+formatted;
+    input.value=formatted;
+    let pos=0,n=0;while(pos<formatted.length&&n<count){if(/\d/.test(formatted[pos]))n++;pos++;}
+    if(!deleting&&caret===raw.length)pos=formatted.length;
+    input.setSelectionRange(pos,pos);
+  });
   const submitButton = interestForm.querySelector("[data-submit-interest]");
   const formStatus = interestForm.querySelector("[data-interest-status]");
   const successPanel = document.querySelector("[data-interest-success]");

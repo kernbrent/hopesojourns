@@ -131,3 +131,96 @@ it('requires individual review for shared email, different names and stale saved
  expect((await (await handleCsmDelivery(delivery(ledgerDonation(crypto.randomUUID(),'family@example.test')),f.env)).json() as any).status).toBe('needs_match');
  f.sqlite.close();
 });
+
+it('reuses a reviewed donor with the same name and phone when the gift email changed', async () => {
+  const f = await ministryFixture();
+  Object.assign(f.env, { CSM_DISTRIBUTION_SECRET: 'test-secret', ENVIRONMENT: 'test' });
+  const personId = crypto.randomUUID();
+  f.sqlite.prepare(`INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,phone,phone_normalized,preferred_name,notes,created_at,updated_at)
+    VALUES(?,'Brent','Kern','brent','kern','old@example.test','old@example.test','2145550171','2145550171','B','Keep existing history','now','now')`).run(personId);
+  f.sqlite.prepare("INSERT INTO contact_types VALUES(?,'potential_donor','now'),(?,'prospective_traveler','now')").run(personId,personId);
+  const m = ledgerDonation(crypto.randomUUID(), 'new@example.test');
+  const inbox = await (await handleCsmDelivery(delivery(m), f.env)).json() as { inboxId: string; status: string };
+  expect(inbox.status).toBe('needs_match');
+  const path = `/admin/csm-inbox/${inbox.inboxId}/approve`;
+  const response = await handleCsmAdminRequest(f.request(path, { confirmDonor: true,
+    donor: { firstName: 'Brent', lastName: 'Kern', email: 'new@example.test', phone: '+1 (214) 555-0171' } }), f.env, path);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ personId, createdPerson: false });
+  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM people').get()?.n).toBe(1);
+  expect(f.sqlite.prepare('SELECT person_id,charitable_amount FROM ledger_entries').get()).toEqual({person_id:personId,charitable_amount:500});
+  expect(f.sqlite.prepare('SELECT person_id FROM csm_donor_links').get()?.person_id).toBe(personId);
+  expect(f.sqlite.prepare('SELECT email,preferred_name,notes FROM people WHERE id=?').get(personId)).toEqual({email:'old@example.test',preferred_name:'B',notes:'Keep existing history'});
+  expect(f.sqlite.prepare('SELECT contact_type FROM contact_types ORDER BY contact_type').all()).toEqual([{contact_type:'donor'},{contact_type:'prospective_traveler'}]);
+  f.sqlite.close();
+});
+
+it('blocks changed-email new-donor creation on a name-only suggestion until explicitly distinguished', async () => {
+  const f = await ministryFixture();
+  Object.assign(f.env, { CSM_DISTRIBUTION_SECRET: 'test-secret', ENVIRONMENT: 'test' });
+  const personId = crypto.randomUUID();
+  f.sqlite.prepare(`INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,created_at,updated_at)
+    VALUES(?,'Brent','Kern','brent','kern','old@example.test','old@example.test','now','now')`).run(personId);
+  const inbox = await (await handleCsmDelivery(delivery(ledgerDonation(crypto.randomUUID(),'new@example.test')), f.env)).json() as { inboxId: string };
+  const path = `/admin/csm-inbox/${inbox.inboxId}/approve`;
+  const body = { confirmDonor: true, donor: {firstName:'Brent',lastName:'Kern',email:'new@example.test'} };
+  const response = await handleCsmAdminRequest(f.request(path,body),f.env,path);
+  expect(response.status).toBe(409);
+  expect(await response.json()).toMatchObject({code:'DONOR_CHOICE_REQUIRED'});
+  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM people').get()?.n).toBe(1);
+  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM ledger_entries').get()?.n).toBe(0);
+  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM csm_donor_links').get()?.n).toBe(0);
+  const separate = await handleCsmAdminRequest(f.request(path,{...body,confirmNewDonor:true}),f.env,path);
+  expect(separate.status).toBe(200);
+  expect(await separate.json()).toMatchObject({createdPerson:true});
+  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM people').get()?.n).toBe(2);
+  f.sqlite.close();
+});
+
+it('requires a selection when email and name-phone evidence identify different contacts', async () => {
+  const f = await ministryFixture();
+  Object.assign(f.env, {CSM_DISTRIBUTION_SECRET:'test-secret',ENVIRONMENT:'test'});
+  for (const [email,phone] of [['old@example.test','2145550171'],['new@example.test','2145550123']]) {
+    f.sqlite.prepare(`INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,phone,phone_normalized,created_at,updated_at)
+      VALUES(?,'Brent','Kern','brent','kern',?,?,?,?,'now','now')`).run(crypto.randomUUID(),email,email,phone,phone);
+  }
+  const inbox = await (await handleCsmDelivery(delivery(ledgerDonation(crypto.randomUUID())),f.env)).json() as {inboxId:string};
+  const path = `/admin/csm-inbox/${inbox.inboxId}/approve`;
+  const response = await handleCsmAdminRequest(f.request(path,{confirmDonor:true,confirmNewDonor:true,
+    donor:{firstName:'Brent',lastName:'Kern',email:'new@example.test',phone:'214-555-0171'}}),f.env,path);
+  expect(response.status).toBe(409);
+  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM financial_transactions').get()?.n).toBe(0);
+  f.sqlite.close();
+});
+
+it('suggests preferred-name and phone matches without automatically attributing gifts', async () => {
+  const f = await ministryFixture();
+  Object.assign(f.env, {CSM_DISTRIBUTION_SECRET:'test-secret',ENVIRONMENT:'test'});
+  const id=crypto.randomUUID();
+  f.sqlite.prepare(`INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,preferred_name,phone,phone_normalized,created_at,updated_at)
+    VALUES(?,'Robert','Kern','robert','kern','old@example.test','old@example.test','Brent','2145550171','2145550171','now','now')`).run(id);
+  const message=ledgerDonation(crypto.randomUUID(),'new@example.test');
+  const inbox=await (await handleCsmDelivery(delivery(message),f.env)).json() as {status:string};
+  expect(inbox.status).toBe('needs_match');
+  const list=await (await handleCsmAdminRequest(f.request('/admin/csm-inbox'),f.env,'/admin/csm-inbox')).json() as {messages:{candidates:{id:string}[];matchedPerson:unknown}[]};
+  expect(list.messages[0]?.candidates.map(p=>p.id)).toContain(id);
+  expect(list.messages[0]?.matchedPerson).toBeNull();
+  f.sqlite.close();
+});
+
+it('associates a proposed new donor with an explicitly selected contact outside the suggestions', async () => {
+  const f = await ministryFixture();
+  Object.assign(f.env, {CSM_DISTRIBUTION_SECRET:'test-secret',ENVIRONMENT:'test'});
+  const personId=crypto.randomUUID();
+  f.sqlite.prepare(`INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,notes,created_at,updated_at)
+    VALUES(?,'Robert','Example','robert','example','different@example.test','different@example.test','Existing relationship','now','now')`).run(personId);
+  const inbox=await (await handleCsmDelivery(delivery(ledgerDonation(crypto.randomUUID(),'new@example.test')),f.env)).json() as {inboxId:string};
+  const path=`/admin/csm-inbox/${inbox.inboxId}/approve`;
+  const response=await handleCsmAdminRequest(f.request(path,{personId,confirmDonor:true}),f.env,path);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({personId,createdPerson:false,matchMethod:'manual'});
+  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM people').get()?.n).toBe(1);
+  expect(f.sqlite.prepare('SELECT person_id,charitable_amount FROM ledger_entries').get()).toEqual({person_id:personId,charitable_amount:500});
+  expect(f.sqlite.prepare('SELECT email,notes FROM people WHERE id=?').get(personId)).toEqual({email:'different@example.test',notes:'Existing relationship'});
+  f.sqlite.close();
+});

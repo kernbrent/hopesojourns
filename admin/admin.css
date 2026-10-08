@@ -247,6 +247,10 @@
 .admin-csm-review label { display: grid; min-width: 0; gap: .25rem; font-size: .76rem; font-weight: 700; }
 .admin-csm-review input, .admin-csm-review select { width: 100%; min-width: 0; min-height: 40px; padding: .5rem .6rem; font-size: .8rem; }
 .admin-csm-review .admin-csm-person-select { grid-column: 1 / -1; }
+.admin-csm-person-select { display: grid; gap: .6rem; }
+.admin-csm-review .admin-csm-new-contact-confirmation { display: flex; align-items: flex-start; gap: .5rem; }
+.admin-csm-review .admin-csm-new-contact-confirmation[hidden] { display: none; }
+.admin-csm-review .admin-csm-new-contact-confirmation input { width: auto; min-height: 0; margin-top: .2rem; flex: 0 0 auto; }
 .admin-csm-review .admin-button { grid-column: 1 / -1; justify-self: end; min-height: 40px; padding: .55rem .8rem; font-size: .8rem; }
 .admin-csm-actions { font-size: .8rem; line-height: 1.45; }
 .admin-csm-actions > span { min-width: 0; flex: 1 1 20rem; overflow-wrap: anywhere; }
@@ -2140,3 +2144,12 @@
 .admin-managed-category:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; }
 
 .admin-managed-category input { pointer-events: none; }
+
+/* Inquiry follow-up controls reuse portal surfaces and form spacing. */
+.inquiry-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.inquiry-form label { min-width: 0; }
+.inquiry-form label:has(textarea), .inquiry-form > button, .inquiry-form > p { grid-column: 1 / -1; }
+.inquiry-form select, .inquiry-dialog select { width: 100%; min-height: 42px; padding: .58rem .72rem; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); font: inherit; }
+.inquiry-dialog { overflow: auto; }
+.inquiry-dialog article { margin-top: .8rem; }
+@media (max-width: 640px) { .inquiry-form { grid-template-columns: minmax(0, 1fr); } }

@@ -1,3 +1,4 @@
+import {acknowledgeInquiry} from './inquiry-email';
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type AdminEnv} from './admin';
 import {can} from './mmt-permissions';
 import {matchPhone} from './phone';
@@ -22,7 +23,7 @@ function attach(env:AdminEnv,intake:Row,input:InterestSubmission,personId:string
  ...ids.map(id=>env.DB.prepare("INSERT OR IGNORE INTO interests(id,person_id,opportunity_id,submission_id,status,created_at,updated_at) VALUES(?,?,?,?,'new',?,?)").bind(crypto.randomUUID(),personId,id,intake.id,now,now)),
  ...ids.map(id=>env.DB.prepare('INSERT OR IGNORE INTO contact_trips(person_id,opportunity_id,created_at) VALUES(?,?,?)').bind(personId,id,now)),
  env.DB.prepare("INSERT OR IGNORE INTO contact_types(person_id,contact_type,created_at) VALUES(?,'prospective_traveler',?)").bind(personId,now)];
- if(intake.trip_id){statements.push(env.DB.prepare("INSERT OR IGNORE INTO trip_interests(id,trip_id,person_id,submission_id,invite_id,status,created_at,updated_at) VALUES(?,?,?,?,?,'interested',?,?)").bind(crypto.randomUUID(),intake.trip_id,personId,intake.id,intake.invite_id,now,now),env.DB.prepare("INSERT OR IGNORE INTO trip_members(trip_id,person_id,role,status,directory_visible,directory_email_visible,directory_phone_visible,created_at,updated_at) VALUES(?,?,'traveler','interested',0,0,0,?,?)").bind(intake.trip_id,personId,now,now));if(intake.invite_id)statements.push(env.DB.prepare('UPDATE trip_invites SET use_count=use_count+1,updated_at=? WHERE id=?').bind(now,intake.invite_id));}
+ if(intake.trip_id){statements.push(env.DB.prepare("UPDATE inquiry_workflows SET path='journey',trip_id=? WHERE submission_id=?").bind(intake.trip_id,intake.id),env.DB.prepare("INSERT OR IGNORE INTO trip_interests(id,trip_id,person_id,submission_id,invite_id,status,created_at,updated_at) VALUES(?,?,?,?,?,'interested',?,?)").bind(crypto.randomUUID(),intake.trip_id,personId,intake.id,intake.invite_id,now,now),env.DB.prepare("INSERT OR IGNORE INTO trip_members(trip_id,person_id,role,status,directory_visible,directory_email_visible,directory_phone_visible,created_at,updated_at) VALUES(?,?,'traveler','interested',0,0,0,?,?)").bind(intake.trip_id,personId,now,now));if(intake.invite_id)statements.push(env.DB.prepare('UPDATE trip_invites SET use_count=use_count+1,updated_at=? WHERE id=?').bind(now,intake.invite_id));}
  return statements;
 }
 async function prior(env:AdminEnv,input:InterestSubmission,fingerprint:string){
@@ -37,7 +38,7 @@ export async function receiveInterest(env:AdminEnv,input:InterestSubmission,fing
  const statements=[guard(env,revision),env.DB.prepare('INSERT INTO interest_intake(id,idempotency_key,request_fingerprint,payload_json,opportunity_ids_json,trip_id,invite_id,source_page,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(id,input.idempotencyKey,fingerprint,JSON.stringify({...input,inviteToken:null}),intake.opportunity_ids_json,intake.trip_id,intake.invite_id,source,matches.length?'pending':'accepted',now)];
  if(personId)statements.push(personInsert(env,personId,input,now),...attach(env,intake,input,personId,now),env.DB.prepare("UPDATE interest_intake SET person_id=?,resolved_at=?,decision='automatic_new' WHERE id=?").bind(personId,now,id));
  statements.push(auditStatement(env,'interest_intake',id,matches.length?'review_required':'automatic_new',{personId,matchIds:matches.map(m=>m.id)}),env.DB.prepare('DELETE FROM interest_intake_guards'));
- try{await env.DB.batch(statements);return receipt(id);}catch(error){const saved=await prior(env,input,fingerprint);if(saved)return receipt(String(saved.id));if(!(error instanceof Error)||!/CHECK constraint|UNIQUE constraint/.test(error.message)||attempt===3)throw error;}
+ try{await env.DB.batch(statements);await acknowledgeInquiry(env,id,input);return receipt(id);}catch(error){const saved=await prior(env,input,fingerprint);if(saved)return receipt(String(saved.id));if(!(error instanceof Error)||!/CHECK constraint|UNIQUE constraint/.test(error.message)||attempt===3)throw error;}
  }
  throw new AdminError(409,'RETRY','Please submit again.');
 }

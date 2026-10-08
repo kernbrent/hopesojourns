@@ -1,8 +1,30 @@
 # Hope Sojourns website style guide
 
-Version 4.37
+Version 4.41
 
-Last reviewed: October 6, 2026
+Last reviewed: October 8, 2026
+
+## Mexico ministry partner recognition
+
+The Mexico City destination displays Metro Relief’s official circular logo beside the cooperation statement under Ministry partners. Use the unmodified official artwork at 112 pixels, preserve its aspect ratio and colors, give it descriptive alt text, and link to https://www.metrorelief.org/. The row wraps on small screens and uses existing typography and palette tokens. Long photo-credit URLs wrap to avoid horizontal scrolling. This local change is pending release.
+
+## Ministry home layout
+
+The ministry-home body class scopes the daily-work layout to Home. Use a forest-dark heading panel with paper text and a gold edge, followed by attention, journey preparation, and document shortcut cards. Show planned journeys with compact month-and-day badges, followed by task and recent-activity panels and Next actions. Keep the financial summary in its existing shared component. Journey cards use three columns on wide screens, two below 1100 pixels, and one below 650 pixels. Wrap long titles and use the existing semantic color variables throughout. The shared sign-in page also loads the common stylesheet.
+
+This combined release includes inquiry controls, contact association for donations, phone-entry formatting, and the Home layout. Brent authorized commit, push, and deployment to both test and production on October 8, 2026.
+
+## Payment inbox contact association
+
+Every incoming gift review includes Associate this gift with a contact and Find an existing contact, even when no automatic suggestion exists. Search contacts is a separate button; Enter in the search field searches without approving the gift. Results include name, email, and phone when available. Announce result counts and failures through a status region, preserve the selected contact during searches, and explain when the first 50 results require a narrower search.
+
+Selecting an existing contact disables the new-contact fields and hides the separate new-person confirmation. When existing suggestions are present and the administrator chooses New contact, require the explicit different-person checkbox before approval. Render the checkbox at its natural width beside wrapping text. Use the existing grid, button, help-text styles, and shared palette; no new color token is needed. Application changes are included in the authorized October 8 paired release.
+
+## Inquiry follow-up controls
+
+Request details use the existing admin card, form, button, and dialog styles for Inquiry and next steps. Keep the responsible person, next-action date, and action visible together. Display future-interest list names separately from dated journeys. Show captured, failed, uncertain, and provider-accepted email states in words; never rely on color alone or describe test capture as sent. Required closure reasons and clear retry instructions belong next to their actions. The list dialog supports destination/list, workflow, and text filters using labeled controls and mobile wrapping.
+
+The public interest form presents US numbers as (972) 555-0123 during entry. Preserve caret placement and international numbers with an explicit non-US country prefix. Formatting is presentation only. Reuse the shared palette and typography; this change introduces no colors or typography tokens.
 
 ## Home financial summary
 
@@ -735,6 +757,14 @@ Retain the cinematic welcome and shared Athens stories while presenting Mission 
 Keep /in-motion/ as the original full-width design. The comparison at /in-motion-margins/ uses the live production outer frame: min(100% - 32px, 1240px), 18px total gutters at widths up to 850px, and full width up to 560px. Content, imagery, interactions and internal component styling remain shared. Apply the same frame to the linked pathway and chapter pages. The comparison index presents both newest versions before the five earlier options.
 
 ## Revision history
+
+- October 8, 2026 — Version 4.41. Added Mexico City cooperation statement, official circular Metro Relief logo, accessible website link, and responsive partner recognition.
+
+- October 8, 2026 — Version 4.40. Documented the scoped Ministry Home layout, responsive journey cards, and shared sign-in stylesheet; included inquiry, phone-entry, and donation-association updates in the authorized paired release.
+
+- October 8, 2026 — Version 4.39. Added accessible all-contact search and deliberate contact association in Payment inbox, with disabled new-contact fields and separate confirmation for a different person. Local pending release.
+
+October 7, 2026 — Version 4.38: Added inquiry follow-up, future-interest lists, portal email delivery, phone input, and confirmation-stage billing guidance. Local pending release.
 
 - October 6, 2026 — Version 4.37. Corporate pathway card uses the selected AI-created exterior home repair scene in a Mexico City neighborhood. Preserve existing overlay and layout; this is illustrative imagery, not an actual trip photograph. Both width variants share the card.
 

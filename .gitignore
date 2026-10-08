@@ -27,3 +27,6 @@
 /outputs/story-preview-docs/
 /outputs/story-options-qa/
 /outputs/story-options-docs/
+
+# Private donor backup, cleanup audit, and staff-guide review artifacts.
+/outputs/donor-cleanup-20261008/

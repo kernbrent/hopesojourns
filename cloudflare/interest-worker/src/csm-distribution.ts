@@ -14,6 +14,7 @@ type InboxRow = {
   recipient_record_id: string | null; callback_status: string; decision_reason: string | null;
 };
 type PersonRow = { id: string; first_name: string; last_name: string; email: string };
+type DonorCandidate = PersonRow & { preferred_name: string | null; phone_normalized: string | null };
 type GivingSummaryRow = {
   gross_received: number | null; net_received: number | null; donations: number | null; givers: number | null;
 };
@@ -27,8 +28,21 @@ const normalizedName = (value: string): string => value.normalize("NFKC").toLoca
 const normalizedEmail = (value: string): string => value.normalize("NFKC").trim().toLocaleLowerCase("en-US");
 const normalizedPhone = (value: string | null): string | null => {
   const digits = (value || "").replace(/\D/g, "");
-  return digits.length >= 7 && digits.length <= 18 ? digits : null;
+  const key = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  return key.length >= 7 && key.length <= 18 ? key : null;
 };
+
+// Suggestions are deliberately broader than automatic email matching. A changed
+// email must not hide an existing contact or silently create a duplicate.
+async function donorCandidates(env: CsmEnv, masterDonorId: string | null, name: string, email: string, phone: string | null): Promise<DonorCandidate[]> {
+  const result = await env.DB.prepare(`SELECT id,first_name,last_name,email,preferred_name,phone_normalized FROM people WHERE
+    (?1<>'' AND email_normalized=?1) OR lower(trim(first_name||' '||last_name))=?2
+    OR lower(trim(preferred_name||' '||last_name))=?2
+    OR (?3 IS NOT NULL AND (phone_normalized=?3 OR phone_normalized='1'||?3))
+    OR id IN(SELECT person_id FROM csm_donor_links WHERE master_donor_id=?4)
+    ORDER BY last_name,first_name,id`).bind(email,name,phone,masterDonorId).all<DonorCandidate>();
+  return result.results;
+}
 
 async function requireSecret(request: Request, env: CsmEnv): Promise<void> {
   const supplied = request.headers.get("X-CSM-Distribution-Secret") || "";
@@ -126,12 +140,8 @@ async function receive(request: Request, env: CsmEnv): Promise<Response> {
 }
 
 async function candidates(env: CsmEnv, message: CsmDistributionMessage): Promise<PersonRow[]> {
-  const name=normalizedName(message.party.displayName||message.displayName),email=normalizedEmail(message.party.email||'');
-  const result=await env.DB.prepare(`SELECT id,first_name,last_name,email FROM people WHERE
-    (?<>'' AND email_normalized=?) OR lower(trim(first_name||' '||last_name))=?
-    OR id IN(SELECT person_id FROM csm_donor_links WHERE master_donor_id=?)
-    ORDER BY last_name,first_name LIMIT 25`).bind(email,email,name,message.masterDonorId).all<PersonRow>();
-  return result.results;
+  return donorCandidates(env, message.masterDonorId, normalizedName(message.party.displayName||message.displayName),
+    normalizedEmail(message.party.email||''), normalizedPhone(message.party.phone));
 }
 
 async function listInbox(request: Request, env: CsmEnv): Promise<Response> {
@@ -255,18 +265,28 @@ async function approve(request: Request, env: CsmEnv, id: string): Promise<Respo
       matchMethod = requested ? "manual" : refreshedMatch.method;
     } else {
       const input = newDonor(body, message);
+      const name = normalizedName(input.firstName+' '+input.lastName);
+      const phone = normalizedPhone(input.phone);
+      const possible = await donorCandidates(env, message.masterDonorId, name, normalizedEmail(input.email), phone);
+      const sameName = (person: DonorCandidate) => [normalizedName(person.first_name+' '+person.last_name),
+        normalizedName((person.preferred_name||person.first_name)+' '+person.last_name)].includes(name);
+      const phoneMatches = phone ? possible.filter(person => sameName(person) && normalizedPhone(person.phone_normalized)===phone) : [];
       const exactMatches = await env.DB.prepare(
         `SELECT id FROM people WHERE email_normalized = ?1
          AND first_name_normalized = ?2 AND last_name_normalized = ?3 LIMIT 2`,
       ).bind(normalizedEmail(input.email), normalizedName(input.firstName), normalizedName(input.lastName))
         .all<{ id: string }>();
-      if (exactMatches.results.length > 1) {
-        throw new AdminError(409, "DONOR_CHOICE_REQUIRED", "More than one donor has this name and email. Select the correct existing donor before approving.");
+      const identities = new Set([...exactMatches.results, ...phoneMatches].map(person => person.id));
+      if (identities.size > 1) {
+        throw new AdminError(409, "DONOR_CHOICE_REQUIRED", "More than one contact matches the donor details. Select the correct existing contact before approving.");
       }
-      if (exactMatches.results.length === 1) {
-        personId = exactMatches.results[0]!.id;
-        matchMethod = "email";
+      if (identities.size === 1) {
+        personId = [...identities][0]!;
+        matchMethod = exactMatches.results.length ? "email" : "manual";
       } else {
+        if (possible.length && body.confirmNewDonor!==true) {
+          throw new AdminError(409, "DONOR_CHOICE_REQUIRED", "Possible existing contacts were found. Select the correct contact, or verify that this is a different person before creating a new donor.");
+        }
         personId = crypto.randomUUID();
         matchMethod = "new_donor";
         statements.push(env.DB.prepare(

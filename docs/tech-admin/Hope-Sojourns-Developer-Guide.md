@@ -1,8 +1,40 @@
 # Hope Sojourns developer guide
 
-Version 4.43
+Version 4.47
 
-Last reviewed: October 6, 2026
+Last reviewed: October 8, 2026
+
+## Mexico destination cooperation statement
+
+destinations-public.js adds a Mexico-only cooperation statement and linked logo under Ministry partners when the public destination slug is mexico-city. Existing published partner text still comes from MMT. assets/metro-relief-circle.png is the unmodified image downloaded from https://www.metrorelief.org/images/MetroReliefURLIcon.png on October 8, 2026. styles.css defines the wrapping destination-partner layout and wraps long photo-credit URLs; the Mexico route and generic destination route refresh their relevant stylesheet and script cache versions. No database, API, permission, or portal editing changes are required. This local change is pending release.
+
+## Combined portal release
+
+Brent authorized committing, pushing, and deploying all pending application changes on October 8, 2026. Release revision 2026-10-08.1 combines inquiry follow-up and portal email, phone-entry formatting, Home layout, shared sign-in styling, and donation-contact association. Back up each database separately and apply only migration 0046 to each environment, then deploy the same Worker and allowlisted public artifact to test and production. Keep captured test email, disabled test shared sign-in and callbacks, private guide buckets, and live production integration settings isolated. Exclude private donor cleanup records and staff guides from Git and static public builds.
+
+Home's layout is scoped by the ministry-home body class in admin/ministry/ministry.css. admin/planning.js renders the journey date badges and stacked follow-up panels; admin/ministry/ministry.js supplies the shortcut and Next actions containers. The existing Home finance component remains responsible for financial totals. All changed shared frontend resources use the October 8 cache revision. No additional financial or contact schema changes accompany the association fix.
+
+## Donation contact association
+
+Payment inbox review always offers Find an existing contact through the authenticated, paginated `/admin/people?search=` collection, without a Donor filter. The administrator chooses the result in Associate this gift with a contact; approval sends its personId and confirmDonor:true through the existing CSM approval route. Selection disables the new-contact fields. The gift attaches to the selected Person and the gift-save triggers promote Donor while removing only Potential Donor. Existing contact details and other relationships remain unchanged; correct a contact's primary email separately after verification.
+
+In `src/csm-distribution.ts`, suggestions include full name, preferred first name plus surname, email, normalized phone, and saved CSM links. Automatic matching remains conservative. Individually confirmed new-donor details reuse a unique name-and-email or name-and-phone identity; US phone punctuation and a leading 1 are normalized. Conflicting evidence requires explicit contact selection. Name-only, phone-only, or other possible matches block creation unless the administrator separately confirms a genuinely different person with confirmNewDonor:true. This confirmation cannot bypass multiple strong identity matches. No financial, inbox, donor-link, or contact write occurs for a rejected approval. Tests cover changed email, ambiguous identities, explicit out-of-suggestion association, and genuine new donors. No schema migration is required. Application changes are included in the authorized October 8 paired release.
+
+For authorized duplicate cleanup, first back up both contacts and enumerate all relational and JSON references. Preserve the established Person ID and history, move the gift, financial transaction, inbox match, and CSM donor link together, retain previous email details in private notes, and record before-images in audit_events. Guard against stale records and unexpected references; rehearse against SQLite before applying a transaction. Keep source payment payloads and all amounts unchanged, and verify the surviving contact, classifications, giving totals, and links afterward. Clean each environment independently; never synchronize business data.
+
+## Inquiry workflow and portal email
+
+Migration 0046 adds inquiry_workflows and inquiry_emails without altering contacts or financial records. A submission trigger creates an open follow-up with an available active administrator and a two-business-day deadline. Existing submissions are backfilled without sending historical emails; completed historical interests remain closed, while repeat submissions without an interest row remain open for review. Dated-trip acceptance links its workflow to the journey. Pending duplicates continue through the existing match review.
+
+The authenticated /admin/inquiries collection and /admin/inquiries/:id routes require contact permissions. Journey linking or invitation transitions additionally require trip edit permission. Open inquiry updates require an eligible owner, real calendar date, and next action; closure requires a reason. Transactional revision guards prevent stale writes. Linking uses Interested/Invited membership without budget assignment, directory visibility, or access grants. Existing membership statuses are preserved. Future-list and conversation history remain available after linking.
+
+admin/inquiries.js supplies request detail and the grouped/filterable interest-list dialog. admin/planning.js shows follow-ups from /admin/planning/dashboard. Inbox requests remain actionable until explicit inquiry closure; generic completion/deletion cannot bypass this. Existing general-task behavior is unchanged.
+
+inquiry-email.ts uses the existing Resend configuration and configured sender/reply-to (default admin@hopesojourns.com). New intake acknowledgment delivery occurs only after the intake transaction commits; failures do not roll back intake. Test always captures. POST /admin/submissions/:id/replies requires a stable client sendId, stores a frozen payload, and sends directly. Sent status means provider acceptance. Failed delivery is retryable; uncertain delivery retains the same payload/key and cannot retry after 23 hours without provider verification. Concurrent sends use an atomic claim. /admin/inquiries/:id/emails/:emailId retries only a matching inquiry email. Credentials and provider error bodies are never exposed. Legacy email-client replies retain their manual sent action.
+
+Only saving a traveler as Confirmed invokes assignTravelerBudget. Earlier Interested, Invited, Applied, Approved, and Waitlisted statuses create no automatic account/charges. Existing accounts and charges are preserved; status changes never delete financial history. Acceptance and portal credentials remain deliberate separate operations.
+
+The public interest form progressively masks US numbers, preserves international +country numbers, and submits to the existing canonical phone validation. Its handler is excluded from the shared completed-number formatter. Automated tests cover the workflow, idempotent/uncertain delivery, permissions/CSRF, and financial separation; the browser check covers actual phone input and responsive inquiry controls. Local pending release; apply migration before deploying Worker and frontend together.
 
 ## Home financial summary
 
@@ -1071,6 +1103,14 @@ Checkpoint 94dfcaa was pushed on codex/hope-preview-journeys and deployed only t
 tools/build_margin_preview.py derives /in-motion-margins/ and nested internships, corporate, mission-journeys and book routes from the original built HTML. It adds only the production-margins body class and stylesheet, rewrites internal navigation to retain the variant, and derives margin-motion.js for chapter links. No duplicated authored content or portal changes. tools/check-margin-preview.cjs checks widths at six sizes, navigation, filtering and original preservation. The user authorized publishing both current pathway work and the comparison options to hopesojourns-preview only. This supersedes the earlier local-only status; no new commit or push is included in this release.
 
 ## Revision history
+
+- October 8, 2026 — Version 4.47. Documented Mexico-only public partner recognition, official logo provenance, component ownership, and cache changes.
+
+- October 8, 2026 — Version 4.46. Documented the combined authorized release, isolated database backups and inquiry migration, scoped Home layout, cache revision, and donation-association behavior.
+
+- October 8, 2026 — Version 4.45. Added all-contact search and explicit gift association for proposed new donors; expanded reviewed identity checks to prevent changed-email duplicates; documented guarded, audited contact consolidation. Local application changes pending release.
+
+October 7, 2026 — Version 4.44: Added inquiry follow-up, future-interest lists, portal email delivery, phone input, and confirmation-stage billing guidance. Local pending release.
 
 - October 6, 2026 — Version 4.43. Added corporate-house-service-mexico.png to the public preview asset allowlist and corporate pathway card. Generated margin variant inherits the image. Local review only; no deployment, portal or corporate hero change.
 
