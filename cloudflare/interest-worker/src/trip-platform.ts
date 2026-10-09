@@ -1494,7 +1494,9 @@ async function publicTrip(env: AdminEnv, slug: string): Promise<Response> {
   const trip = await env.DB.prepare(
     `SELECT t.id, t.opportunity_id, t.code, t.slug, t.title, t.subtitle, t.location, t.start_date, t.end_date,
             t.status, t.capacity, t.public_summary, t.public_description, t.public_call_to_action,
-            t.interest_enabled, CASE WHEN t.portal_enabled=1 AND t.portal_password_hash IS NOT NULL THEN 1 ELSE 0 END AS portal_available, o.title AS opportunity_title, o.slug AS opportunity_slug
+            t.interest_enabled, CASE WHEN t.portal_enabled=1 AND t.portal_password_hash IS NOT NULL THEN 1 ELSE 0 END AS portal_available,
+            CASE WHEN t.portal_enabled=1 AND t.portal_password_hash IS NOT NULL THEN t.portal_login_id ELSE NULL END AS portal_login_id,
+            o.title AS opportunity_title, o.slug AS opportunity_slug
      FROM trips t LEFT JOIN opportunities o ON o.id = t.opportunity_id
      WHERE t.slug = ?1 AND t.public_enabled = 1 AND t.status NOT IN ('draft', 'archived', 'canceled')`,
   ).bind(slug).first();

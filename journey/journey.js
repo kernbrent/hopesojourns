@@ -252,6 +252,8 @@ function requestedTripMatches(trip) {
   const params = new URLSearchParams(location.search);
   const tripId = params.get("tripId");
   if (tripId) return String(trip.id) === tripId;
+  const publicTrip = params.get("publicTrip");
+  if (publicTrip) return trip.slug === publicTrip;
   const requested = params.get("trip")?.trim().toUpperCase();
   return !requested || [trip.code, trip.slug, trip.portal_login_id]
     .some(value => value && String(value).toUpperCase() === requested);
@@ -327,11 +329,25 @@ document.querySelector("#journey-signout").addEventListener("click", async () =>
   }
 });
 
-const publicSlug=new URLSearchParams(location.search).get('publicTrip');
-if(publicSlug&&/^[a-z0-9-]+$/.test(publicSlug)){
-  // A public read confirms this trip exists before offering its return link.
-  api('/public/trips/'+encodeURIComponent(publicSlug)).then(data=>{
-    const link=document.querySelector('#journey-public-login-link');link.href='/trip/?trip='+encodeURIComponent(data.trip.slug);link.textContent='Follow '+data.trip.title+' publicly — no sign-in needed →';
-  }).catch(()=>{});
+async function initialize() {
+  const params = new URLSearchParams(location.search);
+  const publicSlug = params.get('publicTrip');
+  if (publicSlug && /^[a-z0-9-]+$/.test(publicSlug)) {
+    try {
+      const data = await api('/public/trips/' + encodeURIComponent(publicSlug));
+      const link = document.querySelector('#journey-public-login-link');
+      link.href = '/trip/?trip=' + encodeURIComponent(data.trip.slug);
+      link.textContent = 'Follow ' + data.trip.title + ' publicly — no sign-in needed →';
+      if (data.trip.portal_available && data.trip.portal_login_id) {
+        const url = new URL(location.href);
+        url.searchParams.set('trip', data.trip.portal_login_id);
+        url.searchParams.set('tripId', data.trip.id);
+        history.replaceState(null, '', url);
+      }
+    } catch {
+      // Keep manual sign-in available if the public trip lookup fails.
+    }
+  }
+  await restore();
 }
-restore();
+initialize();

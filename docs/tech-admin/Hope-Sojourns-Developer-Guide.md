@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.50
+Version 4.51
 
 Last reviewed: October 9, 2026
 
@@ -1044,7 +1044,7 @@ The existing stored status `traveling` keeps its visible Traveling label and is 
 
 Migration `0047_live_trip_following.sql` adds `trip_memories.public_visible` with a false default and a feed index. Apply it independently before deploying this version to either environment. Photos & memories now has separate traveler and public checkboxes; current private/traveler-only memories remain private after migration. `src/trip-memories.ts` serves a bounded feed and same-origin media route under `/public/trips/:slug/photos/:id`, only for Traveling or Completed publicly enabled trips and explicitly public, undeleted, non-purging memories. Public responses project approved content fields only; storage keys, credentials, members, accounts, ledger data, receipts, and budgets are excluded. Removing public visibility or hiding the trip immediately revokes that live media route. Public feeds use no-store; existing reviewed post-trip snapshots remain independent.
 
-`/public/trips/:slug` includes Published/Public Trip update content while Traveling or Completed. Public calendar data comes only from approved public overview/itinerary entries; transportation/private booking fields remain excluded. The destination tile feed includes a list of active Traveling trips, and the destination page highlights active departures with Follow and Traveler Portal sign-in links. `portal_available` reveals only a boolean; `/journey/?publicTrip=:slug` confirms the public trip before adding its return link, and shared authentication remains required for traveler content. Signed-in travelers also have a public-page link.
+`/public/trips/:slug` includes Published/Public Trip update content while Traveling or Completed. Public calendar data comes only from approved public overview/itinerary entries; transportation/private booking fields remain excluded. The destination tile feed includes a list of active Traveling trips, and the destination page highlights active departures with Follow and Traveler Portal sign-in links. `portal_available` remains a boolean. The public trip detail also returns `portal_login_id` only when the portal is enabled and has a configured password. `/journey/?publicTrip=:slug` resolves that ID before session restoration, prepopulates the shared Trip ID, and adds its public return link. The selected trip ID/slug prevents restoration of another trip's session. Lookup failures retain manual sign-in. Passwords and password hashes remain private; shared authentication is required for traveler content. Signed-in travelers also have a public-page link.
 
 `journey/trip-calendar.js` and its palette-based stylesheet provide month navigation and expandable daily highlights for both pages, derived from each page's already-authorized data. Lodging spans and transport arrival dates are included in the traveler calendar; the public calendar never fetches private itinerary data. The display bounds long ranges to 366 days. The same-source date-only calendar avoids timezone shifts and supports a contained horizontal calendar plus daily list on phones. Asset cache revisions are 2026-10-09.2. This work is local pending a separately authorized release.
 
@@ -1120,6 +1120,8 @@ Checkpoint 94dfcaa was pushed on codex/hope-preview-journeys and deployed only t
 tools/build_margin_preview.py derives /in-motion-margins/ and nested internships, corporate, mission-journeys and book routes from the original built HTML. It adds only the production-margins body class and stylesheet, rewrites internal navigation to retain the variant, and derives margin-motion.js for chapter links. No duplicated authored content or portal changes. tools/check-margin-preview.cjs checks widths at six sizes, navigation, filtering and original preservation. The user authorized publishing both current pathway work and the comparison options to hopesojourns-preview only. This supersedes the earlier local-only status; no new commit or push is included in this release.
 
 ## Revision history
+
+- October 9, 2026 — Version 4.51. Documented public-link Trip ID prefill, enabled-portal lookup and trip-matched session restoration. Release authorized for test and production.
 
 - October 9, 2026 — Version 4.50. Documented ordered story memory selections, gallery rendering and move controls. Local pending release.
 

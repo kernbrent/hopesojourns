@@ -13,13 +13,23 @@ async function setup(){
  const created=await (await call('/admin/trips',input)).json() as any;
  return {...f,call,publicCall,input,id:created.id,slug:created.slug||f.sqlite.prepare('SELECT slug FROM trips WHERE id=?').get(created.id)!.slug};
 }
-it('manual Traveling opens the public page without changing financial records or exposing credentials',async()=>{
+it('manual Traveling opens the public page without changing financial records or exposing passwords',async()=>{
  const f=await setup();const before=f.sqlite.prepare('SELECT COUNT(*) AS n FROM ledger_entries').get();
  expect((await f.call('/admin/trips/'+f.id,{...f.input,status:'traveling',publicEnabled:false,portalEnabled:false},'PUT')).status).toBe(200);
  expect(f.sqlite.prepare('SELECT status,public_enabled,portal_enabled FROM trips WHERE id=?').get(f.id)).toMatchObject({status:'traveling',public_enabled:1,portal_enabled:1});
  const page=await (await f.publicCall('/public/trips/'+f.slug)).json() as any;expect(page.trip.status).toBe('traveling');expect(page.trip.portal_available).toBe(0);
  expect(JSON.stringify(page)).not.toMatch(/financialOverview|planned_cost|portal_password|token_hash|object_key/);
  expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM ledger_entries').get()).toEqual(before);
+});
+it('provides the shared login ID only for an enabled public traveler portal',async()=>{
+ const f=await setup();await f.call('/admin/trips/'+f.id,{...f.input,publicEnabled:true},'PUT');
+ f.sqlite.prepare("UPDATE trips SET portal_enabled=1,portal_login_id='CUSTOM-ENGLAND',portal_password_hash='private-hash',portal_password_salt='private-salt',portal_password_iterations=100000 WHERE id=?").run(f.id);
+ const page=await (await f.publicCall('/public/trips/'+f.slug)).json() as any;
+ expect(page.trip).toMatchObject({portal_available:1,portal_login_id:'CUSTOM-ENGLAND'});
+ expect(JSON.stringify(page)).not.toMatch(/private-hash|private-salt|portal_password/);
+ f.sqlite.prepare('UPDATE trips SET portal_enabled=0 WHERE id=?').run(f.id);
+ const disabled=await (await f.publicCall('/public/trips/'+f.slug)).json() as any;
+ expect(disabled.trip).toMatchObject({portal_available:0,portal_login_id:null});
 });
 it('starts only due eligible trips in Central time, audits once, and enables configured traveler access',async()=>{
  const f=await setup();
