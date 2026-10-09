@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.49
+Version 4.50
 
 Last reviewed: October 9, 2026
 
@@ -137,6 +137,8 @@ This feature adds administrator-managed trip photos and dated notes. Open a trip
 Migration 0032 adds trip_memories and trip_publications. Photo bytes use the existing private RECEIPTS bucket under trip-memories/{tripId}/; metadata stays in D1. Browser uploads resize to 2000 pixels and encode JPEG, stripping original metadata. The API accepts signature-checked JPEG, PNG, and WebP up to 6 MB. Original images remain on the uploader's device. A trip supports 300 active memories; each upload batch supports 30 photos. Server text limits and publication size limits bound storage and responses.
 
 The authenticated /admin/trips/:tripId/memories routes list, upload, edit, soft-delete, restore, and serve images. Mutations require trip edit permission, CSRF, and revision matching for existing records. Portal sessions return only visible, active memories; /portal/trips/:tripId/photos/:id enforces the session's exact trip and current visibility. Object keys are never exposed to browser responses.
+
+Story memory_ids are ordered: buildDraft resolves the submitted IDs in their exact sequence after validating availability and uniqueness. The editor restores draft order, appends newly available memories, and moves existing DOM rows without changing selections or unsaved narrative fields. HSTripMemoriesView.story passes preserveOrder to collection; live feeds keep chronological ordering. No schema migration is required. Cover reverse-date draft/published ordering in trip-memories.test.ts.
 
 Past-trip story lets administrators select a published destination, write a title and summary, and choose specific memories and published traveler/public content. Save and preview stores a private snapshot through /publication/draft. Publish this version uses /publication/publish and requires Completed status and an elapsed trip end date. /publication/unpublish removes public access while retaining the private draft. All publication writes compare revisions; edits to source material never silently change a published snapshot.
 
@@ -1118,6 +1120,8 @@ Checkpoint 94dfcaa was pushed on codex/hope-preview-journeys and deployed only t
 tools/build_margin_preview.py derives /in-motion-margins/ and nested internships, corporate, mission-journeys and book routes from the original built HTML. It adds only the production-margins body class and stylesheet, rewrites internal navigation to retain the variant, and derives margin-motion.js for chapter links. No duplicated authored content or portal changes. tools/check-margin-preview.cjs checks widths at six sizes, navigation, filtering and original preservation. The user authorized publishing both current pathway work and the comparison options to hopesojourns-preview only. This supersedes the earlier local-only status; no new commit or push is included in this release.
 
 ## Revision history
+
+- October 9, 2026 — Version 4.50. Documented ordered story memory selections, gallery rendering and move controls. Local pending release.
 
 - October 9, 2026 — Version 4.49. Added Traveling manual/date-triggered start, public follow-along feeds, separate media visibility, safe destination discovery, cross-links, and shared calendars. Local pending release.
 

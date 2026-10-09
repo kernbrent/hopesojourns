@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.43
+Version 4.44
 
 Last reviewed: October 9, 2026
 
@@ -91,6 +91,8 @@ Duplicate review presents submitted information alongside every matching contact
 ## Trip photos and past trip stories
 
 Photos & memories adds responsive photo cards and dated journal notes to each trip. Administrators can upload several photos, add captions and credits, edit image descriptions, and select traveler visibility. Use descriptive alternative text that communicates the scene. The collection separates adding new material from editing saved items and includes a removed-items view with Restore controls.
+
+Story gallery selections include separate Move up and Move down buttons with photo-specific accessible names. Keep checkbox labels separate from action buttons. Preserve the saved gallery sequence in previews and published recaps; live trip feeds retain their date order. First and last rows disable the unavailable move direction.
 
 Past-trip story uses a destination selector, public title, short summary, narrative, and explicit checkboxes for the material to publish. Save and preview opens a modal showing the exact public version. Publishing remains unavailable until the trip has ended and is marked Completed. The live version stays unchanged while a new draft is prepared; Unpublish story removes it from public access.
 
@@ -766,6 +768,8 @@ Retain the cinematic welcome and shared Athens stories while presenting Mission 
 Keep /in-motion/ as the original full-width design. The comparison at /in-motion-margins/ uses the live production outer frame: min(100% - 32px, 1240px), 18px total gutters at widths up to 850px, and full width up to 560px. Content, imagery, interactions and internal component styling remain shared. Apply the same frame to the linked pathway and chapter pages. The comparison index presents both newest versions before the five earlier options.
 
 ## Revision history
+
+- October 9, 2026 — Version 4.44. Added accessible story gallery ordering controls and preserved the reviewed photo sequence. Local pending release.
 
 - October 9, 2026 — Version 4.43. Added Traveling discovery and follow-along navigation, public media visibility, shared calendar and mobile daily-list standards. Local pending release.
 

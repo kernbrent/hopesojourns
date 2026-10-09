@@ -41,6 +41,18 @@ it('keeps notes and photos private until explicitly selected, previewed, and pub
  expect((await (await f.publicCall('/public/trip-stories')).json() as any).stories).toHaveLength(1);
  expect((await (await f.publicCall('/public/trip-stories?destination=missing')).json() as any).stories).toHaveLength(0);
 });
+it('keeps the selected gallery sequence in drafts and published stories regardless of dates',async()=>{
+ const f=await setup(),early=await f.photo(),late=await f.photo();
+ f.sqlite.prepare('UPDATE trip_memories SET event_date=? WHERE id=?').run('2025-01-09',early.id);
+ f.sqlite.prepare('UPDATE trip_memories SET event_date=? WHERE id=?').run('2025-01-14',late.id);
+ const response=await f.draft([late.id,early.id]);expect(response.status).toBe(200);
+ const preview=await response.json() as any;
+ expect(preview.snapshot.memories.map((m:any)=>m.id)).toEqual([late.id,early.id]);
+ expect((await f.call(f.base+'/publication/publish',{revision:1})).status).toBe(200);
+ const published=await (await f.publicCall(f.publicPath)).json() as any;
+ expect(published.story.memories.map((m:any)=>m.id)).toEqual([late.id,early.id]);
+ expect(published.story.memories.map((m:any)=>m.event_date)).toEqual(['2025-01-14','2025-01-09']);
+});
 it('preserves reviewed snapshots across edits and removals; supports update and unpublish',async()=>{
  const f=await setup(),n=await f.note(),p=await f.photo();const contentPath=`/admin/trips/${f.id}/content`;
  const content={contentType:'devotional',title:'Serve together',content:'Scripture: John 13:1–17\n\nOriginal devotional',visibility:'travelers',publicationStatus:'published'};
