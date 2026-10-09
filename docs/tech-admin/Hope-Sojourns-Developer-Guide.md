@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.48
+Version 4.49
 
 Last reviewed: October 9, 2026
 
@@ -1036,6 +1036,16 @@ CSM callback handling updates personal-gift status and audit history. Only appro
 
 Regression coverage includes contact permissions, original donor attribution, exact contact approval, combined and partial deposits, over-allocation, evidence requirements, reversals, voiding, delivery retries, callbacks, fees, expenses, and giving statements. Release requires review, explicit deployment authorization, CSM migration 0005, and compatible receivers before sending. Never bind live CSM to the isolated HS test environment; its shared identity and callbacks remain disabled.
 
+## Public following while a trip is Traveling
+
+The existing stored status `traveling` keeps its visible Traveling label and is the manual start control. Saving a trip with this status enables its public page and traveler portal; shared traveler login still requires existing credentials. No credential is exposed or invented. `src/trip-progress.ts` atomically audits and starts eligible Recruiting, Confirmed, and Full trips when start_date is on or before the current America/Chicago date and end_date is not past (or the start date is today when end_date is absent). Draft, canceled, completed, archived, future, and already-ended trips do not start automatically. The Worker checks every ten minutes through matching cron triggers in both environments and also checks on relevant public/admin trip GET requests. This never auto-completes trips or changes financial entries.
+
+Migration `0047_live_trip_following.sql` adds `trip_memories.public_visible` with a false default and a feed index. Apply it independently before deploying this version to either environment. Photos & memories now has separate traveler and public checkboxes; current private/traveler-only memories remain private after migration. `src/trip-memories.ts` serves a bounded feed and same-origin media route under `/public/trips/:slug/photos/:id`, only for Traveling or Completed publicly enabled trips and explicitly public, undeleted, non-purging memories. Public responses project approved content fields only; storage keys, credentials, members, accounts, ledger data, receipts, and budgets are excluded. Removing public visibility or hiding the trip immediately revokes that live media route. Public feeds use no-store; existing reviewed post-trip snapshots remain independent.
+
+`/public/trips/:slug` includes Published/Public Trip update content while Traveling or Completed. Public calendar data comes only from approved public overview/itinerary entries; transportation/private booking fields remain excluded. The destination tile feed includes a list of active Traveling trips, and the destination page highlights active departures with Follow and Traveler Portal sign-in links. `portal_available` reveals only a boolean; `/journey/?publicTrip=:slug` confirms the public trip before adding its return link, and shared authentication remains required for traveler content. Signed-in travelers also have a public-page link.
+
+`journey/trip-calendar.js` and its palette-based stylesheet provide month navigation and expandable daily highlights for both pages, derived from each page's already-authorized data. Lodging spans and transport arrival dates are included in the traveler calendar; the public calendar never fetches private itinerary data. The display bounds long ranges to 366 days. The same-source date-only calendar avoids timezone shifts and supports a contained horizontal calendar plus daily list on phones. Asset cache revisions are 2026-10-09.2. This work is local pending a separately authorized release.
+
 ## Gift thank-you email acknowledgments
 
 The finance records response now includes a `thankYou` array per entry using `giftThanksForEntries` in `src/gift-thanks.ts`. A single bounded query joins current donation allocations and their acknowledgment history; it preserves prior sent/uncertain history after reassociation of an unsplit gift, exactly as the manual preview does. It returns current donor names, email availability, status, sent timestamp, error and lock state, without provider payloads. Split donors retain individual states. Reading status never sends email. No migration is required.
@@ -1108,6 +1118,8 @@ Checkpoint 94dfcaa was pushed on codex/hope-preview-journeys and deployed only t
 tools/build_margin_preview.py derives /in-motion-margins/ and nested internships, corporate, mission-journeys and book routes from the original built HTML. It adds only the production-margins body class and stylesheet, rewrites internal navigation to retain the variant, and derives margin-motion.js for chapter links. No duplicated authored content or portal changes. tools/check-margin-preview.cjs checks widths at six sizes, navigation, filtering and original preservation. The user authorized publishing both current pathway work and the comparison options to hopesojourns-preview only. This supersedes the earlier local-only status; no new commit or push is included in this release.
 
 ## Revision history
+
+- October 9, 2026 — Version 4.49. Added Traveling manual/date-triggered start, public follow-along feeds, separate media visibility, safe destination discovery, cross-links, and shared calendars. Local pending release.
 
 - October 9, 2026 — Version 4.48. Added batched finance acknowledgment summaries, Income status/timestamps, shared preview refresh and automatic-email indicator; tested retained donor associations and provider states. Release authorized for test and production.
 

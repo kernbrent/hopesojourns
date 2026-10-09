@@ -1,3 +1,4 @@
+import {startDueTrips} from './trip-progress';
 import {handleInquiries} from './inquiries';
 import {receiveInterest,handleInterestReview,receipt} from './interest-review';
 import {handlePlanning} from './planning';
@@ -445,6 +446,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
   if(path.startsWith('/admin/switch/'))return sharedSwitch(request,env,path);
   if(path.startsWith('/public/account/'))return handleAccountPublic(request,env,path);
+  if (request.method === "GET" && (path.startsWith("/public/destinations") || path.startsWith("/public/trips") || path.startsWith("/admin/trips") || path.startsWith("/admin/trip-platform"))) await startDueTrips(env);
   if (path.startsWith('/admin/destinations') || path.startsWith('/public/destinations')) return handleDestinations(request,env,path);
   if (path.startsWith('/admin/finance/')) return handleFinanceAdminRequest(request,env,path);
   if (path === '/admin/inquiries' || path.startsWith('/admin/inquiries/')) return handleInquiries(request,env,path);
@@ -468,6 +470,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
+  async scheduled(_event, env, ctx) { ctx.waitUntil(startDueTrips(env)); },
   async fetch(request, env): Promise<Response> {
     try {
       return await actorContext.run({},()=>handleRequest(request, env));

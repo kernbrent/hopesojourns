@@ -5,7 +5,7 @@ import {handleTripAdminRequest,handleTripPublicRequest} from '../src/trip-platfo
 async function setup(through?:string){
  const f=await ministryFixture(through);
  // The current application requires the additive travel fields, even when testing an older media migration.
- if(through) f.sqlite.exec(readFileSync(new URL("../migrations/0040_trip_travel.sql",import.meta.url),"utf8"));
+ if(through) { f.sqlite.exec(readFileSync(new URL("../migrations/0040_trip_travel.sql",import.meta.url),"utf8")); f.sqlite.exec(readFileSync(new URL("../migrations/0047_live_trip_following.sql",import.meta.url),"utf8")); }
  const call=(path:string,body?:unknown,method?:string)=>handleTripAdminRequest(f.request(path,body,method),f.env,path.split('?')[0]);
  const {id}=await (await call('/admin/trips',{title:'Memory test',location:'Test destination',startDate:'2025-01-09',endDate:'2025-01-14'})).json() as any;
  f.sqlite.prepare("UPDATE trips SET status='completed',portal_enabled=1 WHERE id=?").run(id);
@@ -154,6 +154,9 @@ it('accepts WebM containers and rejects disguised or oversized video uploads',as
 it('preserves existing memories, published snapshots, and deletion locks during the video migration',async()=>{
  const f=await setup('0033_trip_memory_permanent_delete.sql'),p=await f.photo(),n=await f.note();await f.draft([p.id]);await f.call(f.base+'/publication/publish',{revision:1});
  f.sqlite.prepare("UPDATE trip_memories SET deleted_at='2026-09-22',purge_pending=1,revision=3 WHERE id=?").run(n.id);
+ // Recreate the historical schema before testing its old table rebuild.
+ // Current upload handlers above needed the new additive visibility field.
+ f.sqlite.exec('DROP INDEX trip_memories_public_feed; ALTER TABLE trip_memories DROP COLUMN public_visible;');
  const before=f.sqlite.prepare('SELECT * FROM trip_memories ORDER BY id').all(),pub=f.sqlite.prepare('SELECT * FROM trip_publications').all();
  f.sqlite.exec(readFileSync(new URL('../migrations/0034_trip_memory_video.sql',import.meta.url),'utf8'));
  expect(f.sqlite.prepare('SELECT * FROM trip_memories ORDER BY id').all()).toEqual(before);expect(f.sqlite.prepare('SELECT * FROM trip_publications').all()).toEqual(pub);

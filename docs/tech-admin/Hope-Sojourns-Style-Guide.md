@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.42
+Version 4.43
 
 Last reviewed: October 9, 2026
 
@@ -710,6 +710,12 @@ Version 4.10 adds local presentation for gifts received through personal payment
 
 CSM provides a separate Personally received gifts workspace with HS contact search, original gift entry, expandable reconciliation rows, evidence attachments, and a step-by-step guide. Status labels distinguish funds still held, queued review, approved, and denied. Present the original donor on statements and identify the gift as Christian Steps Ministries — Hope Sojourns. Bank transfers are settlement information, not additional gifts.
 
+## Traveling trips and public follow-along
+
+Keep the status label Traveling. Active destination tiles and departure listings offer Follow [trip name] and Traveler Portal sign-in without replacing destination exploration. Public and traveler pages place Trip at a glance near the top, with Previous month/Next month controls, a semantic calendar table, and expandable Daily highlights. Calendar overflow stays inside its scroll container on narrow screens; the daily list is the compact alternative. Reuse forest-wash for active trip days, forest-dark links, paper controls, and the shared line token. Dates and titles remain text, independent of color.
+
+Public trip pages provide Updates & photos and a traveler sign-in link. The traveler sign-in page offers a public trip return link for visitors following from home, and the authenticated view also links to the public page. Photos & memories uses independent Show in traveler portal and Show on public trip page checkboxes, with public sharing initially unchecked. Explain that starting a trip does not publish private memories. Existing post-trip story preview/publishing remains separate. These controls are local pending release.
+
 ## Gift thank-you email acknowledgments
 
 The Income screen displays a clearly labeled Email status column for charitable gifts, with donor-specific statuses for splits and a visible sent date and time. Use plain text for Sent, Not sent, Missing email, Failed, Needs delivery review, Sending / needs review, Test preview only, Donor not linked, and Not applicable. Keep the automatic-email On/Off indicator beside its checkbox above the list. State that Sent means provider acceptance and does not prove inbox delivery. Use the existing palette, horizontally scrollable table, labeled checkbox, and existing email preview dialog. The Income controls are included in the October 9, 2026 authorized release.
@@ -760,6 +766,8 @@ Retain the cinematic welcome and shared Athens stories while presenting Mission 
 Keep /in-motion/ as the original full-width design. The comparison at /in-motion-margins/ uses the live production outer frame: min(100% - 32px, 1240px), 18px total gutters at widths up to 850px, and full width up to 560px. Content, imagery, interactions and internal component styling remain shared. Apply the same frame to the linked pathway and chapter pages. The comparison index presents both newest versions before the five earlier options.
 
 ## Revision history
+
+- October 9, 2026 — Version 4.43. Added Traveling discovery and follow-along navigation, public media visibility, shared calendar and mobile daily-list standards. Local pending release.
 
 - October 9, 2026 — Version 4.42. Added Income email statuses, sent timestamps, automatic-email indicator and reusable thank-you preview controls. Release authorized for test and production.
 

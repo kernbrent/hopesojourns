@@ -181,6 +181,10 @@ function render(data) {
   document.querySelector("#journey-title").textContent = data.trip.title;
   document.querySelector("#journey-meta").textContent = `${data.trip.start_date ? `${dateLabel(data.trip.start_date)}${data.trip.end_date ? ` \u2013 ${dateLabel(data.trip.end_date)}` : ""} \u00b7 ` : ""}${data.trip.location}`;
   document.title = `${data.trip.title} | Traveler Portal`;
+  const publicLink=document.querySelector('#journey-public-link');
+  publicLink.hidden=!data.trip.public_enabled;
+  publicLink.href='/trip/?trip='+encodeURIComponent(data.trip.slug);
+  window.HSTripCalendar.render(document.querySelector('#journey-calendar'),data.trip,data.content);
 
   const navigation = document.querySelector(".journey-nav");
   const content = document.querySelector("#journey-content");
@@ -323,4 +327,11 @@ document.querySelector("#journey-signout").addEventListener("click", async () =>
   }
 });
 
+const publicSlug=new URLSearchParams(location.search).get('publicTrip');
+if(publicSlug&&/^[a-z0-9-]+$/.test(publicSlug)){
+  // A public read confirms this trip exists before offering its return link.
+  api('/public/trips/'+encodeURIComponent(publicSlug)).then(data=>{
+    const link=document.querySelector('#journey-public-login-link');link.href='/trip/?trip='+encodeURIComponent(data.trip.slug);link.textContent='Follow '+data.trip.title+' publicly — no sign-in needed →';
+  }).catch(()=>{});
+}
 restore();

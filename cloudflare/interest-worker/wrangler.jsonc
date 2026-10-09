@@ -20,6 +20,7 @@
   },
   "env": {
     "test": {
+      "triggers": { "crons": ["*/10 * * * *"] },
       "workers_dev": true,
       "preview_urls": true,
       "secrets": {
@@ -69,6 +70,7 @@
       "services": []
     },
     "production": {
+      "triggers": { "crons": ["*/10 * * * *"] },
       "workers_dev": false,
       "preview_urls": false,
       "secrets": {

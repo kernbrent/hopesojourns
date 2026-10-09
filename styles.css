@@ -2858,3 +2858,5 @@ main > .section.internship-cost-section {
   letter-spacing: .05em;
   text-transform: uppercase;
 }
+
+.trip-follow-link { display: block; margin-top: .6rem; }

@@ -1,6 +1,6 @@
 import {categories, details as itineraryDetails, tags as itineraryTags, itineraryMinistries} from './itinerary';
 import {templateStatements,readiness} from './planning';
-import {handleMemoriesAdmin,handleTripStories,portalMemories,portalPhoto} from './trip-memories';
+import {handleMemoriesAdmin,handleTripStories,portalMemories,portalPhoto,liveMemories,livePhoto} from './trip-memories';
 import { handleDevotionalLibrary, masterStatement, requireDevotional } from "./devotional-library";
 import {can} from './mmt-permissions';
 import { standardTripStatements, assignTravelerBudget, allocatePayment } from './ministry-budget';
@@ -249,9 +249,9 @@ export function validateTripInput(body: JsonRecord): TripInput {
     publicSummary: optionalText(body.publicSummary, "Public summary", 500, true),
     publicDescription: optionalText(body.publicDescription, "Public description", 8_000, true),
     publicCallToAction: optionalText(body.publicCallToAction, "Public call to action", 80),
-    publicEnabled: flag(body.publicEnabled),
+    publicEnabled: body.status === "traveling" ? 1 : flag(body.publicEnabled),
     interestEnabled: flag(body.interestEnabled),
-    portalEnabled: flag(body.portalEnabled),
+    portalEnabled: body.status === "traveling" ? 1 : flag(body.portalEnabled),
   };
 }
 
@@ -1494,18 +1494,18 @@ async function publicTrip(env: AdminEnv, slug: string): Promise<Response> {
   const trip = await env.DB.prepare(
     `SELECT t.id, t.opportunity_id, t.code, t.slug, t.title, t.subtitle, t.location, t.start_date, t.end_date,
             t.status, t.capacity, t.public_summary, t.public_description, t.public_call_to_action,
-            t.interest_enabled, o.title AS opportunity_title, o.slug AS opportunity_slug
+            t.interest_enabled, CASE WHEN t.portal_enabled=1 AND t.portal_password_hash IS NOT NULL THEN 1 ELSE 0 END AS portal_available, o.title AS opportunity_title, o.slug AS opportunity_slug
      FROM trips t LEFT JOIN opportunities o ON o.id = t.opportunity_id
      WHERE t.slug = ?1 AND t.public_enabled = 1 AND t.status NOT IN ('draft', 'archived', 'canceled')`,
   ).bind(slug).first();
   if (!trip) throw new AdminError(404, "TRIP_NOT_FOUND", "That public trip could not be found.");
   const content = await env.DB.prepare(
-    `SELECT id, content_type, title, content, event_date, event_time, location, link_url, sort_order
-     FROM trip_content WHERE trip_id = ?1 AND visibility = 'public' AND publication_status = 'published' AND itinerary_kind != 'travel' AND content_type IN ('overview','itinerary')
+    `SELECT id, content_type, title, content, event_date, end_date, event_time, location, link_url, sort_order
+     FROM trip_content WHERE trip_id = ?1 AND visibility = 'public' AND publication_status = 'published' AND itinerary_kind != 'travel' AND (content_type IN ('overview','itinerary') OR (?2=1 AND content_type='update'))
      ORDER BY content_type, event_date, sort_order, title`,
-  ).bind((trip as JsonRecord).id).all();
+  ).bind((trip as JsonRecord).id, ["traveling","completed"].includes(String((trip as JsonRecord).status)) ? 1 : 0).all();
   const ministries=await env.DB.prepare('SELECT DISTINCT m.name FROM trip_organizations o JOIN ministries m ON m.id=o.ministry_id WHERE o.trip_id=?1 ORDER BY m.name').bind((trip as JsonRecord).id).all();
-  return adminJson({ trip, content: (content.results as JsonRecord[]).map(presentContent), ministries:ministries.results }, 200, { "Cache-Control": "public, max-age=60" });
+  return adminJson({ trip, content: (content.results as JsonRecord[]).map(presentContent), ministries:ministries.results, memories:["traveling","completed"].includes(String((trip as JsonRecord).status)) ? await liveMemories(env,String((trip as JsonRecord).id),slug) : [] }, 200, { "Cache-Control": "no-store" });
 }
 
 type PortalLoginAttempt = {
@@ -1596,7 +1596,7 @@ async function portalSession(request: Request, env: AdminEnv, photoTrip?:string,
     throw new AdminError(401, "PORTAL_SESSION_EXPIRED", "Your trip portal session expired. Sign in again.", { "Set-Cookie": portalCookie("", 0) });
   }
   const trip = await env.DB.prepare(`SELECT id, code, slug, title, subtitle, location, start_date, end_date, status,
-    public_summary FROM trips WHERE id = ?1 AND portal_enabled = 1`).bind(session.trip_id).first();
+    public_summary,public_enabled FROM trips WHERE id = ?1 AND portal_enabled = 1`).bind(session.trip_id).first();
   if (!trip) throw new AdminError(401, "PORTAL_AUTH_REQUIRED", "This trip portal is not available.");
   if(photoTrip){if(photoTrip!==session.trip_id)throw new AdminError(404,"NOT_FOUND","Photo not found.");return portalPhoto(env,photoTrip,photoId!,request);}
   const [content, members, costs] = await Promise.all([
@@ -2555,6 +2555,8 @@ export async function handleTripAdminRequest(request: Request, env: AdminEnv, pa
 export async function handleTripPublicRequest(request: Request, env: AdminEnv, path: string): Promise<Response> {
   try {
     if(path.startsWith("/public/trip-stories"))return await handleTripStories(request,env,path);
+    const live=path.match(/^\/public\/trips\/([a-z0-9-]+)\/photos\/([0-9a-f-]{36})$/i);
+    if(live&&request.method==="GET")return await livePhoto(env,live[1],live[2],request);
     const photo=path.match(/^\/portal\/trips\/([0-9a-f-]{36})\/photos\/([0-9a-f-]{36})$/i);
     if(photo&&request.method==="GET")return await portalSession(request,env,photo[1],photo[2]);
     if (request.method === "GET" && path === "/public/trips") return await listPublicTrips(env, request);

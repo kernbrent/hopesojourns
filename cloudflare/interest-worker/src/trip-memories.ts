@@ -50,9 +50,9 @@ async function upload(request:Request,env:AdminEnv,tripId:string){
  const bytes=new Uint8Array(await file.arrayBuffer());let media=videoMedia(bytes);const kind=media?'video':'photo';
  if(!media){try{media=detectReceiptMedia(bytes);}catch(e){if(e instanceof ReceiptFileError)fail(422,'INVALID_IMAGE','Choose a JPEG, PNG, WebP photo or MP4/WebM video.');throw e;}if(!['image/jpeg','image/png','image/webp'].includes(media.mediaType)||file.size>MAX_IMAGE)fail(422,'INVALID_IMAGE','Choose a JPEG, PNG, or WebP photo up to 6 MB.');}
  const id=crypto.randomUUID(),key=`trip-memories/${tripId}/${id}.${media.extension}`,now=new Date().toISOString();
- const values=[id,tripId,line(form.get('title'),180,true),line(form.get('caption'),1000),line(form.get('alt_text'),300,true),line(form.get('credit'),180),date(form.get('event_date')),form.get('portal_visible')==='true'?1:0,key,media.mediaType,file.size,now,kind];
+ const values=[id,tripId,line(form.get('title'),180,true),line(form.get('caption'),1000),line(form.get('alt_text'),300,true),line(form.get('credit'),180),date(form.get('event_date')),form.get('portal_visible')==='true'?1:0,key,media.mediaType,file.size,now,kind,form.get('public_visible')==='true'?1:0];
  await env.RECEIPTS.put(key,bytes,{httpMetadata:{contentType:media.mediaType}});
- try{await env.DB.batch([env.DB.prepare("INSERT INTO trip_memories(id,trip_id,kind,title,caption,alt_text,credit,event_date,portal_visible,object_key,media_type,byte_size,created_at,updated_at) VALUES(?1,?2,?13,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?12)").bind(...values),auditStatement(env,'trip_memory',id,kind+'_added',{tripId})]);}catch(e){await env.RECEIPTS.delete(key);throw e;}
+ try{await env.DB.batch([env.DB.prepare("INSERT INTO trip_memories(id,trip_id,kind,title,caption,alt_text,credit,event_date,portal_visible,object_key,media_type,byte_size,created_at,updated_at,public_visible) VALUES(?1,?2,?13,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?12,?14)").bind(...values),auditStatement(env,'trip_memory',id,kind+'_added',{tripId})]);}catch(e){await env.RECEIPTS.delete(key);throw e;}
  return adminJson({memory:mapped(await item(env,tripId,id))},201,noStore);
 }
 function ids(value:unknown):string[]{if(!Array.isArray(value)||value.length>MAX_ITEMS||value.some(id=>typeof id!=='string')||new Set(value).size!==value.length)fail(422,'INVALID_SELECTION','Choose valid, unique items for the public story.');return value as string[];}
@@ -117,7 +117,7 @@ export async function handleMemoriesAdmin(request:Request,env:AdminEnv,tripId:st
   if(request.headers.get('content-type')?.startsWith('multipart/form-data'))return upload(request,env,tripId);
   const body=await readAdminJson(request),newId=crypto.randomUUID(),now=new Date().toISOString();
   const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM trip_memories WHERE trip_id=? AND deleted_at IS NULL').bind(tripId).first<Row>();if(Number(count?.n)>=MAX_ITEMS)fail(422,'LIMIT','This trip already has 300 memories.');
-  await env.DB.batch([env.DB.prepare("INSERT INTO trip_memories(id,trip_id,kind,title,content,event_date,credit,portal_visible,created_at,updated_at) VALUES(?1,?2,'note',?3,?4,?5,?6,?7,?8,?8)").bind(newId,tripId,line(body.title,180,true),line(body.content,12000,true),date(body.event_date),line(body.credit,180),body.portal_visible===true?1:0,now),auditStatement(env,'trip_memory',newId,'note_added',{tripId})]);return adminJson({memory:mapped(await item(env,tripId,newId))},201,noStore);
+  await env.DB.batch([env.DB.prepare("INSERT INTO trip_memories(id,trip_id,kind,title,content,event_date,credit,portal_visible,created_at,updated_at,public_visible) VALUES(?1,?2,'note',?3,?4,?5,?6,?7,?8,?8,?9)").bind(newId,tripId,line(body.title,180,true),line(body.content,12000,true),date(body.event_date),line(body.credit,180),body.portal_visible===true?1:0,now,body.public_visible===true?1:0),auditStatement(env,'trip_memory',newId,'note_added',{tripId})]);return adminJson({memory:mapped(await item(env,tripId,newId))},201,noStore);
  }
  if(!id)fail(404,'NOT_FOUND','Not found.');const row=await item(env,tripId,id);
  if(request.method==='DELETE'&&action==='permanent')return permanentlyDelete(request,env,tripId,row);
@@ -125,12 +125,24 @@ export async function handleMemoriesAdmin(request:Request,env:AdminEnv,tripId:st
  if(request.method==='GET'&&action==='image')return photoResponse(env,row,request);
  const body=await readAdminJson(request);revision(body,row);if(action==='restore'&&row.deleted_at){const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM trip_memories WHERE trip_id=? AND deleted_at IS NULL').bind(tripId).first<Row>();if(Number(count?.n)>=MAX_ITEMS)fail(422,'LIMIT','This trip already has 300 memories.');}const now=new Date().toISOString();let statement;
  if(request.method==='DELETE'||request.method==='POST'&&action==='restore')statement=env.DB.prepare('UPDATE trip_memories SET deleted_at=?,revision=revision+1,updated_at=? WHERE id=? AND trip_id=? AND revision=?').bind(request.method==='DELETE'?now:null,now,id,tripId,body.revision);
- else if(request.method==='PUT'&&!row.deleted_at)statement=env.DB.prepare('UPDATE trip_memories SET title=?,content=?,caption=?,alt_text=?,credit=?,event_date=?,portal_visible=?,revision=revision+1,updated_at=? WHERE id=? AND trip_id=? AND revision=?').bind(line(body.title,180,true),line(body.content,12000,row.kind==='note'),line(body.caption,1000),line(body.alt_text,300,row.kind!=='note'),line(body.credit,180),date(body.event_date),body.portal_visible===true?1:0,now,id,tripId,body.revision);
+ else if(request.method==='PUT'&&!row.deleted_at)statement=env.DB.prepare('UPDATE trip_memories SET title=?,content=?,caption=?,alt_text=?,credit=?,event_date=?,portal_visible=?,public_visible=?,revision=revision+1,updated_at=? WHERE id=? AND trip_id=? AND revision=?').bind(line(body.title,180,true),line(body.content,12000,row.kind==='note'),line(body.caption,1000),line(body.alt_text,300,row.kind!=='note'),line(body.credit,180),date(body.event_date),body.portal_visible===true?1:0,body.public_visible===true?1:0,now,id,tripId,body.revision);
  else fail(404,'NOT_FOUND','Not found.');
  const result=await env.DB.batch([statement,auditStatement(env,'trip_memory',id,request.method==='DELETE'?'removed':action==='restore'?'restored':'edited',{tripId})]);if(!result[0].meta.changes)fail(409,'STALE_EDIT','This memory changed. Refresh and try again.');return adminJson({ok:true},200,noStore);
 }
 export async function portalMemories(env:AdminEnv,tripId:string){const rows=await env.DB.prepare('SELECT * FROM trip_memories WHERE trip_id=? AND portal_visible=1 AND deleted_at IS NULL ORDER BY event_date,created_at,id').bind(tripId).all<Row>();return rows.results.map(m=>mapped(m,'portal'));}
 export async function portalPhoto(env:AdminEnv,tripId:string,id:string,request?:Request){const row=await item(env,tripId,id);if(!row.portal_visible||row.deleted_at)fail(404,'NOT_FOUND','Photo not found.');return photoResponse(env,row,request);}
+export async function liveMemories(env:AdminEnv,tripId:string,slug:string){
+ const rows=await env.DB.prepare(`SELECT id,kind,title,content,caption,alt_text,credit,event_date
+   FROM trip_memories WHERE trip_id=? AND public_visible=1 AND deleted_at IS NULL AND purge_pending=0
+   ORDER BY COALESCE(event_date,substr(created_at,1,10)) DESC,created_at DESC,id`).bind(tripId).all<Row>();
+ return rows.results.map(row=>({...row,...(['photo','video'].includes(row.kind)?{image_url:`/api/interest/public/trips/${slug}/photos/${row.id}`}:{})}));
+}
+export async function livePhoto(env:AdminEnv,slug:string,id:string,request:Request){
+ const row=await env.DB.prepare(`SELECT m.* FROM trip_memories m JOIN trips t ON t.id=m.trip_id
+   WHERE t.slug=? AND t.public_enabled=1 AND t.status IN ('traveling','completed')
+   AND m.id=? AND m.public_visible=1 AND m.deleted_at IS NULL AND m.purge_pending=0`).bind(slug,id).first<Row>();
+ if(!row)fail(404,'NOT_FOUND','Media not found.');return photoResponse(env,row,request);
+}
 export async function handleTripStories(request:Request,env:AdminEnv,path:string){
  const match=path.match(/^\/public\/trip-stories(?:\/([a-z0-9-]+)(?:\/photos\/([0-9a-f-]{36}))?)?$/);if(!match||request.method!=='GET')fail(404,'NOT_FOUND','Not found.');
  if(!match[1]){

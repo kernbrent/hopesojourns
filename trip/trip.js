@@ -26,7 +26,19 @@ async function loadTrip() {
     const content = document.querySelector("#actual-trip-content");
     content.replaceChildren();
     if(data.ministries?.length){const partners=node('article');partners.append(node('h2','','Ministry partners'),node('p','',data.ministries.map(m=>m.name).join(' · ')));content.append(partners);}
-    data.content.forEach(item => { const card = node("article"); const detail = [item.event_date ? dateLabel(item.event_date) : "", item.location].filter(Boolean).join(" · "); if (detail) card.append(node("small", "", detail)); card.append(node("h2", "", item.title), node("p", "", item.content)); if (item.link_url) { const link = node("a", "text-link", "Learn more →"); link.href = item.link_url; link.target = "_blank"; link.rel = "noopener noreferrer"; card.append(link); } content.append(card); });
+    data.content.filter(item=>item.content_type!=="update").forEach(item => { const card = node("article"); const detail = [item.event_date ? dateLabel(item.event_date) : "", item.location].filter(Boolean).join(" · "); if (detail) card.append(node("small", "", detail)); card.append(node("h2", "", item.title), node("p", "", item.content)); if (item.link_url) { const link = node("a", "text-link", "Learn more →"); link.href = item.link_url; link.target = "_blank"; link.rel = "noopener noreferrer"; card.append(link); } content.append(card); });
+    const links=document.querySelector('#actual-trip-links');
+    if(trip.portal_available){const link=node('a','text-link','Traveler Portal sign-in →');link.href='/journey/?publicTrip='+encodeURIComponent(trip.slug);links.append(link);}
+    window.HSTripCalendar.render(document.querySelector('#actual-trip-calendar'),trip,data.content);
+    const feed=document.querySelector('#actual-trip-updates');
+    if(['traveling','completed'].includes(trip.status)){
+      feed.append(node('h2','','Updates & photos'));
+      const updates=data.content.filter(item=>item.content_type==='update').sort((a,b)=>(b.event_date||'').localeCompare(a.event_date||'')||(b.sort_order||0)-(a.sort_order||0));
+      updates.forEach(item=>{const article=node('article');article.append(node('small','',dateLabel(item.event_date)),node('h3','',item.title),node('p','',item.content));feed.append(article);});
+      const memories=node('div');window.HSTripMemoriesView.collection(memories,data.memories||[]);feed.append(memories);
+      if(!updates.length&&!data.memories?.length)feed.append(node('p','','The journey has started. Check back here for updates and pictures.'));
+      const follow=node('a','text-link','Follow the journey →');follow.href='#actual-trip-updates';links.prepend(follow);
+    }else feed.hidden=true;
     loading.hidden = true; page.hidden = false;
   } catch { loading.hidden = true; errorPanel.hidden = false; }
 }

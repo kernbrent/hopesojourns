@@ -30,3 +30,5 @@
 
 # Private donor backup, cleanup audit, and staff-guide review artifacts.
 /outputs/donor-cleanup-20261008/
+/outputs/donation-email-status/
+/outputs/trip-following/

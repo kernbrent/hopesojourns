@@ -1,0 +1,19 @@
+.trip-calendar { margin-block: 2rem; }
+.trip-calendar-controls { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin-bottom: .75rem; flex-wrap: wrap; }
+.trip-calendar-controls button { padding: .6rem .8rem; border: 1px solid var(--forest); border-radius: .4rem; background: var(--paper); color: var(--forest-dark); cursor: pointer; }
+.trip-calendar-controls button:disabled { opacity: .45; cursor: default; }
+.trip-calendar-scroll { overflow-x: auto; }
+.trip-calendar table { width: 100%; min-width: 36rem; border-collapse: collapse; table-layout: fixed; }
+.trip-calendar th, .trip-calendar td { border: 1px solid var(--line); padding: .55rem; vertical-align: top; text-align: left; }
+.trip-calendar td { height: 6rem; }
+.trip-calendar td span { display: block; font-weight: 700; }
+.trip-calendar-active { background: var(--forest-wash); }
+.trip-calendar td a { display: block; font-size: .8rem; color: var(--forest-dark); overflow-wrap: anywhere; }
+.trip-calendar-caption { text-align: left; padding-bottom: .4rem; }
+.trip-calendar-days { display: grid; gap: .5rem; }
+.trip-calendar-days details { border: 1px solid var(--line); border-radius: .4rem; padding: .7rem 1rem; }
+.trip-calendar-days summary { cursor: pointer; font-weight: 700; }
+.trip-follow-links { display: flex; gap: 1rem; flex-wrap: wrap; margin-block: 1rem; }
+.trip-follow-link { display: block; margin-top: .6rem; }
+#actual-trip-updates article { margin-block: 1.5rem; }
+#actual-trip-updates article p { white-space: pre-wrap; }

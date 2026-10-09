@@ -60,11 +60,17 @@ export async function handleDestinations(request:Request,env:AdminEnv,path:strin
   if(admin&&request.method==='POST'&&image&&slug)return await upload(request,env,slug);
   if(admin&&((request.method==='POST'&&!slug)||(request.method==='PUT'&&slug&&!image)))return await save(request,env,slug);
   if(request.method!=='GET')throw new AdminError(405,'METHOD_NOT_ALLOWED','Use the destination editor to make changes.');
-  if(!slug){const rows=await env.DB.prepare(`SELECT ${admin?'*':publicFields+',image_key'} FROM destinations ${admin?'':"WHERE status='published'"} ORDER BY sort_order,title`).all<Row>();return adminJson({destinations:rows.results.map(r=>mapped(r,admin))});}
+  if(!slug){const rows=await env.DB.prepare(`SELECT ${admin?'*':publicFields+',image_key'} FROM destinations ${admin?'':"WHERE status='published'"} ORDER BY sort_order,title`).all<Row>();
+   if(admin)return adminJson({destinations:rows.results.map(r=>mapped(r,true))});
+   const trips=await env.DB.prepare(`SELECT opportunity_id,slug,title,start_date,end_date,status,
+     CASE WHEN portal_enabled=1 AND portal_password_hash IS NOT NULL THEN 1 ELSE 0 END AS portal_available
+     FROM trips WHERE public_enabled=1 AND status='traveling' ORDER BY start_date,title`).all<Row>();
+   return adminJson({destinations:rows.results.map(r=>({...mapped(r),departures:trips.results.filter(t=>t.opportunity_id===r.id).map(({opportunity_id,...t})=>t)}))},200,{'Cache-Control':'no-store'});
+  }
   const row=await get(env,slug);if(!admin&&row.status!=='published')throw new AdminError(404,'NOT_FOUND','This destination is not currently available.');
   if(image){if(!row.image_key)throw new AdminError(404,'NOT_FOUND','Photo not found.');const object=await env.RECEIPTS.get(String(row.image_key));if(!object)throw new AdminError(404,'NOT_FOUND','Photo not found.');return new Response(object.body,{headers:{'Content-Type':String(row.image_type),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'"}});}
   const output=admin?row:Object.fromEntries(publicFields.split(',').map(key=>[key,row[key]]));output.image_key=row.image_key;
-  const departures=await env.DB.prepare("SELECT slug,title,start_date,end_date,status,location FROM trips WHERE opportunity_id=? AND public_enabled=1 AND status NOT IN ('draft','archived','canceled','completed') ORDER BY start_date").bind(row.id).all();
+  const departures=await env.DB.prepare("SELECT slug,title,start_date,end_date,status,location,CASE WHEN portal_enabled=1 AND portal_password_hash IS NOT NULL THEN 1 ELSE 0 END AS portal_available FROM trips WHERE opportunity_id=? AND public_enabled=1 AND status NOT IN ('draft','archived','canceled','completed') ORDER BY CASE WHEN status='traveling' THEN 0 ELSE 1 END,start_date").bind(row.id).all();
   return adminJson({destination:mapped(output,admin),departures:departures.results});
  }catch(error){if(error instanceof AdminError||error instanceof ReceiptFileError)return adminJson({error:error.message,code:error.code},error.status);if(error instanceof Error&&/UNIQUE constraint/.test(error.message))return adminJson({error:'That page address already exists. Choose a different address.'},409);console.error('destination_error',error instanceof Error?error.message:'Unknown error');return adminJson({error:'The destination could not be saved or loaded. Try again.'},500);}
 }
