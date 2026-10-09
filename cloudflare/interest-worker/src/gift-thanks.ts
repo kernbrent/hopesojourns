@@ -36,7 +36,7 @@ async function sentRow(env:AdminEnv,id:string,personId:string){
  (status IN('sent','sending','uncertain') AND NOT EXISTS(SELECT 1 FROM donation_splits WHERE entry_id=?1 AND json_array_length(allocations_json)>0)))
  ORDER BY CASE WHEN status='sent' THEN 0 WHEN status IN('sending','uncertain') THEN 1 ELSE 2 END LIMIT 1`).bind(id,personId).first<SentRow>();
 }
-function deliveryState(row:SentRow|null){
+function deliveryState(row:Pick<SentRow,'status'|'started_at'|'updated_at'|'sent_at'|'error'>|null){
  const age=row?Date.now()-Date.parse(row.started_at):0;
  const locked=row?.status==='sent'||row?.status==='sending'&&Date.now()-Date.parse(row.updated_at)<60_000||['sending','uncertain'].includes(row?.status||'')&&age>=23*3600_000;
  return {status:row?.status||'not_sent',sentAt:row?.sent_at||null,error:row?.error||null,locked:!!locked};
@@ -45,6 +45,32 @@ export async function listGiftThanks(env:AdminEnv,id:string){
  const items=await gifts(env,id);
  return Promise.all(items.map(async g=>({personId:g.personId,name:`${g.name} ${g.lastName}`,email:g.email,
  date:g.date,amount:g.amount,method:g.method,hasEmail:validEmail(g.email),...deliveryState(await sentRow(env,id,g.personId))})));
+}
+
+// One bounded query for the finance page, including split donors and retained
+// acknowledgments after a non-split gift is associated with another contact.
+export async function giftThanksForEntries(env:AdminEnv,ids:string[]){
+ const result=new Map<string,Awaited<ReturnType<typeof listGiftThanks>>>();
+ if(!ids.length)return result;
+ const rows=await env.DB.prepare(`SELECT g.id AS entryId,g.person_id AS personId,
+ COALESCE(NULLIF(p.preferred_name,''),p.first_name) AS name,p.last_name AS lastName,p.email,
+ g.transaction_date AS date,g.charitable_amount AS amount,g.payment_type AS method,
+ t.status,t.started_at,t.updated_at,t.sent_at,t.error
+ FROM donation_gifts g JOIN people p ON p.id=g.person_id
+ LEFT JOIN gift_thanks t ON t.rowid=(SELECT prior.rowid FROM gift_thanks prior
+ WHERE prior.entry_id=g.id AND (prior.person_id=g.person_id OR
+ (prior.status IN('sent','sending','uncertain') AND NOT EXISTS
+ (SELECT 1 FROM donation_splits WHERE entry_id=g.id AND json_array_length(allocations_json)>0)))
+ ORDER BY CASE WHEN prior.status='sent' THEN 0 WHEN prior.status IN('sending','uncertain') THEN 1 ELSE 2 END LIMIT 1)
+ WHERE g.id IN(SELECT value FROM json_each(?)) ORDER BY g.id,g.person_id,g.transaction_date`)
+ .bind(JSON.stringify(ids)).all<Gift & SentRow>();
+ for(const row of rows.results){
+  const items=result.get(row.entryId)||[];
+  items.push({personId:row.personId,name:`${row.name} ${row.lastName}`,email:row.email,
+   date:row.date,amount:row.amount,method:row.method,hasEmail:validEmail(row.email),...deliveryState(row.status?row:null)});
+  result.set(row.entryId,items);
+ }
+ return result;
 }
 
 export async function sendGiftThanks(env:AdminEnv,id:string,personId:string,actor:string,expectedHash?:string){

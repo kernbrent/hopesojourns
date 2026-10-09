@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.41
+Version 4.42
 
-Last reviewed: October 8, 2026
+Last reviewed: October 9, 2026
 
 ## Mexico ministry partner recognition
 
@@ -712,6 +712,9 @@ CSM provides a separate Personally received gifts workspace with HS contact sear
 
 ## Gift thank-you email acknowledgments
 
+The Income screen displays a clearly labeled Email status column for charitable gifts, with donor-specific statuses for splits and a visible sent date and time. Use plain text for Sent, Not sent, Missing email, Failed, Needs delivery review, Sending / needs review, Test preview only, Donor not linked, and Not applicable. Keep the automatic-email On/Off indicator beside its checkbox above the list. State that Sent means provider acceptance and does not prove inbox delivery. Use the existing palette, horizontally scrollable table, labeled checkbox, and existing email preview dialog. The Income controls are included in the October 9, 2026 authorized release.
+
+
 Use the approved subject, Thank You for your support of Hope Sojourns. Greet the donor by preferred name when available, otherwise first name. The gift summary contains date given, charitable amount and payment method. Keep the thank-you copy warm and concise. Use the same template for automatic and manual acknowledgments.
 
 Place the complete Hope Sojourns oval, without its wordmark, to the left of the closing. Preserve its aspect ratio and full outline; do not clip it. Its visible height should match the closing on a full-width email, with responsive scaling on narrower screens. The right column reads WitLooL, followed by Brent's handwritten signature, Brent Kern, Hope Sojourns, 972-505-0171, and Christian Steps Ministries. Do not add a trademark mark beside the closing.
@@ -757,6 +760,8 @@ Retain the cinematic welcome and shared Athens stories while presenting Mission 
 Keep /in-motion/ as the original full-width design. The comparison at /in-motion-margins/ uses the live production outer frame: min(100% - 32px, 1240px), 18px total gutters at widths up to 850px, and full width up to 560px. Content, imagery, interactions and internal component styling remain shared. Apply the same frame to the linked pathway and chapter pages. The comparison index presents both newest versions before the five earlier options.
 
 ## Revision history
+
+- October 9, 2026 — Version 4.42. Added Income email statuses, sent timestamps, automatic-email indicator and reusable thank-you preview controls. Release authorized for test and production.
 
 - October 8, 2026 — Version 4.41. Added Mexico City cooperation statement, official circular Metro Relief logo, accessible website link, and responsive partner recognition.
 

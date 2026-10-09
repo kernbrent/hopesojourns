@@ -4,17 +4,18 @@
   const path=id=>`/ledger/entries/${encodeURIComponent(id)}/thanks`;
   const date=value=>value?new Date(value).toLocaleString():'';
   const summary=items=>!items?.length?'':` Thank-you: ${items.map(i=>i.status==='sent'?'sent':i.status==='captured'?'saved in test mode':i.error||i.status).join('; ')}.`;
-  function button(api,id,personId,sent=false,sentAt=null){
+  function button(api,id,personId,sent=false,sentAt=null,onSent=null){
     const b=el('button',sent?'Thank-you sent':'Gift thank-you','admin-button admin-button-outline');b.type='button';
     b.disabled=sent||!editable();b.title=sentAt?`Sent ${date(sentAt)}`:sent?'Already sent for this gift':!editable()?'Finance editing permission is required':'Preview and send this gift acknowledgment';
-    b.addEventListener('click',()=>open(api,id,personId,b));return b;
+    b.addEventListener('click',()=>open(api,id,personId,b,onSent));return b;
   }
-  async function open(api,id,personId,source){
+  async function open(api,id,personId,source,onSent){
+    let changed=false;
     const dialog=el('dialog','','admin-dialog gift-thanks-dialog'),content=el('div','','gift-thanks-content');
     const close=el('button','Close','admin-button admin-button-outline');close.type='button';close.onclick=()=>dialog.close();
     const heading=el('h2','Gift thank-you'),status=el('p','Loading…','admin-form-status');status.setAttribute('role','status');
     const recipients=el('div'),preview=el('div');content.append(close,heading,status,recipients,preview);dialog.append(content);document.body.append(dialog);
-    dialog.addEventListener('close',()=>{dialog.remove();source.focus();},{once:true});dialog.showModal();
+    dialog.addEventListener('close',()=>{dialog.remove();source.focus();if(changed&&onSent)onSent();},{once:true});dialog.showModal();
     let entry;
     async function show(person){
       preview.replaceChildren();status.textContent='Loading email preview…';
@@ -30,6 +31,7 @@
           try{
             const {result:sent}=await api(path(id)+'/'+encodeURIComponent(person.personId),{method:'POST',body:{previewHash:result.previewHash}});
             result.status=sent.status;
+            changed=true;
             status.textContent=sent.status==='sent'?`Thank-you sent ${date(sent.sentAt)}.`:sent.status==='captured'?'Test preview saved. No email was sent.':sent.error||'Review delivery status before retrying.';
             if(sent.status==='sent'){
               send.textContent='Thank-you sent';
@@ -57,12 +59,13 @@
     const host=document.getElementById('gift-thanks-settings');if(!host)return;
     try{
       const {result}=await api('/ledger/gift-thanks/settings');host.replaceChildren(el('h3','Gift thank-you emails'));
-      const label=el('label'),input=el('input');input.type='checkbox';input.checked=result.automatic;input.disabled=!editable();
+      const indicator=el('p',`Automatic emails: ${result.automatic?'On':'Off'}`);indicator.setAttribute('aria-live','polite');
+      const label=el('label','', 'gift-thanks-switch'),input=el('input');input.type='checkbox';input.checked=result.automatic;input.disabled=!editable();
       label.append(input,document.createTextNode(' Automatically thank donors when gifts are approved or manually added'));
       const help=el('p','Uses the donor’s contact email. Existing gifts and spreadsheet imports can be thanked individually. Annual giving letters are separate.','admin-reply-help');
       const status=el('p',result.testMode?'Test mode: previews only; donors will not receive emails.':!result.ready?'Email delivery needs configuration.':'','admin-form-status');status.setAttribute('role','status');
-      input.onchange=async()=>{input.disabled=true;try{await api('/ledger/gift-thanks/settings',{method:'PUT',body:{automatic:input.checked}});status.textContent=input.checked?'Automatic thank-you emails enabled for new gifts.':'Automatic thank-you emails turned off.';}catch(error){input.checked=!input.checked;status.textContent=error.message;}finally{input.disabled=!editable();}};
-      host.append(label,help,status);
+      input.onchange=async()=>{input.disabled=true;try{await api('/ledger/gift-thanks/settings',{method:'PUT',body:{automatic:input.checked}});indicator.textContent=`Automatic emails: ${input.checked?'On':'Off'}`;status.textContent=input.checked?'Automatic thank-you emails enabled for new gifts.':'Automatic thank-you emails turned off.';}catch(error){input.checked=!input.checked;status.textContent=error.message;}finally{input.disabled=!editable();}};
+      host.append(indicator,label,help,status);
     }catch(error){host.textContent=error.message;}
   }
   window.HsGiftThanks={button,settings,summary};

@@ -1,7 +1,8 @@
 import {afterEach,expect,it,vi} from 'vitest';
 import {ministryFixture} from './ministry-fixture';
 import {handleLedgerAdminRequest} from '../src/ledger-admin';
-import {automaticallyThankGift,sendGiftThanks,signatureKey} from '../src/gift-thanks';
+import {automaticallyThankGift,sendGiftThanks,signatureKey,giftThanksForEntries,listGiftThanks} from '../src/gift-thanks';
+import {handleFinanceAdminRequest} from '../src/finance-admin';
 import {giftEmail,paymentLabel} from '../src/gift-email-template';
 const fixtures:Awaited<ReturnType<typeof ministryFixture>>[]=[];
 afterEach(()=>{vi.unstubAllGlobals();fixtures.splice(0).forEach(f=>f.sqlite.close());});
@@ -48,6 +49,28 @@ it('does not resend an acknowledged gift after its linked contact is changed',as
  expect(f.fetchMock).toHaveBeenCalledTimes(1);
  const response=await f.call('/admin/ledger/entries/gift/thanks');
  expect((await response.json() as {gifts:{status:string}[]}).gifts[0]?.status).toBe('sent');
+ const batched=await giftThanksForEntries(f.env,['gift']);
+ expect(batched.get('gift')).toEqual(await listGiftThanks(f.env,'gift'));
+});
+
+it('reports donor email states and timestamps in finance records without sending or exposing provider payloads',async()=>{
+ const f=await setup();
+ const read=async()=>{
+  const response=await handleFinanceAdminRequest(f.request('/admin/finance/records?type=income'),f.env,'/admin/finance/records');
+  expect(response.status).toBe(200);return await response.json() as any;
+ };
+ expect((await read()).entries[0].thankYou[0]).toMatchObject({status:'not_sent',hasEmail:true,sentAt:null});
+ f.sqlite.exec("UPDATE people SET email='' WHERE id='donor'");
+ expect((await read()).entries[0].thankYou[0]).toMatchObject({status:'not_sent',hasEmail:false});
+ f.sqlite.exec("UPDATE people SET email='donor@example.test' WHERE id='donor'");
+ for(const status of ['failed','uncertain','sending','captured','sent']){
+  f.sqlite.prepare(`INSERT OR REPLACE INTO gift_thanks(entry_id,person_id,status,attempt_key,payload_json,started_at,updated_at,sent_at,error,actor)
+   VALUES('gift','donor',?,'test','private-provider-payload',?,?,?,?,'primary')`).run(status,new Date().toISOString(),new Date().toISOString(),status==='sent'?'2026-10-09T06:00:00Z':null,status==='failed'?'Provider rejected request':null);
+  const data=await read();expect(data.entries[0].thankYou[0].status).toBe(status);
+  expect(JSON.stringify(data)).not.toContain('private-provider-payload');
+  if(status==='sent')expect(data.entries[0].thankYou[0].sentAt).toBe('2026-10-09T06:00:00Z');
+ }
+ expect(f.fetchMock).not.toHaveBeenCalled();
 });
 it('retries a definitive failure and locks after acceptance',async()=>{
  const f=await setup();f.fetchMock.mockResolvedValueOnce(new Response('{}',{status:422}));
@@ -77,7 +100,11 @@ it('automatic mode defaults off, sends new linked gifts when enabled, and return
 it('sends split shares separately and prevents later allocation changes from causing duplicate acknowledgments',async()=>{
  const f=await setup();const allocations=[{personId:'donor',date:'2026-09-01',amountCents:2500},{personId:'other',date:'2026-09-02',amountCents:7500}];
  f.sqlite.prepare("INSERT INTO donation_splits VALUES('gift',1,?,'2026','primary')").run(JSON.stringify(allocations));
- await sendGiftThanks(f.env,'gift','donor','primary');await sendGiftThanks(f.env,'gift','other','primary');
+ await sendGiftThanks(f.env,'gift','donor','primary');
+ const splitStatus=(await giftThanksForEntries(f.env,['gift'])).get('gift')!;
+ expect(splitStatus).toEqual(await listGiftThanks(f.env,'gift'));
+ expect(splitStatus.map(g=>g.status)).toEqual(['sent','not_sent']);
+ await sendGiftThanks(f.env,'gift','other','primary');
  const payload=JSON.parse(f.fetchMock.mock.calls[0]![1].body);expect(payload.text).toContain('$25.00');expect(payload.text).toContain('September 1, 2026');
  expect(()=>f.sqlite.exec("UPDATE donation_splits SET allocations_json='[]' WHERE entry_id='gift'")).toThrow(/acknowledgment/);
 });

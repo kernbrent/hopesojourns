@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.47
+Version 4.48
 
-Last reviewed: October 8, 2026
+Last reviewed: October 9, 2026
 
 ## Mexico destination cooperation statement
 
@@ -1038,6 +1038,11 @@ Regression coverage includes contact permissions, original donor attribution, ex
 
 ## Gift thank-you email acknowledgments
 
+The finance records response now includes a `thankYou` array per entry using `giftThanksForEntries` in `src/gift-thanks.ts`. A single bounded query joins current donation allocations and their acknowledgment history; it preserves prior sent/uncertain history after reassociation of an unsplit gift, exactly as the manual preview does. It returns current donor names, email availability, status, sent timestamp, error and lock state, without provider payloads. Split donors retain individual states. Reading status never sends email. No migration is required.
+
+`admin/finance/finance.js` renders an Email status column on Income only, a sent date/time, and the shared thank-you action. `admin/finance/index.html` loads `admin/gift-thanks.js`; the adapter preserves the authenticated API and CSRF handling. The shared settings control visibly reports Automatic emails: On/Off, including when a setting save fails. Closing a changed preview refreshes the Income status. Existing permissions and duplicate-send locks remain authoritative. The interface reports provider acceptance, not delivered/opened/bounced; no delivery webhook is implemented. Cache revisions are updated in Finance and the full Ledger. Release to test and production was authorized on October 9, 2026.
+
+
 The Ledger offers an optional automatic thank-you switch, initially off. When enabled, newly approved CSM gifts and newly created manual charitable ledger entries are acknowledged after the financial transaction commits. Existing gifts and spreadsheet imports remain manual to avoid unexpectedly emailing historical donors. Delivery failure never rolls back the saved gift. Annual giving letters remain unchanged.
 
 The sender and reply-to are Hope Sojourns <giving@hopesojourns.com>. Cloudflare Email Routing forwards that address to christianstepsministries@gmail.com. Portal account emails continue using admin@hopesojourns.com. Gift emails use the existing Resend configuration and a separate database setting. Test always captures the message without contacting the provider, even when credentials are present.
@@ -1103,6 +1108,8 @@ Checkpoint 94dfcaa was pushed on codex/hope-preview-journeys and deployed only t
 tools/build_margin_preview.py derives /in-motion-margins/ and nested internships, corporate, mission-journeys and book routes from the original built HTML. It adds only the production-margins body class and stylesheet, rewrites internal navigation to retain the variant, and derives margin-motion.js for chapter links. No duplicated authored content or portal changes. tools/check-margin-preview.cjs checks widths at six sizes, navigation, filtering and original preservation. The user authorized publishing both current pathway work and the comparison options to hopesojourns-preview only. This supersedes the earlier local-only status; no new commit or push is included in this release.
 
 ## Revision history
+
+- October 9, 2026 — Version 4.48. Added batched finance acknowledgment summaries, Income status/timestamps, shared preview refresh and automatic-email indicator; tested retained donor associations and provider states. Release authorized for test and production.
 
 - October 8, 2026 — Version 4.47. Documented Mexico-only public partner recognition, official logo provenance, component ownership, and cache changes.
 

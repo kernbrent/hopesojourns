@@ -20,3 +20,5 @@
 
 .finance .transaction-income{background:var(--forest-wash);color:var(--forest-dark);font-weight:700}
 .finance .transaction-expense{background:var(--gold-wash);color:var(--ink);font-weight:700}
+
+.finance .gift-thanks-switch{display:flex;align-items:center;gap:8px;font-size:14px}.finance .gift-thanks-switch input{width:17px;min-height:17px;flex:none}.finance .gift-thanks-content{padding:8px}.finance .gift-thanks-preview{display:block;width:100%;height:560px;border:1px solid var(--line);background:var(--paper);margin-bottom:18px}.finance .gift-thanks-content>button:first-child{float:right}

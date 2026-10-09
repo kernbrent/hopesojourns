@@ -1,4 +1,5 @@
 import {expensePurpose, reviewSnapshot, checkReviewVersion, reclassifyTransfer} from './expense-review';
+import {giftThanksForEntries} from './gift-thanks';
 import {AdminError, adminJson, authenticate, auditStatement, readAdminJson, type AdminEnv} from './admin';
 
 type Body = Record<string, unknown>;
@@ -59,7 +60,8 @@ async function records(request: Request, env: AdminEnv) {
     env.DB.prepare(`SELECT l.*,r.expense_purpose,r.updated_at AS review_updated_at,COALESCE(r.trip_id,l.trip_id) AS linked_trip_id,r.ministry_id,COALESCE(r.status,'included') AS review_status,COALESCE(r.accountant_review,0) AS accountant_review,COALESCE(r.reimbursable,0) AS reimbursable,COALESCE(r.reimbursed,0) AS reimbursed,COALESCE(r.notes,'') AS review_notes,(SELECT COUNT(*) FROM ledger_receipts WHERE ledger_entry_id=l.id) AS receipt_count,(SELECT i.number FROM finance_invoice_payments p JOIN finance_invoices i ON i.id=p.invoice_id WHERE p.ledger_id=l.id) AS invoice_number ${base} ORDER BY l.transaction_date DESC,l.id LIMIT 100 OFFSET ?`).bind(...values,(page-1)*100).all(),
     env.DB.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(CASE WHEN l.entry_type='income' THEN ROUND(l.amount*100) ELSE 0 END),0)/100.0 AS income,COALESCE(SUM(CASE WHEN l.entry_type='income' AND l.charitable_amount>0 THEN ROUND(l.charitable_amount*100) ELSE 0 END),0)/100.0 AS gross_giving,COALESCE(SUM(CASE WHEN l.entry_type='expense' THEN ROUND(l.amount*100) ELSE 0 END),0)/100.0 AS expenses ${base}`).bind(...values).first()
   ]);
-  return adminJson({entries:entries.results,summary,page,pageSize:100});
+  const thanks=await giftThanksForEntries(env,entries.results.map(row=>String(row.id)));
+  return adminJson({entries:entries.results.map(row=>({...row,thankYou:thanks.get(String(row.id))||[]})),summary,page,pageSize:100});
 }
 async function mileage(request: Request, env: AdminEnv) {
   const url=new URL(request.url), values:string[]=[], conditions=[url.searchParams.get('trash')==='1'?'m.deleted_at IS NOT NULL':'m.deleted_at IS NULL'];
