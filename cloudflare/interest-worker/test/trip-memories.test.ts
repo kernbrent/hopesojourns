@@ -41,6 +41,20 @@ it('keeps notes and photos private until explicitly selected, previewed, and pub
  expect((await (await f.publicCall('/public/trip-stories')).json() as any).stories).toHaveLength(1);
  expect((await (await f.publicCall('/public/trip-stories?destination=missing')).json() as any).stories).toHaveLength(0);
 });
+it('offers enabled public traveler portals on published story cards and details without exposing passwords',async()=>{
+ const f=await setup();await f.draft([]);await f.call(f.base+'/publication/publish',{revision:1});
+ f.sqlite.prepare("UPDATE trips SET public_enabled=1,portal_login_id='PCB-FOT',portal_password_hash='private-hash',portal_password_salt='private-salt',portal_password_iterations=100000 WHERE id=?").run(f.id);
+ const list=await (await f.publicCall('/public/trip-stories')).json() as any;
+ expect(list.stories[0].portal_available).toBe(1);
+ const detail=await (await f.publicCall(f.publicPath)).json() as any;
+ expect(detail.portal_available).toBe(1);expect(detail.portal_slug).toBe(list.stories[0].slug);
+ expect(JSON.stringify([list,detail])).not.toMatch(/private-hash|private-salt|portal_password/);
+ for(const update of ['portal_enabled=0','portal_enabled=1,public_enabled=0',"public_enabled=1,status='archived'"]){
+  f.sqlite.prepare('UPDATE trips SET '+update+' WHERE id=?').run(f.id);
+  expect((await (await f.publicCall('/public/trip-stories')).json() as any).stories[0].portal_available).toBe(0);
+  expect((await (await f.publicCall(f.publicPath)).json() as any).portal_available).toBe(0);
+ }
+});
 it('keeps the selected gallery sequence in drafts and published stories regardless of dates',async()=>{
  const f=await setup(),early=await f.photo(),late=await f.photo();
  f.sqlite.prepare('UPDATE trip_memories SET event_date=? WHERE id=?').run('2025-01-09',early.id);

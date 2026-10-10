@@ -149,13 +149,14 @@ export async function handleTripStories(request:Request,env:AdminEnv,path:string
  if(!match[1]){
   const destination=new URL(request.url).searchParams.get('destination');
   const rows=await env.DB.prepare(`SELECT t.id,t.slug,json_extract(p.published_json,'$.title') AS title,json_extract(p.published_json,'$.summary') AS summary,json_extract(p.published_json,'$.destination') AS destination,json_extract(p.published_json,'$.start_date') AS start_date,json_extract(p.published_json,'$.end_date') AS end_date,
+   CASE WHEN t.public_enabled=1 AND t.portal_enabled=1 AND t.portal_password_hash IS NOT NULL AND t.status NOT IN ('draft','archived','canceled') THEN 1 ELSE 0 END AS portal_available,
    (SELECT value FROM json_each(p.published_json,'$.memories') WHERE json_extract(value,'$.kind')='photo' LIMIT 1) AS cover
    FROM trip_publications p JOIN trips t ON t.id=p.trip_id JOIN destinations d ON d.id=p.destination_id
    WHERE p.published_json IS NOT NULL AND d.status='published' AND (? IS NULL OR d.slug=?) ORDER BY p.published_at DESC`).bind(destination,destination).all<Row>();
   return adminJson({stories:rows.results.map(({id,cover,destination,...row})=>{const photo=cover?JSON.parse(cover):null;return {...row,destination:JSON.parse(destination),cover:photo?{url:imageUrl(photo.id,id,'public',row.slug),alt:photo.alt_text}:null};})},200,noStore);
  }
- const rows=await env.DB.prepare("SELECT p.published_json,p.published_at,t.id,t.slug FROM trip_publications p JOIN trips t ON t.id=p.trip_id JOIN destinations d ON d.id=p.destination_id WHERE p.published_json IS NOT NULL AND d.status='published' AND t.slug=?").bind(match[1]).all<Row>();
+ const rows=await env.DB.prepare("SELECT p.published_json,p.published_at,t.id,t.slug,CASE WHEN t.public_enabled=1 AND t.portal_enabled=1 AND t.portal_password_hash IS NOT NULL AND t.status NOT IN ('draft','archived','canceled') THEN 1 ELSE 0 END AS portal_available FROM trip_publications p JOIN trips t ON t.id=p.trip_id JOIN destinations d ON d.id=p.destination_id WHERE p.published_json IS NOT NULL AND d.status='published' AND t.slug=?").bind(match[1]).all<Row>();
  const row=rows.results[0];if(!row)fail(404,'NOT_FOUND','This trip story is not published.');const snapshot=JSON.parse(row.published_json);
  if(match[2]){const photo=snapshot.memories.find((m:Row)=>m.id===match[2]&&['photo','video'].includes(m.kind));if(!photo)fail(404,'NOT_FOUND','Photo not found.');return photoResponse(env,photo,request);}
- return adminJson({story:safeSnapshot(snapshot,'public',row.id,row.slug),published_at:row.published_at},200,noStore);
+ return adminJson({story:safeSnapshot(snapshot,'public',row.id,row.slug),portal_available:row.portal_available,portal_slug:row.slug,published_at:row.published_at},200,noStore);
 }

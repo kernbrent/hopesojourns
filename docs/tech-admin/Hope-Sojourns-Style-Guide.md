@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.44
+Version 4.45
 
 Last reviewed: October 9, 2026
 
@@ -767,7 +767,13 @@ Retain the cinematic welcome and shared Athens stories while presenting Mission 
 
 Keep /in-motion/ as the original full-width design. The comparison at /in-motion-margins/ uses the live production outer frame: min(100% - 32px, 1240px), 18px total gutters at widths up to 850px, and full width up to 560px. Content, imagery, interactions and internal component styling remain shared. Apply the same frame to the linked pathway and chapter pages. The comparison index presents both newest versions before the five earlier options.
 
+## Completed-trip traveler portal navigation
+
+Published past-trip cards place Traveler Portal sign-in beneath Read the trip story when access is available. Story pages place the same text link below the title. Use existing text-link styling and spacing; retain the reviewed photo cover and story contents.
+
 ## Revision history
+
+- October 9, 2026 — Version 4.45. Added completed-trip portal navigation using existing text links. Local pending release.
 
 - October 9, 2026 — Version 4.44. Added accessible story gallery ordering controls and preserved the reviewed photo sequence. Local pending release.
 

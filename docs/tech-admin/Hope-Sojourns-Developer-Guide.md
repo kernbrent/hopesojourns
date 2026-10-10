@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.51
+Version 4.52
 
 Last reviewed: October 9, 2026
 
@@ -1119,7 +1119,13 @@ Checkpoint 94dfcaa was pushed on codex/hope-preview-journeys and deployed only t
 
 tools/build_margin_preview.py derives /in-motion-margins/ and nested internships, corporate, mission-journeys and book routes from the original built HTML. It adds only the production-margins body class and stylesheet, rewrites internal navigation to retain the variant, and derives margin-motion.js for chapter links. No duplicated authored content or portal changes. tools/check-margin-preview.cjs checks widths at six sizes, navigation, filtering and original preservation. The user authorized publishing both current pathway work and the comparison options to hopesojourns-preview only. This supersedes the earlier local-only status; no new commit or push is included in this release.
 
+## Completed-trip traveler portal navigation
+
+Public story lists and details derive portal_available from the current trip: public_enabled, portal_enabled, configured password, and an eligible public status. Cards and story headings offer /journey/?publicTrip=:slug only when available, using the existing Trip ID prefill lookup. Passwords remain private. Refresh stories-list, story and destination loader cache versions; no migration is needed.
+
 ## Revision history
+
+- October 9, 2026 — Version 4.52. Documented completed-trip portal links and current availability filtering. Local pending release.
 
 - October 9, 2026 — Version 4.51. Documented public-link Trip ID prefill, enabled-portal lookup and trip-matched session restoration. Release authorized for test and production.
 
