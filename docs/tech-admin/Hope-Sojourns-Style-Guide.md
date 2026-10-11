@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.45
+Version 4.46
 
-Last reviewed: October 9, 2026
+Last reviewed: October 11, 2026
 
 ## Mexico ministry partner recognition
 
@@ -771,7 +771,13 @@ Keep /in-motion/ as the original full-width design. The comparison at /in-motion
 
 Published past-trip cards place Traveler Portal sign-in beneath Read the trip story when access is available. Story pages place the same text link below the title. Use existing text-link styling and spacing; retain the reviewed photo cover and story contents.
 
+## Public trip journal before photos
+
+On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
+
 ## Revision history
+
+- October 11, 2026 — Version 4.46. Put daily journal notes before the gallery on public dated trip pages. Local pending release.
 
 - October 9, 2026 — Version 4.45. Added completed-trip portal navigation using existing text links. Local pending release.
 

@@ -35,7 +35,7 @@ async function loadTrip() {
       feed.append(node('h2','','Updates & photos'));
       const updates=data.content.filter(item=>item.content_type==='update').sort((a,b)=>(b.event_date||'').localeCompare(a.event_date||'')||(b.sort_order||0)-(a.sort_order||0));
       updates.forEach(item=>{const article=node('article');article.append(node('small','',dateLabel(item.event_date)),node('h3','',item.title),node('p','',item.content));feed.append(article);});
-      const memories=node('div');window.HSTripMemoriesView.collection(memories,data.memories||[]);feed.append(memories);
+      const memories=node('div');window.HSTripMemoriesView.collection(memories,data.memories||[],{notesFirst:true});feed.append(memories);
       if(!updates.length&&!data.memories?.length)feed.append(node('p','','The journey has started. Check back here for updates and pictures.'));
       const follow=node('a','text-link','Follow the journey →');follow.href='#actual-trip-updates';links.prepend(follow);
     }else feed.hidden=true;

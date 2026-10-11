@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.52
+Version 4.53
 
-Last reviewed: October 9, 2026
+Last reviewed: October 11, 2026
 
 ## Mexico destination cooperation statement
 
@@ -1123,7 +1123,13 @@ tools/build_margin_preview.py derives /in-motion-margins/ and nested internships
 
 Public story lists and details derive portal_available from the current trip: public_enabled, portal_enabled, configured password, and an eligible public status. Cards and story headings offer /journey/?publicTrip=:slug only when available, using the existing Trip ID prefill lookup. Passwords remain private. Refresh stories-list, story and destination loader cache versions; no migration is needed.
 
+## Public trip journal before photos
+
+`HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
+
 ## Revision history
+
+- October 11, 2026 — Version 4.53. Put daily journal notes before the gallery on public dated trip pages. Local pending release.
 
 - October 9, 2026 — Version 4.52. Documented completed-trip portal links and current availability filtering. Local pending release.
 
