@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.53
+Version 4.54
 
-Last reviewed: October 11, 2026
+Last reviewed: October 12, 2026
 
 ## Mexico destination cooperation statement
 
@@ -131,6 +131,8 @@ Validation includes normalized and conflicting matches, all three decisions, int
 
 
 ## Trip memories and public trip stories
+
+The shared media viewer in journey/memories-view.js opens both photo and video tiles in a native modal dialog. The collection passes its final sorted or preserved mixed-media sequence to the viewer. Previous/Next and left/right arrows wrap within that sequence; arrows on native video controls retain their normal seeking behavior. Close and Escape unload active video sources, remove the dialog, restore background scrolling, and return focus to the opening tile. The heading labels the dialog; captions, credits, an announced item counter, and media-error messages update for each item. memories.css uses proportional contain sizing and a sticky header for full-frame display on phones. Cache versions are synchronized in traveler, dated-trip, past-story, and staff-trip pages. No API or database changes are needed.
 
 This feature adds administrator-managed trip photos and dated notes. Open a trip, choose Photos & memories, upload images or write notes, then choose Show in traveler portal for each item. Removed items can be restored. Traveler submissions are not enabled in this version.
 
@@ -1128,6 +1130,8 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 12, 2026 — Version 4.54. Documented shared mixed-media popup navigation, accessibility, video cleanup, responsive sizing, synchronized asset versions, and browser validation. The technical-guide builder places long guide maps in two balanced columns. Release authorized for test and production.
 
 - October 11, 2026 — Version 4.53. Put daily journal notes before the gallery on public dated trip pages. Local pending release.
 

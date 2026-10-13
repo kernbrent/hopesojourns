@@ -573,7 +573,7 @@ def add_markdown_table(doc: Document, headers: list[str], rows: list[list[str]])
             cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             paragraph = cell.paragraphs[0]
             paragraph.paragraph_format.space_before = Pt(0)
-            paragraph.paragraph_format.space_after = Pt(1.5)
+            paragraph.paragraph_format.space_after = Pt(0 if [h.lower() for h in headers] == ["date", "version", "change"] else 1.5)
             paragraph.paragraph_format.line_spacing = 1.0
             cell_color = COLORS["ink"]
             if hex_col is not None and index == hex_col:
@@ -710,6 +710,25 @@ def add_contents_page(doc: Document, headings: list[str], numbering_ids: dict[st
     heading.paragraph_format.space_before = Pt(0)
     intro = doc.add_paragraph()
     add_inline_text(intro, "Use Word’s Navigation Pane or this guide map to find a section.")
+    if len(headings) >= 40:
+        table = doc.add_table(rows=1, cols=2)
+        set_table_geometry(table, [CONTENT_WIDTH_DXA // 2, CONTENT_WIDTH_DXA - CONTENT_WIDTH_DXA // 2])
+        borders = OxmlElement("w:tblBorders")
+        for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
+            border = OxmlElement(f"w:{edge}")
+            border.set(qn("w:val"), "nil")
+            borders.append(border)
+        table._tbl.tblPr.append(borders)
+        midpoint = (len(headings) + 1) // 2
+        for cell, items in zip(table.rows[0].cells, (headings[:midpoint], headings[midpoint:])):
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
+            for index, item in enumerate(items):
+                paragraph = cell.paragraphs[0] if index == 0 else cell.add_paragraph()
+                apply_numbering(paragraph, numbering_ids["contents"], 0)
+                paragraph.paragraph_format.space_after = Pt(3)
+                paragraph.paragraph_format.line_spacing = 1.05
+                add_inline_text(paragraph, re.sub(r"^\d+\.\s*", "", item), base_size=10.5)
+        return
     for item in headings:
         paragraph = doc.add_paragraph()
         apply_numbering(paragraph, numbering_ids["contents"], 0)
