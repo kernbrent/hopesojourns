@@ -152,7 +152,7 @@ export async function handleTripStories(request:Request,env:AdminEnv,path:string
    CASE WHEN t.public_enabled=1 AND t.portal_enabled=1 AND t.portal_password_hash IS NOT NULL AND t.status NOT IN ('draft','archived','canceled') THEN 1 ELSE 0 END AS portal_available,
    (SELECT value FROM json_each(p.published_json,'$.memories') WHERE json_extract(value,'$.kind')='photo' LIMIT 1) AS cover
    FROM trip_publications p JOIN trips t ON t.id=p.trip_id JOIN destinations d ON d.id=p.destination_id
-   WHERE p.published_json IS NOT NULL AND d.status='published' AND (? IS NULL OR d.slug=?) ORDER BY p.published_at DESC`).bind(destination,destination).all<Row>();
+   WHERE p.published_json IS NOT NULL AND d.status='published' AND (? IS NULL OR d.slug=? OR EXISTS(SELECT 1 FROM trip_destinations td JOIN destinations linked ON linked.id=td.destination_id WHERE td.trip_id=t.id AND linked.status='published' AND linked.slug=?)) ORDER BY p.published_at DESC`).bind(destination,destination,destination).all<Row>();
   return adminJson({stories:rows.results.map(({id,cover,destination,...row})=>{const photo=cover?JSON.parse(cover):null;return {...row,destination:JSON.parse(destination),cover:photo?{url:imageUrl(photo.id,id,'public',row.slug),alt:photo.alt_text}:null};})},200,noStore);
  }
  const rows=await env.DB.prepare("SELECT p.published_json,p.published_at,t.id,t.slug,CASE WHEN t.public_enabled=1 AND t.portal_enabled=1 AND t.portal_password_hash IS NOT NULL AND t.status NOT IN ('draft','archived','canceled') THEN 1 ELSE 0 END AS portal_available FROM trip_publications p JOIN trips t ON t.id=p.trip_id JOIN destinations d ON d.id=p.destination_id WHERE p.published_json IS NOT NULL AND d.status='published' AND t.slug=?").bind(match[1]).all<Row>();

@@ -5,7 +5,7 @@ import {handleTripAdminRequest,handleTripPublicRequest} from '../src/trip-platfo
 async function setup(through?:string){
  const f=await ministryFixture(through);
  // The current application requires the additive travel fields, even when testing an older media migration.
- if(through) { f.sqlite.exec(readFileSync(new URL("../migrations/0040_trip_travel.sql",import.meta.url),"utf8")); f.sqlite.exec(readFileSync(new URL("../migrations/0047_live_trip_following.sql",import.meta.url),"utf8")); }
+ if(through) { f.sqlite.exec(readFileSync(new URL("../migrations/0040_trip_travel.sql",import.meta.url),"utf8")); f.sqlite.exec(readFileSync(new URL("../migrations/0047_live_trip_following.sql",import.meta.url),"utf8")); f.sqlite.exec(readFileSync(new URL("../migrations/0048_trip_destinations.sql",import.meta.url),"utf8")); }
  const call=(path:string,body?:unknown,method?:string)=>handleTripAdminRequest(f.request(path,body,method),f.env,path.split('?')[0]);
  const {id}=await (await call('/admin/trips',{title:'Memory test',location:'Test destination',startDate:'2025-01-09',endDate:'2025-01-14'})).json() as any;
  f.sqlite.prepare("UPDATE trips SET status='completed',portal_enabled=1 WHERE id=?").run(id);

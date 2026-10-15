@@ -1476,7 +1476,7 @@ async function listPublicTrips(env: AdminEnv, request: Request): Promise<Respons
   const values: unknown[] = [];
   let where = "t.public_enabled = 1 AND t.status NOT IN ('draft', 'archived', 'canceled')";
   if (opportunity) {
-    where += " AND (t.opportunity_id = ?1 OR o.slug = ?1 OR o.id = ?1)";
+    where += " AND (t.opportunity_id = ?1 OR o.slug = ?1 OR o.id = ?1 OR EXISTS (SELECT 1 FROM trip_destinations td JOIN destinations d ON d.id=td.destination_id WHERE td.trip_id=t.id AND d.status='published' AND (d.id=?1 OR d.slug=?1 OR 'trip-'||d.slug=?1)))";
     values.push(opportunity);
   }
   const rows = await env.DB.prepare(
