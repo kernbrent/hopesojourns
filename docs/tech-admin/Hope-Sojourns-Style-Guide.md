@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.47
+Version 4.48
 
-Last reviewed: October 12, 2026
+Last reviewed: October 15, 2026
 
 ## Mexico ministry partner recognition
 
@@ -103,6 +103,8 @@ In Photos & memories, Show removed items reveals Restore and, for administrators
 Traveler photo galleries use two equal-width tiles per row above 600 pixels and one tile per row on smaller phones. A single photo retains one tile width on wider screens. Photos run from oldest to newest using the assigned Date; undated photos appear last. Clicking or tapping a photo opens the full image in the shared media popup. Photo buttons have an accessible full-size label.
 
 Photos and videos share a keyboard-accessible popup across traveler galleries, public dated trip pages, past-trip stories, and staff story previews. Keep the complete image or video frame visible with proportional contain sizing. Provide a sticky heading and Close button, Previous and Next controls, an item counter, captions, and credits. Navigation follows the displayed mixed-media gallery and wraps at either end. Left and Right arrows navigate unless video controls have focus; Escape closes. Pause and unload a video when leaving it, lock background scrolling while open, and restore focus to the original tile when closed. Use existing palette tokens and comfortable touch targets.
+
+Continue playback automatically only between explicitly numbered parts of the same recording, for example “Light Group interview — Part 1 of 3” followed by Part 2 of 3 on the same date. Stop after the final part or when the next part is missing or ambiguous. Do not turn the mixed gallery into a slideshow: photos and unrelated videos retain manual navigation. At the bottom of the popup, show the italic, parenthesized note “(The next segment will play automatically when this one ends.)” only when a matching next segment is available. Continue to update the heading, caption, credit, and announced item counter when a part changes; keep the existing Close and Previous/Next controls and video playback fallback. This local behavior change is pending release.
 
 Optimize uploads for faster viewing is checked by default. The browser prepares smaller photos and videos before upload; original files on the device are unchanged. Show file-by-file preparation progress, a Cancel preparation control, and the original and stored sizes with the percentage saved. Keep the smaller original when conversion would enlarge it. Accept original photos up to 50 MB and video clips up to 250 MB and five minutes; saved photos remain limited to 6 MB and videos to 20 MB. Explain unsupported formats with a useful retry instruction. Users may turn optimization off for files already within the saved-file limits. Refresh the collection after partial success so retries do not create duplicates.
 
@@ -777,6 +779,7 @@ On the public dated trip page, show Notes from the journey before the photo/vide
 
 ## Revision history
 
+- October 15, 2026 — Version 4.48. Documented automatic continuation only within numbered parts of one recording, with manual photo and unrelated-video navigation retained and an italic continuation note in the popup. Local change pending release.
 - October 12, 2026 — Version 4.47. Added the shared full-size photo/video popup, Close and Previous/Next controls, keyboard navigation, complete-image display, and mobile layout. Technical Word guides use a two-column map for long section lists to avoid nearly empty spillover pages. Release authorized for test and production.
 
 - October 11, 2026 — Version 4.46. Put daily journal notes before the gallery on public dated trip pages. Local pending release.

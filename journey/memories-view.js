@@ -1,5 +1,18 @@
 (()=>{
  const el=(tag,text,className)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(className)n.className=className;return n;};
+ function videoPart(m){
+  if(m.kind!=='video')return null;
+  const match=String(m.title||'').match(/^(.*?)\s*(?:[—–-]\s*)?part\s+(\d+)\s+of\s+(\d+)\s*$/i);
+  if(!match)return null;
+  const title=match[1].trim().replace(/\s+/g,' ').toLowerCase(),part=Number(match[2]),total=Number(match[3]);
+  return title&&Number.isSafeInteger(part)&&Number.isSafeInteger(total)&&part>=1&&part<=total&&total>1?{title,part,total,date:m.event_date||''}:null;
+ }
+ function nextVideoPart(items,index){
+  const current=videoPart(items[index]);if(!current||current.part===current.total)return -1;
+  const series=items.map((m,i)=>({i,part:videoPart(m)})).filter(({part})=>part&&part.title===current.title&&part.total===current.total&&part.date===current.date);
+  const next=series.filter(({part})=>part.part===current.part+1);
+  return series.filter(({part})=>part.part===current.part).length===1&&next.length===1?next[0].i:-1;
+ }
  let viewer=null,viewerNumber=0;
  function openMedia(items,index,trigger){
   const overflow=viewer?viewer.dataset.originalOverflow:document.body.style.overflow;
@@ -7,14 +20,19 @@
   const dialog=el('dialog',null,'memory-media-viewer'),header=el('header'),close=el('button','Close'),heading=el('h2'),stage=el('div',null,'memory-media-stage'),caption=el('p',null,'memory-media-caption'),credit=el('p',null,'memory-credit'),status=el('p',null,'memory-media-status'),navigation=el('nav'),previous=el('button','← Previous'),next=el('button','Next →'),position=el('span',null,'memory-media-position');
   heading.id='memory-media-heading-'+(++viewerNumber);dialog.setAttribute('aria-labelledby',heading.id);navigation.setAttribute('aria-label','Photos and videos');position.setAttribute('aria-live','polite');position.setAttribute('aria-atomic','true');status.setAttribute('role','status');
   [close,previous,next].forEach(button=>button.type='button');previous.setAttribute('aria-label','Previous photo or video');next.setAttribute('aria-label','Next photo or video');previous.disabled=next.disabled=items.length<2;
-  header.append(heading,close);navigation.append(previous,position,next);dialog.append(header,stage,navigation,caption,credit,status);
+  const continuation=el('p',null,'memory-media-continuation');continuation.append(el('em','(The next segment will play automatically when this one ends.)'));
+  header.append(heading,close);navigation.append(previous,position,next);dialog.append(header,stage,navigation,caption,credit,status,continuation);
   let media=null;
   function clear(){if(media?.tagName==='VIDEO'){media.pause();media.removeAttribute('src');media.load();}stage.replaceChildren();media=null;}
   function show(){
    clear();const m=items[index];heading.textContent=m.title;caption.textContent=m.caption||'';caption.hidden=!m.caption;credit.textContent=m.credit||'';credit.hidden=!m.credit;status.textContent='';position.textContent=`${index+1} of ${items.length}`;
+   continuation.hidden=nextVideoPart(items,index)<0;
    const current=el(m.kind==='video'?'video':'img');media=current;current.src=m.image_url;
    current.addEventListener('error',()=>{if(media===current)status.textContent=m.kind==='video'?'This video could not be played. Try another browser or choose another item.':'This photo could not be loaded. Try another item or reopen the viewer.';});
-   if(m.kind==='video'){current.controls=true;current.playsInline=true;current.preload='metadata';current.setAttribute('aria-label',m.title);}else current.alt=m.alt_text||m.title;
+   if(m.kind==='video'){
+    current.controls=true;current.playsInline=true;current.preload='metadata';current.setAttribute('aria-label',m.title);
+    current.addEventListener('ended',()=>{if(media!==current||viewer!==dialog||!dialog.open||current.error)return;const following=nextVideoPart(items,index);if(following>=0){index=following;show();}});
+   }else current.alt=m.alt_text||m.title;
    stage.append(current);
    if(m.kind==='video')current.play().catch(()=>{if(media===current&&!current.error)status.textContent='Press Play to start the video.';});
   }

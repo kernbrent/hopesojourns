@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.54
+Version 4.55
 
-Last reviewed: October 12, 2026
+Last reviewed: October 15, 2026
 
 ## Mexico destination cooperation statement
 
@@ -133,6 +133,8 @@ Validation includes normalized and conflicting matches, all three decisions, int
 ## Trip memories and public trip stories
 
 The shared media viewer in journey/memories-view.js opens both photo and video tiles in a native modal dialog. The collection passes its final sorted or preserved mixed-media sequence to the viewer. Previous/Next and left/right arrows wrap within that sequence; arrows on native video controls retain their normal seeking behavior. Close and Escape unload active video sources, remove the dialog, restore background scrolling, and return focus to the opening tile. The heading labels the dialog; captions, credits, an announced item counter, and media-error messages update for each item. memories.css uses proportional contain sizing and a sticky header for full-frame display on phones. Cache versions are synchronized in traveler, dated-trip, past-story, and staff-trip pages. No API or database changes are needed.
+
+The viewer recognizes an explicit numbered title suffix such as “Light Group interview — Part 1 of 3.” When that video ends, it starts only a uniquely identified next numbered video with the same normalized title prefix, recording date, and part total in the current collection, even if other media appears between the parts. Final parts, missing or duplicate part numbers, unrelated videos, and photos do not auto-advance. The bottom-of-popup continuation note uses semantic emphasis inside parentheses and is hidden unless the same next-part lookup succeeds for the displayed item. Stale ended events after manual navigation or closing are ignored; autoplay rejection retains the Press Play fallback. No API, schema, or business-data changes are required. This local change is pending release.
 
 This feature adds administrator-managed trip photos and dated notes. Open a trip, choose Photos & memories, upload images or write notes, then choose Show in traveler portal for each item. Removed items can be restored. Traveler submissions are not enabled in this version.
 
@@ -1131,6 +1133,7 @@ Public story lists and details derive portal_available from the current trip: pu
 
 ## Revision history
 
+- October 15, 2026 — Version 4.55. Documented numbered-video continuation, matching and ambiguity rules, stale-event protection, browser checks, the conditional continuation note, and synchronized script cache versions. Local change pending release.
 - October 12, 2026 — Version 4.54. Documented shared mixed-media popup navigation, accessibility, video cleanup, responsive sizing, synchronized asset versions, and browser validation. The technical-guide builder places long guide maps in two balanced columns. Release authorized for test and production.
 
 - October 11, 2026 — Version 4.53. Put daily journal notes before the gallery on public dated trip pages. Local pending release.
