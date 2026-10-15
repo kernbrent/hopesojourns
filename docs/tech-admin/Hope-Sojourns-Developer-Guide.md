@@ -1,8 +1,20 @@
 # Hope Sojourns developer guide
 
-Version 4.56
+Version 4.58
 
 Last reviewed: October 15, 2026
+
+## Internship knowledge assistant preview
+
+Brent authorized commit, push, and deployment of the interactive mock version to preview only. `preview/knowledge/samples.mjs` supplies six explicitly fictional topics, sample FAQ entries, and synthetic visitor counts; bedding starts at 50 example visitors. `Use fictional sample answers and example FAQ counts` is on by default. Sample sources and dependent FAQs are unusable when it is off. The browser uses a new v2 storage key; Clear my demo removes both preview keys and restores starter examples. Mock approval remains confined to the preview, never official ministry evidence. The demo allows 20 questions/minute and 50 interactions/tab; no paid API, real transcript processing, or server permissions are enabled.
+
+The same contextual entry point is demonstrated on photo captions and information cards using data-ask-source. The AI assistant concept remains identified as AI rather than a live person. Unknown answers offer the existing journey-interest form with no private question in the URL and no automatic submission. Extending this across site content and reusing the actual inquiry workflow is planned; intake must succeed before promising follow-up.
+
+Brent authorized a separate tile on preview.hopesojourns.com. The working route is `/intern-assistant/`, built by `tools/build_knowledge_preview.py` through the existing public preview allowlist. `preview/knowledge/` contains the page, palette-based stylesheet, browser domain model, controller, and public-only source catalog. Current context includes the internship page, selected video, destination, and ministry; explicit question wording can override page context. The existing illustrative internship catalog is not evidence. The initial source lookup quotes three public website excerpts and lists 26 public journey videos with transcripts explicitly missing. No paid AI, microphone, external search, MMT write, or schema migration is enabled.
+
+This is a sessionStorage demonstration, not authenticated MMT administration or server enforcement. Feedback cannot publish; proposal editing, evidence/privacy confirmation, reuse approval, and FAQ publication are separate. Source correction/withdrawal revokes dependent approvals. Topic aliases, correction/merge, distinct demo-visitor counting, all-time/30-day ordering, relevance, pins, analytics, and audit are demonstrable within one tab. Clear my demo removes that tab's data. No raw questions or feedback are transmitted. Do not enter private information into the publicly accessible demo workspace.
+
+See `docs/architecture/Knowledge-Assistant-Preview-Plan.md` for verified stack/access, proposed isolated preview Worker/D1/R2 and granular server rights, full transcript processing, source versions and cache invalidation, retention, operating-cost assumptions, hard usage limits, and incomplete production gates. `tools/inventory_knowledge_videos.py` reads public catalog metadata without downloading recordings; the first scan found 28 unique video URLs with no catalog failures. Private recordings and out-of-catalog embeds need additional inventory. Run `tools/test-knowledge-preview.mjs`, `tools/check-knowledge-preview.cjs <origin>`, and the color check. Build the public allowlist, then deploy only to hopesojourns-preview on branch preview. Run Wrangler from preview/ to retain its existing public destination gateway in preview/functions. Do not deploy this exception to test or production; do not commit/push without a new explicit request.
 
 ## Mexico destination cooperation statement
 
@@ -1136,6 +1148,10 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 15, 2026 — Version 4.58. Added explicitly labeled fictional answer/FAQ fixtures, example popularity counts, sample-mode controls, and preview-only commit/push/deploy authorization. Paid AI remains off.
+
+- October 15, 2026 — Version 4.57. Added the isolated internship knowledge assistant text prototype, context and evidence behavior, demo workflow boundaries, public inventory, validation, and phased secure-service plan. Preview only; paid services disabled.
 
 - October 15, 2026 — Version 4.56. Added supplemental destination associations for active trips and published past stories, visibility and deduplication rules, migration 0048, isolated maintenance procedure, and regression coverage. Released to test and production.
 

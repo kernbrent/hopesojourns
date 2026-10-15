@@ -1,8 +1,18 @@
 # Hope Sojourns website style guide
 
-Version 4.48
+Version 4.50
 
 Last reviewed: October 15, 2026
+
+## Internship questions and knowledge preview
+
+The interactive mock preview starts with six fictional answer topics and example FAQ counts. Display SAMPLE ANSWER beside every fictional conversational response and Fictional sample on sample FAQs. Keep the sample-mode checkbox visible and explain that disabling it hides the fictional corpus and counts. Never present mock content as an interview transcript or a verified commitment. Clear my demo restores the fictional starter content; voice remains disabled.
+
+The same contextual entry point is demonstrated on photo captions and information cards using data-ask-source. The AI assistant concept remains identified as AI rather than a live person. Unknown answers offer the existing journey-interest form with no private question in the URL and no automatic submission. Extending this across site content and reusing the actual inquiry workflow is planned; intake must succeed before promising follow-up.
+
+The preview comparison adds an Internship knowledge assistant tile linking to `/intern-assistant/`. Use the existing forest, paper, cream, gold, and coral tokens with Georgia headings and system body text. The internship landing page pairs an uncropped, proportionally scaled Athens photograph with the invitation. On wide screens, the question panel stays beside the content; below 950 pixels it becomes a normal full-width section before video and FAQ content. Video files load only after an explicit Load video action. The ministry selector and Ask about this video controls set a visible context label; Back to general internships clears it.
+
+Keep the working-preview notice, source-lookup limitation, missing-transcript notice, and browser-only review explanation visible. Show citations beside answers and separate feedback from reuse approval and FAQ publication. Do not imply that a role selector supplies real authentication. Disabled microphone controls say later; typed questions remain usable. Use explicit labels, focus outlines, semantic status/log regions, wrapping controls, and reduced-motion support. The source and review forms render user text as text, not HTML. Searchable FAQs explain ranking, pins, counting window, and anonymous-count limitations. This is preview only, using no new palette token or live portal layout change.
 
 ## Mexico ministry partner recognition
 
@@ -778,6 +788,10 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 15, 2026 — Version 4.50. Added explicitly labeled fictional answer/FAQ fixtures, example popularity counts, sample-mode controls, and preview-only commit/push/deploy authorization. Paid AI remains off.
+
+- October 15, 2026 — Version 4.49. Documented the preview internship question panel, contextual video controls, review and FAQ presentation, privacy/limitations, and responsive behavior. Preview only.
 
 - October 15, 2026 — Version 4.48. Documented automatic continuation only within numbered parts of one recording, with manual photo and unrelated-video navigation retained and an italic continuation note in the popup. Local change pending release.
 - October 12, 2026 — Version 4.47. Added the shared full-size photo/video popup, Close and Previous/Next controls, keyboard navigation, complete-image display, and mobile layout. Technical Word guides use a two-column map for long section lists to avoid nearly empty spillover pages. Release authorized for test and production.

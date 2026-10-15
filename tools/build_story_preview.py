@@ -4,6 +4,7 @@ import shutil
 from build_book_preview import build_book
 from build_path_preview import build_paths
 from build_margin_preview import build_margin_variant
+from build_knowledge_preview import build_knowledge
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'outputs/story-preview-site'
@@ -28,7 +29,7 @@ for name in images:
   X-Robots-Tag: noindex, nofollow
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Content-Security-Policy: default-src 'self'; img-src 'self' https://hopesojourns.com https://christiansteps.net; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'
+  Content-Security-Policy: default-src 'self'; img-src 'self' https://hopesojourns.com https://christiansteps.net; media-src 'self' https://hopesojourns.com; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'
   Cache-Control: no-cache
 ''', encoding='utf-8')
 (OUT / '404.html').write_text('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="robots" content="noindex"><link rel="stylesheet" href="/styles.css"><title>Hope Sojourns preview</title></head><body><main><h1>This is the story preview.</h1><p><a href="/">Return to the stories</a></p><p><a href="https://hopesojourns.com/">Visit the main Hope Sojourns site</a></p></main></body></html>', encoding='utf-8')
@@ -36,6 +37,7 @@ for name in images:
 shutil.copy2(ROOT / 'preview/internships/opportunities.json', OUT / 'internships/opportunities.json')
 allowed = set(build_paths(OUT)) | {'internships/opportunities.json'} | set(build_book(OUT)) | set(files) | {f'{route}/index.html' for route in routes} | {f'assets/{name}' for name in images} | {'styles.css','experience.css','robots.txt','_headers','404.html'}
 allowed |= set(build_margin_variant(OUT))
+allowed |= build_knowledge(OUT)
 actual = {p.relative_to(OUT).as_posix() for p in OUT.rglob('*') if p.is_file()}
 assert actual <= allowed, f'Unexpected files in preview artifact: {actual-allowed}'
 print(f'Built {len(actual)} allowlisted public files in {OUT}')
