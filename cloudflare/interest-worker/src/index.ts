@@ -2,6 +2,7 @@ import {startDueTrips} from './trip-progress';
 import {handleInquiries} from './inquiries';
 import {receiveInterest,handleInterestReview,receipt} from './interest-review';
 import {handlePlanning} from './planning';
+import {handleKnowledge,cleanupKnowledge} from './knowledge';
 export {CsmIdentity} from './identity-entrypoint';
 import {sharedSwitch} from './shared-signin';
 import {storedPhone,matchPhone} from './phone';
@@ -445,6 +446,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   if (path === "/internal/donation-splits") return internalDonationSplits(request, env);
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
   if(path.startsWith('/admin/switch/'))return sharedSwitch(request,env,path);
+  if(path.startsWith('/admin/knowledge')||path.startsWith('/public/knowledge'))return handleKnowledge(request,env,path);
   if(path.startsWith('/public/account/'))return handleAccountPublic(request,env,path);
   if (request.method === "GET" && (path.startsWith("/public/destinations") || path.startsWith("/public/trips") || path.startsWith("/admin/trips") || path.startsWith("/admin/trip-platform"))) await startDueTrips(env);
   if (path.startsWith('/admin/destinations') || path.startsWith('/public/destinations')) return handleDestinations(request,env,path);
@@ -470,7 +472,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async scheduled(_event, env, ctx) { ctx.waitUntil(startDueTrips(env)); },
+  async scheduled(_event, env, ctx) { ctx.waitUntil(Promise.all([startDueTrips(env),cleanupKnowledge(env)])); },
   async fetch(request, env): Promise<Response> {
     try {
       return await actorContext.run({},()=>handleRequest(request, env));

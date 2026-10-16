@@ -725,9 +725,11 @@ def add_contents_page(doc: Document, headings: list[str], numbering_ids: dict[st
             for index, item in enumerate(items):
                 paragraph = cell.paragraphs[0] if index == 0 else cell.add_paragraph()
                 apply_numbering(paragraph, numbering_ids["contents"], 0)
-                paragraph.paragraph_format.space_after = Pt(3)
-                paragraph.paragraph_format.line_spacing = 1.05
-                add_inline_text(paragraph, re.sub(r"^\d+\.\s*", "", item), base_size=10.5)
+                # The longer developer map must fit its two-column row on one page;
+                # otherwise Word pushes nearly the entire unsplittable row forward.
+                paragraph.paragraph_format.space_after = Pt(0 if len(headings) > 58 else 3)
+                paragraph.paragraph_format.line_spacing = 1 if len(headings) > 58 else 1.05
+                add_inline_text(paragraph, re.sub(r"^\d+\.\s*", "", item), base_size=10 if len(headings) > 58 else 10.5)
         return
     for item in headings:
         paragraph = doc.add_paragraph()

@@ -9,8 +9,8 @@ export type MmtIdentity={hs_person_id?:string|null;hs_contact_name?:string|null;
 export function hasPortal(u:MmtIdentity,p:Portal){return u.status==='active'&&!u.deleted_at&&(p==='hs'?u.hs_access!==0:u.csm_access===1);}
 export function effectiveUser(u:MmtIdentity,p=currentPortal()):MmtIdentity{return {...u,is_admin:u.is_org_admin|| (p==='hs'?u.is_admin:u.csm_is_admin)||0,permissions_json:p==='hs'?u.permissions_json:u.csm_permissions_json||'{}'};}
 export function permissions(user:MmtIdentity):Record<string,string>{
- if(user.is_admin)return Object.fromEntries((currentPortal()==='hs'?sections:csmSections).map(s=>[s,'edit']));
- try{return JSON.parse(user.permissions_json);}catch{return {};}
+ if(user.is_admin)return Object.fromEntries((currentPortal()==='hs'?[...sections,'knowledge']:csmSections).map(s=>[s,'edit']));
+ try{const p=JSON.parse(user.permissions_json);if(currentPortal()==='hs'&&Object.entries(p).some(([k,v])=>k.startsWith('knowledge.')&&['read','edit'].includes(String(v))))p.knowledge='read';return p;}catch{return {};}
 }
 export function can(user:MmtIdentity,section:Section,edit=false){const p=permissions(user)[section];return !!user.is_admin||p==='edit'||(!edit&&p==='read');}
 // Contacts covers people, requests, ministries and teams. Trip operations includes
@@ -20,6 +20,7 @@ export function routeSection(path:string):Section|'self'|'admin'{
  if(path==='/admin/inquiries'||path.startsWith('/admin/inquiries/'))return 'contacts';
  if(path.startsWith('/admin/interest-reviews/'))return 'contacts';
  if(path.startsWith('/admin/planning/'))return 'self'; // Each planning record enforces linked workspace permissions.
+ if(path.startsWith('/admin/knowledge'))return 'self'; // Knowledge actions check granular permissions.
  if(path.startsWith('/admin/account/'))return 'admin';
  if(path.startsWith('/admin/destinations'))return 'destinations';
  if(path.startsWith('/admin/ministry/documents'))return 'documents';

@@ -31,6 +31,8 @@ const publicEntries = [
   "assets",
   "brochure",
   "giving",
+  "knowledge",
+  "faq",
   "interest",
   "internships",
   "journey",

@@ -3,6 +3,7 @@ import {profile,username,user,publicUser,issueLink,passwordParts,type User} from
 import {currentPortal,sections,csmSections,type MmtIdentity,type Portal} from './mmt-permissions';
 import {planPortalContact,contactChoices} from './portal-contacts';
 import {accountEmailReady} from './account-email';
+import {knowledgeRights} from './knowledge-policy';
 
 type Session={user_id:string;user:MmtIdentity};
 const now=()=>new Date().toISOString();
@@ -11,6 +12,7 @@ function membership(value:unknown,portal:Portal){
  if(!value||typeof value!=='object'||Array.isArray(value))throw new AdminError(422,'INVALID_ACCESS','Choose portal access.');
  const b=value as Record<string,unknown>,p=b.permissions as Record<string,unknown>|undefined,result:Record<string,string>={};
  for(const key of portal==='hs'?sections:csmSections){const v=String(p?.[key]??'blocked');if(!['blocked','read','edit'].includes(v))throw new AdminError(422,'INVALID_ACCESS','Choose Blocked, Read only, or Edit.');result[key]=v;}
+ if(portal==='hs')for(const right of knowledgeRights){const key='knowledge.'+right,v=String(p?.[key]??'blocked');if(!['blocked','read','edit'].includes(v))throw new AdminError(422,'INVALID_ACCESS','Choose a valid knowledge permission.');result[key]=v;}
  return {enabled:b.enabled===true||b.enabled===1?1:0,is_admin:b.is_admin===true||b.is_admin===1?1:0,permissions:JSON.stringify(result)};
 }
 function existing(u:User,p:Portal){return {enabled:p==='hs'?u.hs_access!==0:!!u.csm_access,is_admin:p==='hs'?!!u.is_admin:!!u.csm_is_admin,permissions:JSON.parse((p==='hs'?u.permissions_json:u.csm_permissions_json)||'{}')};}

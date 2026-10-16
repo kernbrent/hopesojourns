@@ -1,6 +1,13 @@
 const interestForm = document.getElementById("interest-form");
 
 if (interestForm) {
+  // Carry a question privately in same-tab session storage, never in a URL.
+  try {
+    const raw=sessionStorage.getItem('hs-knowledge-follow-up');
+    if(raw){const follow=JSON.parse(raw);if(Date.now()-follow.at<3600000&&typeof follow.question==='string'){
+      interestForm.elements.message.value='Question for Brent: '+follow.question.slice(0,600)+'\nPage context: '+String(follow.context||'').slice(0,300);
+    }sessionStorage.removeItem('hs-knowledge-follow-up');}
+  } catch {}
   const phoneControl = interestForm.elements.phone;
   phoneControl.placeholder = '(972) 555-0123';
   phoneControl.addEventListener('input', event => {

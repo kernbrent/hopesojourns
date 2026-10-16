@@ -1,8 +1,17 @@
 # Hope Sojourns website style guide
 
-Version 4.50
+Version 4.51
 
-Last reviewed: October 15, 2026
+Last reviewed: October 16, 2026
+
+## Live public questions and portal knowledge tools
+
+Public pages offer a compact “Ask a question” launcher and contextual buttons on content cards, photos and videos. The modal labels the assistant as AI, names its context, cites original public sources, and offers a clear close control. It uses the existing forest, gold, paper, cream, ink, muted and line tokens. On phones, controls wrap and the dialog fits the viewport. The private traveler and management pages do not receive public content buttons.
+
+When paid AI is off, use the explicit wording “Live AI is currently off” and label approved extracts as excerpts. Never substitute fictional preview answers on the live site. Missing information offers a private handoff to Brent through the existing interest form, without a promised response deadline. No private question or contact details appear in the URL. Optional browser read-aloud must be user initiated; voice recording and paid speech remain off in this release.
+
+The public Questions & answers page presents a search field, all-time/recent popularity window, reviewed answers, source links, essential pins and estimated-browser counts. The portal left menu calls the workspace “Knowledge & FAQ”; its tabs are “Review queue & FAQ”, “Sources & transcripts” and “Topics & analytics”. Reuse approval and public publication stay visibly separate. Imported recordings say transcript_missing until full timestamped text is reviewed. Source edits explicitly warn that dependent approvals are withdrawn. Permission controls belong to existing user settings and server checks remain authoritative.
+
 
 ## Internship questions and knowledge preview
 
@@ -788,6 +797,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 16, 2026 — Version 4.51. Added live public question/FAQ and authenticated Knowledge & FAQ workflows, granular rights, reviewed sources/transcripts, retention, topic analytics and test/production release procedure. Paid services remain disabled by Brent’s choice.
 
 - October 15, 2026 — Version 4.50. Added explicitly labeled fictional answer/FAQ fixtures, example popularity counts, sample-mode controls, and preview-only commit/push/deploy authorization. Paid AI remains off.
 

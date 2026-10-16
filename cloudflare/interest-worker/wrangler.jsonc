@@ -40,6 +40,9 @@
         }
       ],
       "vars": {
+        "KNOWLEDGE_AI_ENABLED": "false",
+        "KNOWLEDGE_DAILY_USD": "0",
+        "KNOWLEDGE_MONTHLY_USD": "0",
         "ENVIRONMENT": "test",
         "SHARED_SIGNIN": "disabled",
         "ALLOWED_ORIGINS": "https://test.hopesojourns.com,https://hopesojourns-test.pages.dev,http://localhost:*,http://127.0.0.1:*",
@@ -99,6 +102,9 @@
         }
       ],
       "vars": {
+        "KNOWLEDGE_AI_ENABLED": "false",
+        "KNOWLEDGE_DAILY_USD": "0",
+        "KNOWLEDGE_MONTHLY_USD": "0",
         "ENVIRONMENT": "production",
         "SHARED_SIGNIN": "enabled",
         "MMT_EMAIL_PROVIDER": "resend",

@@ -1,8 +1,25 @@
 # Hope Sojourns developer guide
 
-Version 4.58
+Version 4.59
 
-Last reviewed: October 15, 2026
+Last reviewed: October 16, 2026
+
+## Live Knowledge & FAQ workspace
+
+The October 16 release supersedes the preview-only restriction for the new live implementation. Test and production receive identical code and migration 0049, with separate D1/R2 data. The fictional preview stays separate. Brent explicitly requested test/production deployment and chose to keep paid services disabled. Both Worker environments therefore set KNOWLEDGE_AI_ENABLED=false and daily/monthly provider limits to zero. No recording is downloaded or transcribed, no OpenAI call is made, and no partner crawler or external search is enabled by this release.
+
+The public /faq/ route and knowledge/widget.js provide contextual question buttons across public content, source citations, private feedback, deletion, and a same-tab handoff to the existing interest form. The assistant identifies itself as AI, states when live AI is off, and returns attributed approved extracts or exact curated answers rather than fabricated narrative. Private /journey/, /trip-account/ and /admin/ pages are excluded. A random browser ID estimates unique visitors; cross-device/shared-browser limitations are disclosed. Raw questions, answers, comments and unreviewed candidates expire after 30 days. Aggregate events remain for all-time popularity, with explicit visitor deletion removing that browser’s events. Reviewed generalized FAQ entries remain independently editable.
+
+The authenticated /admin/knowledge/ workspace appears as Knowledge & FAQ in the shared left menu. Existing user configuration adds knowledge.view_queue, edit_answers, approve_reuse, publish_faq, manage_sources and view_analytics. Missing grants default to blocked; portal administrators have access. Every server action checks its exact right, portal, session and CSRF; the aggregate menu permission is not an action grant. Reviewers generalize wording, select original evidence, check privacy, approve reuse, and separately publish. A helpful rating never approves. Topic aliases, merges and individual candidate reclassification support grouping/splitting; analytics recompute distinct-browser counts after correction. Pins precede popularity; search relevance precedes pins and popularity. Ties use total questions, then question title. Recent means 30 days; all-time begins with release.
+
+knowledge.ts owns /public/knowledge/{config,faqs,ask,feedback,conversation} and /admin/knowledge/{access,queue,sources,candidate,decision,topics,analytics,refresh}. knowledge-policy.ts validates evidence, safe same-site links, topics and rights. Migration 0049 creates sources, FTS5 search, questions, events, candidates, topics, transient limits and conservative usage reservations. Source corrections, visibility changes, withdrawals and deletes revoke dependent approvals. Managed public journey sources are immediately marked pending on upstream content/visibility changes; Refresh public journey catalog reprojects the same public API output and withdraws missing sources. Imported captions/text require review; video entries remain transcript_missing until complete segments are supplied. Never ingest raw portal records, contact/financial data, broad R2 listings, or AI answers as source evidence.
+
+Source managers may add or correct full original text, captions, and complete timestamped transcripts; import WebVTT, SRT or JSON segments {start,end,text}. Approval requires original provenance, complete transcript segments for video/audio, and human verification. Corrections invalidate reuse/publication. The initial public FAQ contains only two statements checked against the canonical internship page; no fictional fixtures are migrated. The catalog refresh currently covers public dated journeys and published stories, not every external embed or static document. Static/source changes must be reviewed in this workspace; automatic full-site crawling and paid bulk transcription are follow-on work, not enabled functionality.
+
+The optional Responses adapter uses server-side OPENAI_API_KEY, pinned gpt-4.1-mini-2025-04-14, store:false, bounded evidence, strict structured output, original-source revision validation and no external tools. It is inactive. A future paid launch requires explicit authorization, separate test/production keys and positive limits. reserveKnowledgeUsage atomically reserves a conservative USD 0.02 per bounded text request before calling the provider, across concurrent calls, checking UTC day and calendar month. Failed calls retain reservations. Public questions are limited to 5/minute and 30/day/browser, plus 60/hour/IP. API billing is separate from ChatGPT; provider retention is separate from local deletion. Microphone transcription, automatic recording jobs, spoken OpenAI output, semantic embeddings and approved partner search remain disabled/unimplemented in this no-paid release; browser read-aloud is optional and disclosed.
+
+Validate with tsc, vitest, tools/check-knowledge-live.cjs and Check-Color-Palette.ps1. The local QA server uses an in-memory database and synthetic admin and is never part of the build allowlist. Build tracked files only, apply migration 0049 independently to both D1 environments, deploy the same Worker and Pages version to both, and upload the same private guide HTML to isolated guide buckets. Confirm health, FAQ evidence, AI disabled, unauthorized queue rejection and public question/citation behavior after release. Unpublishing an FAQ or withdrawing a source takes effect immediately without redeployment. An application rollback must preserve the additive schema and not roll back business data.
+
 
 ## Internship knowledge assistant preview
 
@@ -1148,6 +1165,8 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 16, 2026 — Version 4.59. Added live public question/FAQ and authenticated Knowledge & FAQ workflows, granular rights, reviewed sources/transcripts, retention, topic analytics and test/production release procedure. Paid services remain disabled by Brent’s choice.
 
 - October 15, 2026 — Version 4.58. Added explicitly labeled fictional answer/FAQ fixtures, example popularity counts, sample-mode controls, and preview-only commit/push/deploy authorization. Paid AI remains off.
 
