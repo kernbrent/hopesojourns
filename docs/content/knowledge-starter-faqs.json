@@ -1,0 +1,148 @@
+{
+  "reviewedAt": "2026-10-16",
+  "scope": "Original public website facts, reviewed for source fidelity; no fictional preview content or private conversation evidence.",
+  "entries": [
+    {
+      "id": "starter-start",
+      "question": "How do I start an internship conversation?",
+      "answer": "Share your school, field of study, preferred location, available dates, and what you hope to learn. Hope Sojourns will explore how your preparation could fit a ministry partner’s needs. Use the Share internship interest form to begin.",
+      "topic": "matching",
+      "url": "/internships/",
+      "sourceId": "starter-source-start",
+      "originalExcerpts": [
+        "Share your field of study, preferred location, available dates, and what you hope to learn.",
+        "We’ll explore where your preparation and a partner’s needs may meet.",
+        "Tell us about your school, major, timing, preferred location, and what you hope to learn."
+      ]
+    },
+    {
+      "id": "starter-pathways",
+      "question": "What kinds of internship pathways are being developed?",
+      "answer": "The website describes ministry and community engagement, communications and storytelling, program and journey operations, digital media and outreach, business and nonprofit practice, and custom academic placements. These are starting points for an individual conversation, with responsibilities shaped around partner needs, your skills, and appropriate supervision.",
+      "topic": "matching",
+      "url": "/internships/",
+      "sourceId": "starter-source-pathways",
+      "originalExcerpts": [
+        "Ministry & community engagement",
+        "Communications & storytelling",
+        "Program & trip operations",
+        "Digital media & outreach",
+        "Business & nonprofit practice",
+        "Custom academic placement",
+        "Hope Sojourns is developing flexible opportunities for students and recent graduates. Placements will be shaped around partner needs, a participant’s skills, and responsible supervision."
+      ]
+    },
+    {
+      "id": "starter-prepare",
+      "question": "What does pre-departure preparation cover?",
+      "answer": "Preparation covers your learning plan, cultural humility, ethical service, travel, safety, and communication. Hope Sojourns also works through expectations before you leave.",
+      "topic": "supervision",
+      "url": "/internships/#how-it-works",
+      "sourceId": "starter-source-prepare",
+      "originalExcerpts": [
+        "We meet before departure to cover your learning plan, cultural humility, ethical service, travel, safety, and communication.",
+        "Before you leave, we work through expectations, culture, service, travel, communication, and personal safety."
+      ]
+    },
+    {
+      "id": "starter-credit",
+      "question": "Who decides whether an internship qualifies for college credit?",
+      "answer": "Your college or university decides academic eligibility, assignments, required hours, and grading. Hope Sojourns helps coordinate the placement and communication with your school; it does not replace your school’s academic approval.",
+      "topic": "credit",
+      "url": "/internships/#how-it-works",
+      "sourceId": "starter-source-credit",
+      "originalExcerpts": [
+        "If academic credit is involved, your college or university determines eligibility, assignments, required hours, and grading.",
+        "Hope Sojourns helps coordinate the placement and communication, while your college or university sets academic requirements, assignments, hours, and grades."
+      ]
+    },
+    {
+      "id": "starter-arrival",
+      "question": "Will a Hope Sojourns leader travel with me?",
+      "answer": "Leader accompaniment is included only when it is part of your placement plan. When included, a Hope Sojourns leader travels with you to help you get situated and connected locally. Confirm the arrangements for your individual placement before committing.",
+      "topic": "supervision",
+      "url": "/internships/#how-it-works",
+      "sourceId": "starter-source-arrival",
+      "originalExcerpts": [
+        "When included in your placement plan, a Hope Sojourns leader travels with you to help you get situated and connected locally."
+      ]
+    },
+    {
+      "id": "starter-housing",
+      "question": "Is housing or a stipend provided for interns?",
+      "answer": "Support varies by location and ministry. Some ministries may offer housing, meals or food support, local transportation, or a stipend. These are possibilities, rather than a promise for every placement; Hope Sojourns will confirm what is available before you make a decision.",
+      "topic": "housing",
+      "url": "/internships/#internship-cost-title",
+      "sourceId": "starter-source-housing",
+      "originalExcerpts": [
+        "Depending on the location, a ministry may offer a place to stay, meals or food support, local transportation, or a stipend. We will confirm exactly what is available before you make a decision."
+      ]
+    },
+    {
+      "id": "starter-budget",
+      "question": "What expenses should I plan for as an intern?",
+      "answer": "The website lists school tuition or fees if required, airfare and personal travel, housing, food and local transportation unless provided or subsidized, passport, visa, insurance, background checks, and personal expenses. It also lists a Hope Sojourns Program Support Fee and any disclosed leader travel share. Costs vary; ask for the written placement plan and estimated budget before committing. No fixed price is established here.",
+      "topic": "costs",
+      "url": "/internships/#internship-cost-title",
+      "sourceId": "starter-source-budget",
+      "originalExcerpts": [
+        "College tuition and fees, if required by your school",
+        "Your airfare and personal travel costs",
+        "Housing, food, and local transportation unless the local ministry provides or subsidizes them",
+        "Passport, visa, insurance, background check, and personal expenses",
+        "A Hope Sojourns Program Support Fee and any disclosed leader travel share",
+        "Costs vary by destination, duration, ministry support, and travel. Before you commit, Hope Sojourns will provide a written placement plan and estimated budget."
+      ]
+    },
+    {
+      "id": "starter-storytelling",
+      "question": "What could a communications and storytelling intern do?",
+      "answer": "Possible contributions include interviewing ministry leaders, writing clear and respectful stories, and creating photo, video, newsletter, or partner-update content. The pathway also emphasizes ethical storytelling that protects people’s dignity while helping you build a portfolio. Specific duties depend on the placement.",
+      "topic": "weekly-life",
+      "url": "/internships/",
+      "sourceId": "starter-source-storytelling",
+      "originalExcerpts": [
+        "Interview ministry leaders and turn conversations into clear, respectful stories.",
+        "Create photo, video, newsletter, or partner-update content.",
+        "Build a portfolio while practicing ethical, dignity-centered storytelling."
+      ]
+    },
+    {
+      "id": "starter-business",
+      "question": "How could business or nonprofit skills contribute to an internship?",
+      "answer": "The business and nonprofit pathway describes improving recurring processes, creating useful tools, and supporting budgeting, project tracking, partner communication, or impact reporting. It also offers a way to learn how mission, stewardship, people, and operations work together. These are examples to discuss with a ministry partner.",
+      "topic": "weekly-life",
+      "url": "/internships/",
+      "sourceId": "starter-source-business",
+      "originalExcerpts": [
+        "Map processes and create tools that make recurring work easier.",
+        "Support budgeting, project tracking, partner communication, or impact reporting.",
+        "Study how mission, stewardship, people, and operations work together."
+      ]
+    },
+    {
+      "id": "starter-custom",
+      "question": "What should I bring to a conversation about a custom academic placement?",
+      "answer": "Bring your program requirements, ideal dates, learning goals, and the skills you hope to practice. A custom placement may connect your major, capstone, practicum, or graduate interests with a genuine ministry need when supervision and partner fit allow. School approval and requirements still need to be coordinated.",
+      "topic": "matching",
+      "url": "/internships/",
+      "sourceId": "starter-source-custom",
+      "originalExcerpts": [
+        "Explore an arrangement connected to your major, capstone, practicum, or graduate interests when supervision and partner fit allow.",
+        "bring your program requirements, ideal dates, learning goals, and the skills you hope to practice.",
+        "Coordinate school approval or practicum requirements when possible."
+      ]
+    },
+    {
+      "id": "starter-csm",
+      "question": "How is Hope Sojourns connected with Christian Steps Ministries?",
+      "answer": "Hope Sojourns works with Christian Steps Ministries. The public website describes Christian Steps Ministries as helping people follow Jesus through Christ-centered hope, Scripture-based teaching, and practical discipleship.",
+      "topic": "ministry",
+      "url": "/about/",
+      "sourceId": "starter-source-csm",
+      "originalExcerpts": [
+        "Hope Sojourns works with Christian Steps Ministries, which helps people pursue a life of following Jesus through Christ-centered hope, Scripture-based teaching, and practical discipleship."
+      ]
+    }
+  ]
+}
