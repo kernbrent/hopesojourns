@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 4.59
+Version 4.60
 
-Last reviewed: October 16, 2026
+Last reviewed: October 18, 2026
 
 ## Live Knowledge & FAQ workspace
 
@@ -1087,6 +1087,8 @@ Migration `0047_live_trip_following.sql` adds `trip_memories.public_visible` wit
 
 ## Gift thank-you email acknowledgments
 
+New automatic and manual gift thank-you payloads include `bcc: ["christianstepsministries@gmail.com"]`. The donor remains the To recipient; sender and reply-to remain giving@hopesojourns.com. Test mode captures the BCC without sending. Uncertain retries retain the saved payload and idempotency key, including older payloads without BCC; previously sent gifts are not resent. No migration or environment setting is required. Local pending release.
+
 The finance records response now includes a `thankYou` array per entry using `giftThanksForEntries` in `src/gift-thanks.ts`. A single bounded query joins current donation allocations and their acknowledgment history; it preserves prior sent/uncertain history after reassociation of an unsplit gift, exactly as the manual preview does. It returns current donor names, email availability, status, sent timestamp, error and lock state, without provider payloads. Split donors retain individual states. Reading status never sends email. No migration is required.
 
 `admin/finance/finance.js` renders an Email status column on Income only, a sent date/time, and the shared thank-you action. `admin/finance/index.html` loads `admin/gift-thanks.js`; the adapter preserves the authenticated API and CSRF handling. The shared settings control visibly reports Automatic emails: On/Off, including when a setting save fails. Closing a changed preview refreshes the Income status. Existing permissions and duplicate-send locks remain authoritative. The interface reports provider acceptance, not delivered/opened/bounced; no delivery webhook is implemented. Cache revisions are updated in Finance and the full Ledger. Release to test and production was authorized on October 9, 2026.
@@ -1165,6 +1167,8 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+October 18, 2026 — Version 4.60: Added Christian Steps Ministries BCC to new automatic and manual gift thank-you emails. Local pending release.
 
 - October 16, 2026 — Version 4.59. Added live public question/FAQ and authenticated Knowledge & FAQ workflows, granular rights, reviewed sources/transcripts, retention, topic analytics and test/production release procedure. Paid services remain disabled by Brent’s choice.
 

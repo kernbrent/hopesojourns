@@ -5,7 +5,7 @@ import {giftEmail,type ThankYouGift} from './gift-email-template';
 export const signatureKey='branding/brent-kern-signature.png';
 type Gift=ThankYouGift & {entryId:string;personId:string;email:string;lastName:string};
 type SentRow={entry_id:string;person_id:string;status:string;attempt_key:string;payload_json:string;started_at:string;updated_at:string;sent_at:string|null;error:string|null};
-type Payload={from:string;to:string[];reply_to:string;subject:string;text:string;html:string;attachments:{filename:string;content:string;content_id:string}[]};
+type Payload={from:string;to:string[];bcc?:string[];reply_to:string;subject:string;text:string;html:string;attachments:{filename:string;content:string;content_id:string}[]};
 export async function thanksSettings(env:AdminEnv){
  const settings=await env.DB.prepare('SELECT automatic FROM gift_thanks_settings WHERE id=1').first<{automatic:number}>();
  return {automatic:settings?.automatic===1,testMode:env.ENVIRONMENT==='test',ready:env.ENVIRONMENT==='test'||(env.MMT_EMAIL_PROVIDER==='resend'&&env.MMT_EMAIL_DELIVERY_MODE==='live'&&!!env.RESEND_API_KEY)};
@@ -94,7 +94,7 @@ export async function sendGiftThanks(env:AdminEnv,id:string,personId:string,acto
  else {
   const content=await signatureContent(env);
   payload={...giftEmail(gift,'cid:brent-signature'),from:'Hope Sojourns <giving@hopesojourns.com>',
-   to:[gift.email],reply_to:'giving@hopesojourns.com',
+   to:[gift.email],bcc:['christianstepsministries@gmail.com'],reply_to:'giving@hopesojourns.com',
    attachments:[{filename:'brent-kern-signature.png',content,content_id:'brent-signature'}]};
  }
  const payloadJson=JSON.stringify(payload);

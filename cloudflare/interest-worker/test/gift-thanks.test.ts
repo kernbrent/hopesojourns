@@ -30,7 +30,7 @@ it('sends once, persists sent state, and rejects concurrent requests without a s
  const result=await Promise.allSettled([sendGiftThanks(f.env,'gift','donor','primary'),sendGiftThanks(f.env,'gift','donor','primary')]);
  expect(result.filter(r=>r.status==='fulfilled')).toHaveLength(1);expect(f.fetchMock).toHaveBeenCalledTimes(1);
  expect((await sendGiftThanks(f.env,'gift','donor','primary')).status).toBe('sent');expect(f.fetchMock).toHaveBeenCalledTimes(1);
- const payload=JSON.parse(f.fetchMock.mock.calls[0]![1].body);expect(payload.to).toEqual(['donor@example.test']);expect(payload.from).toBe('Hope Sojourns <giving@hopesojourns.com>');expect(payload.reply_to).toBe('giving@hopesojourns.com');expect(payload.html).toContain('Dear Dave,');expect(payload.attachments[0].content_id).toBe('brent-signature');
+ const payload=JSON.parse(f.fetchMock.mock.calls[0]![1].body);expect(payload.to).toEqual(['donor@example.test']);expect(payload.bcc).toEqual(['christianstepsministries@gmail.com']);expect(payload.from).toBe('Hope Sojourns <giving@hopesojourns.com>');expect(payload.reply_to).toBe('giving@hopesojourns.com');expect(payload.html).toContain('Dear Dave,');expect(payload.attachments[0].content_id).toBe('brent-signature');
  const response=await f.call(f.path);expect((await response.json() as {locked:boolean}).locked).toBe(true);
 });
 it('preview and failed validation never send, including missing email and changed gift',async()=>{
@@ -95,6 +95,7 @@ it('automatic mode defaults off, sends new linked gifts when enabled, and return
  const f=await setup();expect(await automaticallyThankGift(f.env,'gift','primary')).toEqual([]);
  await f.call('/admin/ledger/gift-thanks/settings',{automatic:true},'PUT');
  expect((await automaticallyThankGift(f.env,'gift','primary'))[0]).toMatchObject({status:'sent'});
+ expect(JSON.parse(f.fetchMock.mock.calls[0]![1].body).bcc).toEqual(['christianstepsministries@gmail.com']);
  expect((await automaticallyThankGift(f.env,'gift','primary'))[0]).toMatchObject({status:'sent'});expect(f.fetchMock).toHaveBeenCalledTimes(1);
 });
 it('sends split shares separately and prevents later allocation changes from causing duplicate acknowledgments',async()=>{
