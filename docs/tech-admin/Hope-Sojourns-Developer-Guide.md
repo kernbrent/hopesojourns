@@ -1,10 +1,14 @@
 # Hope Sojourns developer guide
 
-Version 4.61
+Version 4.63
 
 Last reviewed: October 18, 2026
 
 ## Live Knowledge & FAQ workspace
+
+The public FAQ markup in faq/index.html delegates the header/footer to script.js; never add another static site header. Load /styles.css, /knowledge/widget.css and /faq/faq.css. knowledge/faq.js renders reviewed answer cards, source navigation and nonzero popularity counts with safe textContent. Request sequencing prevents older search responses from overwriting newer results; changing the popularity window refreshes results. Loading, result counts, empty/error states and aria-busy remain accessible. The full privacy notice stays in a native details disclosure. Validate desktop/mobile layout, one header, search and disclosure behavior before release.
+
+Bulk approval in admin/knowledge/knowledge.js calls the existing source-save or candidate-decision endpoint sequentially with each captured revision and verified review confirmation. Existing CSRF, exact-right, evidence, provenance and stale-edit checks apply to every item. Source payloads preserve visibility, full body, transcript segments and provenance. Already approved records are excluded; source filters clear hidden selections. Failures do not stop subsequent records and remain selected after refresh for review. No batch API, schema migration or automatic FAQ publication is introduced. Validate selection, cancellation, partial stale failures, filtering, permissions and private visibility with node tools/check-knowledge-bulk.cjs.
 
 Question controls are small circular question marks inside their content host, absolutely positioned so they cannot become extra grid cells. A shared tooltip lives outside clipped cards and describes interaction on hover and keyboard focus; accessible labels name the item. Context clicks do not open underlying photo links or toggle disclosure cards. The floating page control is also a question mark. The widget stylesheet/script version is 2026-10-18.1.
 
@@ -1173,6 +1177,10 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 18, 2026 — Version 4.63. Redesigned public FAQ with shared navigation, themed search and answer cards, responsive controls and expandable privacy details. Local pending release.
+
+- October 18, 2026 — Added checked-item approval for the Knowledge & FAQ queue and sources, with visibility preservation, separate publication and partial-failure reporting. Local pending release.
 
 - October 18, 2026 — Version 4.61. Replaced grid-sized question buttons with accessible contextual icons; expanded automatic public text/document/source search, preserved manual withdrawal and private-data isolation, and added migration 0050 plus catalog freshness validation.
 

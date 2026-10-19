@@ -1,10 +1,14 @@
 # Hope Sojourns website style guide
 
-Version 4.52
+Version 4.54
 
 Last reviewed: October 18, 2026
 
 ## Live public questions and portal knowledge tools
+
+The public /faq/ page uses the shared site header and footer exactly once. Use a soft forest-and-gold introduction, a cream search panel, labeled 48px controls, and stacked paper answer cards with reviewed or essential badges and source links. Hide zero popularity counts, wrap filters on phones, and keep the complete privacy notice in an accessible details disclosure. faq/faq.css uses shared palette tokens; preserve visible keyboard focus and prevent horizontal overflow.
+
+The Knowledge & FAQ review queue and source list use labeled native checkboxes, a Select all visible checkbox with an indeterminate state, and an Approve checked button showing the selected count. Already approved records have no selection checkbox. Disable approval when nothing is selected. Filtering sources clears hidden selections. Wrap controls on narrow screens and retain the shared paper, ink and line palette. Confirm the complete review before a batch; show progress, successful approval count and individual failures. Source visibility and FAQ publication remain separate from approval.
 
 Public pages use small circular “?” buttons inside content cards, photos and videos, plus a circular page launcher. Never insert these controls as siblings in a grid. Keep existing cards, columns and spacing intact; position the icons at the item’s upper right. Hover and keyboard focus show a small tooltip explaining that clicking opens an interactive question panel. Give each icon a descriptive accessible name, visible focus ring, and sufficient contrast. Tooltips must escape clipped card boundaries and follow their focused control during scrolling. The modal labels the assistant as AI, names its context, cites original public sources, and offers a clear close control. It uses the existing forest, gold, paper, cream, ink, muted and line tokens. On phones, controls wrap and the dialog fits the viewport. The private traveler and management pages do not receive public content buttons.
 
@@ -797,6 +801,10 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 18, 2026 — Version 4.54. Redesigned public FAQ with shared navigation, themed search and answer cards, responsive controls and expandable privacy details. Local pending release.
+
+- October 18, 2026 — Added checked-item approval for the Knowledge & FAQ queue and sources, with visibility preservation, separate publication and partial-failure reporting. Local pending release.
 
 - October 18, 2026 — Version 4.52. Added compact question-mark icons with hover/focus hints, preserved card grids, and documented original public content search.
 
