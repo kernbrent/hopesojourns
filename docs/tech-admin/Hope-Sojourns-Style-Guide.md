@@ -1,10 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.55
+Version 4.56
 
 Last reviewed: October 18, 2026
 
 ## Live public questions and portal knowledge tools
+
+Knowledge & FAQ adds Move to trash on review entries and a separate Trash tab. The confirmation dialog lists active reuse approval, FAQ publication and essential pinning, then offers Yes, undo and move to trash or Cancel. Entries without those settings still receive a move confirmation. Restore returns entries to pending review. The shared public header links to /faq/ as FAQ, and the Explore footer uses Questions & answers; use the existing mobile menu and shared palette.
 
 The public /faq/ page uses the shared site header and footer exactly once. Use a soft forest-and-gold introduction, a cream search panel, labeled 48px controls, and stacked paper answer cards with reviewed or essential badges and source links. Hide zero popularity counts, wrap filters on phones, and keep the complete privacy notice in an accessible details disclosure. faq/faq.css uses shared palette tokens; preserve visible keyboard focus and prevent horizontal overflow.
 
@@ -801,6 +803,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 18, 2026 — Added guarded Move to trash, pending-only restore and public Questions & answers navigation links. Local pending release.
 
 - October 18, 2026 — Version 4.55. Kept contextual question icons visible inside collapsed and expanded pathway summaries, preserving disclosure state and keyboard access.
 

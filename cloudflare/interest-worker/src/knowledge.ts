@@ -47,7 +47,7 @@ async function publicFaqs(env:KnowledgeEnv,query='',recent=false){
  const list=await rows(env,`SELECT c.id,c.question,c.answer,c.topic_id,c.evidence_json,c.pinned,
  (SELECT COUNT(DISTINCT e.visitor_hash) FROM knowledge_events e WHERE e.topic_id=c.topic_id AND (?='' OR e.created_at>=?)) visitors,
  (SELECT COUNT(*) FROM knowledge_events e WHERE e.topic_id=c.topic_id AND (?='' OR e.created_at>=?)) questions
- FROM knowledge_candidates c WHERE c.published=1 AND c.reuse_approved=1 AND c.privacy_checked=1 AND c.status='reviewed'`,recent?'recent':'',new Date(Date.now()-30*86400000).toISOString(),recent?'recent':'',new Date(Date.now()-30*86400000).toISOString());
+ FROM knowledge_candidates c WHERE c.published=1 AND c.reuse_approved=1 AND c.privacy_checked=1 AND c.status='reviewed' AND c.trashed_at IS NULL`,recent?'recent':'',new Date(Date.now()-30*86400000).toISOString(),recent?'recent':'',new Date(Date.now()-30*86400000).toISOString());
  const tokens=words(query),valid=[];
  for(const c of list){const evidence=parseEvidence(JSON.parse(c.evidence_json));if(!await validKnowledgeEvidence(env,evidence))continue;
  const relevance=tokens.filter(w=>(c.question+' '+c.answer).toLowerCase().includes(w)).length;if(tokens.length&&!relevance)continue;
@@ -108,7 +108,7 @@ async function ask(request:Request,env:KnowledgeEnv){
  const topics=await rows(env,'SELECT * FROM knowledge_topics'),effectiveContext=context||previous[0]?.context||'';
  let topic=topicFor(question,topics as {id:string;label:string;aliases:string}[]);if(topic==='other'&&previous.length&&words(question).length<=3)topic=previous[0].topic_id;
  let answer=unknownAnswer,evidence:Evidence[]=[],mode='unanswered';
- const faqs=await rows(env,"SELECT * FROM knowledge_candidates WHERE reuse_approved=1 AND status='reviewed' AND privacy_checked=1 ORDER BY updated_at DESC");
+ const faqs=await rows(env,"SELECT * FROM knowledge_candidates WHERE reuse_approved=1 AND status='reviewed' AND privacy_checked=1 AND trashed_at IS NULL ORDER BY updated_at DESC");
  // Exact curated question matches can be answered without a paid model; a topic match
  // alone is never enough to reuse an answer to a materially different question.
  const normalize=(s:string)=>s.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
@@ -150,8 +150,8 @@ async function admin(request:Request,env:KnowledgeEnv,path:string){
  const session=await authenticate(request,env,request.method!=='GET'),sub=path.slice('/admin/knowledge'.length),read=request.method==='GET';
  if(sub==='/access'&&read)return adminJson({rights:knowledgeRights.filter(r=>knowledgeCan(session.user,r)),aiEnabled:env.KNOWLEDGE_AI_ENABLED==='true'&&!!env.OPENAI_API_KEY,dailyUsd:Number(env.KNOWLEDGE_DAILY_USD)||0,monthlyUsd:Number(env.KNOWLEDGE_MONTHLY_USD)||0});
  if(sub==='/sources'&&read){await requireRight(session,'manage_sources');return adminJson({sources:await rows(env,'SELECT * FROM knowledge_sources ORDER BY updated_at DESC LIMIT 500')});}
- if(sub==='/queue'&&read){await requireRight(session,'view_queue');return adminJson({candidates:await rows(env,`SELECT c.*,q.question original_question,q.answer original_answer,q.helpful,q.comment,q.context FROM knowledge_candidates c LEFT JOIN knowledge_questions q ON q.id=c.question_id ORDER BY c.updated_at DESC LIMIT 300`),topics:await rows(env,'SELECT * FROM knowledge_topics'),sources:await rows(env,"SELECT id,title,url,revision,status,visibility FROM knowledge_sources WHERE status='approved' AND visibility='public'")});}
- if(sub==='/analytics'&&read){await requireRight(session,'view_analytics');return adminJson({topics:await rows(env,`SELECT t.*,(SELECT COUNT(*) FROM knowledge_events WHERE topic_id=t.id) questions,(SELECT COUNT(DISTINCT visitor_hash) FROM knowledge_events WHERE topic_id=t.id) visitors,(SELECT COUNT(DISTINCT visitor_hash) FROM knowledge_events WHERE topic_id=t.id AND created_at>=?) recent FROM knowledge_topics t ORDER BY visitors DESC,questions DESC,t.label`,new Date(Date.now()-30*86400000).toISOString()),helpfulness:await rows(env,'SELECT helpful,COUNT(*) count FROM knowledge_questions GROUP BY helpful'),pending:await rows(env,'SELECT status,COUNT(*) count FROM knowledge_candidates GROUP BY status'),usage:await rows(env,'SELECT kind,SUM(units)/1000000.0 reserved_usd,COUNT(*) requests FROM knowledge_usage WHERE created_at>=? GROUP BY kind',now().slice(0,7)+'-01')});}
+ if((sub==='/queue'||sub==='/trash')&&read){await requireRight(session,'view_queue');return adminJson({candidates:await rows(env,`SELECT c.*,q.question original_question,q.answer original_answer,q.helpful,q.comment,q.context FROM knowledge_candidates c LEFT JOIN knowledge_questions q ON q.id=c.question_id WHERE c.trashed_at IS ${sub==='/trash'?'NOT NULL':'NULL'} ORDER BY c.updated_at DESC LIMIT 300`),topics:await rows(env,'SELECT * FROM knowledge_topics'),sources:await rows(env,"SELECT id,title,url,revision,status,visibility FROM knowledge_sources WHERE status='approved' AND visibility='public'")});}
+ if(sub==='/analytics'&&read){await requireRight(session,'view_analytics');return adminJson({topics:await rows(env,`SELECT t.*,(SELECT COUNT(*) FROM knowledge_events WHERE topic_id=t.id) questions,(SELECT COUNT(DISTINCT visitor_hash) FROM knowledge_events WHERE topic_id=t.id) visitors,(SELECT COUNT(DISTINCT visitor_hash) FROM knowledge_events WHERE topic_id=t.id AND created_at>=?) recent FROM knowledge_topics t ORDER BY visitors DESC,questions DESC,t.label`,new Date(Date.now()-30*86400000).toISOString()),helpfulness:await rows(env,'SELECT helpful,COUNT(*) count FROM knowledge_questions GROUP BY helpful'),pending:await rows(env,'SELECT status,COUNT(*) count FROM knowledge_candidates WHERE trashed_at IS NULL GROUP BY status'),usage:await rows(env,'SELECT kind,SUM(units)/1000000.0 reserved_usd,COUNT(*) requests FROM knowledge_usage WHERE created_at>=? GROUP BY kind',now().slice(0,7)+'-01')});}
  if(!read){const b=sub==='/sources'?await sourceJson(request):await readAdminJson(request);
   if(sub==='/refresh'){await requireRight(session,'manage_sources');return adminJson(await refreshKnowledgeCatalog(env));}
   if(sub==='/sources'){await requireRight(session,'manage_sources');return saveSource(env,b,session.user_id);}
@@ -184,7 +184,7 @@ async function saveCandidate(env:KnowledgeEnv,b:Row,userId:string){
  const id=text(b.id,36,true),question=text(b.question,300,true),answer=text(b.answer,4000),topic=text(b.topicId,100,true),evidence=parseEvidence(b.evidence);
  if(!await env.DB.prepare('SELECT id FROM knowledge_topics WHERE id=?').bind(topic).first())fail(422,'INVALID_TOPIC','Choose a topic.');
  if(evidence.length&&!await validKnowledgeEvidence(env,evidence))fail(422,'INVALID_EVIDENCE','Choose current, approved public sources.');
- const result=await env.DB.batch([env.DB.prepare("UPDATE knowledge_candidates SET question=?,answer=?,topic_id=?,evidence_json=?,status='pending',reuse_approved=0,published=0,privacy_checked=0,revision=revision+1,updated_at=?,reviewed_by=? WHERE id=? AND revision=?").bind(question,answer,topic,JSON.stringify(evidence),now(),userId,id,Number(b.revision)),auditStatement(env,'knowledge_candidate',id,'edited')]);
+ const result=await env.DB.batch([env.DB.prepare("UPDATE knowledge_candidates SET question=?,answer=?,topic_id=?,evidence_json=?,status='pending',reuse_approved=0,published=0,privacy_checked=0,revision=revision+1,updated_at=?,reviewed_by=? WHERE id=? AND revision=? AND trashed_at IS NULL").bind(question,answer,topic,JSON.stringify(evidence),now(),userId,id,Number(b.revision)),auditStatement(env,'knowledge_candidate',id,'edited')]);
  if(!result[0].meta.changes)fail(409,'STALE_EDIT','This proposal changed. Refresh before saving.');
  await env.DB.batch([env.DB.prepare('UPDATE knowledge_events SET topic_id=? WHERE id=?').bind(topic,id),env.DB.prepare('UPDATE knowledge_questions SET topic_id=? WHERE id=?').bind(topic,id)]);
  return adminJson({ok:true});
@@ -192,7 +192,14 @@ async function saveCandidate(env:KnowledgeEnv,b:Row,userId:string){
 async function decide(env:KnowledgeEnv,b:Row,userId:string){
  const id=text(b.id,36,true),c=await env.DB.prepare('SELECT * FROM knowledge_candidates WHERE id=? AND revision=?').bind(id,Number(b.revision)).first<Row>();if(!c)fail(409,'STALE_EDIT','This proposal changed. Refresh before deciding.');
  const action=b.action;let set='';
- if(action==='approve'){
+ if(c.trashed_at&&action!=='restore')fail(422,'IN_TRASH','Restore this entry from Trash before editing or approving it.');
+ if(action==='trash'){
+  if((c.reuse_approved||c.published||c.pinned)&&b.undoApprovals!==true)fail(422,'TRASH_CONFIRMATION_REQUIRED','This entry is approved for reuse, published, or pinned. Confirm undoing those settings before moving it to Trash.');
+  set="trashed_at='"+now()+"',reuse_approved=0,published=0,pinned=0,status='pending'";
+ }else if(action==='restore'){
+  if(!c.trashed_at)fail(422,'NOT_IN_TRASH','This entry is not in Trash.');
+  set="trashed_at=NULL,reuse_approved=0,published=0,pinned=0,status='pending'";
+ }else if(action==='approve'){
   if(b.verified!==true||!c.answer||privacyProblem(c.question+' '+c.answer)||!await validKnowledgeEvidence(env,parseEvidence(JSON.parse(c.evidence_json))))fail(422,'REVIEW_REQUIRED','Verify the original evidence, remove personal information, and confirm your review.');
   set="reuse_approved=1,published=0,privacy_checked=1,status='reviewed'";
  }else if(action==='publish'){

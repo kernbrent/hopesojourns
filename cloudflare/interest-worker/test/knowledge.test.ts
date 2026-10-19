@@ -118,3 +118,39 @@ it('imports public journey notes and destinations, excludes private content, and
  f.sqlite.prepare('UPDATE trips SET public_enabled=0 WHERE id=?').run(id);await refreshKnowledgeCatalog(f.env);
  expect(f.sqlite.prepare("SELECT COUNT(*) n FROM knowledge_sources WHERE body LIKE '%Zebrafountain%' AND status='approved'").get()!.n).toBe(0);
 });
+
+it('requires explicit confirmation before trashing protected answers and restores without approvals',async()=>{
+ const f=await setup(),id='starter-supervision';
+ f.sqlite.prepare('UPDATE knowledge_candidates SET pinned=1 WHERE id=?').run(id);
+ let c=f.sqlite.prepare('SELECT * FROM knowledge_candidates WHERE id=?').get(id)!;
+ const decision=(action:string,extra={})=>f.admin('/decision',{id,revision:c.revision,action,...extra});
+ expect((await decision('trash')).status).toBe(422);
+ expect(f.sqlite.prepare('SELECT * FROM knowledge_candidates WHERE id=?').get(id)).toMatchObject({reuse_approved:1,published:1,pinned:1,trashed_at:null});
+ expect((await decision('trash',{undoApprovals:true})).status).toBe(200);
+ c=f.sqlite.prepare('SELECT * FROM knowledge_candidates WHERE id=?').get(id)!;
+ expect(c).toMatchObject({reuse_approved:0,published:0,pinned:0,status:'pending'});expect(c.trashed_at).toBeTruthy();
+ expect((await json(await f.admin('/queue'))).candidates.some((x:any)=>x.id===id)).toBe(false);
+ expect((await json(await f.admin('/trash'))).candidates.some((x:any)=>x.id===id)).toBe(true);
+ expect((await json(await f.call('/faqs'))).faqs.some((x:any)=>x.id===id)).toBe(false);
+ expect((await json(await f.ask('What support do interns receive?'))).mode).not.toBe('curated');
+ for(const action of ['approve','publish','pin','reject','follow_up'])expect((await decision(action,{verified:true})).status).toBe(422);
+ expect((await f.admin('/candidate',{id,revision:c.revision,question:c.question,answer:c.answer,topicId:c.topic_id,evidence:JSON.parse(String(c.evidence_json))})).status).toBe(409);
+ expect((await f.admin('/decision',{id,revision:Number(c.revision)-1,action:'restore'})).status).toBe(409);
+ expect((await decision('restore')).status).toBe(200);
+ c=f.sqlite.prepare('SELECT * FROM knowledge_candidates WHERE id=?').get(id)!;
+ expect(c).toMatchObject({trashed_at:null,reuse_approved:0,published:0,pinned:0,status:'pending'});
+ expect((await decision('publish')).status).toBe(422);
+ expect((await json(await f.admin('/queue'))).candidates.some((x:any)=>x.id===id)).toBe(true);
+ expect((await json(await f.admin('/trash'))).candidates).toHaveLength(0);
+});
+it('trashes unapproved entries without undo confirmation and preserves permission and retention checks',async()=>{
+ const f=await setup(),q=await json(await f.ask('Unique unanswered question for trash'));
+ const c=f.sqlite.prepare('SELECT * FROM knowledge_candidates WHERE id=?').get(q.id)!;
+ expect((await f.admin('/decision',{id:q.id,revision:c.revision,action:'trash'})).status).toBe(200);
+ f.sqlite.prepare("UPDATE knowledge_candidates SET created_at='2020-01-01' WHERE id=?").run(q.id);
+ await cleanupKnowledge(f.env);expect(f.sqlite.prepare('SELECT id FROM knowledge_candidates WHERE id=?').get(q.id)).toBeUndefined();
+ f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,is_org_admin,is_admin,password_hash,registered_at,updated_at) VALUES('trash-admin','trash-admin','Other','Admin','trash@example.test',1,1,'configured','2026','2026')`);
+ f.sqlite.prepare("UPDATE mmt_users SET is_admin=0,is_org_admin=0,permissions_json='{}' WHERE id='primary'").run();
+ expect((await f.admin('/trash')).status).toBe(403);
+ expect((await f.admin('/decision',{id:'starter-matching',revision:1,action:'trash',undoApprovals:true})).status).toBe(403);
+});

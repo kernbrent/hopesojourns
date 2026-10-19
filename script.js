@@ -19,6 +19,7 @@ const header = `
         <a href="/resources/">Resources</a>
         <a href="/giving/">Giving</a>
         <a href="/about/">About us</a>
+        <a href="/faq/" aria-label="Frequently asked questions">FAQ</a>
         <a href="/interest/">Get involved</a>
         <a class="button" href="${calendarUrl}">Book a conversation</a>
       </div>
@@ -49,6 +50,7 @@ const footer = `
           <a href="/resources/">Resources</a>
           <a href="/giving/">Giving</a>
           <a href="/about/">About us</a>
+        <a href="/faq/">Questions &amp; answers</a>
         </div>
       </div>
       <div>
