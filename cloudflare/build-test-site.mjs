@@ -55,7 +55,9 @@ const inputLine=catalogSource.split('\n').find(line=>line.startsWith('export con
 if(!inputLine)throw new Error('Missing public knowledge catalog; run tools/build_knowledge_site.py.');
 const inputs=JSON.parse(inputLine.slice('export const siteContentInputs='.length).trim().replace(/;$/,''));
 for(const [file,digest] of Object.entries(inputs)){
- const actual=createHash('sha256').update(await readFile(path.join(repositoryRoot,file))).digest('hex');
+ const bytes=await readFile(path.join(repositoryRoot,file));
+ const content=/\.(html|json|txt)$/i.test(file)?bytes.toString('utf8').replace(/\r\n/g,'\n'):bytes;
+ const actual=createHash('sha256').update(content).digest('hex');
  if(actual!==digest)throw new Error('Stale public knowledge input: '+file+'. Run tools/build_knowledge_site.py.');
 }
 const excluded=new Set(['admin','journey','trip-account','faq','knowledge','logo-explorations','outputs']);

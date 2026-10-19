@@ -13,6 +13,13 @@ ROOT=Path(__file__).resolve().parents[1]
 OUTPUT=ROOT/'cloudflare/interest-worker/src/knowledge-site-content.ts'
 EXCLUDED={'admin','journey','trip-account','faq','knowledge','logo-explorations','outputs'}
 
+def input_digest(path):
+    data=path.read_bytes()
+    # Git checkouts can use CRLF while release archives use LF. Text is the same
+    # public evidence in either form; binary documents still require exact bytes.
+    if path.suffix.lower() in {'.html','.json','.txt'}:data=data.replace(b'\r\n',b'\n')
+    return hashlib.sha256(data).hexdigest()
+
 class PublicPage(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True);self.stack=[];self.text=[];self.title=[];self.links=[];self.noindex=False
@@ -56,7 +63,7 @@ def build():
             if len(part)<20:continue
             sources.append(dict(id=f'site:{key}:{i}',title=title,url=url,kind=kind,body=part,context=title+' '+url))
     for path in sorted(paths):
-        inputs[path.relative_to(ROOT).as_posix()]=hashlib.sha256(path.read_bytes()).hexdigest()
+        inputs[path.relative_to(ROOT).as_posix()]=input_digest(path)
         page=PublicPage();page.feed(path.read_text(encoding='utf-8-sig'))
         if page.noindex:continue
         relative=path.relative_to(ROOT).as_posix();url='/'+relative.removesuffix('index.html');title=''.join(page.title).split('|')[0].strip() or url
@@ -79,7 +86,7 @@ def build():
     # Only linked, public, local documents. Scans without a text layer are reported,
     # never replaced with guessed text. Existing PDFs/Word files are not changed.
     for path in sorted(documents):
-        key=path.relative_to(ROOT).as_posix();url='/'+key;title=path.stem.replace('-',' ');inputs[key]=hashlib.sha256(path.read_bytes()).hexdigest()
+        key=path.relative_to(ROOT).as_posix();url='/'+key;title=path.stem.replace('-',' ');inputs[key]=input_digest(path)
         try:
             if path.suffix.lower()=='.pdf':
                 from pypdf import PdfReader
@@ -95,13 +102,13 @@ def build():
             else:add(key,title,url,path.read_text(encoding='utf-8'),'document')
         except Exception as e:raise RuntimeError(f'Cannot index public document {key}: {type(e).__name__}') from e
     # Dynamic resources are a shipped public catalog, not arbitrary JSON or AI FAQs.
-    inputs['resources/resources.json']=hashlib.sha256((ROOT/'resources/resources.json').read_bytes()).hexdigest()
+    inputs['resources/resources.json']=input_digest(ROOT/'resources/resources.json')
     catalog=json.loads((ROOT/'resources/resources.json').read_text(encoding='utf-8'))
     for item in catalog.get('items',[]):
         body='\n'.join(str(item[k]) for k in ['title','subtitle','description','author','content'] if isinstance(item.get(k),str))
         add('resource:'+item['id'],item.get('title','Resource'),'/resources/',body)
     gallery=ROOT/'past-trips/gallery/gallery-data.json'
-    inputs['past-trips/gallery/gallery-data.json']=hashlib.sha256(gallery.read_bytes()).hexdigest()
+    inputs['past-trips/gallery/gallery-data.json']=input_digest(gallery)
     groups={}
     for image in json.loads(gallery.read_text(encoding='utf-8')).get('images',[]):
         groups.setdefault(image.get('trip','Journey photos'),[]).append(str(image.get('caption','')))
