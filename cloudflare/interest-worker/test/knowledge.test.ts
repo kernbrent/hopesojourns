@@ -3,6 +3,9 @@ import {ministryFixture} from './ministry-fixture';
 import {handleKnowledge,seedKnowledge,reserveKnowledgeUsage,cleanupKnowledge,type KnowledgeEnv} from '../src/knowledge';
 import {knowledgeCan,topicFor,topicSeeds,safeKnowledgeUrl} from '../src/knowledge-policy';
 import {actorContext} from '../src/mmt-permissions';
+import {refreshKnowledgeCatalog,syncSiteKnowledge} from '../src/knowledge-ingest';
+import {siteContent} from '../src/knowledge-site-content';
+import {handleTripAdminRequest} from '../src/trip-platform';
 afterEach(()=>vi.unstubAllGlobals());
 async function setup(){const f=await ministryFixture();await seedKnowledge(f.env);const visitor=crypto.randomUUID(),conversation=crypto.randomUUID();
  const admin=(path:string,b?:unknown,method?:string)=>handleKnowledge(f.request('/admin/knowledge'+path,b,method),f.env,'/admin/knowledge'+path);
@@ -13,7 +16,7 @@ async function json(r:Response){return r.json() as Promise<any>;}
 it('serves only reviewed, published FAQ entries, with original evidence and honest unknowns',async()=>{
  const f=await setup();const d=await json(await f.call('/faqs'));expect(d.faqs).toHaveLength(2);expect(d.faqs[0].citations[0].url).toBe('/internships/');
  const answer=await json(await f.ask('What support do interns receive?'));expect(answer.mode).toBe('curated');expect(answer.answer).toContain('weekly');
- const unknown=await json(await f.ask('What are the guaranteed exact costs and bed dimensions?'));expect(unknown.answer).toContain('Brent');expect(unknown.citations).toHaveLength(0);
+ const unknown=await json(await f.ask('What is the glimmerflorp certification process?'));expect(unknown.answer).toContain('Brent');expect(unknown.citations).toHaveLength(0);
  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM knowledge_candidates WHERE status=?').get('follow_up')!.n).toBe(1);
 });
 it('shows approved source extracts without pretending a model answered or creating evidence from mock data',async()=>{
@@ -47,7 +50,7 @@ it('blocks transcript approval without full segments or human verification',asyn
 });
 it('retrieves relevant late transcript passages and cites their exact timestamp',async()=>{
  const f=await setup();await f.admin('/sources',{title:'Ministry interview',url:'/trip/?trip=england-october-2026',kind:'video',status:'approved',provenance:'Complete interview reviewed',verified:true,segments:[{start:0,end:30,text:'Welcome to our interview.'},{start:960,end:1000,text:'The community pantry distributes cereal and canned goods.'}]});
- const d=await json(await f.ask('What does the community pantry distribute?'));expect(d.answer).toContain('cereal and canned goods');expect(d.citations[0]).toMatchObject({start:960,end:1000});expect(d.citations[0].url).toContain('#t=960');
+ const d=await json(await f.ask('What does the community pantry distribute?'));expect(d.answer).toContain('cereal and canned goods');expect(d.citations).toEqual(expect.arrayContaining([expect.objectContaining({start:960,end:1000})]));expect(d.citations.find((c:any)=>c.start===960).url).toContain('#t=960');
 });
 it('requires server-side granular knowledge rights and CSRF, even if navigation is bypassed',async()=>{
  const f=await setup();f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,is_org_admin,is_admin,password_hash,registered_at,updated_at) VALUES('other-admin','other-admin','Other','Admin','admin@example.test',1,1,'configured','2026','2026')`);f.sqlite.prepare("UPDATE mmt_users SET is_admin=0,is_org_admin=0,permissions_json=? WHERE id='primary'").run(JSON.stringify({'knowledge.view_analytics':'read'}));
@@ -88,4 +91,30 @@ it('fails closed for paid processing and atomically reserves daily and monthly l
  const env={...f.env,OPENAI_API_KEY:'test-not-real',KNOWLEDGE_AI_ENABLED:'true',KNOWLEDGE_DAILY_USD:'0.02',KNOWLEDGE_MONTHLY_USD:'0.02'} as KnowledgeEnv;
  await reserveKnowledgeUsage(env,'answer',20000);await expect(reserveKnowledgeUsage(env,'answer',20000)).rejects.toMatchObject({code:'USAGE_LIMIT'});
  expect(f.sqlite.prepare('SELECT SUM(units) n FROM knowledge_usage').get()!.n).toBe(20000);
+});
+it('searches published pages beyond the starter FAQ without indexing private or AI pages',async()=>{
+ const f=await setup();const d=await json(await f.ask('What technology leadership experience does Brent have?'));
+ expect(d.mode).toBe('source_excerpts');expect(d.answer).toContain('28 years');expect(d.citations.some((c:any)=>c.url==='/about/')).toBe(true);
+ expect(siteContent.some(s=>s.kind==='document')).toBe(true);
+ expect(siteContent.some(s=>/^\/(admin|journey|trip-account|faq|preview|docs)\//.test(s.url))).toBe(false);
+ expect(JSON.stringify(siteContent)).not.toContain('Fictional sample');
+});
+it('keeps manual source withdrawals paused across automatic catalog refreshes',async()=>{
+ const f=await setup();await syncSiteKnowledge(f.env);
+ const s=(await json(await f.admin('/sources'))).sources.find((s:any)=>s.id.startsWith('site:about/'));
+ expect((await f.admin('/sources',{...s,status:'withdrawn',segments:[],verified:false})).status).toBe(200);
+ f.sqlite.prepare("DELETE FROM knowledge_catalog_state WHERE key='site'").run();await syncSiteKnowledge(f.env);
+ expect(f.sqlite.prepare('SELECT status,sync_paused FROM knowledge_sources WHERE id=?').get(s.id)).toMatchObject({status:'withdrawn',sync_paused:1});
+});
+it('imports public journey notes and destinations, excludes private content, and withdraws removed text',async()=>{
+ const f=await setup();const r=await handleTripAdminRequest(f.request('/admin/trips',{title:'Catalog journey',location:'Public location'}),f.env,'/admin/trips');const {id}=await json(r);
+ f.sqlite.prepare("UPDATE trips SET status='traveling',public_enabled=1,public_summary='Zebrafountain public service project' WHERE id=?").run(id);
+ const base='/admin/trips/'+id+'/content';
+ await handleTripAdminRequest(f.request(base,{contentType:'update',title:'Public note',content:'Zebrafountain participants helped the community pantry.',visibility:'public',publicationStatus:'published'}),f.env,base);
+ await handleTripAdminRequest(f.request(base,{contentType:'update',title:'Private record',content:'UNIQUEPRIVATEBANKDATA',visibility:'admin',publicationStatus:'published'}),f.env,base);
+ await refreshKnowledgeCatalog(f.env);
+ expect(f.sqlite.prepare("SELECT COUNT(*) n FROM knowledge_sources WHERE body LIKE '%Zebrafountain%' AND status='approved'").get()!.n).toBeGreaterThan(0);
+ expect(f.sqlite.prepare("SELECT COUNT(*) n FROM knowledge_sources WHERE body LIKE '%UNIQUEPRIVATEBANKDATA%'").get()!.n).toBe(0);
+ f.sqlite.prepare('UPDATE trips SET public_enabled=0 WHERE id=?').run(id);await refreshKnowledgeCatalog(f.env);
+ expect(f.sqlite.prepare("SELECT COUNT(*) n FROM knowledge_sources WHERE body LIKE '%Zebrafountain%' AND status='approved'").get()!.n).toBe(0);
 });

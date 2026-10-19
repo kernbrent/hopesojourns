@@ -20,7 +20,7 @@ export const topicSeeds=[
  ['ministry','Ministry and service','ministry ministries outreach homeless refugees service serve'],
  ['other','Other questions','']
 ] as const;
-export function words(value:string){return value.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu)?.filter(w=>!['the','and','for','with','this','that','are','would','could','what','how','does','you','your','can','about','have','there','from','will','they','them','was','were','tell','please','know'].includes(w)).slice(0,30)||[];}
+export function words(value:string){return value.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu)?.filter(w=>!['is','do','did','does','me','it','to','of','an','my','be','on','at','so','or','if','as','am','us','we','a','the','and','for','with','this','that','are','would','could','what','how','does','you','your','can','about','have','there','from','will','they','them','was','were','tell','please','know'].includes(w)).slice(0,30)||[];}
 export function topicFor(question:string,topics:{id:string;label:string;aliases:string}[]){
  const tokens=words(question);let best='other',score=0;
  for(const t of topics){const n=tokens.filter(w=>words(t.label+' '+t.aliases).includes(w)).length;if(n>score){score=n;best=t.id;}}return best;
@@ -28,7 +28,8 @@ export function topicFor(question:string,topics:{id:string;label:string;aliases:
 export function safeKnowledgeUrl(value:string){
  if(!value.startsWith('/')||value.startsWith('//')||/[\\\r\n]/.test(value))return false;
  const u=new URL(value,'https://hopesojourns.com');
- return !/^\/(admin|trip-account|api\/interest\/(admin|portal|private-account))\b/.test(u.pathname)&&!['token','password','email','contact','message'].some(k=>u.searchParams.has(k));
+ let path;try{path=decodeURIComponent(u.pathname);}catch{return false;}
+ return !/^\/(admin|journey|trip-account|api\/interest\/(admin|portal|private-account))\b/i.test(path)&&!['token','password','email','contact','message'].some(k=>u.searchParams.has(k));
 }
 export function privacyProblem(value:string){return /[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\+?\d[\d ().-]{7,}\d)/i.test(value);}
 export function knowledgePassage(source:{body:string;segments_json:string},question:string){

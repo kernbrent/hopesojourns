@@ -1,6 +1,6 @@
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,hashText,type AdminEnv} from './admin';
 import {knowledgeCan,knowledgeRights,topicSeeds,topicFor,words,safeKnowledgeUrl,privacyProblem,parseEvidence,knowledgePassage,type Evidence,type KnowledgeRight} from './knowledge-policy';
-import {refreshKnowledgeCatalog} from './knowledge-ingest';
+import {refreshKnowledgeCatalog,ensureKnowledgeCatalog} from './knowledge-ingest';
 
 export type KnowledgeEnv=AdminEnv&{OPENAI_API_KEY?:string;KNOWLEDGE_AI_ENABLED?:string;KNOWLEDGE_DAILY_USD?:string;KNOWLEDGE_MONTHLY_USD?:string};
 type Row=Record<string,any>;
@@ -68,9 +68,11 @@ async function retrieve(env:KnowledgeEnv,question:string,context:string,topic:st
  const terms=words(question),synonyms=topicSeeds.find(t=>t[0]===topic)?.[2]||'';
  const match=[...new Set([...terms,...words(synonyms).slice(0,6)])].map(w=>'"'+w.replace(/"/g,'')+'"').join(' OR ');
  if(!match)return [];
- return rows(env,`SELECT s.*,bm25(knowledge_search) rank FROM knowledge_search JOIN knowledge_sources s ON s.rowid=knowledge_search.rowid
- WHERE knowledge_search MATCH ? AND s.status='approved' AND s.visibility='public' AND length(s.body)>0
- ORDER BY CASE WHEN ?!='' AND instr(lower(s.context||' '||s.url||' '||s.title),lower(?))>0 THEN 0 ELSE 1 END,rank LIMIT 8`,match,context,context);
+ const found=await rows(env,`SELECT s.*,bm25(knowledge_search) rank FROM knowledge_search JOIN knowledge_sources s ON s.rowid=knowledge_search.rowid
+ WHERE knowledge_search MATCH ? AND s.status='approved' AND s.visibility='public' AND length(s.body)>0 ORDER BY rank LIMIT 80`,match);
+ const page=context.split(' ')[0];
+ const score=(s:Row)=>terms.filter(w=>(s.title+' '+s.body+' '+s.context).toLowerCase().includes(w)).length;
+ return found.filter(s=>score(s)>=Math.min(2,terms.length)).sort((a,b)=>score(b)-score(a)||(page&&page!=='/'?Number(b.url.split('#')[0].split('?')[0]===page)-Number(a.url.split('#')[0].split('?')[0]===page):0)||a.rank-b.rank).slice(0,8);
 }
 async function aiAnswer(env:KnowledgeEnv,question:string,context:string,previous:Row[],sources:Row[],topics:Row[]){
  const evidence=sources.map(s=>({id:s.id,revision:s.revision,title:s.title,kind:s.kind,context:s.context,...knowledgePassage(s as {body:string;segments_json:string},question)}));
@@ -101,14 +103,16 @@ async function ask(request:Request,env:KnowledgeEnv){
  const owner=await publicOwner(request,env);await limit(env,'ask:'+owner,5,60);await limit(env,'ask-day:'+owner,30,86400);
  const b=await readAdminJson(request),question=text(b.question,600,true),context=text(b.context||'',300),conversation=text(b.conversation,36,true);
  if(!/^[a-f0-9-]{36}$/.test(conversation))fail(422,'INVALID_CONVERSATION','Start a new conversation.');
+ await ensureKnowledgeCatalog(env);
  const conversationHash=await hashText(owner+conversation),previous=await rows(env,'SELECT question,context,topic_id FROM knowledge_questions WHERE owner_hash=? AND conversation_hash=? ORDER BY created_at DESC LIMIT 3',owner,conversationHash);
  const topics=await rows(env,'SELECT * FROM knowledge_topics'),effectiveContext=context||previous[0]?.context||'';
  let topic=topicFor(question,topics as {id:string;label:string;aliases:string}[]);if(topic==='other'&&previous.length&&words(question).length<=3)topic=previous[0].topic_id;
  let answer=unknownAnswer,evidence:Evidence[]=[],mode='unanswered';
- const faqs=await rows(env,"SELECT * FROM knowledge_candidates WHERE reuse_approved=1 AND status='reviewed' AND privacy_checked=1 AND topic_id=? ORDER BY updated_at DESC",topic);
+ const faqs=await rows(env,"SELECT * FROM knowledge_candidates WHERE reuse_approved=1 AND status='reviewed' AND privacy_checked=1 ORDER BY updated_at DESC");
  // Exact curated question matches can be answered without a paid model; a topic match
  // alone is never enough to reuse an answer to a materially different question.
- for(const f of faqs){if(f.question.toLowerCase().replace(/\W/g,'')===question.toLowerCase().replace(/\W/g,'')&&await validKnowledgeEvidence(env,parseEvidence(JSON.parse(f.evidence_json)))){answer=f.answer;evidence=JSON.parse(f.evidence_json);mode='curated';break;}}
+ const normalize=(s:string)=>s.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+ for(const f of faqs){if(normalize(question)&&normalize(f.question)===normalize(question)&&await validKnowledgeEvidence(env,parseEvidence(JSON.parse(f.evidence_json)))){answer=f.answer;evidence=JSON.parse(f.evidence_json);topic=f.topic_id;mode='curated';break;}}
  if(mode==='unanswered'&&env.KNOWLEDGE_AI_ENABLED!=='true'){
   const found=await retrieve(env,question,effectiveContext,topic);
   // No model: show attributed extracts, explicitly not a synthesized answer. Never
@@ -171,7 +175,7 @@ async function saveSource(env:KnowledgeEnv,b:Row,userId:string){
  const provenance=text(b.provenance||old?.provenance||'',1000);
  if(status==='approved'&&!provenance)fail(422,'PROVENANCE_REQUIRED','Describe the original source and your review. Earlier AI answers cannot be evidence.');
  const statements=[];
- if(old)statements.push(env.DB.prepare('UPDATE knowledge_sources SET title=?,url=?,kind=?,context=?,ministry=?,destination=?,status=?,visibility=?,body=?,segments_json=?,provenance=?,reviewed_by=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').bind(title,url,kind,context,text(b.ministry||'',240),text(b.destination||'',240),status,visibility,fullBody,JSON.stringify(segments),provenance,userId,now(),id,Number(b.revision)));
+ if(old)statements.push(env.DB.prepare('UPDATE knowledge_sources SET title=?,url=?,kind=?,context=?,ministry=?,destination=?,status=?,visibility=?,body=?,segments_json=?,provenance=?,reviewed_by=?,sync_paused=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').bind(title,url,kind,context,text(b.ministry||'',240),text(b.destination||'',240),status,visibility,fullBody,JSON.stringify(segments),provenance,userId,status==='approved'&&visibility==='public'?0:1,now(),id,Number(b.revision)));
  else statements.push(env.DB.prepare('INSERT INTO knowledge_sources(id,title,url,kind,context,ministry,destination,status,visibility,body,segments_json,provenance,reviewed_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,url,kind,context,text(b.ministry||'',240),text(b.destination||'',240),status,visibility,fullBody,JSON.stringify(segments),provenance,userId,now()));
  statements.push(auditStatement(env,'knowledge_source',id,old?'updated':'created',{status,visibility,revision:old?old.revision+1:1}));
  const result=await env.DB.batch(statements);if(!result[0].meta.changes)fail(409,'STALE_EDIT','This source changed. Refresh before saving.');return adminJson({id,ok:true});
@@ -215,7 +219,7 @@ export async function handleKnowledge(request:Request,env:KnowledgeEnv,path:stri
   if(path.startsWith('/admin/knowledge'))return await admin(request,env,path);
   const sub=path.slice('/public/knowledge'.length),method=request.method;
   if(method==='GET'&&sub==='/config')return adminJson({aiEnabled:env.KNOWLEDGE_AI_ENABLED==='true'&&!!env.OPENAI_API_KEY,voiceEnabled:false,retentionDays:30});
-  if(method==='GET'&&sub==='/faqs'){const u=new URL(request.url);return adminJson({faqs:await publicFaqs(env,(u.searchParams.get('q')||'').slice(0,200),u.searchParams.get('window')==='recent')});}
+  if(method==='GET'&&sub==='/faqs'){await ensureKnowledgeCatalog(env);const u=new URL(request.url);return adminJson({faqs:await publicFaqs(env,(u.searchParams.get('q')||'').slice(0,200),u.searchParams.get('window')==='recent')});}
   if(method==='POST'&&sub==='/ask')return await ask(request,env);
   if(method==='POST'&&sub==='/feedback')return await feedback(request,env);
   if(method==='DELETE'&&sub==='/conversation'){

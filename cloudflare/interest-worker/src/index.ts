@@ -3,6 +3,7 @@ import {handleInquiries} from './inquiries';
 import {receiveInterest,handleInterestReview,receipt} from './interest-review';
 import {handlePlanning} from './planning';
 import {handleKnowledge,cleanupKnowledge} from './knowledge';
+import {ensureKnowledgeCatalog} from './knowledge-ingest';
 export {CsmIdentity} from './identity-entrypoint';
 import {sharedSwitch} from './shared-signin';
 import {storedPhone,matchPhone} from './phone';
@@ -472,7 +473,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async scheduled(_event, env, ctx) { ctx.waitUntil(Promise.all([startDueTrips(env),cleanupKnowledge(env)])); },
+  async scheduled(_event, env, ctx) { ctx.waitUntil(Promise.all([startDueTrips(env),cleanupKnowledge(env),ensureKnowledgeCatalog(env)])); },
   async fetch(request, env): Promise<Response> {
     try {
       return await actorContext.run({},()=>handleRequest(request, env));

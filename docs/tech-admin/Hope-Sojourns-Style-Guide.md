@@ -1,12 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.51
+Version 4.52
 
-Last reviewed: October 16, 2026
+Last reviewed: October 18, 2026
 
 ## Live public questions and portal knowledge tools
 
-Public pages offer a compact “Ask a question” launcher and contextual buttons on content cards, photos and videos. The modal labels the assistant as AI, names its context, cites original public sources, and offers a clear close control. It uses the existing forest, gold, paper, cream, ink, muted and line tokens. On phones, controls wrap and the dialog fits the viewport. The private traveler and management pages do not receive public content buttons.
+Public pages use small circular “?” buttons inside content cards, photos and videos, plus a circular page launcher. Never insert these controls as siblings in a grid. Keep existing cards, columns and spacing intact; position the icons at the item’s upper right. Hover and keyboard focus show a small tooltip explaining that clicking opens an interactive question panel. Give each icon a descriptive accessible name, visible focus ring, and sufficient contrast. Tooltips must escape clipped card boundaries and follow their focused control during scrolling. The modal labels the assistant as AI, names its context, cites original public sources, and offers a clear close control. It uses the existing forest, gold, paper, cream, ink, muted and line tokens. On phones, controls wrap and the dialog fits the viewport. The private traveler and management pages do not receive public content buttons.
 
 When paid AI is off, use the explicit wording “Live AI is currently off” and label approved extracts as excerpts. Never substitute fictional preview answers on the live site. Missing information offers a private handoff to Brent through the existing interest form, without a promised response deadline. No private question or contact details appear in the URL. Optional browser read-aloud must be user initiated; voice recording and paid speech remain off in this release.
 
@@ -797,6 +797,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 18, 2026 — Version 4.52. Added compact question-mark icons with hover/focus hints, preserved card grids, and documented original public content search.
 
 - October 16, 2026 — Version 4.51. Added live public question/FAQ and authenticated Knowledge & FAQ workflows, granular rights, reviewed sources/transcripts, retention, topic analytics and test/production release procedure. Paid services remain disabled by Brent’s choice.
 
