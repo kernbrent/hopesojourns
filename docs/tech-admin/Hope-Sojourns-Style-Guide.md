@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.54
+Version 4.55
 
 Last reviewed: October 18, 2026
 
@@ -10,7 +10,7 @@ The public /faq/ page uses the shared site header and footer exactly once. Use a
 
 The Knowledge & FAQ review queue and source list use labeled native checkboxes, a Select all visible checkbox with an indeterminate state, and an Approve checked button showing the selected count. Already approved records have no selection checkbox. Disable approval when nothing is selected. Filtering sources clears hidden selections. Wrap controls on narrow screens and retain the shared paper, ink and line palette. Confirm the complete review before a batch; show progress, successful approval count and individual failures. Source visibility and FAQ publication remain separate from approval.
 
-Public pages use small circular “?” buttons inside content cards, photos and videos, plus a circular page launcher. Never insert these controls as siblings in a grid. Keep existing cards, columns and spacing intact; position the icons at the item’s upper right. Hover and keyboard focus show a small tooltip explaining that clicking opens an interactive question panel. Give each icon a descriptive accessible name, visible focus ring, and sufficient contrast. Tooltips must escape clipped card boundaries and follow their focused control during scrolling. The modal labels the assistant as AI, names its context, cites original public sources, and offers a clear close control. It uses the existing forest, gold, paper, cream, ink, muted and line tokens. On phones, controls wrap and the dialog fits the viewport. The private traveler and management pages do not receive public content buttons.
+Public pages use small circular “?” buttons inside content cards, photos and videos, plus a circular page launcher. Never insert these controls as siblings in a grid. For a collapsible details tile, place the question button inside its summary so it remains visible when closed and open; opening the assistant must preserve the disclosure state. Keep existing cards, columns and spacing intact; position the icons at the item’s upper right. Hover and keyboard focus show a small tooltip explaining that clicking opens an interactive question panel. Give each icon a descriptive accessible name, visible focus ring, and sufficient contrast. Tooltips must escape clipped card boundaries and follow their focused control during scrolling. The modal labels the assistant as AI, names its context, cites original public sources, and offers a clear close control. It uses the existing forest, gold, paper, cream, ink, muted and line tokens. On phones, controls wrap and the dialog fits the viewport. The private traveler and management pages do not receive public content buttons.
 
 When paid AI is off, use the explicit wording “Live AI is currently off” and label approved extracts as excerpts. Never substitute fictional preview answers on the live site. Missing information offers a private handoff to Brent through the existing interest form, without a promised response deadline. No private question or contact details appear in the URL. Optional browser read-aloud must be user initiated; voice recording and paid speech remain off in this release.
 
@@ -801,6 +801,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 18, 2026 — Version 4.55. Kept contextual question icons visible inside collapsed and expanded pathway summaries, preserving disclosure state and keyboard access.
 
 - October 18, 2026 — Version 4.54. Redesigned public FAQ with shared navigation, themed search and answer cards, responsive controls and expandable privacy details. Local pending release.
 

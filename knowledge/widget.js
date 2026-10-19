@@ -34,13 +34,16 @@
  function mount(){document.querySelectorAll('main article,main figure,main .track,main .card,main .info-card,main img,main video').forEach(el=>{
   if(el.closest('.hs-ask-dialog,.hs-faq-list,[data-knowledge-exclude]'))return;
   const host=el.matches('img,video')?(el.closest('figure,article,.track,.card,.info-card')||el.closest('a,button')?.parentElement||el.parentElement):el;
-  if(!host||host.dataset.hsAsk)return;host.dataset.hsAsk='true';if(getComputedStyle(host).position==='static')host.classList.add('hs-ask-positioned');host.classList.add('hs-ask-host');
+  if(!host||host.dataset.hsAsk)return;host.dataset.hsAsk='true';
+  // Closed details only renders its summary; keep the question control there.
+  const surface=host.matches('details')?(host.querySelector(':scope > summary')||host):host;
+  if(getComputedStyle(surface).position==='static')surface.classList.add('hs-ask-positioned');surface.classList.add('hs-ask-host');
   const kind=host.querySelector('video')||el.tagName==='VIDEO'?'this video':host.querySelector('img')||el.tagName==='IMG'?'this photo':'this item';
   const button=document.createElement('button');button.type='button';button.className='hs-ask-context';button.textContent='?';button.dataset.askKind=kind;
-  const label=()=>((host.querySelector('h2,h3,figcaption')?.textContent||el.getAttribute('alt')||host.querySelector('img')?.alt||host.textContent?.replace(/\?/g,'').slice(0,180)||'This content').trim());
+  const label=()=>((host.querySelector('h2,h3,figcaption,.track-title')?.textContent||el.getAttribute('alt')||host.querySelector('img')?.alt||host.textContent?.replace(/\?/g,'').slice(0,180)||'This content').trim());
   button.setAttribute('aria-label','Ask a question about '+label());hint(button);
   button.onclick=event=>{event.preventDefault();event.stopPropagation();hideTip();open(label());};
-  host.append(button);
+  surface.append(button);
  });}
 
  mount();let timer;new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(mount,100);}).observe(document.querySelector('main')||document.body,{childList:true,subtree:true});window.HSKnowledge={open};

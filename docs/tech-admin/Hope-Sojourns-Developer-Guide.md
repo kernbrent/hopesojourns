@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.63
+Version 4.64
 
 Last reviewed: October 18, 2026
 
@@ -10,7 +10,7 @@ The public FAQ markup in faq/index.html delegates the header/footer to script.js
 
 Bulk approval in admin/knowledge/knowledge.js calls the existing source-save or candidate-decision endpoint sequentially with each captured revision and verified review confirmation. Existing CSRF, exact-right, evidence, provenance and stale-edit checks apply to every item. Source payloads preserve visibility, full body, transcript segments and provenance. Already approved records are excluded; source filters clear hidden selections. Failures do not stop subsequent records and remain selected after refresh for review. No batch API, schema migration or automatic FAQ publication is introduced. Validate selection, cancellation, partial stale failures, filtering, permissions and private visibility with node tools/check-knowledge-bulk.cjs.
 
-Question controls are small circular question marks inside their content host, absolutely positioned so they cannot become extra grid cells. A shared tooltip lives outside clipped cards and describes interaction on hover and keyboard focus; accessible labels name the item. Context clicks do not open underlying photo links or toggle disclosure cards. The floating page control is also a question mark. The widget stylesheet/script version is 2026-10-18.1.
+Question controls are small circular question marks inside their content host, absolutely positioned so they cannot become extra grid cells. A shared tooltip lives outside clipped cards and describes interaction on hover and keyboard focus; accessible labels name the item. For details hosts, mount the button in the direct summary instead of the hidden details body. Capture the pathway title for context. Context clicks do not open underlying photo links or toggle disclosure cards. Mouse and keyboard checks cover every pathway while closed and open. The floating page control is also a question mark. The widget script version is 2026-10-18.2; its stylesheet remains 2026-10-18.1.
 
 Migration 0050 adds catalog state, synchronization leases and manual source pauses. tools/build_knowledge_site.py generates knowledge-site-content.ts deterministically from the public build allowlist; it reads original HTML and linked local public documents without crawling external sites. Run it before validation. --check detects stale input; cloudflare/build-test-site.mjs also rejects stale hashes or new pages missing from the manifest. Generated content never scans private guides, arbitrary uploads, portal pages or AI FAQ answers.
 
@@ -1177,6 +1177,8 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 18, 2026 — Version 4.64. Kept contextual question icons visible inside collapsed and expanded pathway summaries, preserving disclosure state and keyboard access.
 
 - October 18, 2026 — Version 4.63. Redesigned public FAQ with shared navigation, themed search and answer cards, responsive controls and expandable privacy details. Local pending release.
 
