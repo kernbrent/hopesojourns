@@ -154,3 +154,12 @@ it('trashes unapproved entries without undo confirmation and preserves permissio
  expect((await f.admin('/trash')).status).toBe(403);
  expect((await f.admin('/decision',{id:'starter-matching',revision:1,action:'trash',undoApprovals:true})).status).toBe(403);
 });
+
+it('lets a reuse approver withdraw an approval without answer editing permission',async()=>{
+ const f=await setup();
+ f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,is_org_admin,is_admin,password_hash,registered_at,updated_at) VALUES('toggle-admin','toggle-admin','Other','Admin','toggle@example.test',1,1,'configured','2026','2026')`);
+ f.sqlite.prepare("UPDATE mmt_users SET is_admin=0,is_org_admin=0,permissions_json=? WHERE id='primary'").run(JSON.stringify({'knowledge.view_queue':'read','knowledge.approve_reuse':'edit'}));
+ const c=f.sqlite.prepare("SELECT revision FROM knowledge_candidates WHERE id='starter-supervision'").get()!;
+ expect((await f.admin('/decision',{id:'starter-supervision',revision:c.revision,action:'withdraw'})).status).toBe(200);
+ expect(f.sqlite.prepare("SELECT reuse_approved,published FROM knowledge_candidates WHERE id='starter-supervision'").get()).toMatchObject({reuse_approved:0,published:0});
+});

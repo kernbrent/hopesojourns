@@ -1,10 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.56
+Version 4.57
 
 Last reviewed: October 18, 2026
 
 ## Live public questions and portal knowledge tools
+
+Each review card has one state-dependent reuse control: Approve for reuse before approval and Withdraw reuse after approval. Never display both reuse actions together. Keep FAQ Publish/Unpublish as its separate state-dependent control.
 
 Knowledge & FAQ adds Move to trash on review entries and a separate Trash tab. The confirmation dialog lists active reuse approval, FAQ publication and essential pinning, then offers Yes, undo and move to trash or Cancel. Entries without those settings still receive a move confirmation. Restore returns entries to pending review. The shared public header links to /faq/ as FAQ, and the Explore footer uses Questions & answers; use the existing mobile menu and shared palette.
 
@@ -803,6 +805,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 18, 2026 — Replaced separate reuse approval and withdrawal buttons with one state-dependent control. Local pending release.
 
 - October 18, 2026 — Added guarded Move to trash, pending-only restore and public Questions & answers navigation links. Local pending release.
 

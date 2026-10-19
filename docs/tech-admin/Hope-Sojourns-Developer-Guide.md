@@ -1,10 +1,12 @@
 # Hope Sojourns developer guide
 
-Version 4.65
+Version 4.66
 
 Last reviewed: October 18, 2026
 
 ## Live Knowledge & FAQ workspace
+
+The review-card reuse action toggles between approve and withdraw from reuse_approved. Approval requires approve_reuse; withdrawal accepts either approve_reuse or the existing edit_answers right. The server remains authoritative. Withdrawing continues to unpublish the FAQ and clear privacy/reuse approval through the existing decision handler. No schema change is required for this toggle.
 
 Migration 0051_knowledge_trash.sql adds nullable knowledge_candidates.trashed_at and an index. GET /admin/knowledge/trash requires view_queue; trash and restore decisions require edit_answers, session, CSRF and a current revision. Trash rejects active reuse/published/pinned settings unless undoApprovals is explicitly true, then clears them atomically with moving the entry. Restoring clears trashed_at and returns pending without reinstating those settings. Editing or other decisions on trashed entries are blocked; public FAQ and curated-answer queries exclude trashed_at rows. Source corrections cannot return a trashed entry to the queue. Existing 30-day retention of unreviewed visitor wording still applies; no permanent-delete control is added. Apply migration independently before releasing the Worker in either environment. script.js adds FAQ in the shared header and Questions & answers in the footer; affected public pages refresh the shared-script cache version. Regenerate the public knowledge manifest after page changes. Validate with the Knowledge integration suite, tools/check-knowledge-bulk.cjs, responsive public/portal browser checks and the palette check.
 
@@ -1179,6 +1181,8 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 18, 2026 — Replaced separate reuse approval and withdrawal buttons with one state-dependent control. Local pending release.
 
 - October 18, 2026 — Added guarded Move to trash, pending-only restore and public Questions & answers navigation links. Local pending release.
 

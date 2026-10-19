@@ -156,7 +156,7 @@ async function admin(request:Request,env:KnowledgeEnv,path:string){
   if(sub==='/refresh'){await requireRight(session,'manage_sources');return adminJson(await refreshKnowledgeCatalog(env));}
   if(sub==='/sources'){await requireRight(session,'manage_sources');return saveSource(env,b,session.user_id);}
   if(sub==='/candidate'){await requireRight(session,'edit_answers');return saveCandidate(env,b,session.user_id);}
-  if(sub==='/decision'){const action=text(b.action,30,true);await requireRight(session,action==='approve'?'approve_reuse':action==='publish'||action==='unpublish'||action==='pin'?'publish_faq':'edit_answers');return decide(env,b,session.user_id);}
+  if(sub==='/decision'){const action=text(b.action,30,true);await requireRight(session,action==='approve'||action==='withdraw'&&knowledgeCan(session.user,'approve_reuse')?'approve_reuse':action==='publish'||action==='unpublish'||action==='pin'?'publish_faq':'edit_answers');return decide(env,b,session.user_id);}
   if(sub==='/topics'){await requireRight(session,'edit_answers');return saveTopic(env,b);}
  }
  fail(404,'NOT_FOUND','Knowledge action not found.');
