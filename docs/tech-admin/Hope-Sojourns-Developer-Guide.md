@@ -1,8 +1,12 @@
 # Hope Sojourns developer guide
 
-Version 4.66
+Version 4.67
 
-Last reviewed: October 18, 2026
+Last reviewed: October 20, 2026
+
+## Private developer guide in the portal
+
+The shared MMT footer shows MMT developer guide directly below MMT user guide for portal administrators. GET /admin/developer-guide requires an authenticated portal administrator and serves mmt-developer-guide.html from the environment-specific private GUIDES bucket with no-store, noindex and restrictive CSP headers. Ordinary members receive 403. Build with the bundled Python runtime and tools/build_mmt_developer_guide_web.py; it generates a clickable contents list, unique section anchors, tables, code blocks and Back to contents links from this canonical source. On an authorized release, upload the identical .tmp/mmt-developer-guide.html to both isolated guide buckets. Never place generated HTML in public website assets. No schema changes are needed.
 
 ## Live Knowledge & FAQ workspace
 
@@ -1181,6 +1185,8 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 20, 2026 — Version 4.67. Added the private developer web guide and administrator footer link. Release authorized for test and production.
 
 - October 18, 2026 — Replaced separate reuse approval and withdrawal buttons with one state-dependent control. Local pending release.
 

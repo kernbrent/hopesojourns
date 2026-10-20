@@ -1,8 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.57
+Version 4.58
 
-Last reviewed: October 18, 2026
+Last reviewed: October 20, 2026
+
+## Portal guide navigation
+
+Authenticated portal footers stack guide links on separate lines. For portal administrators, MMT developer guide appears immediately below MMT user guide. Both use existing navigation colors and keyboard focus outlines. The developer web edition reuses the user guide page layout and shared palette, with horizontally scrollable tables and code examples on small screens, a clickable contents list, and Back to contents links.
 
 ## Live public questions and portal knowledge tools
 
@@ -805,6 +809,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 20, 2026 — Version 4.58. Added the private developer web guide and administrator footer link. Release authorized for test and production.
 
 - October 18, 2026 — Replaced separate reuse approval and withdrawal buttons with one state-dependent control. Local pending release.
 

@@ -5,9 +5,9 @@ export const currentPortal=():Portal=>actorContext.getStore()?.portal||'hs';
 export const csmSections=['giving','finances'] as const;
 export const sections=['contacts','trips','destinations','finances','documents','inbox'] as const;
 export type Section=typeof sections[number];
-export type MmtIdentity={hs_person_id?:string|null;hs_contact_name?:string|null;id:string;username:string;first_name:string;last_name:string;email:string;phone:string;country:string;is_admin:number;permissions_json:string;status:string;must_change_password:number;registered_at:string;last_login_at?:string|null;revision:number;is_org_admin?:number;hs_access?:number;csm_access?:number;csm_is_admin?:number;csm_permissions_json?:string;deleted_at?:string|null};
-export function hasPortal(u:MmtIdentity,p:Portal){return u.status==='active'&&!u.deleted_at&&(p==='hs'?u.hs_access!==0:u.csm_access===1);}
-export function effectiveUser(u:MmtIdentity,p=currentPortal()):MmtIdentity{return {...u,is_admin:u.is_org_admin|| (p==='hs'?u.is_admin:u.csm_is_admin)||0,permissions_json:p==='hs'?u.permissions_json:u.csm_permissions_json||'{}'};}
+export type MmtIdentity={volunteer_access?:number;hs_person_id?:string|null;hs_contact_name?:string|null;id:string;username:string;first_name:string;last_name:string;email:string;phone:string;country:string;is_admin:number;permissions_json:string;status:string;must_change_password:number;registered_at:string;last_login_at?:string|null;revision:number;is_org_admin?:number;hs_access?:number;csm_access?:number;csm_is_admin?:number;csm_permissions_json?:string;deleted_at?:string|null};
+export function hasPortal(u:MmtIdentity,p:Portal){return u.status==='active'&&!u.deleted_at&&(p==='hs'?(u.hs_access!==0||u.volunteer_access===1):u.csm_access===1);}
+export function effectiveUser(u:MmtIdentity,p=currentPortal()):MmtIdentity{return {...u,is_admin:u.is_org_admin|| (p==='hs'?u.hs_access!==0&&u.is_admin||0:u.csm_is_admin)||0,permissions_json:p==='hs'?(u.hs_access!==0?u.permissions_json:'{}'):u.csm_permissions_json||'{}'};}
 export function permissions(user:MmtIdentity):Record<string,string>{
  if(user.is_admin)return Object.fromEntries((currentPortal()==='hs'?[...sections,'knowledge']:csmSections).map(s=>[s,'edit']));
  try{const p=JSON.parse(user.permissions_json);if(currentPortal()==='hs'&&Object.entries(p).some(([k,v])=>k.startsWith('knowledge.')&&['read','edit'].includes(String(v))))p.knowledge='read';return p;}catch{return {};}
@@ -16,6 +16,8 @@ export function can(user:MmtIdentity,section:Section,edit=false){const p=permiss
 // Contacts covers people, requests, ministries and teams. Trip operations includes
 // budgets and participant details; bulk import/export also requires contact access.
 export function routeSection(path:string):Section|'self'|'admin'{
+ if(path==='/admin/volunteer'||path.startsWith('/admin/volunteer/'))return 'self'; // Volunteer actions enforce entitlement, ownership, and review rights.
+ if(path==='/admin/developer-guide')return 'admin';
  if(['/admin/session','/admin/logout','/admin/password','/admin/account/profile','/admin/switch/issue','/admin/user-guide'].includes(path))return 'self';
  if(path==='/admin/inquiries'||path.startsWith('/admin/inquiries/'))return 'contacts';
  if(path.startsWith('/admin/interest-reviews/'))return 'contacts';

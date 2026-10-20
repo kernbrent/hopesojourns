@@ -42,6 +42,7 @@ body.mmt-navigation-ready .mmt-sidebar [hidden],body.mmt-navigation-ready .mmt-m
 .mmt-guide-footer-link { color:var(--forest-dark);font-weight:700;text-decoration:underline;text-underline-offset:3px; }
 .admin-footer .mmt-guide-footer-link { color:inherit; }
 .mmt-guide-footer-link:focus-visible { outline:3px solid var(--gold);outline-offset:3px; }
+.mmt-guide-footer-link { display:block;margin-top:6px; }
 body.mmt-navigation-ready .mmt-guide-footer { width:calc(100% - var(--mmt-menu-width) - 32px);margin-left:calc(var(--mmt-menu-width) + 16px); }
 body.mmt-menu-collapsed .mmt-guide-footer { width:calc(100% - 32px);margin-left:16px; }
 @media(max-width:760px) { body.mmt-navigation-ready .mmt-guide-footer { width:calc(100% - 32px);margin-left:16px; } }

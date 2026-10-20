@@ -2766,11 +2766,13 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
 async function routeAdmin(request: Request, env: AdminEnv, path: string): Promise<Response> {
   if (request.method === "POST" && path === "/admin/login") return login(request, env);
   if (request.method === "GET" && path === "/admin/session") return sessionInfo(request, env);
-  if (request.method === "GET" && path === "/admin/user-guide") {
-    await authenticate(request, env);
-    const guide = await env.GUIDES.get("mmt-user-guide.html");
+  if (request.method === "GET" && ["/admin/user-guide", "/admin/developer-guide"].includes(path)) {
+    const session = await authenticate(request, env);
+    const developer = path === "/admin/developer-guide";
+    if (developer && !session.user?.is_admin) throw new AdminError(403, "ACCESS_DENIED", "Portal administrator access is required for the developer guide.");
+    const guide = await env.GUIDES.get(developer ? "mmt-developer-guide.html" : "mmt-user-guide.html");
     if (!guide || !('body' in guide) || !guide.body) {
-      return adminJson({error:"GUIDE_UNAVAILABLE",message:"The user guide is temporarily unavailable."},503);
+      return adminJson({error:"GUIDE_UNAVAILABLE",message:"The requested guide is temporarily unavailable."},503);
     }
     const headers = securityHeaders();
     headers.set("Content-Type", "text/html; charset=utf-8");
