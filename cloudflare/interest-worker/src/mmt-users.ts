@@ -1,3 +1,4 @@
+import {pendingEmail,requestEmailChange,confirmEmailChange} from './account-email-change';
 import {handleSharedUsers} from './shared-users';
 import {sendAccountEmail} from './account-email';
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,adminPasswordPolicyError,base64Url,base64UrlBytes,randomToken,hashText,deriveAdminPasswordHash,secureEqual,verifyAdminPassword,type AdminEnv} from './admin';
@@ -47,6 +48,7 @@ export async function handleAccountPublic(request:Request,env:AdminEnv,path:stri
   await env.DB.prepare('INSERT INTO mmt_access_requests(id,kind,first_name,last_name,username,email,phone,country,message,created_at,portal) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),kind,p.first_name,p.last_name,name,p.email,p.phone,p.country,line(b.message,1500,true),now(),currentPortal()).run();
   return adminJson({message:'Your request is in the administrator’s inbox. They will review it and contact you.'},202);
  }
+ if(path==='/public/account/verify-email')return await confirmEmailChange(env,b);
  if(path==='/public/account/forgot'){
   const email=line(b.email,254).toLowerCase();const u=await env.DB.prepare("SELECT * FROM mmt_users WHERE email=? AND status='active'").bind(email).first<User>();
   if(u)await issueLink(request,env,u,'reset');return adminJson({message:'If that address belongs to an active account, password-reset instructions have been requested. If no email arrives, use Request administrator help.'});
@@ -71,9 +73,10 @@ export function accountError(error:unknown){if(error instanceof AdminError)retur
 export async function handleAccountRequest(request:Request,env:AdminEnv,path:string){
  try{
  const session=await authenticate(request,env,request.method!=='GET');
+ if(path==='/admin/account/email-change'&&request.method==='DELETE'){await env.DB.prepare('DELETE FROM mmt_email_changes WHERE user_id=?').bind(session.user_id).run();return adminJson({message:'Pending email change canceled. Your recovery email is unchanged.'});}
  if(path==='/admin/account/profile'){
-  if(request.method==='GET')return adminJson({user:publicUser(await user(env,session.user_id))});
-  if(request.method==='PUT'){const b=await readAdminJson(request),p=profile(b);if(b.username!==undefined||b.permissions!==undefined||b.is_admin!==undefined||b.status!==undefined||b.is_org_admin!==undefined||b.memberships!==undefined)throw new AdminError(403,'ACCESS_DENIED','You cannot change your own user name or access level here.');const result=await env.DB.prepare('UPDATE mmt_users SET first_name=?,last_name=?,email=?,phone=?,country=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').bind(p.first_name,p.last_name,p.email,p.phone,p.country,now(),session.user_id,Number(b.revision)).run();if(!result.meta.changes)throw new AdminError(409,'STALE_EDIT','Refresh your profile before saving.');await env.DB.prepare('DELETE FROM mmt_reset_tokens WHERE user_id=?').bind(session.user_id).run();await auditStatement(env,'mmt_user',session.user_id,'profile_updated',{portal:currentPortal(),fields:Object.keys(p)}).run();return adminJson({user:publicUser(await user(env,session.user_id))});}
+  if(request.method==='GET')return adminJson({user:publicUser(await user(env,session.user_id)),pendingEmail:await pendingEmail(env,session.user_id)});
+  if(request.method==='PUT'){const b=await readAdminJson(request),p=profile(b);if(b.username!==undefined||b.permissions!==undefined||b.is_admin!==undefined||b.status!==undefined||b.is_org_admin!==undefined||b.memberships!==undefined)throw new AdminError(403,'ACCESS_DENIED','You cannot change your own user name or access level here.');const currentUser=await user(env,session.user_id);if(p.email!==currentUser.email.toLowerCase())return await requestEmailChange(request,env,currentUser,b,p);const result=await env.DB.prepare('UPDATE mmt_users SET first_name=?,last_name=?,phone=?,country=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').bind(p.first_name,p.last_name,p.phone,p.country,now(),session.user_id,Number(b.revision)).run();if(!result.meta.changes)throw new AdminError(409,'STALE_EDIT','Refresh your profile before saving.');await env.DB.prepare('DELETE FROM mmt_reset_tokens WHERE user_id=?').bind(session.user_id).run();await auditStatement(env,'mmt_user',session.user_id,'profile_updated',{portal:currentPortal(),fields:Object.keys(p)}).run();return adminJson({user:publicUser(await user(env,session.user_id))});}
  }
  return await handleSharedUsers(request,env,path,session);
  }catch(error){return accountError(error);}

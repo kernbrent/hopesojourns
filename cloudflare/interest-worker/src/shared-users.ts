@@ -34,6 +34,7 @@ function changes(b:Record<string,unknown>,u:User|null,actor:MmtIdentity){
 }
 async function save(env:AdminEnv,b:Record<string,unknown>,u:User|null,actor:MmtIdentity){
  const a=changes(b,u,actor),p=profile(u?{...u,...b}:b),time=now(),id=u?.id||crypto.randomUUID();
+ if(u&&p.email!==u.email.toLowerCase())throw new AdminError(422,'EMAIL_VERIFICATION_REQUIRED','Recovery email changes require the account owner to confirm their password and verify the new address in My profile. Save access changes separately.');
  if(b.volunteer_access!==undefined&&!actor.is_org_admin&&currentPortal()!=='hs')deny('Only an HS administrator can manage volunteers.');
  let volunteer=b.volunteer_access===undefined?u?.volunteer_access||0:b.volunteer_access===true?1:0;
  if(b.hsContactId!==undefined && !actor.is_org_admin && currentPortal()!=='hs')deny('Only an HS or Organization Administrator can associate an HS contact.');
@@ -43,7 +44,7 @@ async function save(env:AdminEnv,b:Record<string,unknown>,u:User|null,actor:MmtI
  const guard=crypto.randomUUID();
  const statements=[env.DB.prepare(`INSERT INTO portal_contact_guards(id,valid) SELECT ?,CASE WHEN (SELECT revision FROM contact_match_revision WHERE id=1)=? AND (? IS NULL OR EXISTS(SELECT 1 FROM mmt_users WHERE id=? AND revision=? AND deleted_at IS NULL)) THEN 1 ELSE 0 END`).bind(guard,matchRevision!.revision,u?.id??null,u?.id??null,Number(b.revision)||0),...contact.statements];
  if(u){
-  statements.push(env.DB.prepare('UPDATE mmt_users SET first_name=?,last_name=?,email=?,phone=?,country=?,is_org_admin=?,hs_access=?,is_admin=?,permissions_json=?,csm_access=?,csm_is_admin=?,csm_permissions_json=?,status=?,hs_person_id=?,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND deleted_at IS NULL').bind(p.first_name,p.last_name,p.email,p.phone,p.country,a.role,a.hs.enabled,a.hs.is_admin,a.hs.permissions,a.csm.enabled,a.csm.is_admin,a.csm.permissions,a.status,contact.id,time,id,Number(b.revision)));
+  statements.push(env.DB.prepare('UPDATE mmt_users SET first_name=?,last_name=?,phone=?,country=?,is_org_admin=?,hs_access=?,is_admin=?,permissions_json=?,csm_access=?,csm_is_admin=?,csm_permissions_json=?,status=?,hs_person_id=?,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND deleted_at IS NULL').bind(p.first_name,p.last_name,p.phone,p.country,a.role,a.hs.enabled,a.hs.is_admin,a.hs.permissions,a.csm.enabled,a.csm.is_admin,a.csm.permissions,a.status,contact.id,time,id,Number(b.revision)));
   // Shared changes invalidate both sessions; local administrators invalidate only their portal.
   const global=!!actor.is_org_admin;
   statements.push(env.DB.prepare('DELETE FROM admin_sessions WHERE user_id=? AND (?=1 OR portal=?)').bind(id,global?1:0,currentPortal()));

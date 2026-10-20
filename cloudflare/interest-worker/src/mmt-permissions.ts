@@ -18,7 +18,7 @@ export function can(user:MmtIdentity,section:Section,edit=false){const p=permiss
 export function routeSection(path:string):Section|'self'|'admin'{
  if(path==='/admin/volunteer'||path.startsWith('/admin/volunteer/'))return 'self'; // Volunteer actions enforce entitlement, ownership, and review rights.
  if(path==='/admin/developer-guide')return 'admin';
- if(['/admin/session','/admin/logout','/admin/password','/admin/account/profile','/admin/switch/issue','/admin/user-guide'].includes(path))return 'self';
+ if(['/admin/session','/admin/logout','/admin/password','/admin/account/profile','/admin/account/email-change','/admin/switch/issue','/admin/user-guide'].includes(path))return 'self';
  if(path==='/admin/inquiries'||path.startsWith('/admin/inquiries/'))return 'contacts';
  if(path.startsWith('/admin/interest-reviews/'))return 'contacts';
  if(path.startsWith('/admin/planning/'))return 'self'; // Each planning record enforces linked workspace permissions.

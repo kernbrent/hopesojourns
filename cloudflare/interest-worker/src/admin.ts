@@ -706,41 +706,27 @@ async function loginKey(request: Request, sessionSecret: string): Promise<string
   return hashText(`${sessionSecret}:login:${address}`);
 }
 
-async function checkLoginBlock(env: AdminEnv, keyHash: string): Promise<LoginAttemptRow | null> {
-  const attempt = await env.DB.prepare(
-    "SELECT failure_count, window_started_at, blocked_until FROM admin_login_attempts WHERE key_hash = ?1",
-  ).bind(keyHash).first<LoginAttemptRow>();
-  if (attempt?.blocked_until && Date.parse(attempt.blocked_until) > Date.now()) {
-    const retryAfter = Math.max(1, Math.ceil((Date.parse(attempt.blocked_until) - Date.now()) / 1000));
-    throw new AdminError(429, "LOGIN_RATE_LIMITED", "Too many sign-in attempts. Wait a few minutes and try again.", {
-      "Retry-After": String(retryAfter),
-    });
-  }
-  return attempt;
+type LoginReservation={key:string;window:string};
+// Reserve before slow password hashing. Atomic conditional upserts prevent parallel
+// requests from sharing a counter value or exceeding either admission budget.
+export async function reserveLoginAttempts(request:Request,env:AdminEnv,username:string):Promise<LoginReservation[]>{
+ const secret=requireSessionSecret(env),date=new Date(),stamp=date.toISOString(),cutoff=new Date(date.getTime()-LOGIN_WINDOW_MINUTES*60000).toISOString();
+ const keys=[{key:await loginKey(request,secret),max:20},{key:await hashText(`${secret}:login:account:${username.trim().toLowerCase()}`),max:LOGIN_FAILURE_LIMIT}];
+ const reserved:LoginReservation[]=[];
+ for(const {key,max} of keys){
+  const row=await env.DB.prepare(`INSERT INTO admin_login_attempts(key_hash,failure_count,window_started_at,blocked_until,updated_at) VALUES(?,1,?,NULL,?)
+   ON CONFLICT(key_hash) DO UPDATE SET failure_count=CASE WHEN window_started_at<=? THEN 1 ELSE failure_count+1 END,
+   window_started_at=CASE WHEN window_started_at<=? THEN excluded.window_started_at ELSE window_started_at END,blocked_until=NULL,updated_at=excluded.updated_at
+   WHERE (blocked_until IS NULL OR blocked_until<=?) AND (window_started_at<=? OR failure_count<?)
+   RETURNING window_started_at`).bind(key,stamp,stamp,cutoff,cutoff,stamp,cutoff,max).first<{window_started_at:string}>();
+  if(!row)throw new AdminError(429,'LOGIN_RATE_LIMITED','Too many sign-in attempts. Wait 15 minutes and try again.',{'Retry-After':String(LOGIN_WINDOW_MINUTES*60)});
+  reserved.push({key,window:row.window_started_at});
+ }
+ return reserved;
 }
-
-async function recordLoginFailure(env: AdminEnv, keyHash: string, current: LoginAttemptRow | null): Promise<void> {
-  const now = new Date();
-  const currentWindow = current && Date.parse(current.window_started_at) > now.getTime() - LOGIN_WINDOW_MINUTES * 60_000;
-  const failureCount = currentWindow ? current.failure_count + 1 : 1;
-  const windowStartedAt = currentWindow ? current.window_started_at : now.toISOString();
-  const blockedUntil = failureCount >= LOGIN_FAILURE_LIMIT
-    ? new Date(now.getTime() + LOGIN_WINDOW_MINUTES * 60_000).toISOString()
-    : null;
-  await env.DB.prepare(
-    `INSERT INTO admin_login_attempts (key_hash, failure_count, window_started_at, blocked_until, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5)
-     ON CONFLICT (key_hash) DO UPDATE SET
-       failure_count = excluded.failure_count,
-       window_started_at = excluded.window_started_at,
-       blocked_until = excluded.blocked_until,
-       updated_at = excluded.updated_at`,
-  ).bind(keyHash, failureCount, windowStartedAt, blockedUntil, now.toISOString()).run();
-  if (blockedUntil) {
-    throw new AdminError(429, "LOGIN_RATE_LIMITED", "Too many sign-in attempts. Wait a few minutes and try again.", {
-      "Retry-After": String(LOGIN_WINDOW_MINUTES * 60),
-    });
-  }
+export async function releaseLoginAttempts(env:AdminEnv,reserved:LoginReservation[]){
+ // A success releases only its own reservation, never concurrent failures.
+ await env.DB.batch(reserved.map(r=>env.DB.prepare('UPDATE admin_login_attempts SET failure_count=MAX(0,failure_count-1) WHERE key_hash=? AND window_started_at=?').bind(r.key,r.window)));
 }
 
 async function login(request: Request, env: AdminEnv): Promise<Response> {
@@ -748,12 +734,10 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
   const body = await readAdminJson(request);
   const submittedPassword = typeof body.password === "string" ? body.password : "";
   const rememberMe = body.rememberMe === true;
-  const keyHash = await loginKey(request, sessionSecret);
-  const currentAttempt = await checkLoginBlock(env, keyHash);
   const username=typeof body.username==='string'?body.username.trim().toLowerCase():'';
+  const reserved=await reserveLoginAttempts(request,env,username.slice(0,60));
   const user=await env.DB.prepare('SELECT * FROM mmt_users WHERE username=?').bind(username).first<MmtIdentity>();
   if (!submittedPassword || submittedPassword.length > 256 || !user || !hasPortal(user,currentPortal()) || !(await verifyUserPassword(env,user.id,submittedPassword))) {
-    await recordLoginFailure(env, keyHash, currentAttempt);
     console.warn(JSON.stringify({ event: "admin_login_failed" }));
     throw new AdminError(401, "INVALID_CREDENTIALS", "The user name or password is incorrect.");
   }
@@ -772,7 +756,6 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
   const userAgent = request.headers.get("user-agent") ?? "";
   const userAgentHash = userAgent ? await hashText(`${sessionSecret}:ua:${userAgent}`) : null;
   await env.DB.batch([
-    env.DB.prepare("DELETE FROM admin_login_attempts WHERE key_hash = ?1").bind(keyHash),
     env.DB.prepare("DELETE FROM admin_sessions WHERE expires_at <= ?1").bind(now.toISOString()),
     env.DB.prepare(
       `INSERT INTO admin_sessions (id, token_hash, csrf_token, created_at, expires_at, last_seen_at, user_agent_hash,user_id,portal)
@@ -781,6 +764,7 @@ async function login(request: Request, env: AdminEnv): Promise<Response> {
       crypto.randomUUID(), await hashText(token), csrfToken, now.toISOString(), expiresAt.toISOString(), now.toISOString(), userAgentHash,user.id,currentPortal(),
     ),
   ]);
+  await releaseLoginAttempts(env,reserved);
   await env.DB.prepare('UPDATE mmt_users SET last_login_at=? WHERE id=?').bind(now.toISOString(),user.id).run();
   user.last_login_at=now.toISOString();
   const context=actorContext.getStore();if(context)context.userId=user.id;

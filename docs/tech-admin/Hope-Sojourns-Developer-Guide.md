@@ -1,8 +1,14 @@
 # Hope Sojourns developer guide
 
-Version 4.70
+Version 4.71
 
 Last reviewed: October 20, 2026
+
+## Verified recovery email and concurrent login protection
+
+Migration 0053_account_security.sql adds mmt_email_changes. account-email-change.ts stages a one-hour, hashed, single-use confirmation token bound to the active user's original email and revision. My profile requires the current password for an email change; reserveLoginAttempts also throttles this reauthentication. Send the old-address warning first, then the new-address verification link, and enable confirmation only after both provider acceptances. Test/capture mode and delivery failures fail closed with the recovery address unchanged. Never return confirmation links or raw tokens to the initiating session. The link opens /admin/access/#emailToken= and is stripped from history before an explicit POST to /public/account/verify-email. Confirmation atomically claims the token, updates only the recovery email, increments revision and revokes all shared sessions and old reset links. Password, access and volunteer grants are preserved. Stale, canceled, expired and replayed tokens fail. Ordinary profile/access updates never write the existing recovery-email column; administrator forms show it read-only. /admin/account/email-change DELETE cancels the signed-in user's own proposal with CSRF protection. Existing accounts change recovery email through the owner verification flow; administrator access changes remain separate.
+
+Login admission now reserves attempts atomically before password hashing, allowing five attempts per account and twenty per source IP in a fifteen-minute window across shared HS/CSM logins. Conditional upserts with RETURNING enforce the limits under concurrent requests. Successful authentication releases only its own matching-window reservations, retaining other failures. Blocked attempts return 429 with Retry-After; limits expire normally without extending under blocked requests. Session duration and inactivity behavior are deliberately unchanged. Validate using account-security.test.ts, the complete worker suite, and a local mocked-mail browser flow. Apply migration independently to test and production before releasing the Worker; do not send real confirmation email during smoke testing.
 
 ## Volunteer time and certified reports
 
@@ -1207,6 +1213,8 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 20, 2026 - Version 4.71. Added verified recovery-address changes, protected account forms and atomic concurrent-login limits. Session timeouts remain unchanged.
 
 - October 20, 2026 — Version 4.67. Added the private developer web guide and administrator footer link. Release authorized for test and production.
 

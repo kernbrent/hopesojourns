@@ -1,8 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.61
+Version 4.62
 
 Last reviewed: October 20, 2026
+
+## Verified account email changes
+
+Keep the existing account form and shared palette. Explain that recovery email changes require the current password and a confirmation link, while ordinary profile changes do not. Label the password field clearly, show the pending address alongside the still-active recovery address, and offer Cancel pending email change. Use the semantic success token for successful account notices; errors retain the existing error treatment. The confirmation page describes the effect on shared sign-ins and asks for an explicit Confirm email address action before making the change. After confirmation, provide a Sign in link. Existing-user administrative email fields are read-only and direct the account owner to My profile. Retain visible labels, keyboard access, live status messages and responsive account layouts.
 
 ## Volunteer Time workspace and service reports
 
@@ -819,6 +823,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 20, 2026 - Version 4.62. Added verified recovery-address changes, protected account forms and atomic concurrent-login limits. Session timeouts remain unchanged.
 
 - October 20, 2026 — Version 4.58. Added the private developer web guide and administrator footer link. Release authorized for test and production.
 
