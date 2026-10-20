@@ -1,9 +1,20 @@
 import {afterEach,expect,it} from 'vitest';
+import {readFileSync} from 'node:fs';
 import {handleAdminRequest} from '../src/admin';
 import {ministryFixture} from './ministry-fixture';
 const fixtures:Awaited<ReturnType<typeof ministryFixture>>[]=[];
 afterEach(()=>fixtures.splice(0).forEach(f=>f.sqlite.close()));
 const path='/admin/developer-guide';
+it('reuses an existing footer when session updates mount navigation again',()=>{
+ const source=readFileSync(new URL('../../../admin/mmt-navigation.js',import.meta.url),'utf8');
+ const body=source.slice(source.indexOf(' function mountGuideFooter(){'),source.indexOf(' function unmount(){'));
+ const children:any[]=[];
+ const footer={querySelector:(selector:string)=>children.find(x=>selector.includes('developer')?x.dataset.mmtDeveloperGuideLink:x.dataset.mmtGuideLink),append:(node:any)=>children.push(node)};
+ const footers:any[]=[];
+ const document={querySelector:(selector:string)=>selector.includes('.mmt-guide-footer')?footers[0]:null,body:{append:(node:any)=>footers.push(node)},createElement:(tag:string)=>tag==='footer'?footer:{dataset:{},after:(node:any)=>children.push(node)}};
+ const mount=new Function('document','user','guideFooter',body+';return mountGuideFooter;')(document,{is_admin:true});
+ mount();mount();expect(footers).toHaveLength(1);expect(children).toHaveLength(2);
+});
 it('protects developer documentation from anonymous and ordinary member access',async()=>{
  const f=await ministryFixture();fixtures.push(f);
  expect((await handleAdminRequest(new Request('https://hopesojourns.com/api/interest'+path),f.env,path)).status).toBe(401);

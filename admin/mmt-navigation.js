@@ -13,7 +13,7 @@
  function link([title,href,permission]){if(!allowed(permission))return null;const a=document.createElement('a');a.textContent=title;a.href=href;a.dataset.route='true';a.dataset.adminLink='true';if(title==='Trips')a.dataset.tripHome='true';if(title==='Trip overview')a.dataset.tripOverview='true';return a;}
  function collapsed(value){document.body.classList.toggle('mmt-menu-collapsed',value);toggle.setAttribute('aria-expanded',String(!value));toggle.textContent=value?'Show menu':'Hide menu';}
  function mountGuideFooter(){
-  guideFooter=document.querySelector('.admin-footer');
+  guideFooter=document.querySelector('.admin-footer,.mmt-guide-footer');
   if(!guideFooter){guideFooter=document.createElement('footer');guideFooter.className='mmt-guide-footer';document.body.append(guideFooter);}
   let link=guideFooter.querySelector('[data-mmt-guide-link]');
   if(!link){link=document.createElement('a');link.href='/api/interest/admin/user-guide';link.textContent='MMT user guide';link.className='mmt-guide-footer-link';link.dataset.mmtGuideLink='true';guideFooter.append(link);}
