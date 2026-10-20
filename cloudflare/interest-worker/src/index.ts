@@ -1,3 +1,4 @@
+import {handleVolunteer} from './volunteer';
 import {startDueTrips} from './trip-progress';
 import {handleInquiries} from './inquiries';
 import {receiveInterest,handleInterestReview,receipt} from './interest-review';
@@ -454,6 +455,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   if (path.startsWith('/admin/finance/')) return handleFinanceAdminRequest(request,env,path);
   if (path === '/admin/inquiries' || path.startsWith('/admin/inquiries/')) return handleInquiries(request,env,path);
   if (path.startsWith('/admin/interest-reviews/')) return handleInterestReview(request,env,path);
+  if (path==='/admin/volunteer'||path.startsWith('/admin/volunteer/')) return handleVolunteer(request,env,path);
   if (path.startsWith('/admin/planning/')) return handlePlanning(request,env,path);
   if (path.startsWith('/admin/ministry/')) return handleMinistryAdminRequest(request,env,path);
   if (path.startsWith("/admin/trip-platform") || path.startsWith("/admin/trips")) {

@@ -481,6 +481,7 @@ function showDashboard(session) {
   window.MmtUser=session.user;
   if(!document.querySelector('script[data-mmt-session]')){const script=document.createElement('script');script.src='/admin/mmt-session.js?v=2026-09-22.1';script.dataset.mmtSession='true';document.head.append(script);}
   if(session.user?.must_change_password){location.href="/admin/account/#password";return;}
+  if(session.user?.volunteer_only){location.href="/admin/volunteer/";return;}
   if(session.user&&!session.user.is_admin&&session.user.permissions.contacts==='blocked'){location.href="/admin/account/";return;}
   state.csrfToken = session.csrfToken;
   document.body.classList.add("admin-authenticated");

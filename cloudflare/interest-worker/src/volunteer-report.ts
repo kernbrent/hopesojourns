@@ -1,0 +1,17 @@
+import {emailColors as colors} from './gift-email-colors';
+import {givingEmailFooter} from './gift-email-template';
+export const escapeHtml=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+export type ServiceEntry={date:string;tenths:number;activity:string;organizationId:string;organizationName?:string};
+export type VolunteerSnapshot={name:string;email:string;organization:string;organizationId:string;start:string;end:string;label:string;entries:ServiceEntry[];issued:string;id:string;version:number};
+export function volunteerReport(s:VolunteerSnapshot,signature:string){
+ const e=escapeHtml,totals=new Map<string,number>();let total=0;
+ for(const row of s.entries){total+=row.tenths;const month=row.date.slice(0,7);totals.set(month,(totals.get(month)||0)+row.tenths);}
+ const certification='Hope Sojourns certifies that the volunteer service hours listed in this report have been reviewed and are accurate according to our records.';
+ const title=`Volunteer service report — ${s.label}`;
+ const rows=s.entries.map(r=>`<tr><td>${e(r.date)}</td><td>${e(r.activity)}</td><td>${e(r.organizationName)}</td><td>${(r.tenths/10).toFixed(1)}</td></tr>`).join('');
+ const subtotal=[...totals].map(([month,tenths])=>`<tr><th colspan="3">${e(month)} subtotal</th><td>${(tenths/10).toFixed(1)}</td></tr>`).join('');
+ const detail=s.entries.map(r=>`${r.date} | ${r.activity} | ${r.organizationName} | ${(r.tenths/10).toFixed(1)} hours`).join('\n');
+ const text=`${title}\nVolunteer: ${s.name}\nOrganization: ${s.organization}\nPeriod: ${s.start} through ${s.end}\nReport: ${s.id} · Version ${s.version} · Issued ${s.issued}\n\n${detail}\n\n${[...totals].map(([m,t])=>`${m}: ${(t/10).toFixed(1)} hours`).join('\n')}\nTotal: ${(total/10).toFixed(1)} hours\n\n${certification}\n\nWitLooL,\nBrent Kern\nHope Sojourns\n972-505-0171\nChristian Steps Ministries\n\nWitLooLT means "Working in the Light of our Lord."\nWitLooL is a trademark.\nhttps://hopesojourns.com\nhttps://www.christiansteps.net`;
+ const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)}</title><link rel="stylesheet" href="/styles.css"><style>body{font:14px/1.5 Arial,sans-serif;color:${colors.ink};background:${colors.white};margin:24px auto;max-width:850px;padding:16px}.service-report-table{width:100%;border-collapse:collapse}.service-report-table th,.service-report-table td{text-align:left;padding:8px;border-bottom:1px solid ${colors['forest-soft']}}.service-report-table thead,.service-report-table tfoot{background:${colors['forest-wash']}}h1{color:${colors.forest}}@media print{thead{display:table-header-group}tr{break-inside:avoid}body{margin:0;padding:0}}</style></head><body><h1>${e(title)}</h1><p><strong>Volunteer:</strong> ${e(s.name)}<br><strong>Reporting organization:</strong> ${e(s.organization)}<br><strong>Period:</strong> ${e(s.start)} through ${e(s.end)}<br><strong>Report:</strong> ${e(s.id)} · Version ${s.version}<br><strong>Issued:</strong> ${e(s.issued)}</p><table class="service-report-table"><thead><tr><th>Date</th><th>Service/activity</th><th>Service organization</th><th>Hours</th></tr></thead><tbody>${rows}</tbody><tfoot>${subtotal}<tr><th colspan="3">Total hours</th><td><strong>${(total/10).toFixed(1)}</strong></td></tr></tfoot></table><p>${certification}</p>${givingEmailFooter(signature)}</body></html>`;
+ return {subject:`${title} — ${s.name}`,html,text,totalTenths:total};
+}

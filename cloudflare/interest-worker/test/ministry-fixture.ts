@@ -4,10 +4,15 @@ import {fileURLToPath} from 'node:url';
 import type {AdminEnv} from '../src/admin';
 
 // Real SQLite constraints and atomic batches, with an isolated in-memory file store.
-export async function ministryFixture(through?:string){
- const sqlite=new DatabaseSync(':memory:');
+export async function ministryFixture(through?:string,options?:{databasePath?:string}){
+ const sqlite=new DatabaseSync(options?.databasePath||':memory:');
+ if(options?.databasePath)sqlite.exec('CREATE TABLE IF NOT EXISTS local_preview_migrations(name TEXT PRIMARY KEY)');
  const directory=fileURLToPath(new URL('../migrations/',import.meta.url));
- for(const name of readdirSync(directory).filter(n=>n.endsWith('.sql')&&(!through||n<=through)).sort()){const sql=readFileSync(directory+'/'+name,'utf8');sqlite.exec(sql.includes('PRAGMA defer_foreign_keys=ON')?'BEGIN;'+sql+'COMMIT;':sql);}
+ for(const name of readdirSync(directory).filter(n=>n.endsWith('.sql')&&(!through||n<=through)).sort()){
+  if(options?.databasePath&&sqlite.prepare('SELECT 1 FROM local_preview_migrations WHERE name=?').get(name))continue;
+  const sql=readFileSync(directory+'/'+name,'utf8');sqlite.exec(sql.includes('PRAGMA defer_foreign_keys=ON')?'BEGIN;'+sql+'COMMIT;':sql);
+  if(options?.databasePath)sqlite.prepare('INSERT INTO local_preview_migrations(name) VALUES(?)').run(name);
+ }
  class Statement{
   values: (string|number|null)[]=[];
   constructor(readonly sql:string){}
@@ -21,7 +26,7 @@ export async function ministryFixture(through?:string){
  const env={DB:{prepare:(sql:string)=>new Statement(sql),batch:async(statements:Statement[])=>{sqlite.exec('BEGIN');try{const results=[];for(const statement of statements)results.push(await statement.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}},RECEIPTS:{put:async(key:string,value:Uint8Array)=>files.set(key,value),head:async(key:string)=>files.has(key)?{size:files.get(key)!.length}:null,get:async(key:string,options?:{range:{offset:number,length:number}})=>files.has(key)?{body:options?.range?files.get(key)!.slice(options.range.offset,options.range.offset+options.range.length):files.get(key),size:files.get(key)!.length}:null,delete:async(key:string)=>files.delete(key)},GUIDES:{get:async(key:string)=>guides.has(key)?{body:new Response(guides.get(key)).body}:null}} as unknown as AdminEnv;
  const token='a'.repeat(48),csrf='test-csrf-token';
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))),b=>b.toString(16).padStart(2,'0')).join('');
- sqlite.prepare("INSERT INTO admin_sessions(id,token_hash,csrf_token,created_at,expires_at,last_seen_at,user_id) VALUES(?,?,?,?,?,?,'primary')").run('test-session',hash,csrf,new Date().toISOString(),'2099-01-01T00:00:00.000Z',new Date().toISOString());
+ sqlite.prepare("INSERT INTO admin_sessions(id,token_hash,csrf_token,created_at,expires_at,last_seen_at,user_id) VALUES(?,?,?,?,?,?,'primary') ON CONFLICT(id) DO UPDATE SET token_hash=excluded.token_hash,csrf_token=excluded.csrf_token,expires_at=excluded.expires_at,last_seen_at=excluded.last_seen_at").run('test-session',hash,csrf,new Date().toISOString(),'2099-01-01T00:00:00.000Z',new Date().toISOString());
  const request=(path:string,body?:unknown,method?:string)=>new Request('http://localhost:4188/api/interest'+path,{method:method||(body?'POST':'GET'),headers:{cookie:'hs_admin_session='+token,'x-csrf-token':csrf,...(body instanceof FormData?{}:{'Content-Type':'application/json'})},body:body instanceof FormData?body:body?JSON.stringify(body):undefined});
  return {sqlite,env,request,token,csrf,files,guides};
 }

@@ -1,8 +1,18 @@
 # Hope Sojourns website style guide
 
-Version 4.58
+Version 4.61
 
 Last reviewed: October 20, 2026
+
+## Volunteer Time workspace and service reports
+
+Volunteer Time is a first-level link directly below Finances in the shared left navigation for Volunteer and Admin accounts. Volunteer-only users land here after login and see their service tools and account controls. Use the established finance workspace shell, shared /styles.css tokens and keyboard focus behavior. Do not add page-local color literals. The workspace has My hours, Reports & history and administrator-only Review & organizations tabs.
+
+Use a calendar-month selector and horizontally scrollable service table with date, hours, service/activity, service organization and row action. Hours display exactly one decimal, including totals. Add the leading zero when a user leaves a fractional-hours field, so .5 becomes 0.5; do not round invalid extra decimal places. Monthly reporting organization and recipient controls remain editable regardless of the send-report checkbox, which controls delivery intent only. Provide visible draft/submitted/approved/returned states and an explicit self-reported notice before approval. Announce saves/errors through a live status region; show review notes and duplicate warnings near entries. Keep service organization separate from reporting organization. Unsaved edits warn before navigation. Preserve the selected volunteer and month across page refreshes within the same browser tab so an administrator does not mistake another account’s blank table for lost hours. Mobile tables scroll within the card rather than widening the page.
+
+Organization restrictions are an administrator checkbox list: selecting none means all active organizations. Volunteers see a dropdown of permitted names only. Give each recipient email its own unique name, ID and autocomplete section within each form; preserve normal email suggestions without copying an address across recipients. Report forms use explicit start/end dates for month, calendar, fiscal, school and custom ranges. Explain that fiscal and school dates vary. Provide review confirmation before sending. A history card identifies report version, issued date, original report link and each delivery's status.
+
+Certified reports use HS palette values generated from the shared root, daily rows, monthly subtotals and a clear total. Close with the accuracy certification, WitLooL, Brent's private signature and the exact giving-email logo/contact/trademark footer shared by givingEmailFooter. Original report pages retain the embedded signature for printing; email embeds it by content ID. Draft hours never display this signed certification. Printed reports repeat table headers and avoid splitting a row; use browser Print / Save as PDF. Test displays captured delivery clearly.
 
 ## Portal guide navigation
 

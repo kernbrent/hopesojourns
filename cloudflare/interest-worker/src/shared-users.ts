@@ -34,9 +34,12 @@ function changes(b:Record<string,unknown>,u:User|null,actor:MmtIdentity){
 }
 async function save(env:AdminEnv,b:Record<string,unknown>,u:User|null,actor:MmtIdentity){
  const a=changes(b,u,actor),p=profile(u?{...u,...b}:b),time=now(),id=u?.id||crypto.randomUUID();
+ if(b.volunteer_access!==undefined&&!actor.is_org_admin&&currentPortal()!=='hs')deny('Only an HS administrator can manage volunteers.');
+ let volunteer=b.volunteer_access===undefined?u?.volunteer_access||0:b.volunteer_access===true?1:0;
  if(b.hsContactId!==undefined && !actor.is_org_admin && currentPortal()!=='hs')deny('Only an HS or Organization Administrator can associate an HS contact.');
  const matchRevision=await env.DB.prepare('SELECT revision FROM contact_match_revision WHERE id=1').first<{revision:number}>();
- const contact=await planPortalContact(env,b,u,p,a.hs.enabled===1&&a.status==='active'&&(!!actor.is_org_admin||currentPortal()==='hs'),time);
+ const contact=await planPortalContact(env,b,u,p,(a.hs.enabled===1||volunteer===1)&&a.status==='active'&&(!!actor.is_org_admin||currentPortal()==='hs'),time);
+ if(b.volunteer_access===undefined&&contact.id&&await env.DB.prepare("SELECT 1 FROM contact_types WHERE person_id=? AND contact_type='volunteer'").bind(contact.id).first())volunteer=1;
  const guard=crypto.randomUUID();
  const statements=[env.DB.prepare(`INSERT INTO portal_contact_guards(id,valid) SELECT ?,CASE WHEN (SELECT revision FROM contact_match_revision WHERE id=1)=? AND (? IS NULL OR EXISTS(SELECT 1 FROM mmt_users WHERE id=? AND revision=? AND deleted_at IS NULL)) THEN 1 ELSE 0 END`).bind(guard,matchRevision!.revision,u?.id??null,u?.id??null,Number(b.revision)||0),...contact.statements];
  if(u){
@@ -48,7 +51,11 @@ async function save(env:AdminEnv,b:Record<string,unknown>,u:User|null,actor:MmtI
  }else{
   statements.push(env.DB.prepare('INSERT INTO mmt_users(id,username,first_name,last_name,email,phone,country,is_org_admin,hs_access,is_admin,permissions_json,csm_access,csm_is_admin,csm_permissions_json,status,hs_person_id,registered_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,username(b.username),p.first_name,p.last_name,p.email,p.phone,p.country,a.role,a.hs.enabled,a.hs.is_admin,a.hs.permissions,a.csm.enabled,a.csm.is_admin,a.csm.permissions,a.status,contact.id,time,time));
  }
- statements.push(env.DB.prepare('DELETE FROM portal_contact_guards WHERE id=?').bind(guard),auditStatement(env,'person',contact.id||id,'portal_contact_association',{userId:id,personId:contact.id,created:contact.statements.length>0,hsAccess:a.hs.enabled,status:a.status}));
+ statements.push(env.DB.prepare('UPDATE mmt_users SET volunteer_access=? WHERE id=?').bind(volunteer,id));
+ if(contact.id){
+  statements.push(volunteer?env.DB.prepare("INSERT INTO contact_types(person_id,contact_type,created_at) VALUES(?,'volunteer',?) ON CONFLICT DO NOTHING").bind(contact.id,time):env.DB.prepare("DELETE FROM contact_types WHERE person_id=? AND contact_type='volunteer'").bind(contact.id));
+ }
+ statements.push(env.DB.prepare('DELETE FROM portal_contact_guards WHERE id=?').bind(guard),auditStatement(env,'person',contact.id||id,'portal_contact_association',{userId:id,personId:contact.id,created:contact.statements.length>0,hsAccess:a.hs.enabled,volunteer,status:a.status}));
  try{await env.DB.batch(statements);}catch(error){
   if(error instanceof Error && error.message.includes('CHECK constraint failed: valid=1'))throw new AdminError(409,'STALE_EDIT','The account or contact list changed. Refresh before saving.');
   if(error instanceof Error && error.message.includes('mmt_users.hs_person_id'))throw new AdminError(409,'CONTACT_IN_USE','This contact already has a portal account. Refresh and edit that account.');
@@ -57,7 +64,7 @@ async function save(env:AdminEnv,b:Record<string,unknown>,u:User|null,actor:MmtI
  await auditStatement(env,'mmt_user',id,u?'access_or_profile_updated':'created',{portal:currentPortal(),before:u?{profile:profile(u),status:u.status,is_org_admin:u.is_org_admin,hs:existing(u,'hs'),csm:existing(u,'csm')}:null,after:{profile:p,...a}}).run();
  return user(env,id);
 }
-function scoped(u:User,actor:MmtIdentity){if(!actor.is_org_admin&&!(currentPortal()==='hs'?u.hs_access:u.csm_access))deny('This account is not enrolled in your portal. Ask an Organization Administrator to grant access.');}
+function scoped(u:User,actor:MmtIdentity){if(!actor.is_org_admin&&!(currentPortal()==='hs'?(u.hs_access||u.volunteer_access):u.csm_access))deny('This account is not enrolled in your portal. Ask an Organization Administrator to grant access.');}
 export async function handleSharedUsers(request:Request,env:AdminEnv,path:string,session:Session):Promise<Response>{
  const actor=session.user,portal=currentPortal();if(!actor.is_admin)deny('Portal Administrator access is required.');
  if(path==='/admin/account/contact-matches'&&request.method==='GET'){
@@ -65,9 +72,9 @@ export async function handleSharedUsers(request:Request,env:AdminEnv,path:string
   return adminJson({contacts:await contactChoices(env,new URL(request.url).searchParams.get('search')||'')});
  }
  if(path==='/admin/account/users'&&request.method==='GET'){
-  const rows=await env.DB.prepare('SELECT *, (SELECT first_name||\' \'||last_name FROM people WHERE id=mmt_users.hs_person_id) AS hs_contact_name FROM mmt_users WHERE deleted_at IS NULL AND (?=1 OR (CASE WHEN ?=\'hs\' THEN hs_access ELSE csm_access END)=1) ORDER BY username').bind(actor.is_org_admin?1:0,portal).all<User>();
+  const rows=await env.DB.prepare('SELECT *, (SELECT first_name||\' \'||last_name FROM people WHERE id=mmt_users.hs_person_id) AS hs_contact_name FROM mmt_users WHERE deleted_at IS NULL AND (?=1 OR (CASE WHEN ?=\'hs\' THEN MAX(hs_access,volunteer_access) ELSE csm_access END)=1) ORDER BY username').bind(actor.is_org_admin?1:0,portal).all<User>();
   const requests=await env.DB.prepare('SELECT * FROM mmt_access_requests WHERE (?=1 OR portal=?) ORDER BY created_at DESC LIMIT 250').bind(actor.is_org_admin?1:0,portal).all();
-  const emails=await env.DB.prepare('SELECT e.* FROM mmt_email_events e JOIN mmt_users u ON u.id=e.user_id WHERE (?=1 OR (CASE WHEN ?=\'hs\' THEN u.hs_access ELSE u.csm_access END)=1) ORDER BY e.created_at DESC LIMIT 100').bind(actor.is_org_admin?1:0,portal).all();
+  const emails=await env.DB.prepare('SELECT e.* FROM mmt_email_events e JOIN mmt_users u ON u.id=e.user_id WHERE (?=1 OR (CASE WHEN ?=\'hs\' THEN MAX(u.hs_access,u.volunteer_access) ELSE u.csm_access END)=1) ORDER BY e.created_at DESC LIMIT 100').bind(actor.is_org_admin?1:0,portal).all();
   return adminJson({users:rows.results.map(u=>{const v=publicUser(u);if(!actor.is_org_admin)delete (v.memberships as Partial<typeof v.memberships>)[portal==='hs'?'csm':'hs'];return v;}),requests:requests.results,emailEvents:emails.results,emailReady:accountEmailReady(env)});
  }
  if(path==='/admin/account/users'&&request.method==='POST'){

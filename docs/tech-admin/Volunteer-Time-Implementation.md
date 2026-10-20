@@ -1,0 +1,58 @@
+# Volunteer time implementation — October 20, 2026
+
+Authorized by Brent: build and release the same application to isolated Test and Production. Do not merge environment data. Preserve existing working changes.
+
+## Explicit release request and current blockers
+
+Brent explicitly authorized commit, push and deployment to both Test and Production after local review on October 20, 2026. The release remains authorized when the environment blockers are resolved; do not request the same approval again.
+
+The release attempt could not stage files: git add failed because .git/index.lock cannot be created (Permission denied). This session's repository metadata is read-only. GitHub connectivity also failed: git ls-remote could not resolve github.com. Wrangler whoami reported expired authentication that could not be refreshed in this noninteractive environment. No commit, push, remote migration, Worker deployment, Pages deployment or private-guide upload was performed. The document render/reference/sync blockers described below also remain unresolved. Allow repository metadata writes/network access and renew Wrangler login in an interactive terminal before retrying the existing authorization.
+
+The connected GitHub app verified that the remote branch matches local HEAD and can create Git objects, but automatic approval review rejected uploading the prepared 29-file tree to this public repository. It requested explicit approval of the exact public payload because shared portal source and technical-guide Markdown may contain internal information. No tree, commit or ref update was created by that attempt. The exact reviewed manifest with SHA-256 content hashes is .tmp/volunteer-release-files.txt; .tmp/volunteer-commit-tree.json retains the proposed contents. Private user-guide files, all unreviewed Word editions, secrets, local databases and unrelated files were excluded. Await the requested specific approval before retrying this upload. Latest checks: 323 tests passed across 46 nonnetwork suites, browser checks passed, TypeScript and environment isolation passed. Two preexisting network-runtime suites remain excluded due to the session's localhost restrictions.
+
+Brent subsequently explicitly approved the listed public files and moving everything to Test and Production, and completed wrangler login through npx.cmd in his own terminal. That approval resolves the requested upload confirmation; do not ask again. The approved retry failed with GitHub integration HTTP 403 Resource not accessible by integration. The new Wrangler check could not resolve api.cloudflare.com/dash.cloudflare.com, so this session still cannot verify or use the renewed CLI login. No commit, branch update or deployment occurred. The safe user-terminal fallback .tmp/commit-volunteer-release.ps1 stages only the approved 29 source paths, refuses unrelated staged/private/Word files, verifies the reviewed branch/base, commits and pushes that existing branch. It does not deploy either environment. Document review and deployment steps still remain pending.
+
+## Accepted requirements
+
+- Volunteer Time left navigation, shared HS styles; only Volunteer or Admin.
+- Existing invitation flow with Volunteer User Only preset. Volunteer-only login without Portal Access; account/profile/password controls remain available. Existing portal members may additionally volunteer.
+- Hours entered and stored as tenths of an hour, displayed with exactly one decimal. Never convert to minutes.
+- Multiple service entries/dates per calendar month; drafts, past months, review, corrections, immutable issued report versions and resend history. One calendar month per time submission; users can save one month before starting another.
+- Service/activity and service organization separate from reporting organization. Shared organizations can also be ministry partners; no duplicate ministry record required.
+- Admin assigns permitted organizations per volunteer; an empty assignment list means all active organizations. Apply on server and dropdown; expose only necessary organization names to volunteers.
+- Up to three recipient emails per report. Separate delivery to unrelated recipients; CC volunteer account email and admin@hopesojourns.com on every delivery.
+- Admin approval required before certified reports are sent. Return with note; drafts explicitly self-reported/unverified. Approved reports certify accuracy and use WitLooL, existing private Brent signature and exact giving-email footer.
+- Monthly, calendar-year, fiscal-year, school-year and custom date-range reports. Explicit dates, daily rows, monthly subtotals and total. Annual reports count approved service entries once.
+- Branded email, printable/PDF report, retained original snapshots, revised versions, audit trail, delivery status, safe retries and test capture.
+- Update style/developer/user guides, build Word editions, render and inspect every page, refresh user-guide page references and sync. Private user-guide files never committed or served publicly.
+
+## Delivery status
+
+Implemented locally: role-aware login and navigation; Volunteer User Only account preset; contact-role synchronization; monthly entry, draft/submission/review/correction; shared ministry/organization directory and per-volunteer restrictions; recipient preferences; monthly/calendar/fiscal/school/custom reports; immutable versions and original-report resends; giving-email footer/private signature reuse; certification after approval; separate recipient emails with fixed CCs; production provider delivery, test capture, safe retries, and administrator provider-verification resolution.
+
+Code: admin/volunteer/, cloudflare/interest-worker/src/volunteer.ts, volunteer-report.ts, migration 0052_volunteer_time.sql, shared invitation/permission/navigation wiring. Regression tests: test/volunteer.test.ts. Repeatable offline browser QA: node tools/check-volunteer.cjs (tools/volunteer-dev-server.ts uses only synthetic in-memory data). Do not publish the QA server or its files.
+
+Validation: TypeScript passes. The broad nonnetwork suite passed 321 tests in 46 files; the final additional provider-verification test passed in the targeted run (14 volunteer tests, 20 volunteer/account-email tests). Two existing network-dependent runtime tests could not connect to localhost (EACCES) in this session. Offline browser workflow passes volunteer entry/submission, admin approval, captured report, printable PDF and responsive 1440/768/390/320 widths. Palette and environment-isolation checks pass. No real volunteer invitations or reports were sent during verification.
+
+Canonical guides updated: style 4.59, developer 4.68 and private MMT user 1.57. All three Word editions were regenerated with the bundled Python; private user/developer HTML was rebuilt in .tmp. **Word render/visual review and user-guide page-reference refresh remain incomplete.** The packaged renderer cannot find LibreOffice; this Windows runtime bundles no LibreOffice. Word COM fallback was denied with E_ACCESSDENIED. Therefore the guides have not been marked visually reviewed or synchronized. Do not distribute these regenerated Word copies until that review passes.
+
+**Not deployed to Test or Production.** Cloudflare preflight could not resolve api.cloudflare.com/dash.cloudflare.com because network access is restricted. No remote migration or Worker/static/guide upload was attempted after this failure. Existing environment records remain isolated.
+
+## Remaining release steps
+
+1. In a runtime with a supported document renderer, render every page of both technical Word guides and the user Word guide; inspect every page. Refresh fields and verify the user TOC against the final rendered PDF with tools/refresh_mmt_guide_page_references.py. Re-render after changes. Run Sync-TechAdmin-Docs.ps1 and Sync-MMT-User-Guide.ps1 only once canonical documents are final. Their destinations are outside this session's writable roots.
+2. Confirm the existing branding/brent-kern-signature.png exists independently in both environment RECEIPTS buckets. Do not copy uploaded business files between environments. Confirm actual signature rendering in Test before production release.
+3. From cloudflare/interest-worker, validate environment isolation and migration status, then run npm run db:migrate:test and npm run db:migrate:production. Migration 0052 is additive; never release only the new login code against the old schema.
+4. Deploy the same Worker source with npm run deploy:test and npm run deploy:production. Prepare the normal approved static-site build with admin/volunteer and changed account/navigation assets; exclude docs, tools, tests, .tmp, outputs and private HTML from public hosting. Deploy that same application build to both existing Pages projects. Retain www production routing.
+5. Upload identical final mmt-user-guide.html and mmt-developer-guide.html to the respective private Test and Production GUIDES buckets, served only by their authenticated routes. Do not commit private user-guide Markdown/Word/HTML.
+6. Verify real volunteer-only login and an existing member-plus-volunteer account; server-denied cross-user access; organization restrictions; month review/correction; actual signature/footer; Test capture; Production provider acceptance; calendar/fiscal/school date ranges and historical resend. Do not send a real recipient report merely as a smoke test.
+
+This session did not run git commit or push. Another concurrent project session advanced HEAD while this work was underway (27a8bd22 and 7aad6974); preserve those commits. Some shared permission additions were included by that concurrent session, so the final volunteer release must still include migration 0052 and all remaining files together.
+
+## Local review follow-up
+
+October 20: Volunteer Time now appears immediately below Finances. Volunteer-only users retain only the volunteer workspace and self profile/password/sign-out controls. Leading-decimal hour input normalizes .5 to 0.5 on focusout and immediately before saving. Monthly report organization/recipient fields are always editable; Send a monthly report after approval controls delivery intent only. Browser coverage verifies decimal normalization, field editability before the checkbox, preservation after checking it, and menu ordering. Guide editions advanced to style 4.60, developer 4.69 and user 1.58; regenerated Word copies still require the previously blocked rendering/reference/sync work. Static changes appear after refreshing the already-running local preview. No live release performed.
+
+Confirmed local review finding: apparent missing hours were saved under another selected volunteer, as Brent verified. The workspace now remembers volunteer/month on refresh, scoped to the signed-in identity. Browser regression verifies the same person/month and entries after reload; a database regression verifies a saved draft after closing/reopening a local file. The local launcher now persists new sessions in .tmp/volunteer-local.sqlite. Existing in-memory preview data is not automatically migrated; keep the old server running to retain its current samples. Restart is needed only to enable the file-backed local preview.
+
+Recipient autofill follow-up: three independent recipient inputs now have unique context-qualified names, IDs and HTML autocomplete sections across monthly submission, preferences and report creation. Normal email suggestions remain enabled. Browser QA checks distinct scopes and independent address persistence after save/reload. Guides advanced to style 4.61, developer 4.70, user 1.59; rendering/sync and live release remain pending as above.
