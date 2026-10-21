@@ -166,7 +166,7 @@ export function documentMedia(filename:string,bytes:Uint8Array):string {
  throw new AdminError(422,'UNSUPPORTED_FILE','Upload a PDF, Word, Excel, PowerPoint, PNG, or JPEG document matching its file extension.');
 }
 async function documents(request:Request,env:AdminEnv,documentId?:string,versionId?:string) {
- await authenticate(request,env,request.method!=='GET');
+ const session=await authenticate(request,env,request.method!=='GET');
  if(versionId){
   const row=await env.DB.prepare('SELECT v.* FROM ministry_document_versions v JOIN ministry_documents d ON d.id=v.document_id WHERE v.id=?1 AND d.id=?2 AND d.deleted_at IS NULL').bind(versionId,documentId).first<{object_key:string;filename:string;media_type:string}>();
   if(!row)throw new AdminError(404,'NOT_FOUND','Document not found.');const object=await env.RECEIPTS.get(row.object_key);
@@ -177,7 +177,8 @@ async function documents(request:Request,env:AdminEnv,documentId?:string,version
   const rows=await env.DB.prepare(`SELECT d.*,v.id AS version_id,v.filename,v.file_size,v.created_at AS version_date
    FROM ministry_documents d LEFT JOIN ministry_document_versions v ON v.document_id=d.id
    WHERE (?1 IS NULL OR d.id=?1) ORDER BY d.updated_at DESC,v.created_at DESC`).bind(documentId??null).all();
-  return adminJson({documents:rows.results});
+  const journeys=await env.DB.prepare('SELECT id,title FROM trips ORDER BY title').all();
+  return adminJson({documents:rows.results,journeys:journeys.results,canManage:can(session.user,'documents',true)});
  }
  const now=new Date().toISOString();
  if(request.method==='DELETE'||request.method==='PATCH'){
