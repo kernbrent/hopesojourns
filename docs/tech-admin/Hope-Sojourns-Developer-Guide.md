@@ -2,7 +2,7 @@
 
 Version 4.71
 
-Last reviewed: October 20, 2026
+Last reviewed: October 22, 2026
 
 ## Verified recovery email and concurrent login protection
 
@@ -222,6 +222,8 @@ Migration 0032 adds trip_memories and trip_publications. Photo bytes use the exi
 The authenticated /admin/trips/:tripId/memories routes list, upload, edit, soft-delete, restore, and serve images. Mutations require trip edit permission, CSRF, and revision matching for existing records. Portal sessions return only visible, active memories; /portal/trips/:tripId/photos/:id enforces the session's exact trip and current visibility. Object keys are never exposed to browser responses.
 
 Story memory_ids are ordered: buildDraft resolves the submitted IDs in their exact sequence after validating availability and uniqueness. The editor restores draft order, appends newly available memories, and moves existing DOM rows without changing selections or unsaved narrative fields. HSTripMemoriesView.story passes preserveOrder to collection; live feeds keep chronological ordering. No schema migration is required. Cover reverse-date draft/published ordering in trip-memories.test.ts.
+
+Past-trip story provides section-scoped Select all and Clear all buttons for content_ids and memory_ids in admin/trips/memories.js. Buttons change enabled checkboxes only, preserve gallery order, and do not submit, save, or publish. Both controls are disabled for empty sections and read-only users; the handler also checks read-only access.
 
 Past-trip story lets administrators select a published destination, write a title and summary, and choose specific memories and published traveler/public content. Save and preview stores a private snapshot through /publication/draft. Publish this version uses /publication/publish and requires Completed status and an elapsed trip end date. /publication/unpublish removes public access while retaining the private draft. All publication writes compare revisions; edits to source material never silently change a published snapshot.
 
@@ -1213,6 +1215,8 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 22, 2026 — Added section-specific Select all and Clear all controls to Past-trip story. Local pending release.
 
 - October 20, 2026 - Version 4.71. Added verified recovery-address changes, protected account forms and atomic concurrent-login limits. Session timeouts remain unchanged.
 

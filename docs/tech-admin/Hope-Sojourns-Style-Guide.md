@@ -2,7 +2,11 @@
 
 Version 4.62
 
-Last reviewed: October 20, 2026
+Last reviewed: October 22, 2026
+
+## Past trip story selection controls
+
+Past-trip story selection sections place Select all and Clear all beside each other using the existing memory-actions button layout. Keep the controls within their fieldset, preserve individual checkboxes, and disable both buttons when the section is empty or the user has read-only access.
 
 ## Verified account email changes
 
@@ -823,6 +827,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 22, 2026 — Added section-specific Select all and Clear all controls to Past-trip story. Local pending release.
 
 - October 20, 2026 - Version 4.62. Added verified recovery-address changes, protected account forms and atomic concurrent-login limits. Session timeouts remain unchanged.
 
