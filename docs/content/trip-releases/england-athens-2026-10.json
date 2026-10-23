@@ -874,5 +874,77 @@
   "removedWebsiteStorageObjects": 17,
   "newWebsiteMedia": 20,
   "phoneOriginals": "preserved",
-  "deploymentScope": "Application source identical in test and production; trip business content and media published only in production; environments remain isolated."
+  "deploymentScope": "Application source identical in test and production; trip business content and media published only in production; environments remain isolated.",
+  "dailyHighlights": [
+    {
+      "event_date": "2026-10-10",
+      "title": "Departed for London to begin the England and Athens discovery journey",
+      "content": "Boarded the overnight flight to London, beginning eight days of ministry visits, relationship building, and planning."
+    },
+    {
+      "event_date": "2026-10-11",
+      "title": "Arrived in London and found my way to King’s Cross",
+      "content": "Traveled from Heathrow on the Underground and settled into my London accommodation."
+    },
+    {
+      "event_date": "2026-10-11",
+      "title": "Explored King’s Cross and enjoyed an evening beside the canal",
+      "content": "Enjoyed a Sunday roast, spotted Platform 9¾, and took a canal-side walk before the journey north."
+    },
+    {
+      "event_date": "2026-10-12",
+      "title": "Joined the Light Group for street outreach and worship in Leeds",
+      "content": "Met Dave, Bryan, and Josh, offered hot tea and conversation on outreach, and joined the gathering at Leeds Minster."
+    },
+    {
+      "event_date": "2026-10-12",
+      "title": "Singing “Lean on Me” brought comfort to a grieving sister",
+      "content": "While Josh and I practiced in the Minster, a woman planning her sister’s funeral heard their childhood favorite song and told us it gave her reassurance."
+    },
+    {
+      "event_date": "2026-10-13",
+      "title": "Recorded Paul’s story and learned more about the Light Group",
+      "content": "Recorded interviews to help future Hope Sojourns teams hear directly about the ministry and the people connected with its work."
+    },
+    {
+      "event_date": "2026-10-13",
+      "title": "Experienced Northern England’s countryside and local landmarks",
+      "content": "Took in green hills, stone cottages, dry-stone walls, and the countryside around Wuthering Heights."
+    },
+    {
+      "event_date": "2026-10-14",
+      "title": "Traveled from England to Athens for the next ministry visits",
+      "content": "Flew from Gatwick to Athens to continue listening, learning, and exploring future ministry partnerships."
+    },
+    {
+      "event_date": "2026-10-14",
+      "title": "Visited New Start, Refugees Refuge, and Porta Ministries",
+      "content": "Met with local ministries, including the Albanian Church of Athens, and recorded conversations about their work and needs."
+    },
+    {
+      "event_date": "2026-10-15",
+      "title": "Met Meredith and Ana from New Life in Athens",
+      "content": "Learned about their work alongside people experiencing exploitation and reflected on following Jesus into places we may be afraid to go."
+    },
+    {
+      "event_date": "2026-10-15",
+      "title": "Connected with Hellenic Ministries about its refugee outreach",
+      "content": "A brief introduction offered another opportunity to learn about ministry in Greece and consider future relationships."
+    },
+    {
+      "event_date": "2026-10-16",
+      "title": "Met my mentor in London to plan the England and July Athens journeys",
+      "content": "Worked together to finalize details for the upcoming England journey and the Athens journey in July."
+    },
+    {
+      "event_date": "2026-10-17",
+      "title": "Finalized more journey details with my mentor as the trip concluded",
+      "content": "Met again in London to continue planning the upcoming England journey and the Athens journey in July, bringing the discovery trip to a close."
+    }
+  ],
+  "highlightsApprovedAt": "2026-10-22",
+  "highlightsEnvironments": [
+    "test",
+    "production"
+  ]
 }
