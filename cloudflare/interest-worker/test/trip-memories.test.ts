@@ -86,6 +86,16 @@ it('preserves reviewed snapshots across edits and removals; supports update and 
  expect((await f.call(f.base+'/'+p.id+'/restore',{revision:2})).status).toBe(200);
  expect((await f.call(f.base+'/publication/unpublish',{revision:4})).status).toBe(200);expect((await f.publicCall(f.publicPath)).status).toBe(404);
 });
+it('previews eligible highlights while rejecting travel booking selections',async()=>{
+ const f=await setup(),path=`/admin/trips/${f.id}/content`;
+ const add=async(title:string)=>(await (await f.call(path,{contentType:'itinerary',title,content:'Trip update',visibility:'public',publicationStatus:'published'})).json() as any).id;
+ const highlight=await add('Ministry visit'),travel=await add('Flight booking');
+ f.sqlite.prepare("UPDATE trip_content SET itinerary_kind='travel',visibility='travelers',event_date='2025-01-10',location='London' WHERE id=?").run(travel);
+ expect((await f.draft([],[highlight,travel])).status).toBe(422);
+ const response=await f.draft([],[highlight]);
+ expect(response.status).toBe(200);
+ expect((await response.json() as any).snapshot.content.map((c:any)=>c.id)).toEqual([highlight]);
+});
 it('rejects unavailable selections, future trips, invalid files, stale edits, and unauthorized writes',async()=>{
  const f=await setup(),n=await f.note();
  expect((await f.draft([crypto.randomUUID()])).status).toBe(422);

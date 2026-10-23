@@ -6,7 +6,7 @@ Last reviewed: October 22, 2026
 
 ## Past trip story selection controls
 
-Past-trip story selection sections place Select all and Clear all beside each other using the existing memory-actions button layout. Keep the controls within their fieldset, preserve individual checkboxes, and disable both buttons when the section is empty or the user has read-only access.
+Past-trip story selection sections place Select all and Clear all beside each other using the existing memory-actions button layout. Show save progress and errors beside Save and preview as well as above the form, using live status text. Keep the controls within their fieldset, preserve individual checkboxes, and disable both buttons when the section is empty or the user has read-only access.
 
 ## Verified account email changes
 
@@ -827,6 +827,8 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 22, 2026 — Fixed story preview selection eligibility and added save feedback beside the button. Local pending release.
 
 - October 22, 2026 — Added section-specific Select all and Clear all controls to Past-trip story. Local pending release.
 
