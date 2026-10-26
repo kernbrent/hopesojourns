@@ -1,3 +1,4 @@
+import {handleTravelerVetting,memberVettingStatements} from './traveler-vetting';
 import {categories, details as itineraryDetails, tags as itineraryTags, itineraryMinistries} from './itinerary';
 import {templateStatements,readiness} from './planning';
 import {handleMemoriesAdmin,handleTripStories,portalMemories,portalPhoto,liveMemories,livePhoto} from './trip-memories';
@@ -495,6 +496,20 @@ async function revealPortalCredential(request: Request, env: AdminEnv, tripId: s
   return adminJson({ password });
 }
 
+async function potentialTravelers(env: AdminEnv, tripId: string) {
+  return env.DB.prepare(`SELECT p.id AS person_id,p.first_name,p.last_name,p.preferred_name,p.email,p.phone,
+    tm.status AS member_status,t.opportunity_id
+    FROM trips t JOIN contact_trips ct ON ct.opportunity_id=t.opportunity_id
+    JOIN people p ON p.id=ct.person_id
+    LEFT JOIN trip_members tm ON tm.trip_id=t.id AND tm.person_id=p.id
+    WHERE t.id=? AND p.contact_status='active'
+    AND NOT EXISTS (SELECT 1 FROM traveler_workflows w WHERE w.trip_id=t.id AND w.person_id=p.id AND w.rejected_at IS NOT NULL)
+    AND EXISTS (SELECT 1 FROM contact_types c WHERE c.person_id=p.id AND c.contact_type='prospective_traveler')
+    AND NOT EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id=t.id AND m.person_id=p.id
+      AND (m.status IN ('approved','confirmed') OR m.role!='traveler'))
+    ORDER BY p.last_name_normalized,p.first_name_normalized,p.id`).bind(tripId).all<JsonRecord>();
+}
+
 async function tripWorkspace(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
   const session = await authenticate(request, env);
   await requireTrip(env, tripId);
@@ -505,7 +520,7 @@ async function tripWorkspace(request: Request, env: AdminEnv, tripId: string): P
     env.DB.prepare(`SELECT tc.* FROM trip_content tc WHERE tc.trip_id = ?1 ORDER BY tc.content_type, tc.event_date, tc.sort_order, tc.title`).bind(tripId).all(),
     env.DB.prepare(`SELECT tm.*, p.first_name, p.last_name, p.preferred_name, p.email, p.phone, m.name AS ministry_name
       FROM trip_members tm JOIN people p ON p.id = tm.person_id LEFT JOIN ministries m ON m.id = tm.ministry_id
-      WHERE tm.trip_id = ?1 ORDER BY tm.role, p.last_name_normalized, p.first_name_normalized`).bind(tripId).all(),
+      WHERE tm.trip_id = ?1 AND NOT EXISTS (SELECT 1 FROM traveler_workflows w WHERE w.trip_id=tm.trip_id AND w.person_id=tm.person_id AND w.rejected_at IS NOT NULL) ORDER BY tm.role, p.last_name_normalized, p.first_name_normalized`).bind(tripId).all(),
     env.DB.prepare(`SELECT ti.*, p.first_name, p.last_name, p.preferred_name, p.email, p.phone,
       i.label AS invite_label, m.name AS invite_ministry_name
       FROM trip_interests ti JOIN people p ON p.id = ti.person_id
@@ -553,6 +568,8 @@ async function tripWorkspace(request: Request, env: AdminEnv, tripId: string): P
   }
   return adminJson({
     readiness: await readiness(env,tripId),
+    potentialTravelers: can(session.user,'contacts') ? (await potentialTravelers(env,tripId)).results : [],
+    canConfirmPotentialTraveler: can(session.user,'contacts',true) && can(session.user,'trips',true),
     portalCredential: { canReveal, available: Boolean(savedPassword) },
     trip, content: (content.results as JsonRecord[]).map(presentContent), members: members.results, interests: interests.results, organizations: organizations.results,
     accounts: accountRows, costs: costs.results, allocations: allocations.results, charges: charges.results,
@@ -867,7 +884,7 @@ async function saveOrganization(request: Request, env: AdminEnv, tripId: string)
 }
 
 async function saveMember(request: Request, env: AdminEnv, tripId: string): Promise<Response> {
-  await authenticate(request, env, true);
+  const session = await authenticate(request, env, true);
   await requireTrip(env, tripId);
   const body = await readAdminJson(request);
   const existingPersonId = uuid(body.id, "existing person", true);
@@ -875,6 +892,21 @@ async function saveMember(request: Request, env: AdminEnv, tripId: string): Prom
   const ministryId = uuid(body.ministryId, "organization", true);
   const role = choice(body.role, "member role", MEMBER_ROLES, "traveler");
   const status = choice(body.status, "member status", MEMBER_STATUSES, "invited");
+  if (body.fromProspect === true) {
+    if (!can(session.user,'contacts',true) || !can(session.user,'trips',true)) throw new AdminError(403,'ACCESS_DENIED','Contact and trip edit access are required.');
+    if (role !== 'traveler' || status !== 'confirmed' || existingPersonId) throw new AdminError(422,'INVALID_PROSPECT','Choose Add as traveler from the potential traveler list.');
+    const existing=await env.DB.prepare('SELECT * FROM trip_members WHERE trip_id=? AND person_id=?').bind(tripId,personId).first<JsonRecord>();
+    if (existing?.role === 'traveler' && existing.status === 'confirmed') return adminJson({ok:true,id:personId});
+    const candidates=await potentialTravelers(env,tripId);
+    if (!candidates.results.some(p=>p.person_id===personId)) throw new AdminError(409,'PROSPECT_CHANGED','This contact is no longer eligible. Refresh the trip before adding them.');
+    // Retain existing directory consent, notes and organization when promoting an interested member.
+    body.directoryVisible=existing?.directory_visible===1;
+    body.directoryEmailVisible=existing?.directory_email_visible===1;
+    body.directoryPhoneVisible=existing?.directory_phone_visible===1;
+    body.notes=existing?.notes || '';
+    body.ministryId=existing?.ministry_id || null;
+  }
+  const memberMinistryId=body.fromProspect===true ? (body.ministryId as string|null) : ministryId;
   const now = new Date().toISOString();
   const statements: D1PreparedStatement[] = [];
   if (existingPersonId && existingPersonId !== personId) {
@@ -889,7 +921,7 @@ async function saveMember(request: Request, env: AdminEnv, tripId: string): Prom
       status = excluded.status, directory_visible = excluded.directory_visible,
       directory_email_visible = excluded.directory_email_visible,
       directory_phone_visible = excluded.directory_phone_visible, notes = excluded.notes, updated_at = excluded.updated_at`).bind(
-      tripId, personId, ministryId, role, status, flag(body.directoryVisible), flag(body.directoryEmailVisible),
+      tripId, personId, memberMinistryId, role, status, flag(body.directoryVisible), flag(body.directoryEmailVisible),
       flag(body.directoryPhoneVisible), optionalText(body.notes, "Notes", 1_000, true), now,
     ),
     env.DB.prepare("INSERT OR IGNORE INTO contact_types (person_id, contact_type, created_at) VALUES (?1, ?2, ?3)").bind(
@@ -897,6 +929,14 @@ async function saveMember(request: Request, env: AdminEnv, tripId: string): Prom
     ),
     auditStatement(env, "trip", tripId, "member_saved", { personId, role, status }),
   );
+  if (body.fromProspect === true) {
+    statements.push(env.DB.prepare('UPDATE people SET updated_at=? WHERE id=?').bind(now,personId),
+      auditStatement(env,'person',personId,'added_as_traveler',{tripId}),
+      env.DB.prepare(`DELETE FROM contact_types WHERE person_id=?1 AND contact_type='prospective_traveler'
+      AND NOT EXISTS (SELECT 1 FROM contact_trips ct JOIN trips t ON t.id=?2
+        WHERE ct.person_id=?1 AND ct.opportunity_id!=t.opportunity_id)`).bind(personId,tripId));
+  }
+  statements.push(...await memberVettingStatements(env,tripId,personId,status,can(session.user,'contacts',true),session.user.id));
   if (role === 'traveler' && status === 'confirmed') statements.push(...await assignTravelerBudget(env,tripId,personId,now));
   await env.DB.batch(statements);
   return adminJson({ ok: true, id: personId });
@@ -2486,6 +2526,7 @@ async function annualPersonSummary(request: Request, env: AdminEnv): Promise<Res
 }
 
 async function routeTripAdmin(request: Request, env: AdminEnv, path: string): Promise<Response> {
+  if (/^\/admin\/trips\/[0-9a-f-]+\/vetting(?:\/|$)/i.test(path)) return handleTravelerVetting(request,env,path);
   const memories=path.match(/^\/admin\/trips\/([0-9a-f-]{36})\/memories(?:\/([a-z0-9-]+)(?:\/(image|restore|permanent|draft|publish|unpublish))?)?$/i);
   if(memories)return handleMemoriesAdmin(request,env,memories[1],memories[2],memories[3]);
   if (path === "/admin/trip-platform/devotionals" || path.startsWith("/admin/trip-platform/devotionals/")) return handleDevotionalLibrary(request, env, path);

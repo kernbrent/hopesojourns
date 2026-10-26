@@ -28,6 +28,7 @@ const publicEntries = [
   "phone-ui.js",
   "about",
   "admin",
+  "application",
   "agreements",
   "assets",
   "brochure",
@@ -60,7 +61,7 @@ for(const [file,digest] of Object.entries(inputs)){
  const actual=createHash('sha256').update(content).digest('hex');
  if(actual!==digest)throw new Error('Stale public knowledge input: '+file+'. Run tools/build_knowledge_site.py.');
 }
-const excluded=new Set(['admin','journey','trip-account','faq','knowledge','logo-explorations','outputs']);
+const excluded=new Set(['admin','application','journey','trip-account','faq','knowledge','logo-explorations','outputs']);
 async function verifyHtml(relative){const location=path.join(repositoryRoot,relative),info=await stat(location);if(info.isDirectory()){
  for(const item of await readdir(location))await verifyHtml(path.join(relative,item));
  }else if(relative.endsWith('.html')&&!Object.hasOwn(inputs,relative.split(path.sep).join('/')))throw new Error('New public page is missing from the knowledge catalog: '+relative);

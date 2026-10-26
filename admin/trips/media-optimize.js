@@ -6,26 +6,26 @@
  const isVideo=file=>file.type.startsWith('video/')||/\.(mp4|webm|mov|m4v)$/i.test(file.name);
  const size=bytes=>bytes<MB?`${Math.max(1,Math.round(bytes/1024))} KB`:`${(bytes/MB).toFixed(1)} MB`;
  function result(original,file){return {file,originalSize:original.size,saved:Math.max(0,original.size-file.size)};}
- async function photo(file,{signal,onProgress}){
+ async function photo(file,{signal,onProgress,maxPhotoDimension=1600,photoQuality=.78,maxPhotoBytes=PHOTO_LIMIT,alwaysReencode=false}){
   if(file.size>50*MB)throw Error('Choose an original photo up to 50 MB.');
   aborted(signal);onProgress('Optimizing photo…');
   let bitmap;try{bitmap=await createImageBitmap(file);}catch{throw Error('This photo could not be opened. Export it as JPEG, PNG, or WebP and try again.');}
   try{
-   const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');
+   const scale=Math.min(1,maxPhotoDimension/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');
    canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
    const ctx=canvas.getContext('2d');if(!ctx)throw Error('Photo optimization is unavailable in this browser.');
    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
    const encode=(type,quality)=>new Promise(resolve=>canvas.toBlob(resolve,type,quality));
-   let blob=await encode('image/webp',.78);aborted(signal);
+   let blob=await encode('image/webp',photoQuality);aborted(signal);
    if(!blob||blob.type!=='image/webp'){
     // JPEG fallback has an opaque canvas so transparent areas do not turn dark.
     ctx.globalCompositeOperation='destination-over';ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();ctx.fillRect(0,0,canvas.width,canvas.height);
-    blob=await encode('image/jpeg',.8);
+    blob=await encode('image/jpeg',Math.max(.8,photoQuality));
    }
    if(!blob)throw Error('Could not optimize this photo.');aborted(signal);
    const optimized=named(blob,file,blob.type==='image/webp'?'webp':'jpg');
-   const smaller=['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size<=optimized.size?file:optimized;
-   if(smaller.size>PHOTO_LIMIT)throw Error('This photo is still too large. Choose a smaller photo.');
+   const smaller=!alwaysReencode&&['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size<=optimized.size?file:optimized;
+   if(smaller.size>maxPhotoBytes)throw Error('This photo is still too large. Choose a smaller photo.');
    return result(file,smaller);
   }finally{bitmap.close();}
  }
@@ -88,9 +88,9 @@
    }
   }
  }
- async function prepare(file,{optimize=true,signal,onProgress=()=>{}}={}){
+ async function prepare(file,{optimize=true,signal,onProgress=()=>{},maxPhotoDimension=1600,photoQuality=.78,maxPhotoBytes=PHOTO_LIMIT,alwaysReencode=false}={}){
   aborted(signal);if(!file.size)throw Error('This file is empty.');
-  if(optimize)return isVideo(file)?video(file,{signal,onProgress}):photo(file,{signal,onProgress});
+  if(optimize)return isVideo(file)?video(file,{signal,onProgress}):photo(file,{signal,onProgress,maxPhotoDimension,photoQuality,maxPhotoBytes,alwaysReencode});
   const valid=isVideo(file)?/\.(mp4|webm)$/i.test(file.name)&&file.size<=VIDEO_LIMIT:['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size<=PHOTO_LIMIT;
   if(!valid)throw Error('Without optimization, choose a JPEG/PNG/WebP photo up to 6 MB or an MP4/WebM video up to 20 MB.');
   return result(file,file);

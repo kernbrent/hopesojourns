@@ -1,3 +1,4 @@
+import {travelerApplications} from './traveler-application-review';
 import {can,type MmtIdentity} from './mmt-permissions';
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type AdminEnv} from './admin';
 import {perTravelerAmount,allocatePayment,cents,dollars,fundingStatusStatement} from './ministry-budget';
@@ -28,7 +29,9 @@ async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  const failedEmails=user.is_admin?(await env.DB.prepare("SELECT e.id,e.recipient AS title,e.kind,e.created_at FROM mmt_email_events e JOIN mmt_users u ON u.id=e.user_id WHERE e.status='not_sent' AND (?=1 OR u.hs_access=1) ORDER BY e.created_at DESC LIMIT 100").bind(user.is_org_admin?1:0).all<Row>()).results:[];
  const duplicates=can(user,'contacts')?(await env.DB.prepare("SELECT id,payload_json,status,created_at FROM interest_intake WHERE decision IS NULL OR decision IN ('new','update','reject') ORDER BY created_at DESC").all<Row>()).results:[];
  const inquiryEmails=can(user,'contacts')?(await env.DB.prepare("SELECT e.id,e.inquiry_id,e.kind,e.status,e.error,e.updated_at created_at,s.id submission_id FROM inquiry_emails e LEFT JOIN interest_submissions s ON s.id=e.inquiry_id WHERE e.status IN ('queued','sending','failed','uncertain') ORDER BY e.updated_at DESC").all<Row>()).results:[];
+ const applications=can(user,'contacts')&&can(user,'trips')?await travelerApplications(env):[];
  const items:Row[]=[
+ ...applications.map(a=>({...a,id:'application:'+a.id,kind:'Traveler application',title:a.name+' — '+a.trip_title,detail:a.indicator,status:a.needsReview?'action':'completed',reviewRequired:true})),
  ...inquiryEmails.map(r=>({...r,id:'inquiry-email:'+r.id,kind:'Inquiry email',title:'Review '+r.kind+' delivery',status:'action',detail:r.error||'Delivery needs review.',action_url:r.submission_id?'/admin/?inquiry='+r.inquiry_id+'#requests':'/admin/ministry/#interest-review/'+r.inquiry_id})),
  ...duplicates.map(r=>({...r,id:'duplicate:'+r.id,kind:'Contact match review',title:(JSON.parse(String(r.payload_json)).firstName+' '+JSON.parse(String(r.payload_json)).lastName),payload_json:undefined,status:r.status==='pending'?'action':'completed',detail:r.status==='pending'?'Possible existing contact. Review before attaching interests.':'Contact review resolved.',reviewRequired:r.status==='pending',action_url:'/admin/ministry/#interest-review/'+r.id})),
  ...failedEmails.map(r=>({...r,id:'account-email:'+r.id,kind:'Account email',status:'action',detail:'Account email was not sent. Review delivery and send fresh instructions.',action_url:'/admin/account/#users'})),
@@ -41,7 +44,7 @@ async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  ].sort((a,b)=>String((b as Row).created_at).localeCompare(String((a as Row).created_at)));
  const saved=(await env.DB.prepare('SELECT * FROM ministry_inbox_states').all<Row>()).results;
  const states=new Map(saved.map(row=>[row.item_id,row]));
- return items.map(item=>{const saved=states.get(item.id);return {...item,source_status:item.status,status:String(item.id).startsWith('request:')?item.status:saved?.status||item.status,manually_completed:saved?.status==='completed',inbox_updated_at:saved?.updated_at||null};});
+ return items.map(item=>{const saved=states.get(item.id);return {...item,source_status:item.status,status:(String(item.id).startsWith('request:')||String(item.id).startsWith('application:'))?item.status:saved?.status||item.status,manually_completed:saved?.status==='completed',inbox_updated_at:saved?.updated_at||null};});
 }
 
 async function updateInbox(request:Request,env:AdminEnv,user:MmtIdentity){
@@ -51,6 +54,7 @@ async function updateInbox(request:Request,env:AdminEnv,user:MmtIdentity){
  const item=(await inboxItems(env,user)).find(item=>item.id===itemId);
  if(!item)throw new AdminError(404,'INBOX_ITEM_NOT_FOUND','This inbox item is no longer available to you. Refresh the inbox.');
  if(itemId.startsWith('request:')&&['complete','delete','reopen'].includes(action))throw new AdminError(409,'INQUIRY_WORKFLOW','Open the inquiry and update its stage or close it with a reason.');
+ if(itemId.startsWith('application:'))throw new AdminError(409,'APPLICATION_REVIEW','Open the application and record the review decision. Its inbox status follows the application.');
  if(item.reviewRequired)throw new AdminError(409,'REVIEW_REQUIRED','Choose Add as new, Update existing, or Reject in the contact review.');
  const now=new Date().toISOString();
  const existing=await env.DB.prepare('SELECT status,previous_status FROM ministry_inbox_states WHERE item_id=?').bind(itemId).first<{status:string;previous_status:string|null}>();

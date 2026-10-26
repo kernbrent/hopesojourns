@@ -494,6 +494,8 @@ function showDashboard(session) {
   document.querySelector("#dashboard-title").focus?.();
   if (location.hash === "#income" || location.hash === "#expenses") ledgerFilters.elements.entryType.value = location.hash === "#income" ? "income" : "expense";
   switchView(requestedAdminView());
+  const linkedPerson=new URLSearchParams(location.search).get("person");
+  if(linkedPerson && /^[0-9a-f-]{36}$/i.test(linkedPerson)){history.replaceState(null,"","/admin/#people");openPerson(linkedPerson);}
   if (location.hash === "#settings") openAdminSettings();
 }
 
@@ -3021,6 +3023,7 @@ function renderContactEditor(person = null) {
     })), person?.trips?.map(trip => trip.id) || []),
     editorField("Notes", "notes", person?.notes, { multiline: true, maximum: 5000, rows: 6, wide: true }),
   );
+  const additional=window.HSTravelerProfile.additionalData(person?.id,person?person.firstName+' '+person.lastName:'');additional.classList.add('admin-editor-wide');fields.append(additional);
   const actions = element("div", "admin-editor-actions admin-editor-wide");
   const cancel = element("button", "admin-button admin-button-quiet", "Cancel");
   cancel.type = "button";
@@ -3197,6 +3200,7 @@ function renderPersonDetail(person) {
     renderContactEditor(person);
   });
   hero.append(edit);
+
   const followup=element('a','admin-button','Tasks & next contact date');followup.href='/admin/ministry/#tasks/'+encodeURIComponent(person.id);hero.append(followup);
   hero.append(renderPersonStats(person));
   fragment.append(hero);
@@ -3230,7 +3234,15 @@ function renderPersonDetail(person) {
     website.rel = "noopener noreferrer";
     profile.append(website);
   }
+  profile.append(window.HSTravelerProfile.additionalData(person.id,person.firstName+" "+person.lastName,!!window.MmtUser?.is_admin||window.MmtUser?.permissions?.contacts==="edit"));
   if (person.notes) profile.append(element("p", "admin-record-notes", person.notes));
+  if(person.rejectionNotes?.length){
+    const reviews=element('section','');reviews.append(element('h3','','Traveler review notes'));
+    reviews.append(element('p','admin-reply-help','Past rejection decisions remain here for review before future trips. A full trip uses Waitlisted, not Rejected.'));
+    for(const note of person.rejectionNotes){const entry=element('article','admin-linked-record'),copy=element('div');copy.append(element('strong','',`Rejected — ${note.trip_title}`),element('span','',`${formatDate(note.created_at)} · ${note.reviewer_name}`),element('p','admin-record-notes',note.reason));entry.append(copy);reviews.append(entry);}
+    profile.append(reviews);
+  }
+
 
   const ministries = element("section", "admin-detail-card");
   ministries.append(element("h3", "", "Ministry relationships"));
@@ -3259,6 +3271,19 @@ function renderPersonDetail(person) {
 
   grid.append(profile, ministries, renderRelatedContacts(person));
   if (person.giving?.gifts?.length > 0) grid.append(renderContactGiving(person.giving));
+  if (person.canViewJourneyHistory) {
+    const history=element('section','admin-detail-card admin-detail-card-wide');
+    history.append(element('h3','','Journey history'));
+    history.append(element('p','admin-reply-help','Dated trip memberships, including current status. Contact journey interests do not by themselves mean the person traveled.'));
+    for(const trip of person.journeyHistory || []) {
+      const row=element('div','admin-linked-record'),copy=element('div');
+      copy.append(element('strong','',trip.title),element('span','',`${formatDate(trip.start_date,false)} – ${formatDate(trip.end_date,false)} · ${titleCase(trip.role)} · ${titleCase(trip.member_status)} · Trip ${titleCase(trip.trip_status)}`));
+      const link=element('a','admin-button admin-button-outline','Open trip');link.href='/admin/trips/?trip='+encodeURIComponent(trip.id);
+      row.append(copy,link);history.append(row);
+    }
+    if(!person.journeyHistory?.length)history.append(element('p','admin-reply-help','No dated trip memberships recorded.'));
+    grid.append(history);
+  }
   grid.append(createTeamAssignments(person), interests, renderSubmissionHistory(person));
   const registrations = renderRegistrations(person);
   if (registrations) grid.append(registrations);

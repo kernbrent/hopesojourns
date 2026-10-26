@@ -1,3 +1,4 @@
+import {handleTravelerVetting} from './traveler-vetting';
 import {handleVolunteer} from './volunteer';
 import {startDueTrips} from './trip-progress';
 import {handleInquiries} from './inquiries';
@@ -448,6 +449,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   if (path === "/internal/donation-splits") return internalDonationSplits(request, env);
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
   if(path.startsWith('/admin/switch/'))return sharedSwitch(request,env,path);
+  if(path==='/public/traveler-application'||path.startsWith('/admin/traveler-profiles/'))return handleTravelerVetting(request,env,path);
   if(path.startsWith('/admin/knowledge')||path.startsWith('/public/knowledge'))return handleKnowledge(request,env,path);
   if(path.startsWith('/public/account/'))return handleAccountPublic(request,env,path);
   if (request.method === "GET" && (path.startsWith("/public/destinations") || path.startsWith("/public/trips") || path.startsWith("/admin/trips") || path.startsWith("/admin/trip-platform"))) await startDueTrips(env);

@@ -45,6 +45,8 @@ These colors are intentionally distinct because they communicate system status. 
 | `--warning` | Warning | `#7B4F09` | `rgb(123, 79, 9)` |
 | `--error` | Error or destructive action | `#8F3030` | `rgb(143, 48, 48)` |
 
+Traveler workflow Stage labels use `--success` for Confirmed, `--error` for Rejected/Waitlisted/Withdrawn, `--info` for Contacted/Application, `--warning` for Review/Approved, and `--ink` for Received. Row backgrounds stay unchanged. The text label accompanies every status color.
+
 Warnings use `--gold-wash` as their surface. Errors use `--coral-wash`.
 
 ## Why similar colors remain

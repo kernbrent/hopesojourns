@@ -1351,7 +1351,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
   ).bind(personId).first<Record<string, string | null>>();
   if (!person) throw new AdminError(404, "PERSON_NOT_FOUND", "This person was not found.");
 
-  const [interests, submissions, replies, registrations, teams, contactTypes, languages, areas, trips, ministries, tripOptions] = await Promise.all([
+  const [interests, submissions, replies, registrations, teams, contactTypes, languages, areas, trips, ministries, tripOptions, journeyHistory] = await Promise.all([
     env.DB.prepare(
       `SELECT i.id, i.status, i.created_at, i.updated_at, i.submission_id,
               o.slug, o.title, o.kind, o.location, o.partner, o.duration
@@ -1427,6 +1427,9 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
       `SELECT id, slug, title, location, partner
        FROM opportunities WHERE kind = 'trip' AND active = 1 ORDER BY sort_order`,
     ).all<Record<string, string | null>>(),
+    can(session.user,'trips') ? env.DB.prepare(`SELECT t.id,t.title,t.slug,t.start_date,t.end_date,t.status AS trip_status,tm.role,CASE WHEN EXISTS(SELECT 1 FROM traveler_workflows w WHERE w.trip_id=t.id AND w.person_id=tm.person_id AND w.rejected_at IS NOT NULL) THEN 'rejected' ELSE tm.status END AS member_status
+      FROM trip_members tm JOIN trips t ON t.id=tm.trip_id WHERE tm.person_id=?
+      ORDER BY t.start_date DESC,t.title,t.id`).bind(personId).all() : Promise.resolve({results:[]}),
   ]);
   const submissionHistory = submissions.results.map(row => ({
     id: row.id,
@@ -1456,6 +1459,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
       organization: person.organization,
       website: person.website,
       notes: person.notes,
+      rejectionNotes: (await env.DB.prepare('SELECT id,trip_id,trip_title,reason,reviewer_name,created_at FROM contact_traveler_review_notes WHERE person_id=? ORDER BY created_at DESC,id').bind(personId).all()).results,
       recordSource: person.record_source,
       contactStatus: person.contact_status,
       lastContactedAt: person.last_contacted_at,
@@ -1503,6 +1507,8 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
         submittedAt: row.submitted_at,
         updatedAt: row.updated_at,
       })),
+      journeyHistory: journeyHistory.results,
+      canViewJourneyHistory: can(session.user,'trips'),
       contactTypes: contactTypes.results.map(row => row.contact_type),
       languages: languages.results.map(row => row.language),
       areas: areas.results.map(row => row.area),

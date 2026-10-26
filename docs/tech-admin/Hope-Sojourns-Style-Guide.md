@@ -1,8 +1,20 @@
 # Hope Sojourns website style guide
 
-Version 4.62
+Version 4.74
 
-Last reviewed: October 22, 2026
+Last reviewed: October 25, 2026
+
+## Traveler workflow and private application screens
+
+Keep Rejected separate from the active roster. Reject selected explains that capacity belongs in Waitlisted and requires a labeled reason. The Rejected filter offers Re-add selected with clear history-preservation wording. Show prior-rejection note counts in roster rows, cross-trip reasons in Review / details, and dated, attributed Traveler review notes on the contact. Re-adding never removes those notes.
+
+Place Traveler workflow first under Travelers. Show stage counts above a searchable all-traveler table with names, current stage, application status/skip reason, background screening, follow-up date and actions. Keep selection and bulk controls together. Stage counts are filters; labels and counts must communicate state without color alone. A bulk confirmation dialog lists selected names and explains financial effects. Select all applies to visible rows; the selected count includes hidden selections until cleared.
+
+Use responsive table scrolling within its container, two-column profile fields on wide screens and one column on narrow screens. Application, contact-review, skip and screening dialogs use the shared cream/forest palette, visible labels, keyboard-accessible native dialogs and live error/status text. Existing palette tokens are sufficient; no color additions. Private application pages load /styles.css, remove the token fragment, and distinguish submission from approval or reservation. Prefill known traveler fields, explain that they remain editable, and ask the traveler to confirm citizenship when defaulted from contact country. Label personal-reference name/email as optional and explain that a pastor, ministry leader or other person who knows the applicant can speak to their character and suitability. Use associated field help for screen readers. Keep application-related contact fields inside a native Additional data disclosure, collapsed by default in contact detail and the contact editor. Place Edit additional data inside the disclosure and avoid an extra main-profile action. Keep new sensitive fields outside public pages and the shared traveler portal. Screening controls accept any vendor URL and a custom explanation. Preview the standard branded HS MMT email with WitLooL and signature before sending; display recipient count and test-capture status. Separate delivery labels from screening outcomes, and never imply that provider acceptance means inbox receipt or clearance. Label conditionally required screening fields, and focus visible save errors. Not needed requires no extra fields. Local review displays a sample-data banner.
+
+## Potential travelers and contact journey history
+
+Place Potential travelers first under the Travelers work area. Use existing trip record cards and Add as traveler buttons, with an explanation of journey matching, departure dates, and account effects. Show progress and errors in a live status region. Contact Journey history uses existing linked-record rows with dates, role, member status, trip status, and Open trip links. Keep interests distinct from membership history and use shared palette tokens without new colors.
 
 ## Past trip story selection controls
 
@@ -827,6 +839,32 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 25, 2026 — Version 4.74. Combined application request and email buttons into one Request application flow. The dialog shows current contact emails, a clear regeneration choice and an optional additional-information textarea. Preview separates actual recipients from Not sending explanations, preserves the standard WitLooL/signature template and offers Back to invitation without losing the draft message. Local review only.
+
+- October 25, 2026 — Version 4.73. Traveler Stage labels use font weight 800 so their status colors are easier to distinguish. Row backgrounds and other text remain unchanged. Local review only.
+
+- October 25, 2026 — Version 4.72. Color only traveler workflow Stage text: Confirmed uses dark success green; Rejected, Waitlisted and Withdrawn use error red; Contacted and Application use info blue; Review and Approved use warning gold; Received uses normal ink. Preserve row backgrounds and all other text. The explicit label remains present for accessibility. Reuse existing palette tokens without new colors. Local review only.
+
+- October 25, 2026 — Version 4.71. Additional data editing groups staff-only investigation date, company, reference and type in a labeled fieldset. Proof image selection shows optimization progress, original and saved size, a proportional preview, and explicit Save; existing proof is viewed through a private link. Images retain their complete content without cropping. Local review only.
+
+- October 25, 2026 — Version 4.70. Added standard branded application invitation email previews with a trip-specific introduction, one-use URL warning, admin@hopesojourns.com replacement instructions and shared WitLooL/signature footer. Traveler forms and collapsed Additional data share an optional Yes/No/Not sure background-check-on-file question. Local review only.
+
+- October 25, 2026 — Version 4.69. Added the explicit Reject application decision, conditional required reason and separate rejected-application history. Copying answers is disabled for rejection. Application rejected indicators remain distinct from traveler rejection and preserve a compact contact layout. Local review only.
+
+- October 25, 2026 — Version 4.68. Traveler applications use matching Received, Reviewed and Approved indicators in Inbox, departure roster and collapsed Additional data. Contact summaries flag pending applications without expanding the form. Review decision is explicit and separate from trip confirmation. Local review only.
+
+- October 25, 2026 — Version 4.67. Traveler phone fields and readouts use the shared HS U.S. format, such as (972)505-0171, in the application, Additional data and review dialog. Local review only.
+
+- October 25, 2026 — Version 4.66. Additional data shows name and citizenship read-only with guidance to edit their main contact source. Local review only.
+
+- October 25, 2026 — Version 4.65. Added editable application prefills and clear optional personal-reference labels, field help and a collapsed Additional data contact section. Local review only.
+
+- October 25, 2026 — Version 4.64. Added Rejected and Re-add controls, required suitability reasons and retained contact review notes; distinguished Waitlisted capacity. Local review only.
+
+- October 25, 2026 — Version 4.63. Added local traveler workflow, optional application exceptions, private contact details and optional background screening; pending local review. Fixed screening Save for Not needed and clarified conditional required fields and visible errors.
+
+- October 23, 2026 — Added potential traveler conversion and dated contact journey history. Local pending release.
 
 - October 22, 2026 — Fixed story preview selection eligibility and added save feedback beside the button. Local pending release.
 

@@ -8,7 +8,7 @@ const state = {
   bootstrap: null,
   workspace: null,
   tripId: null,
-  activeTab: "overview",
+  activeTab: new URLSearchParams(location.search).get("view") === "vetting" ? "prospects" : "overview",
   accountLinks: new Map(),
   guidedHelp: true,
   guideSteps: [],
@@ -729,6 +729,8 @@ function renderWorkspace() {
 
   fillAllSelects();
   renderMembers();
+  renderPotentialTravelers();
+  window.HSTravelerVetting.attach({workspace:state.workspace,reload:()=>openTrip(state.tripId,false)});
   renderContent();
   renderBudget();
   renderAccounts();
@@ -771,6 +773,30 @@ function contentRecord(item, metaItems, actions = []) {
   if (item.content_type === "travel") article.append(window.HSTravelDetails.render(item));
   if (window.HSItinerary.isItinerary(item)) article.append(window.HSItinerary.render(item));
   return article;
+}
+
+function renderPotentialTravelers() {
+  const list=document.querySelector('#trip-prospect-list'),status=document.querySelector('#trip-prospect-status');
+  list.replaceChildren();status.textContent='';
+  const trip=state.workspace.trip;
+  for(const person of state.workspace.potentialTravelers || []) {
+    let busy=false;
+    list.append(record(`${person.preferred_name || person.first_name} ${person.last_name}`,
+      [person.email,person.phone].filter(Boolean).join(' / '),
+      ['Potential traveler',person.member_status ? titleCase(person.member_status) : 'Not on this trip'],
+      state.workspace.canConfirmPotentialTraveler ? [{label:'Add as traveler',run:async()=>{
+        if(busy)return;
+        if(!confirm(`Add ${person.preferred_name || person.first_name} ${person.last_name} as a confirmed traveler for ${trip.title} (${dateRange(trip.start_date,trip.end_date)})? This creates or updates their traveler account and applies any applicable budget charges.`))return;
+        busy=true;status.textContent='Adding traveler…';
+        try {
+          await api(`/admin/trips/${trip.id}/members`,{method:'POST',body:JSON.stringify({personId:person.person_id,role:'traveler',status:'confirmed',fromProspect:true})});
+          await openTrip(trip.id,false);
+          document.querySelector('#trip-prospect-status').textContent='Traveler added. Their membership is available under Prepare → Team & partners.';
+        } catch(error){status.textContent=error.message;} finally{busy=false;}
+      }}] : []));
+  }
+  if(!list.children.length)list.append(record('No potential travelers',trip.opportunity_id ? 'In People, mark the contact Prospective Traveler and select the matching journey under Trips connected to this contact. Approved or confirmed team members are already on the trip.' : 'Connect this departure to a journey using Edit trip before matching contacts.'));
+  if(!state.workspace.canConfirmPotentialTraveler)status.textContent='Contact and trip edit access are required to add potential travelers.';
 }
 
 function renderMembers() {
