@@ -1,0 +1,11 @@
+{
+  "slug": "mexico-city",
+  "purpose": "Reviewed public destination copy to apply to test and production only after release authorization. Preserve dates, availability, image settings and all other portal fields.",
+  "sources": ["Hope-Sojourns-Mexico-City-Trip-Prospectus.docx", "Hope-Sojourns-Mexico-City-Brochure-2027.pdf", "Hope Sojourns Giving & Transparency policy"],
+  "changes": {
+    "summary": "Serve alongside local ministry in Mexico City through practical ranch projects, relationship-centered outreach, shared faith and cultural learning. Estimated cost: $1,500 per traveler, subject to written confirmation.",
+    "introduction": "Hope Sojourns is developing a guided mission and service journey in cooperation with Metro Relief and Mexico-based ministry hosts. Come ready to listen, learn and help with work identified by local leaders. See the current journey dates and availability alongside this page; the proposed six-day program remains subject to host and travel confirmation.",
+    "service": "The working plan combines host-directed ranch projects with two days of Mexico City outreach, a planned rehabilitation-center visit, cultural learning, morning devotionals and evening team reflection. Meal service, practical care, supplies and relationship-building depend on local needs and confirmed roles.",
+    "notes": "Estimated cost: $1,500 per traveler. This is a planning estimate until confirmed in writing. Request the final cost breakdown, inclusions, exclusions, insurance details, payment schedule, cancellation and refund terms before committing. Hope Sojourns records and explains trip payments, donations, partner support, travel costs and administrative expenses separately; questions about all funds collected and spent are welcome."
+  }
+}

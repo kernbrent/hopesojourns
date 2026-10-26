@@ -1,0 +1,10 @@
+.mexico-overview h2 { margin-top: 2.5rem; }
+.mexico-overview h3 { margin-top: 1.6rem; }
+.mexico-outreach-photo { margin: 2rem 0; }
+.mexico-outreach-photo img { display: block; width: 100%; height: auto; border-radius: var(--radius); }
+.mexico-outreach-photo figcaption { margin-top: .7rem; font-size: .85rem; line-height: 1.6; color: var(--muted); }
+.mexico-itinerary { padding-left: 1.4rem; }
+.mexico-itinerary li { padding-left: .3rem; margin-bottom: 1rem; }
+.mexico-price { display: block; color: var(--forest); font-size: 2.25rem; line-height: 1.2; }
+.mexico-price-label { display: block; margin-top: .35rem; }
+.info-card .mexico-price-note { font-size: .9rem; font-weight: 400; margin: .8rem 0 0; }

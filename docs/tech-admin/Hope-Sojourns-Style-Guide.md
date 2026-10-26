@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.74
+Version 4.76
 
-Last reviewed: October 25, 2026
+Last reviewed: October 26, 2026
 
 ## Traveler workflow and private application screens
 
@@ -839,6 +839,10 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 26, 2026 — Version 4.76. Expanded the Mexico destination with a proposed six-day rhythm, partner-led service, preparation, explicit estimated pricing and transparent stewardship. Reused the Mexico brochure outreach photo at its full aspect ratio with a contextual caption. Scoped Mexico styles reuse palette tokens and preserve other destination layouts. Release authorized for test and production on October 26, 2026; verify the deployed version before training.
+
+- October 26, 2026 — Version 4.75. Destination interest forms include optional Age range radio buttons, Occupation (Student if still in school), and Church. Age choices preserve guardian and parental-consent guidance beside the minor ranges. Additional data displays matching age labels and editable age/occupation fields, reusing Church / ministry. Existing contact-match review presents each new value as an explicit checkbox; no new colors. Local change pending release.
 
 - October 25, 2026 — Version 4.74. Combined application request and email buttons into one Request application flow. The dialog shows current contact emails, a clear regeneration choice and an optional additional-information textarea. Preview separates actual recipients from Not sending explanations, preserves the standard WitLooL/signature template and offers Back to invitation without losing the draft message. Released to test and production with isolated databases and private uploads. All 380 tests and browser checks passed; deployed assets, API health and database integrity were verified. Test captures invitations; production uses configured live portal email.
 

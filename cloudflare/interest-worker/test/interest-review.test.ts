@@ -6,6 +6,49 @@ import {validateSubmissionPayload} from '../src/index';
 import type {InterestSubmission} from '../src/index';
 import {readFileSync} from 'node:fs';
 const raw=(v:Record<string,unknown>={})=>({firstName:'New',lastName:'Traveler',email:'test@example.org',phone:'(972) 555-0100',contactPreference:'email',fieldOfStudy:'Service',preferredTiming:'Fall',message:'Interested',opportunities:['trip-athens'],consent:true,idempotencyKey:crypto.randomUUID(),...v});
+it('validates all age ranges and bounded optional occupation/church',()=>{
+ for(const ageRange of ['5-15','16-17','18-25','26-40','41+'])expect(validateSubmissionPayload(raw({ageRange})).ageRange).toBe(ageRange);
+ expect(validateSubmissionPayload(raw()).ageRange).toBeNull();
+ for(const extra of [{ageRange:'under-5'},{occupation:'x'.repeat(141)},{church:'x'.repeat(201)}])expect(()=>validateSubmissionPayload(raw(extra))).toThrow('Please review the highlighted fields.');
+});
+it('saves the three interest fields in a new contact profile',async()=>{
+ const f=await setup(),r=await f.submit(validateSubmissionPayload(raw({ageRange:'16-17',occupation:'Student',church:'Hope Church'})));
+ const id=f.sqlite.prepare('SELECT person_id FROM interest_intake WHERE id=?').get(r.submissionId)!.person_id;
+ const saved=f.sqlite.prepare('SELECT details_json FROM traveler_profiles WHERE person_id=?').get(id)!;
+ expect(JSON.parse(String(saved.details_json))).toEqual({ageRange:'16-17',occupation:'Student',church:'Hope Church'});
+});
+it('merges only approved Additional data fields without replacing other saved details',async()=>{
+ const f=await setup(),id=person(f,'test@example.org','9725550100');
+ const original={ageRange:'26-40',occupation:'Teacher',church:'Existing Church',birthdate:'1990-01-01',backgroundInvestigationCompany:'Keep company'};
+ f.sqlite.prepare('INSERT INTO traveler_profiles VALUES(?,?,0,?)').run(id,JSON.stringify(original),'2026');
+ const r=await f.submit(validateSubmissionPayload(raw({ageRange:'41+',occupation:'Engineer',church:'New Church'})));
+ expect(JSON.parse(String(f.sqlite.prepare('SELECT details_json FROM traveler_profiles WHERE person_id=?').get(id)!.details_json))).toEqual(original);
+ const d=await(await f.review(r.submissionId)).json() as any;
+ expect(d.matches[0]).toMatchObject({ageRange:'26-40',occupation:'Teacher',church:'Existing Church'});
+ const decision={action:'update',personId:id,fields:['ageRange','occupation'],profileRevision:d.matches[0].profileRevision,revision:d.revision};
+ expect((await f.review(r.submissionId,decision)).status).toBe(200);expect((await f.review(r.submissionId,decision)).status).toBe(200);
+ const saved=f.sqlite.prepare('SELECT details_json,revision FROM traveler_profiles WHERE person_id=?').get(id)!;
+ expect(JSON.parse(String(saved.details_json))).toEqual({...original,ageRange:'41+',occupation:'Engineer'});expect(saved.revision).toBe(1);
+});
+it('does not apply Additional data for rejection or unchecked profile fields',async()=>{
+ const f=await setup(),id=person(f,'test@example.org','9725550100');
+ const rejected=await f.submit(validateSubmissionPayload(raw({ageRange:'5-15',occupation:'Student',church:'Hope Church'})));
+ expect((await f.review(rejected.submissionId,{action:'reject'})).status).toBe(200);
+ const accepted=await f.submit(validateSubmissionPayload(raw({ageRange:'18-25',occupation:'Student',church:'Hope Church'})));
+ const d=await(await f.review(accepted.submissionId)).json() as any;
+ expect((await f.review(accepted.submissionId,{action:'update',personId:id,fields:[],revision:d.revision})).status).toBe(200);
+ expect(f.sqlite.prepare('SELECT COUNT(*) n FROM traveler_profiles').get()!.n).toBe(0);
+});
+it('rolls back a reviewed profile update if Additional data changes before the batch commits',async()=>{
+ const f=await setup(),id=person(f,'test@example.org','9725550100');
+ f.sqlite.prepare('INSERT INTO traveler_profiles VALUES(?,?,0,?)').run(id,JSON.stringify({occupation:'Teacher'}),'2026');
+ const r=await f.submit(validateSubmissionPayload(raw({occupation:'Engineer'}))),d=await(await f.review(r.submissionId)).json() as any;
+ const batch=f.env.DB.batch.bind(f.env.DB);let raced=false;
+ f.env.DB.batch=(async(statements:any[])=>{if(!raced){raced=true;f.sqlite.prepare('UPDATE traveler_profiles SET revision=revision+1,details_json=? WHERE person_id=?').run(JSON.stringify({occupation:'Doctor'}),id);}return batch(statements);}) as any;
+ expect((await f.review(r.submissionId,{action:'update',personId:id,fields:['occupation'],profileRevision:d.matches[0].profileRevision,revision:d.revision})).status).toBe(409);
+ expect(f.sqlite.prepare('SELECT status FROM interest_intake WHERE id=?').get(r.submissionId)!.status).toBe('pending');
+ expect(JSON.parse(String(f.sqlite.prepare('SELECT details_json FROM traveler_profiles WHERE person_id=?').get(id)!.details_json))).toEqual({occupation:'Doctor'});
+});
 function person(f:Awaited<ReturnType<typeof ministryFixture>>,email:string,phone:string,first='Existing',last='Contact'){const id=crypto.randomUUID();f.sqlite.prepare('INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,phone,phone_normalized,created_at,updated_at,notes,organization) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id,first,last,first.toLowerCase(),last.toLowerCase(),email,email.trim().toLowerCase(),phone,phone,'2026-01-01','2026-01-01','Keep unrelated notes','Original ministry');return id;}
 async function setup(){const f=await ministryFixture();const review=(id:string,body?:unknown)=>{const path='/admin/interest-reviews/'+id;return handleInterestReview(f.request(path,body),f.env,path);};const submit=async(input:InterestSubmission,fingerprint:string=crypto.randomUUID())=>receiveInterest(f.env,input,fingerprint,[{id:'trip-athens'}],null,'/interest/');return {...f,review,submit};}
 it('matches email OR phone regardless of name; normalizes values and excludes empty matches',async()=>{const f=await setup();const a=person(f,'  TEST@Example.org  ','2145550199'),b=person(f,'different@example.org','+1 (972) 555-0100');const m=await findContactMatches(f.env,{email:'test@example.ORG ',phone:'972-555-0100'});expect(m.matches.map(c=>[c.id,c.matchBy])).toEqual(expect.arrayContaining([[a,'email'],[b,'phone']]));expect((await findContactMatches(f.env,{email:'',phone:''})).matches).toHaveLength(0);expect((await findContactMatches(f.env,{email:'different@example.org',phone:'1 972 555 0100'})).matches[0].matchBy).toBe('both');});

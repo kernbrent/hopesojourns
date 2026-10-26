@@ -1,3 +1,4 @@
+import {ageRanges} from './interest-profile';
 import {handleTravelerVetting} from './traveler-vetting';
 import {handleVolunteer} from './volunteer';
 import {startDueTrips} from './trip-progress';
@@ -37,6 +38,9 @@ export type InterestSubmission = {
   phoneNormalized: string;
   contactPreference: ContactPreference;
   fieldOfStudy: string | null;
+  ageRange?: string | null;
+  occupation?: string | null;
+  church?: string | null;
   preferredTiming: string | null;
   message: string | null;
   opportunities: string[];
@@ -177,6 +181,12 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
 
   const fieldOfStudy = cleanOptionalSingleLine(value.fieldOfStudy, 140);
   if (value.fieldOfStudy && !fieldOfStudy) errors.fieldOfStudy = "Use 140 characters or fewer.";
+  const ageRange = cleanOptionalSingleLine(value.ageRange, 10);
+  if (value.ageRange && (!ageRange || !ageRanges.includes(ageRange))) errors.ageRange = "Choose one of the listed age ranges.";
+  const occupation = cleanOptionalSingleLine(value.occupation, 140);
+  if (value.occupation && !occupation) errors.occupation = "Use 140 characters or fewer.";
+  const church = cleanOptionalSingleLine(value.church, 200);
+  if (value.church && !church) errors.church = "Use 200 characters or fewer.";
   const preferredTiming = cleanOptionalSingleLine(value.preferredTiming, 140);
   if (value.preferredTiming && !preferredTiming) errors.preferredTiming = "Use 140 characters or fewer.";
   const message = cleanOptionalMessage(value.message);
@@ -208,6 +218,9 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
     phoneNormalized: phone.normalized,
     contactPreference,
     fieldOfStudy,
+    ageRange,
+    occupation,
+    church,
     preferredTiming,
     message,
     opportunities,
@@ -264,6 +277,9 @@ async function requestFingerprint(input: InterestSubmission): Promise<string> {
     phone: input.phoneNormalized,
     contactPreference: input.contactPreference,
     fieldOfStudy: input.fieldOfStudy?.toLocaleLowerCase("en-US") ?? null,
+    ...(input.ageRange ? {ageRange:input.ageRange} : {}),
+    ...(input.occupation ? {occupation:input.occupation.toLocaleLowerCase("en-US")} : {}),
+    ...(input.church ? {church:input.church.toLocaleLowerCase("en-US")} : {}),
     preferredTiming: input.preferredTiming?.toLocaleLowerCase("en-US") ?? null,
     message: input.message,
     opportunities: input.opportunities,

@@ -1,10 +1,12 @@
 # Hope Sojourns developer guide
 
-Version 4.82
+Version 4.84
 
-Last reviewed: October 25, 2026
+Last reviewed: October 26, 2026
 
 ## Traveler vetting and optional applications
+
+Destination interest intake saves optional ageRange, occupation and church in traveler_profiles.details_json through src/interest-profile.ts. Accepted new contacts get the supplied values; matching contacts require explicit approval for each key. Profile merges preserve other keys and enforce the reviewed profile revision. Age values are 5-15, 16-17, 18-25, 26-40 and 41+. These fields do not record guardian consent or approve travel.
 
 Migration 0055_traveler_rejections.sql adds per-departure rejected_at/rejection_reason flags and immutable contact_traveler_review_notes. Reject requires contacts/trips edit access, a current workflow revision and a nonempty suitability/eligibility reason. One atomic batch records the dated, attributed contact note and trip-title snapshot, hides the departure membership, revokes unfinished application links and records an audit event. General contact notes, submitted applications and financial history remain unchanged. Waitlisted represents capacity and never creates a rejection note.
 
@@ -1235,6 +1237,10 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 26, 2026 — Version 4.84. Added trips/mexico-city/overview.js and overview.css, loaded only for Mexico by destinations-public.js. The renderer adds proposed service, itinerary, preparation, estimate/inclusions/exclusions and transparency sections plus a sidebar estimate. assets/mexico-city-outreach-brochure.png is extracted unchanged from the existing Mexico brochure; no crop. docs/content/destination-releases/mexico-city-2026-10-26.json holds reviewed portal summary/introduction/service/notes updates. Apply these fields through the authenticated destination editor or a revision-guarded maintenance update independently in each environment only when release is authorized; preserve dates, availability and all other fields. The introduction removes an obsolete date; current dates continue to come from MMT. Public HTML metadata, script cache versions and the catalog are refreshed. No schema migration is required. Release authorized for test and production on October 26, 2026; verify the deployed version before training.
+
+- October 26, 2026 — Version 4.83. Interest payload validation and fingerprinting include optional ageRange, occupation and church. src/interest-profile.ts defines the five age values and atomic JSON profile merges. New contacts receive supplied fields; matched contacts remain unchanged until selected fields are approved. Review responses include profileRevision; the revision is checked before and inside the atomic profile write so stale reviews roll back. Unchecked profile keys, proof metadata and other contact history survive. Additional data and reusable application prefills recognize ageRange/occupation and preserve them when reviewing older applications. No migration is needed. Static cache versions and the public catalog were refreshed. Local change pending release.
 
 - October 25, 2026 — Version 4.82. Migration 0060 adds invitation preview/outbox context snapshots. Read-only invitation preview resolves current traveler/contact records rather than requiring the board's old revision. It skips missing/invalid contact emails, ineligible travelers and submitted applications without creating links or messages. Send requires the matching preview ID, selected IDs, regeneration choice and additional-information hash, and checks recipient address/name, trip title and workflow revision again inside the atomic invitation/outbox transaction. The optional 4,000-character admin message is escaped in HTML and included in the frozen signed email. Idempotent retries retain the original recipient, content and skipped list. One Request application UI offers normal invitation or explicit Regenerate link and email; legacy manual-link API routes remain supported for compatibility. Released to test and production with isolated databases and private uploads. All 380 tests and browser checks passed; deployed assets, API health and database integrity were verified. Test captures invitations; production uses configured live portal email.
 

@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="/assets/hope-sojourns-icon.png">
   <link rel="stylesheet" href="/styles.css?v=26">
   <script src="/script.js?v=2026-10-18.3" defer></script>
-  <script src="/interest/interest.js?v=2026-10-07.1" defer></script>
+  <script src="/interest/interest.js?v=2026-10-26.1" defer></script>
 <script src="/phone-ui.js?v=2026-10-07.1" defer></script><script src="/knowledge/widget.js?v=2026-10-18.2" defer></script></head>
 <body data-interest-api-base="/api/interest">
   <main id="main">
@@ -95,6 +95,28 @@
                 </div>
                 <p class="form-field-error" data-error-for="contactPreference" hidden></p>
               </fieldset>
+              <fieldset class="form-field form-field-wide contact-preference-field">
+                <legend>Age range <span class="field-optional">Optional</span></legend>
+                <div class="inline-choice-row">
+                  <label><input type="radio" name="ageRange" value="5-15" aria-describedby="age-range-error"> 5 - 15 (must travel with guardian)</label>
+                  <label><input type="radio" name="ageRange" value="16-17" aria-describedby="age-range-error"> 16 - 17 (Parental consent needed)</label>
+                  <label><input type="radio" name="ageRange" value="18-25" aria-describedby="age-range-error"> 18 - 25</label>
+                  <label><input type="radio" name="ageRange" value="26-40" aria-describedby="age-range-error"> 26 - 40</label>
+                  <label><input type="radio" name="ageRange" value="41+" aria-describedby="age-range-error"> 41 +</label>
+                </div>
+                <p class="form-field-error" data-error-for="ageRange" id="age-range-error" hidden></p>
+              </fieldset>
+              <div class="form-field form-field-wide">
+                <label for="occupation">Occupation <span class="field-optional">Optional</span></label>
+                <input id="occupation" name="occupation" type="text" maxlength="140" placeholder="Student if still in school" aria-describedby="occupation-help occupation-error">
+                <small id="occupation-help">Enter Student if you are still in school.</small>
+                <p class="form-field-error" data-error-for="occupation" id="occupation-error" hidden></p>
+              </div>
+              <div class="form-field form-field-wide">
+                <label for="church">Church <span class="field-optional">Optional</span></label>
+                <input id="church" name="church" type="text" maxlength="200" aria-describedby="church-error">
+                <p class="form-field-error" data-error-for="church" id="church-error" hidden></p>
+              </div>
               <div class="form-field form-field-wide">
                 <label for="background-experience">Background, skills, or areas of experience <span class="field-optional">Optional</span></label>
                 <input id="background-experience" name="fieldOfStudy" type="text" maxlength="140" placeholder="For example: healthcare, trades, ministry, business, student, retired, or exploring" aria-describedby="background-experience-error">
