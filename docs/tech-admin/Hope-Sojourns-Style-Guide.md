@@ -840,7 +840,7 @@ On the public dated trip page, show Notes from the journey before the photo/vide
 
 ## Revision history
 
-- October 25, 2026 — Version 4.74. Combined application request and email buttons into one Request application flow. The dialog shows current contact emails, a clear regeneration choice and an optional additional-information textarea. Preview separates actual recipients from Not sending explanations, preserves the standard WitLooL/signature template and offers Back to invitation without losing the draft message. Local review only.
+- October 25, 2026 — Version 4.74. Combined application request and email buttons into one Request application flow. The dialog shows current contact emails, a clear regeneration choice and an optional additional-information textarea. Preview separates actual recipients from Not sending explanations, preserves the standard WitLooL/signature template and offers Back to invitation without losing the draft message. Released to test and production with isolated databases and private uploads. All 380 tests and browser checks passed; deployed assets, API health and database integrity were verified. Test captures invitations; production uses configured live portal email.
 
 - October 25, 2026 — Version 4.73. Traveler Stage labels use font weight 800 so their status colors are easier to distinguish. Row backgrounds and other text remain unchanged. Local review only.
 
