@@ -1,0 +1,28 @@
+{
+  "reviewed": "2026-10-26",
+  "asset": "assets/journey-collage-labeled.png",
+  "method": "Built-in image generation tool compositing and labeling of existing journey imagery",
+  "excludedDestinations": ["Nice, France", "Belize"],
+  "labels": ["Mexico City, Mexico", "Athens, Greece", "Halifax, England", "Kenya", "Marshall, Arkansas", "Athens, Greece"],
+  "userRequestedEdits": ["Remove the AI-generated content text inside the collage", "Add very small location labels", "Replace the waterfront panel with a new Halifax, England town image"],
+  "halifaxSource": {
+    "title": "General view of Halifax",
+    "description": "View from Beacon Hill, Halifax, West Yorkshire, England",
+    "author": "Tim Green from Bradford",
+    "page": "https://commons.wikimedia.org/wiki/File:General_view_of_Halifax_(2325265622).jpg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/9/98/General_view_of_Halifax_%282325265622%29.jpg",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+    "localOriginal": "assets/halifax-england-beacon-hill.jpg",
+    "adaptation": "Fitted into the top-right collage panel and labeled"
+  },
+  "mexicoSource": {
+    "author": "Jeses",
+    "page": "https://commons.wikimedia.org/wiki/File:Mexico_City_Palacio_de_bellas_artes.jpg",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5/",
+    "adaptation": "Included in an AI-assisted collage and labeled"
+  },
+  "otherSources": ["Existing Athens Mars Hill team photo", "assets/kenya.jpg", "assets/soto-buffalo-conference-center.png", "assets/athens.jpg"],
+  "finalPrompt": "Edit the first supplied image, the six-panel location-labeled collage. Replace ONLY the TOP-RIGHT waterfront photograph with the SECOND supplied photograph, which is an actual view of Halifax, West Yorkshire, England from Beacon Hill. Fit that real photograph into the existing top-right panel while keeping its stone town architecture, church spire, mills, roofs, hills, and townscape recognizable. Do not invent water, harbors, foreign buildings, or new architecture. Add the small label 'Halifax, England' in the lower-left corner of that replaced panel, matching exactly the other five labels' small sans-serif ivory lettering and translucent dark forest rectangle. Leave ALL OTHER FIVE photographs, people, faces, labels, panel sizes, gutters, and the 1903x826 landscape composition unchanged. Existing five labels are Mexico City, Mexico; Athens, Greece; Kenya; Marshall, Arkansas; Athens, Greece. No AI-generated content text or sparkle watermark anywhere. No Nice and no Belize. Final: same collage, real English Halifax town photo in top-right, six discreet location labels."
+}

@@ -497,6 +497,87 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 .nav-links a:hover, .nav-links a:focus-visible { color: var(--coral); }
 
+/* Three service pathways and the corporate leadership program. */
+.nav-links { gap: clamp(10px, 1.25vw, 20px); flex-wrap: wrap; justify-content: flex-end; }
+.service-path-grid { align-items: stretch; }
+.service-pathways { scroll-margin-top: 150px; }
+main > .section.service-pathways { background: linear-gradient(125deg, var(--forest-dark), var(--forest-deep)); border-color: var(--forest); }
+.service-pathways .section-head h2 { color: var(--paper); }
+.service-pathways .section-lead { color: rgba(var(--paper-rgb), .82); }
+.service-pathways .service-path-grid { align-items: stretch; }
+.service-pathways .service-choice { position: relative; display: flex; flex-direction: column; width: 100%; min-height: 280px; padding: 26px; text-align: left; font: inherit; background: var(--paper); color: var(--forest-dark); border: 1px solid var(--line); border-radius: 18px; cursor: pointer; overflow: hidden; }
+.service-choice::before { position: absolute; inset: 0 0 auto; height: 5px; background: var(--gold); content: ""; }
+.service-choice:nth-child(2)::before { background: var(--coral); }
+.service-choice:nth-child(3)::before { background: var(--sage); }
+.service-choice-number { display: grid; place-items: center; width: 40px; height: 32px; margin-bottom: 20px; border-radius: 10px; color: var(--forest-dark); background: var(--gold-soft); font-size: .78rem; font-weight: 900; }
+.service-choice:nth-child(2) .service-choice-number { background: var(--coral-soft); }
+.service-choice:nth-child(3) .service-choice-number { background: var(--forest-soft); }
+.service-pathways .service-choice h3 { margin-bottom: 12px; min-height: 3.3em; font-size: clamp(1.3rem, 1.7vw, 1.6rem); line-height: 1.1; color: var(--forest-dark); }
+.service-pathways .service-choice p { margin: 0 0 20px; color: var(--muted); font-size: .93rem; line-height: 1.7; }
+.service-choice .approach-card-action { margin-top: auto; }
+.service-pathways .service-curriculum-link { margin: 18px 0 0; }
+.journey-collage-section .journey-collage { margin-top: 0; }
+.journey-collage { margin: 30px 0 0; }
+.journey-collage img { display: block; width: 100%; height: auto; border-radius: var(--radius); }
+.journey-collage figcaption { margin-top: 10px; color: var(--muted); font-size: .82rem; line-height: 1.5; }
+.service-path-card { display: flex; flex-direction: column; padding: 30px; border: 1px solid var(--line); border-top: 4px solid var(--gold); border-radius: var(--radius); background: var(--paper); }
+.service-path-card:nth-child(2) { border-top-color: var(--coral); }
+.service-path-card:nth-child(3) { border-top-color: var(--forest); }
+.path-number { margin-bottom: 26px; color: var(--forest-dark); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.service-path-card h3 { font-size: clamp(1.45rem, 2vw, 1.85rem); overflow-wrap: anywhere; }
+.service-path-card p { color: var(--muted); }
+.service-path-card .text-link { margin-top: auto; padding-top: 16px; }
+.corporate-home, .corporate-intro, .corporate-split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+.corporate-principles { padding: 32px; border-radius: var(--radius); background: var(--forest-dark); color: var(--cream); }
+.corporate-principles h3 { font-size: clamp(1.7rem, 2.8vw, 2.5rem); color: var(--cream); line-height: 1.25; }
+.corporate-principles p { color: var(--cream); }
+.corporate-principles .eyebrow { color: var(--gold); }
+.corporate-principles blockquote { margin: 15px 0 24px; font: 1.8rem/1.35 Georgia, serif; }
+.corporate-intro h1 { color: var(--forest-dark); font-size: clamp(2.8rem, 5vw, 4.5rem); }
+.corporate-intro h1 em { color: var(--coral); }
+.corporate-lead { font-size: 1.25rem; color: var(--forest-dark); }
+.leadership-list { padding-left: 22px; }
+.leadership-list li { padding-left: 4px; margin-bottom: 12px; }
+.leadership-stages { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 32px; }
+.leadership-stages > li { border-top: 2px solid var(--gold); padding-top: 22px; }
+.leadership-stages span { color: var(--forest-dark); font-size: .8rem; font-weight: 800; text-transform: uppercase; }
+.leadership-stages h3 { margin: 18px 0 12px; font-size: 1.65rem; }
+.corporate-closing { text-align: center; }
+.corporate-closing > p { max-width: 760px; margin-inline: auto; }
+.curriculum-intro { max-width: 880px; }
+.curriculum-contents { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 24px; }
+.curriculum-contents a { color: var(--forest-dark); text-underline-offset: 4px; }
+.curriculum-module { scroll-margin-top: 150px; }
+.curriculum-module > header { max-width: 850px; border-bottom: 1px solid var(--line); margin-bottom: 24px; padding-bottom: 16px; }
+.curriculum-module h3 { margin-top: 28px; margin-bottom: 12px; font-size: 1.35rem; line-height: 1.25; }
+.curriculum-module p, .curriculum-module li { max-width: 80ch; }
+.curriculum-module ol, .curriculum-module ul { padding-left: 24px; }
+.curriculum-module li { margin-bottom: 10px; }
+.curriculum-module details { padding: 18px 0; border-bottom: 1px solid var(--line); }
+.curriculum-module summary { cursor: pointer; color: var(--forest-dark); font-weight: 800; }
+.curriculum-module details[open] summary { margin-bottom: 18px; }
+.curriculum-back { display: inline-block; margin-top: 24px; }
+.leadership-table-wrap { overflow-x: auto; }
+.leadership-table { width: 100%; border-collapse: collapse; text-align: left; }
+.leadership-table th, .leadership-table td { padding: 16px; border: 1px solid var(--line); vertical-align: top; }
+.leadership-table th { background: var(--cream); color: var(--forest-dark); }
+@media (max-width: 1000px) {
+  .corporate-home, .corporate-intro, .corporate-split { grid-template-columns: 1fr; gap: 28px; }
+  .service-path-card { padding: 24px; }
+}
+@media (max-width: 850px) {
+  .service-pathways .service-choice { min-height: 0; }
+  .service-pathways .service-choice h3 { min-height: 0; }
+  .leadership-stages { grid-template-columns: 1fr; }
+  .corporate-principles { padding: 26px; }
+  .curriculum-module { scroll-margin-top: 110px; }
+}
+@media print {
+  .leadership-curriculum > .site-header, .leadership-curriculum > .site-footer, .leadership-curriculum > .cta-band, .leadership-curriculum .floating-donate, .leadership-curriculum .curriculum-contents, .leadership-curriculum .curriculum-back { display: none; }
+  .curriculum-module { break-inside: auto; }
+  .curriculum-module > header { break-after: avoid; }
+}
+
 .nav-toggle {
   display: none;
   border: 0;

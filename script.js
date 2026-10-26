@@ -13,9 +13,10 @@ const header = `
       </a>
       <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links">Menu</button>
       <div class="nav-links" id="nav-links">
-        <a href="/#trips">Trips</a>
+        <a href="/#trips">Mission journeys</a>
         <a href="/past-trips/">Past trips</a>
         <a href="/internships/">Internships</a>
+        <a href="/corporate-journeys/">Corporate journeys</a>
         <a href="/resources/">Resources</a>
         <a href="/giving/">Giving</a>
         <a href="/about/">About us</a>
@@ -29,7 +30,7 @@ const header = `
 const footer = `
   <section class="cta-band">
     <div class="cta-inner">
-      <div><h2>Where might hope lead you?</h2><p>Tell us what is stirring—joining a team, exploring an internship, or building a ministry partnership.</p></div>
+      <div><h2>Where might hope lead you?</h2><p>Join a mission journey, explore an internship placement, or plan a humanitarian journey for your corporate team.</p></div>
       <a class="button light" href="/interest/">Share your interest</a>
     </div>
   </section>
@@ -39,7 +40,7 @@ const footer = `
         <a class="footer-brand" href="/" aria-label="Hope Sojourns home">
           <img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns — Go with Hope. Serve with Faith.">
         </a>
-        <p>Purposeful journeys shaped around humility, local partnership, and practical Christian service.</p>
+        <p>Mission journeys, internship placements, and corporate humanitarian journeys rooted in Christian faith, local partnership, and practical service.</p>
       </div>
       <div>
         <h3>Explore</h3>
@@ -47,6 +48,7 @@ const footer = `
           <a href="/#trips">Mission trips</a>
           <a href="/past-trips/">Past trips</a>
           <a href="/internships/">Internships</a>
+          <a href="/corporate-journeys/">Corporate humanitarian journeys</a>
           <a href="/resources/">Resources</a>
           <a href="/giving/">Giving</a>
           <a href="/about/">About us</a>
@@ -90,11 +92,13 @@ links?.querySelectorAll("a").forEach(link => link.addEventListener("click", () =
   links.classList.remove("open");
 }));
 
-const approachTabs = [...document.querySelectorAll(".approach-tab")];
-const approachTabsGroup = document.querySelector(".approach-tabs");
-const approachPanels = [...document.querySelectorAll(".approach-panel")];
-const approachDetailShell = document.getElementById("approach-detail-shell");
-const approachCollapse = document.querySelector(".approach-collapse");
+// Each card group owns its disclosure, so pathways and approach work independently.
+document.querySelectorAll(".approach-tabs").forEach(approachTabsGroup => {
+const section = approachTabsGroup.closest("section");
+const approachTabs = [...approachTabsGroup.querySelectorAll(".approach-tab")];
+const approachPanels = [...section.querySelectorAll(".approach-panel")];
+const approachDetailShell = section.querySelector(".approach-detail-shell");
+const approachCollapse = section.querySelector(".approach-collapse");
 const alignApproachTiles = () => {
   if (!approachTabsGroup) return;
   requestAnimationFrame(() => {
@@ -133,6 +137,14 @@ approachCollapse?.addEventListener("click", () => {
   const selectedTab = approachTabs.find(tab => tab.getAttribute("aria-expanded") === "true");
   collapseApproach();
   selectedTab?.focus();
+});
+section.addEventListener("keydown", event => {
+  if (event.key !== "Escape" || !approachDetailShell?.classList.contains("is-expanded")) return;
+  const selectedTab = approachTabs.find(tab => tab.getAttribute("aria-expanded") === "true");
+  collapseApproach();
+  selectedTab?.focus();
+  event.preventDefault();
+});
 });
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

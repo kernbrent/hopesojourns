@@ -1,8 +1,18 @@
 # Hope Sojourns developer guide
 
-Version 4.84
+Version 4.86
 
 Last reviewed: October 26, 2026
+
+## Public corporate journeys and leadership curriculum
+
+`index.html` presents three service offerings before mission destinations and links to `/corporate-journeys/`. The new corporate landing page and `/corporate-journeys/curriculum/` are static HTML served with shared `/styles.css` and `/script.js`. The curriculum HTML is the maintained public source; it contains eight 90-minute modules, facilitator preparation, executive scenarios, a 90-day plan, and voluntary feedback guidance. It introduces no registration, stored journals, new forms, or external services. Planning links use the existing `/schedule/` route.
+
+`script.js` supplies corporate navigation, the expanded footer, and independent expandable card groups. Initialize each `.approach-tabs` group within its own section; never query all panels globally. The service group controls `path-detail-shell`; Our approach retains its separate shell. Switching cards shows one panel, while Minimize and Escape collapse only that group and return focus. Hidden shells are inert. Validate group independence, panel switching, keyboard activation, focus restoration, equal desktop heights, and mobile overflow.
+
+Service and corporate styles use scoped classes; navigation gap/wrap applies across the public site. The labeled collage is `assets/journey-collage-labeled.png`, displayed proportionally with source attribution. Its Halifax panel uses `assets/halifax-england-beacon-hill.jpg` by Tim Green, CC BY 2.0; source metadata is in `docs/content/journey-collage-sources.json`. `cloudflare/build-test-site.mjs` includes corporate pages and assets. Run `tools/build_knowledge_site.py`, then `--check`, palette and syntax checks, and the static build. Never deploy just to review these pages.
+
+For local review, run `tools/serve-public-local.py` with the bundled Python runtime at `http://127.0.0.1:4186`. This loopback-only server serves allowlisted public files and proxies read-only public destination GET requests without credentials. `LOCAL_DESTINATION_OVERRIDES` replaces England's image URL, alt text, and credit in list/detail responses with the reviewed Beacon Hill photo. It never writes live records. Private paths and form submissions remain unavailable. The static build does not contain this override; an authorized release must separately apply `docs/content/destination-releases/england-2026-10-26.json` to each environment's destination record after its asset is available. MMT steps, permissions, schema, and business data are unchanged.
 
 ## Traveler vetting and optional applications
 
@@ -1237,6 +1247,10 @@ Public story lists and details derive portal_available from the current trip: pu
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
 ## Revision history
+
+- October 26, 2026 — Version 4.86. Scoped card initialization to independent sections, documented keyboard checks, and added the six-panel collage. The labeled revision removes image AI-content text at the user's request and replaces the waterfront with a verified Halifax, England source. No portal or database changes. Local review only.
+
+- October 26, 2026 — Version 4.85. Documented the corporate routes, Leadership Transformation curriculum, shared navigation, explicit public build inclusion, regenerated knowledge catalog, and localhost review procedure. No database or portal workflow changes. No release authorized.
 
 - October 26, 2026 — Version 4.84. Added trips/mexico-city/overview.js and overview.css, loaded only for Mexico by destinations-public.js. The renderer adds proposed service, itinerary, preparation, estimate/inclusions/exclusions and transparency sections plus a sidebar estimate. assets/mexico-city-outreach-brochure.png is extracted unchanged from the existing Mexico brochure; no crop. docs/content/destination-releases/mexico-city-2026-10-26.json holds reviewed portal summary/introduction/service/notes updates. Apply these fields through the authenticated destination editor or a revision-guarded maintenance update independently in each environment only when release is authorized; preserve dates, availability and all other fields. The introduction removes an obsolete date; current dates continue to come from MMT. Public HTML metadata, script cache versions and the catalog are refreshed. No schema migration is required. Release authorized for test and production on October 26, 2026; verify the deployed version before training.
 

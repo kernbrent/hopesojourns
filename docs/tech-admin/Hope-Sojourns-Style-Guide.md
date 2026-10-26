@@ -1,8 +1,18 @@
 # Hope Sojourns website style guide
 
-Version 4.76
+Version 4.78
 
 Last reviewed: October 26, 2026
+
+## Three public service offerings and corporate leadership
+
+The home page introduces Mission Journeys, Internship Placements, and Corporate Humanitarian Journeys before the destination grid. Use equally sized clickable cards on a forest gradient, warm paper surfaces, colored top accents, and rounded rectangular number badges. Each card opens one shared detail panel below the row. Keep the group independent of Our approach. Minimize pathway details and Escape close the panel and return focus. Use aria-expanded, aria-controls, hidden, and inert to reflect its state. Stack cards and panel columns on mobile and respect reduced motion. Keep the photographic hero, Georgia headings, and shared palette.
+
+Place the journey collage in its own paper section beneath the service cards. The six-panel collage excludes Nice and Belize. Each panel has a small location label; the Halifax panel and local destination tile use the verified English town view from Beacon Hill. The user requested removal of the AI-content text inside the collage. Preserve proportions and Mexico/Halifax credits and licenses. Use `assets/journey-collage-labeled.png`; the tile uses `assets/halifax-england-beacon-hill.jpg`.
+
+Corporate pages at `/corporate-journeys/` and `/corporate-journeys/curriculum/` use the existing paper, forest, gold, and coral tokens. The corporate introduction pairs a text lead with a forest panel; cards and stages stack on narrower screens. Shared navigation wraps on desktop and retains the Menu disclosure on mobile. The curriculum is titled Leadership Transformation, with eight readable sessions, anchor navigation, semantic lists, and a horizontally scrollable comparison table. Print rules affecting navigation are scoped to the curriculum body.
+
+Describe heart transformation as the foundation for observable leadership practice with staff, clients, and peers. Honor the agency, strengths, and freely shared stories of local people. Avoid guaranteed transformation, staged testimony, assumed consent, and claims that community members exist to educate visiting executives. State the Christian foundation and make spiritual reflection voluntary. These pages are local review only until release approval.
 
 ## Traveler workflow and private application screens
 
@@ -839,6 +849,10 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
 ## Revision history
+
+- October 26, 2026 — Version 4.78. Restyled service pathways with distinct number badges, equal-height clickable cards, and an independent shared detail panel. Added the collage excluding Nice and Belize, then small location labels, a verified Halifax town photo, and user-requested removal of the image's AI-content text. Existing palette and keyboard behavior. Local review only.
+
+- October 26, 2026 — Version 4.77. Rebalanced the home page around three service offerings; added corporate humanitarian journeys and the Leadership Transformation curriculum with responsive layouts and shared navigation. Existing palette only. Localhost review; no release authorized.
 
 - October 26, 2026 — Version 4.76. Expanded the Mexico destination with a proposed six-day rhythm, partner-led service, preparation, explicit estimated pricing and transparent stewardship. Reused the Mexico brochure outreach photo at its full aspect ratio with a contextual caption. Scoped Mexico styles reuse palette tokens and preserve other destination layouts. Release authorized for test and production on October 26, 2026; verify the deployed version before training.
 

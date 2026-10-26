@@ -21,6 +21,7 @@ const publicEntries = [
   "discover",
   "partners",
   "groups",
+  "corporate-journeys",
   "students",
   "trip.js",
   "destination",

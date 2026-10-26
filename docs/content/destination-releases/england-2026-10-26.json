@@ -1,0 +1,11 @@
+{
+  "slug": "england",
+  "purpose": "Reviewed image replacement for a separately authorized release. Localhost previews this without changing live records. Preserve all other destination fields and environment isolation.",
+  "changes": {
+    "image_url": "/assets/halifax-england-beacon-hill.jpg",
+    "image_alt": "Halifax, West Yorkshire, England viewed from Beacon Hill",
+    "image_credit": "Photo by Tim Green from Bradford via Wikimedia Commons, CC BY 2.0. View from Beacon Hill, Halifax, England."
+  },
+  "source": "https://commons.wikimedia.org/wiki/File:General_view_of_Halifax_(2325265622).jpg",
+  "license": "https://creativecommons.org/licenses/by/2.0/"
+}
