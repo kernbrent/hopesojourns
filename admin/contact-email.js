@@ -44,9 +44,10 @@
         if (!result.emails.length) list.append(node('p', 'No contact emails have been saved yet.'));
         result.emails.forEach(mail => {
           const details = node('details');
-          details.append(node('summary', `${mail.subject} — ${description(mail)}`), node('p', `From: ${mail.from}`), node('p', `To: ${mail.to.join(', ')}`), node('p', `Created: ${new Date(mail.createdAt).toLocaleString()}`), node('pre', mail.message, 'admin-contact-email-message'));
+          details.append(node('summary', `${mail.subject} — ${description(mail)}`), node('p', `From: ${mail.from}`), node('p', `To: ${(mail.visibleTo || mail.to).join(', ')}`), node('p', `${mail.privateRecipients ? 'BCC (hidden recipients)' : 'Original visible recipients'}: ${mail.to.join(', ')}`), node('p', `Created: ${new Date(mail.createdAt).toLocaleString()}`), node('pre', mail.message, 'admin-contact-email-message'));
+          if (mail.retryAllowed === false && !['sent', 'captured'].includes(mail.status)) details.append(node('p', 'This older email used visible recipients. Ask an administrator to verify delivery before preparing a private replacement. Retrying it is blocked.'));
           if (mail.error) details.append(node('p', mail.error));
-          if (editable() && ['queued', 'failed', 'uncertain', 'sending'].includes(mail.status)) {
+          if (editable() && mail.retryAllowed !== false && ['queued', 'failed', 'uncertain', 'sending'].includes(mail.status)) {
             details.append(button('Retry saved email', async event => {
               event.target.disabled = true;
               try {
@@ -82,10 +83,11 @@
         return input;
       };
       form.append(node('p', `From: Hope Sojourns <${preview.from}>`));
-      const to = field('To', 'textarea', 'to', preview.to.join(', '), 13000);
+      form.append(node('p', `To: ${preview.from}`));
+      const to = field('BCC (hidden recipients)', 'textarea', 'to', preview.to.join(', '), 13000);
       to.rows = 3;
       to.autocomplete = 'off';
-      const help = node('p', 'Add or remove email addresses, separated by commas, semicolons, or new lines. Up to 50 different addresses. Everyone listed in To can see the other recipients.');
+      const help = node('p', 'Add or remove email addresses, separated by commas, semicolons, or new lines. Up to 50 different addresses. These recipients are sent as BCC and cannot see each other’s addresses. Only admin@hopesojourns.com appears in To.');
       help.id = `contact-recipients-${crypto.randomUUID()}`;
       to.setAttribute('aria-describedby', help.id);
       form.append(help);

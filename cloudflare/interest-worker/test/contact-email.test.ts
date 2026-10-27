@@ -18,13 +18,29 @@ it('previews deduplicated current addresses, skipped contacts, fixed sender and 
  const f=await setup(),r=await f.call('/preview',{personIds:['one','two','blank','invalid']});expect(r.status).toBe(200);
  const p=await r.json() as any;expect(p.to).toEqual(['one@example.test']);expect(p.skipped).toEqual(['Test blank','Test invalid']);expect(p.from).toBe('admin@hopesojourns.com');expect(p.footerHtml).toContain('Hope Sojourns oval logo');expect(p.footerHtml).toContain('Brent Kern’s signature');expect(p.footerHtml).toContain('WitLooL™');expect(f.fetchMock).not.toHaveBeenCalled();
 });
-it('sends one message with all edited recipients in To and appends the signed footer once in HTML and text',async()=>{
+it('keeps selected and manually added recipients in BCC with only the ministry address in To and preserves the signed footer',async()=>{
  const f=await setup();expect((await f.call('',f.body)).status).toBe(200);expect(f.fetchMock).toHaveBeenCalledTimes(1);
  const [url,init]=f.fetchMock.mock.calls[0] as any;expect(url).toBe('https://api.resend.com/emails');const payload=JSON.parse(init.body);
- expect(payload.from).toBe('Hope Sojourns <admin@hopesojourns.com>');expect(payload.reply_to).toBe('admin@hopesojourns.com');expect(payload.to).toEqual(['manual@example.test','one@example.test']);expect(payload).not.toHaveProperty('bcc');
+ expect(payload.from).toBe('Hope Sojourns <admin@hopesojourns.com>');expect(payload.reply_to).toBe('admin@hopesojourns.com');expect(payload.to).toEqual(['admin@hopesojourns.com']);expect(payload.bcc).toEqual(['manual@example.test','one@example.test']);expect(payload).not.toHaveProperty('cc');expect(payload).not.toHaveProperty('recipients');
+ for(const address of payload.bcc){expect(payload.html).not.toContain(address);expect(payload.text).not.toContain(address);}
  expect(payload.html).toContain('Hello &lt;friends&gt; &amp; neighbors<br>A second line.');expect(payload.html).toContain('cid:brent-signature');expect(payload.attachments[0].content).toBe('AQID');expect(payload.html.match(/WitLooL™/g)).toHaveLength(1);expect(payload.text.match(/WitLooL™/g)).toHaveLength(1);expect(payload.text).toContain('https://www.christiansteps.net');
  expect(f.sqlite.prepare('SELECT COUNT(*) n FROM contact_email_people').get()!.n).toBe(2);
- const history=await (await f.call('',undefined,'GET')).json() as any;expect(history.emails[0].status).toBe('sent');expect(history.emails[0].message).toContain('Brent Kern');expect(history.emails[0]).not.toHaveProperty('payload_json');
+ const history=await (await f.call('',undefined,'GET')).json() as any;expect(history.emails[0].status).toBe('sent');expect(history.emails[0].message).toContain('Brent Kern');expect(history.emails[0].to).toEqual(payload.bcc);expect(history.emails[0].visibleTo).toEqual(payload.to);expect(history.emails[0].privateRecipients).toBe(true);expect(history.emails[0]).not.toHaveProperty('payload_json');
+});
+it('does not duplicate the ministry address in BCC when it is also selected',async()=>{
+ const f=await setup();await f.call('',{...f.body,to:['admin@hopesojourns.com','manual@example.test']});
+ const payload=JSON.parse((f.fetchMock.mock.calls[0] as any)[1].body);expect(payload.to).toEqual(['admin@hopesojourns.com']);expect(payload.bcc).toEqual(['manual@example.test']);
+ const history=await (await f.call('',undefined,'GET')).json() as any;expect(history.emails[0].to).toEqual(['admin@hopesojourns.com','manual@example.test']);
+});
+it('blocks old unresolved visible group emails without modifying their saved payload or resending',async()=>{
+ const f=await setup();f.env.ENVIRONMENT='test';await f.call('',f.body);
+ const row=f.sqlite.prepare('SELECT payload_json FROM contact_emails').get() as any;
+ const saved=JSON.parse(row.payload_json),legacy=JSON.stringify({...saved.delivery,to:saved.recipients,bcc:undefined});
+ f.sqlite.prepare("UPDATE contact_emails SET payload_json=?,status='uncertain'").run(legacy);
+ expect((await f.call('/'+f.body.sendId+'/retry',{})).status).toBe(409);expect(f.fetchMock).not.toHaveBeenCalled();
+ expect(f.sqlite.prepare('SELECT payload_json FROM contact_emails').get()!.payload_json).toBe(legacy);
+ const history=await (await f.call('',undefined,'GET')).json() as any;expect(history.emails[0].privateRecipients).toBe(false);expect(history.emails[0].retryAllowed).toBe(false);expect(history.emails[0].to).toEqual(saved.recipients);
+ f.sqlite.prepare("UPDATE contact_emails SET status='sent'").run();expect((await f.call('/'+f.body.sendId+'/retry',{})).status).toBe(200);expect(f.fetchMock).not.toHaveBeenCalled();
 });
 it('captures test messages and their standard footer without contacting the provider',async()=>{
  const f=await setup();f.env.ENVIRONMENT='test';const r=await (await f.call('',f.body)).json() as any;expect(r.email.status).toBe('captured');expect(r.email.message).toContain('Working in the Light of our Lord');expect(f.fetchMock).not.toHaveBeenCalled();

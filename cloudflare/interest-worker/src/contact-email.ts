@@ -16,7 +16,8 @@ async function signatureContent(env:AdminEnv){
  return Buffer.from(await new Response(object.body).arrayBuffer()).toString('base64');
 }
 const validEmail=(v:unknown):v is string=>typeof v==='string'&&v.length<=254&&/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/.test(v);
-function publicMail(mail:Mail){const p=JSON.parse(mail.payload_json);return {id:mail.id,from:sender,to:p.to,subject:p.subject,message:p.text,status:mail.status,error:mail.error,createdAt:mail.created_at,sentAt:mail.sent_at};}
+function savedMail(mail:Mail){const saved=JSON.parse(mail.payload_json);return {payload:saved.delivery||saved,recipients:saved.recipients||saved.to,privateRecipients:!!saved.delivery};}
+function publicMail(mail:Mail){const {payload:p,recipients,privateRecipients}=savedMail(mail);return {id:mail.id,from:sender,to:recipients,visibleTo:privateRecipients?[sender]:p.to,privateRecipients,retryAllowed:privateRecipients||p.to.length===1,subject:p.subject,message:p.text,status:mail.status,error:mail.error,createdAt:mail.created_at,sentAt:mail.sent_at};}
 function ids(value:unknown):string[]{
  if(!Array.isArray(value)||value.length>100||value.some(x=>typeof x!=='string'||!x||x.length>100))throw new AdminError(422,'INVALID_CONTACTS','Select up to 100 contacts.');
  return [...new Set(value)];
@@ -31,6 +32,10 @@ async function deliver(env:AdminEnv,id:string){
  const mail=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(id).first<Mail>();
  if(!mail)throw new AdminError(404,'NOT_FOUND','Email not found.');
  if(['sent','captured'].includes(mail.status))return publicMail(mail);
+ const saved=savedMail(mail);
+ // Never replay a legacy group payload that exposes addresses. Do not change an
+ // uncertain provider payload or its key: it may already have been accepted.
+ if(!saved.privateRecipients&&saved.payload.to.length>1)throw new AdminError(409,'VISIBLE_RECIPIENTS','This older saved email uses visible recipients and cannot be retried. Ask an administrator to verify its delivery with the email provider before preparing a private replacement.');
  const now=new Date().toISOString();
  if(['sending','uncertain'].includes(mail.status)&&(!mail.started_at||Date.now()-Date.parse(mail.started_at)>=23*3600000))throw new AdminError(409,'VERIFY_DELIVERY','Check delivery with the email provider before another attempt; the safe retry window has expired.');
  if(mail.status==='sending'&&Date.now()-Date.parse(mail.updated_at)<60000)throw new AdminError(409,'SENDING','This email is already sending. Refresh its status shortly.');
@@ -42,7 +47,7 @@ async function deliver(env:AdminEnv,id:string){
  if(env.ENVIRONMENT!=='test'){
   if(env.MMT_EMAIL_PROVIDER!=='resend'||env.MMT_EMAIL_DELIVERY_MODE!=='live'||!env.RESEND_API_KEY){status='failed';error='Portal email is not configured for live delivery.';}
   else try{
-   const r=await fetch('https://api.resend.com/emails',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':key},body:mail.payload_json});
+   const r=await fetch('https://api.resend.com/emails',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify(saved.payload)});
    if(r.ok){providerId=(await r.json() as {id?:string}).id||null;status=providerId?'sent':'uncertain';}
    else{status=r.status>=400&&r.status<500&&![408,409,429].includes(r.status)?'failed':'uncertain';await r.body?.cancel();}
    if(status!=='sent')error=status==='failed'?'The provider rejected this email. Check the sender and recipients before retrying.':'Delivery is uncertain. Use Retry saved email within 23 hours; do not compose a replacement.';
@@ -91,7 +96,8 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
    const linked=people.filter(p=>validEmail(p.email)&&to.includes(p.email.toLowerCase()));
    const signature=await signatureContent(env);
    const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body style="margin:0;background:${colors.white};color:${colors.ink};font:15px/1.6 Arial,sans-serif"><div style="max-width:640px;margin:auto;padding:24px"><div>${escape(message).replace(/\r?\n/g,'<br>')}</div>${givingEmailFooter('cid:brent-signature')}</div></body></html>`;
-   const payload=JSON.stringify({from:`Hope Sojourns <${sender}>`,to,reply_to:sender,subject,text:message+'\n\n'+footerText,html,attachments:[{filename:'brent-kern-signature.png',content:signature,content_id:'brent-signature'}]});
+   const bcc=to.filter(address=>address!==sender);
+   const payload=JSON.stringify({recipients:to,delivery:{from:`Hope Sojourns <${sender}>`,to:[sender],...(bcc.length?{bcc}:{}),reply_to:sender,subject,text:message+'\n\n'+footerText,html,attachments:[{filename:'brent-kern-signature.png',content:signature,content_id:'brent-signature'}]}});
    const now=new Date().toISOString();
    await env.DB.prepare("INSERT OR IGNORE INTO contact_emails(id,request_hash,payload_json,attempt_key,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(body.sendId,hash,payload,'contact-'+body.sendId,session.user.id,now,now).run();
    existing=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(body.sendId).first<Mail>();
