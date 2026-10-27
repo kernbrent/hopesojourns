@@ -2153,3 +2153,22 @@
 .inquiry-dialog { overflow: auto; }
 .inquiry-dialog article { margin-top: .8rem; }
 @media (max-width: 640px) { .inquiry-form { grid-template-columns: minmax(0, 1fr); } }
+.admin-contact-email-dialog { width: min(850px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); overflow-y: auto; }
+.admin-contact-email-form { display: grid; gap: 16px; }
+.admin-contact-email-form label { display: grid; gap: 6px; font-weight: 700; }
+.admin-contact-email-form input, .admin-contact-email-form textarea { width: 100%; box-sizing: border-box; font: inherit; color: var(--forest); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.admin-contact-email-form textarea { resize: vertical; font-weight: 400; }
+.admin-contact-email-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.admin-contact-email-footer { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.admin-standard-email-footer table { width: 100%; max-width: 400px; margin-top: 16px; table-layout: fixed; border-collapse: collapse; }
+.admin-standard-email-footer td { vertical-align: middle; font-size: 14px; line-height: 1.45; }
+.admin-standard-email-footer td:first-child { width: 43%; padding-right: 10px; }
+.admin-standard-email-footer img { display: block; max-width: 100%; height: auto; }
+.admin-standard-email-footer td:first-child img { width: 172px; }
+.admin-standard-email-footer td:nth-child(2) img { width: 190px; margin: 5px 0 4px; }
+.admin-standard-email-footer > div { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+.admin-contact-email-message { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.admin-contact-email-history details { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.admin-contact-email-history summary { cursor: pointer; font-weight: 700; overflow-wrap: anywhere; }
+.admin-contact-email-history p { overflow-wrap: anywhere; }
+.admin-person-name-row input.admin-contact-select { width: 18px; height: 18px; flex: 0 0 18px; margin: 0; accent-color: var(--forest); }

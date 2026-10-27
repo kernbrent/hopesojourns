@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.78
+Version 4.79
 
 Last reviewed: October 26, 2026
 
@@ -848,7 +848,15 @@ Published past-trip cards place Traveler Portal sign-in beneath Read the trip st
 
 On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
 
+## Contact email composer
+
+Use the existing Selected contacts toolbar and primary Email selected contacts action in People and Contact spreadsheet. Contact checkboxes have person-specific accessible labels; the selected count remains visible across filters and pages. Keep the compact contact name, checkbox, and summary expansion controls distinct. Disable composing with no selection or without Contacts edit access.
+
+The contact email composer uses the existing native modal dialog and paper/forest palette, with a maximum desktop width of 850 pixels, a viewport-limited scroll area, and full-width labeled To, Subject, and Message fields. Wrap action buttons on phones. Display the standard Hope Sojourns footer below Message with its oval logo, Brent Kern signature, phone number, Christian Steps Ministries affiliation, WitLooL explanation, and both ministry links. The footer is included automatically; preserve its image proportions. Explain recipient separators, the 50-address limit, and To visibility beside the field. Show skipped contacts, configuration issues, and send status in readable text. Test capture must say that no email was sent; live acceptance must say Accepted for delivery. Use expandable history rows with wrapped addresses and preserved message line breaks. Escape and Close protect unsent text from accidental dismissal and restore focus to the opening control.
+
 ## Revision history
+
+- October 26, 2026 — Version 4.79. Added contact selection, accessible group email modal, responsive fields, standard signed footer preview, and truthful delivery and retry states. Local change pending release approval.
 
 - October 26, 2026 — Version 4.78. Restyled service pathways with distinct number badges, equal-height clickable cards, and an independent shared detail panel. Added the collage excluding Nice and Belize, then small location labels, a verified Halifax town photo, and user-requested removal of the image's AI-content text. Existing palette and keyboard behavior. Local review only.
 

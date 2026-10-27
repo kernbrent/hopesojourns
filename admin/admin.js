@@ -611,7 +611,7 @@ function renderPersonCard(person) {
   expandButton.setAttribute("aria-expanded", "false");
   expandButton.setAttribute("aria-label", "Expand contact summary for " + fullName);
   expandButton.addEventListener("click", () => togglePersonCard(card));
-  nameRow.append(nameButton, expandButton);
+  nameRow.append(contactSelectionBox(person), nameButton, expandButton);
   const expandedIdentity = element("span", "admin-person-expanded-identity");
   expandedIdentity.dataset.personExpanded = "";
   expandedIdentity.append(element("small", "", person.organization || "No organization recorded"));
@@ -746,6 +746,58 @@ function selectedContactIds() {
   return [...state.selectedPersonIds];
 }
 
+function contactSelectionBox(person) {
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.className = 'admin-contact-select';
+  box.checked = state.selectedPersonIds.has(person.id);
+  box.dataset.contactSelect = person.id;
+  box.setAttribute('aria-label', `Select ${person.firstName} ${person.lastName}`);
+  box.addEventListener('change', () => {
+    if (box.checked) state.selectedPersonIds.add(person.id);
+    else state.selectedPersonIds.delete(person.id);
+    document.querySelectorAll('[data-contact-select]').forEach(other => {
+      if (other.dataset.contactSelect === person.id) other.checked = box.checked;
+    });
+    updateGridSelectionState();
+  });
+  return box;
+}
+
+function contactEmailButtons() {
+  const emailApi = async (path, options) => (await api(path, options)).result;
+  const actions = element('div', 'admin-contact-email-actions');
+  const compose = element('button', 'admin-button admin-button-primary', 'Email selected contacts');
+  compose.type = 'button';
+  compose.dataset.requiresContactSelection = '';
+  compose.dataset.contactEmail = '';
+  compose.addEventListener('click', () => window.HSContactEmail.open(emailApi, selectedContactIds(), compose));
+  const history = element('button', 'admin-button admin-button-outline', 'Email history');
+  history.type = 'button';
+  history.addEventListener('click', () => window.HSContactEmail.history(emailApi, history));
+  actions.append(compose, history);
+  return actions;
+}
+
+function renderContactEmailToolbar() {
+  const toolbar = element('section', 'admin-grid-bulk-tools');
+  toolbar.setAttribute('aria-label', 'Selected contacts');
+  const heading = element('div', 'admin-grid-bulk-heading');
+  const count = element('span', 'admin-selection-count');
+  count.dataset.selectedContactCount = '';
+  const clear = element('button', 'admin-button admin-button-quiet', 'Clear selection');
+  clear.type = 'button';
+  clear.addEventListener('click', () => {
+    state.selectedPersonIds.clear();
+    document.querySelectorAll('[data-contact-select]').forEach(box => { box.checked = false; });
+    updateGridSelectionState();
+  });
+  heading.append(element('strong', '', 'Selected contacts'), count, clear);
+  toolbar.append(heading, contactEmailButtons());
+  queueMicrotask(updateGridSelectionState);
+  return toolbar;
+}
+
 function updateGridSelectionState() {
   const count = state.selectedPersonIds.size;
   document.querySelectorAll("[data-selected-contact-count]").forEach(node => {
@@ -753,6 +805,7 @@ function updateGridSelectionState() {
   });
   document.querySelectorAll("[data-requires-contact-selection]").forEach(button => {
     button.disabled = count === 0;
+    if (button.hasAttribute('data-contact-email') && window.MmtUser && !window.MmtUser.is_admin && window.MmtUser.permissions?.contacts !== 'edit') button.disabled = true;
   });
   const contactList = state.view === 'people' ? peopleList : peopleGrid;
   const rowBoxes = [...contactList.querySelectorAll("[data-contact-select]")];
@@ -789,7 +842,7 @@ function renderContactGridToolbar(people) {
   const toolbar = element("section", "admin-grid-bulk-tools");
   const heading = element("div", "admin-grid-bulk-heading");
   const copy = element("div");
-  copy.append(element("strong", "", "Selected contacts"), element("span", "", "Check contact rows to apply the same Last Contacted date and notes, or create personalized letters."));
+  copy.append(element("strong", "", "Selected contacts"), element("span", "", "Check contact rows to send an email, update Last Contacted, or create personalized letters."));
   const count = element("span", "admin-selection-count");
   count.dataset.selectedContactCount = "";
   const clear = element("button", "admin-button admin-button-quiet", "Clear selection");
@@ -891,7 +944,7 @@ function renderContactGridToolbar(people) {
     }
   });
 
-  toolbar.append(heading, activity, documents, status);
+  toolbar.append(heading, contactEmailButtons(), activity, documents, status);
   return toolbar;
 }
 
@@ -1131,7 +1184,7 @@ function applyListResult(result, records, renderCard, unit, pluralUnit) {
   const list = state.view === "people" ? peopleList : submissionsList;
   const content = records.map(renderCard);
   if (state.view === "people") {
-    content.unshift(renderContactAlphabet(records, content), renderPersonListHeading());
+    content.unshift(renderContactEmailToolbar(), renderContactAlphabet(records, content), renderPersonListHeading());
     if (!records.length) content.push(element("p", "admin-empty-state", "No contacts match these filters. Clear a column filter or use Clear all filters to start over."));
   }
   list.replaceChildren(...content);

@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 4.86
+Version 4.87
 
 Last reviewed: October 26, 2026
 
@@ -1246,7 +1246,19 @@ Public story lists and details derive portal_available from the current trip: pu
 
 `HSTripMemoriesView.collection()` accepts `notesFirst`, defaulting to false. `/trip/trip.js` passes true for the live public trip feed, rendering journal notes before the photo/video gallery. Traveler collections and reviewed past-trip snapshots retain their existing order. No API, schema, visibility, or business-data changes are required. The public trip scripts use asset version 2026-10-11.1; local pending release.
 
+## Contact group email
+
+People and Contact spreadsheet offer selection checkboxes, Email selected contacts, Clear selection, and Email history. admin/contact-email.js opens an accessible composer with editable To addresses, Subject, Message, and the fixed signed footer preview. admin/admin.js maintains the shared selection across filters and pages; the server resolves current active contact addresses before composing. Missing or invalid addresses are listed rather than silently included. Duplicate addresses are combined without regard to case. The editable To list supports additional addresses and a maximum of 50 unique recipients, all visible to each other. Contacts edit access is required to compose, send, or retry; Contacts read access can view the 30 most recent saved emails.
+
+src/contact-email.ts handles /admin/contacts/emails, /preview, and /:id/retry. index.ts dispatches these routes before the ledger routes. Migration 0061_contact_emails.sql creates contact_emails and contact_email_people. The immutable saved payload contains the subject, plain text, escaped HTML, all To recipients, the standard footer, and embedded signature. The sender and reply address are fixed to admin@hopesojourns.com. Reuse givingEmailFooter and the environment's private branding/brent-kern-signature.png object; a missing signature blocks preparation. Never accept sender, footer HTML, or signature bytes from the browser.
+
+Authentication, Contacts permissions, CSRF, and the shared origin check protect these routes. Resend delivery uses the existing server-side secret and live settings. Test environments capture the complete message without calling the provider. The client-generated send ID and request hash reject changed-payload reuse. Atomic claims prevent overlapping sends; unresolved equal-content requests cannot create replacement messages. Saved retries reuse the exact payload and provider key after uncertain delivery, with a 23-hour limit inside Resend's 24-hour deduplication window. Confirmed rejections may use a fresh attempt key. Sent or captured messages return their existing status without resending. Accepted for delivery does not confirm receipt. Contact emails do not automatically change Last Contacted.
+
+Validate with the contact-email, inquiries, gift-thanks, contact-card-disclosure, and admin-ui-contract tests. Use Vitest --pool=threads --maxWorkers=2 on Windows when fork workers hang. Test selected recipients, manual additions, deduplication, invalid input, permissions, concurrency, uncertain retries, signature changes, footer escaping, and test capture using mocked delivery. Do not send real messages as a validation step. Apply migration 0061 separately to each isolated environment only after release approval; upload the updated private guides at that release. This change remains local and uncommitted pending approval.
+
 ## Revision history
+
+- October 26, 2026 — Version 4.87. Documented the contact group composer, signed standard footer, Resend delivery, permissions, immutable email history, guarded retries, and migration 0061. Local implementation pending release approval.
 
 - October 26, 2026 — Version 4.86. Scoped card initialization to independent sections, documented keyboard checks, and added the six-panel collage. The labeled revision removes image AI-content text at the user's request and replaces the waterfront with a verified Halifax, England source. No portal or database changes. Local review only.
 

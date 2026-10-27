@@ -3,6 +3,7 @@ import {handleTravelerVetting} from './traveler-vetting';
 import {handleVolunteer} from './volunteer';
 import {startDueTrips} from './trip-progress';
 import {handleInquiries} from './inquiries';
+import {handleContactEmail} from './contact-email';
 import {receiveInterest,handleInterestReview,receipt} from './interest-review';
 import {handlePlanning} from './planning';
 import {handleKnowledge,cleanupKnowledge} from './knowledge';
@@ -480,6 +481,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return handleTripAdminRequest(request, env, path);
   }
   if (path.startsWith("/admin/csm-inbox")) return handleCsmAdminRequest(request, env, path);
+  if (path==='/admin/contacts/emails'||path.startsWith('/admin/contacts/emails/')) return handleContactEmail(request,env,path);
   if (path.startsWith("/admin/ledger") || path.startsWith("/admin/contacts/bulk-activity") || path.startsWith("/admin/contacts/documents")) {
     return handleLedgerAdminRequest(request, env, path);
   }
