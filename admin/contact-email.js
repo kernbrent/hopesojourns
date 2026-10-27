@@ -32,19 +32,22 @@
     dialog.showModal();
     return { dialog, content, status, setCloseGuard: guard => { mayClose = guard; } };
   }
-  async function history(api, trigger) {
+  async function history(api, trigger, personId) {
     const { content, status } = modal('Contact email history', trigger);
     const list = node('div', null, 'admin-contact-email-history');
     content.append(list);
+    let page = 1;
     const load = async () => {
       status.textContent = 'Loading saved emails…';
       try {
-        const result = await api('/contacts/emails');
+        const params=new URLSearchParams({page:String(page)});if(personId)params.set('personId',personId);
+        const result = await api('/contacts/emails?'+params);
         list.replaceChildren();
         if (!result.emails.length) list.append(node('p', 'No contact emails have been saved yet.'));
         result.emails.forEach(mail => {
           const details = node('details');
           details.append(node('summary', `${mail.subject} — ${description(mail)}`), node('p', `From: ${mail.from}`), node('p', `To: ${(mail.visibleTo || mail.to).join(', ')}`), node('p', `${mail.privateRecipients ? 'BCC (hidden recipients)' : 'Original visible recipients'}: ${mail.to.join(', ')}`), node('p', `Created: ${new Date(mail.createdAt).toLocaleString()}`), node('pre', mail.message, 'admin-contact-email-message'));
+          if(mail.sentAt)details.append(node('p',`Accepted for delivery: ${new Date(mail.sentAt).toLocaleString()}`));
           if (mail.retryAllowed === false && !['sent', 'captured'].includes(mail.status)) details.append(node('p', 'This older email used visible recipients. Ask an administrator to verify delivery before preparing a private replacement. Retrying it is blocked.'));
           if (mail.error) details.append(node('p', mail.error));
           if (editable() && mail.retryAllowed !== false && ['queued', 'failed', 'uncertain', 'sending'].includes(mail.status)) {
@@ -54,12 +57,16 @@
                 const result = await api(`/contacts/emails/${mail.id}/retry`, { method: 'POST', body: {} });
                 await load();
                 status.textContent = description(result.email) + (result.email.error ? `. ${result.email.error}` : '.');
+                window.dispatchEvent(new CustomEvent('hs-contact-email-saved',{detail:{personIds:personId?[personId]:[],email:result.email}}));
               } catch (error) { status.textContent = error.message; event.target.disabled = false; }
             }));
           }
           list.append(details);
         });
-        status.textContent = 'The 30 most recent contact emails are shown. Accepted for delivery does not confirm receipt.';
+        const pages=result.pagination?.pages||1;
+        const previous=button('Previous emails',()=>{page--;load();}),next=button('Next emails',()=>{page++;load();});
+        previous.disabled=page<=1;next.disabled=page>=pages;list.append(previous,next);
+        status.textContent = `Page ${page} of ${pages}. ${personId?'Emails for this contact. ':''}Accepted for delivery does not confirm receipt.`;
       } catch (error) { status.textContent = error.message; }
     };
     await load();
@@ -131,6 +138,7 @@
         try {
           const result = await api('/contacts/emails', { method: 'POST', body: { sendId, personIds, to: recipients, subject: subject.value, message: message.value } });
           status.textContent = description(result.email) + (result.email.error ? `. ${result.email.error}` : '.');
+          window.dispatchEvent(new CustomEvent('hs-contact-email-saved',{detail:{personIds,email:result.email}}));
         } catch (error) {
           status.textContent = error.message;
           if (error.status >= 400 && error.status < 500 && error.status !== 409) {

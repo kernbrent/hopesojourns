@@ -1,4 +1,5 @@
 import {travelerApplications} from './traveler-application-review';
+import {contactEmails} from './contact-email-records';
 import {can,type MmtIdentity} from './mmt-permissions';
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type AdminEnv} from './admin';
 import {perTravelerAmount,allocatePayment,cents,dollars,fundingStatusStatement} from './ministry-budget';
@@ -206,7 +207,13 @@ async function documents(request:Request,env:AdminEnv,documentId?:string,version
 export async function handleMinistryAdminRequest(request:Request,env:AdminEnv,path:string):Promise<Response>{
  try{
   const session=await authenticate(request,env,request.method!=='GET');
-  if(path==='/admin/ministry/inbox'&&request.method==='GET')return adminJson({items:await inboxItems(env,session.user),canManage:can(session.user,'inbox',true)});
+  if(path==='/admin/ministry/inbox'&&request.method==='GET'&&new URL(request.url).searchParams.get('show')==='emails_sent'){
+   if(!can(session.user,'contacts'))throw new AdminError(403,'ACCESS_DENIED','Contact access is required to view sent email copies.');
+   const page=Number(new URL(request.url).searchParams.get('page')||1);
+   if(!Number.isInteger(page)||page<1||page>10000)throw new AdminError(422,'INVALID_PAGE','Choose a valid sent email page.');
+   return adminJson({...await contactEmails(env,{sentOnly:true,page}),canManage:false,canViewContactEmails:true});
+  }
+  if(path==='/admin/ministry/inbox'&&request.method==='GET')return adminJson({items:await inboxItems(env,session.user),canManage:can(session.user,'inbox',true),canViewContactEmails:can(session.user,'contacts')});
   if(path==='/admin/ministry/inbox'&&request.method==='POST')return await updateInbox(request,env,session.user);
   if(path==='/admin/ministry/travel-reserve'&&request.method==='GET'){
    const received=await env.DB.prepare(`SELECT COALESCE(SUM(a.amount),0) AS amount FROM trip_payment_applications a

@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.80
+Version 4.81
 
 Last reviewed: October 26, 2026
 
@@ -854,7 +854,13 @@ Use the existing Selected contacts toolbar and primary Email selected contacts a
 
 The contact email composer uses the existing native modal dialog and paper/forest palette, with a maximum desktop width of 850 pixels, a viewport-limited scroll area, and a fixed To: admin@hopesojourns.com line and full-width labeled BCC (hidden recipients), Subject, and Message fields. Wrap action buttons on phones. Display the standard Hope Sojourns footer below Message with its oval logo, Brent Kern signature, phone number, Christian Steps Ministries affiliation, WitLooL explanation, and both ministry links. The footer is included automatically; preserve its image proportions. Explain recipient separators, the 50-address limit, and that BCC hides addresses from other recipients beside the field. Show skipped contacts, configuration issues, and send status in readable text. Test capture must say that no email was sent; live acceptance must say Accepted for delivery. Use expandable history rows that distinguish visible To from hidden BCC or original visible recipients, with wrapped addresses and preserved message line breaks. Escape and Close protect unsent text from accidental dismissal and restore focus to the opening control.
 
+The People selection toolbar includes a labeled Select all visible contacts checkbox. Its indeterminate state reflects a partial selection, and its disabled state reflects an empty page. Keep Clear selection beside the selected count. Display the latest accepted group email date in the expanded contact summary; provide a Contact email history section in the full record with expandable subjects, explicit delivery states, timestamps, and View all contact emails pagination. Replace the contact's embedded reply form with an Interest awaiting reply button only when a form needs a response. Preserve past Reply history and the task controls. The interest button opens the shared composer and follows Contacts edit permission.
+
+Inbox Show includes Emails sent, with readable cards for subject and accepted timestamp and expandable View sent copy details. Keep full message text and footer line breaks, wrap addresses on narrow screens, and distinguish To from BCC. Use Previous emails and Next emails with a page count. Accepted copies have no Complete, Delete, or Retry actions in this view. State clearly that acceptance does not confirm receipt and that test captures and unsuccessful sends remain in Email history. Reuse existing palette tokens and card styles.
+
 ## Revision history
+
+- October 26, 2026 — Version 4.81. Added Select all visible contacts, per-contact email history, Interest awaiting reply, and the Emails sent inbox view. Local change pending release approval.
 
 - October 26, 2026 — Version 4.80. Changed the contact composer to show fixed To and editable BCC hidden recipients, privacy help, and accurate historical recipient labels. Local change pending release approval.
 

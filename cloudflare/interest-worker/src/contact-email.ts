@@ -4,8 +4,8 @@ import {Buffer} from 'node:buffer';
 import {givingEmailFooter} from './gift-email-template';
 import {signatureKey} from './gift-thanks';
 import {emailColors as colors} from './gift-email-colors';
+import {savedMail,publicMail,contactEmails,type Mail} from './contact-email-records';
 
-type Mail={id:string;request_hash:string;payload_json:string;status:string;attempt_key:string;started_at:string|null;updated_at:string;created_at:string;sent_at:string|null;error:string|null};
 type Person={id:string;first_name:string;last_name:string;email:string};
 const sender='admin@hopesojourns.com';
 const footerText='WitLooL,\nBrent Kern\nHope Sojourns\n972-505-0171\nChristian Steps Ministries\n\nWitLooL™ means “Working in the Light of our Lord.”\nWitLooL is a trademark.\nhttps://hopesojourns.com\nhttps://www.christiansteps.net';
@@ -16,8 +16,6 @@ async function signatureContent(env:AdminEnv){
  return Buffer.from(await new Response(object.body).arrayBuffer()).toString('base64');
 }
 const validEmail=(v:unknown):v is string=>typeof v==='string'&&v.length<=254&&/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/.test(v);
-function savedMail(mail:Mail){const saved=JSON.parse(mail.payload_json);return {payload:saved.delivery||saved,recipients:saved.recipients||saved.to,privateRecipients:!!saved.delivery};}
-function publicMail(mail:Mail){const {payload:p,recipients,privateRecipients}=savedMail(mail);return {id:mail.id,from:sender,to:recipients,visibleTo:privateRecipients?[sender]:p.to,privateRecipients,retryAllowed:privateRecipients||p.to.length===1,subject:p.subject,message:p.text,status:mail.status,error:mail.error,createdAt:mail.created_at,sentAt:mail.sent_at};}
 function ids(value:unknown):string[]{
  if(!Array.isArray(value)||value.length>100||value.some(x=>typeof x!=='string'||!x||x.length>100))throw new AdminError(422,'INVALID_CONTACTS','Select up to 100 contacts.');
  return [...new Set(value)];
@@ -67,8 +65,10 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
   if(!can(session.user,'contacts',edit))throw new AdminError(403,'ACCESS_DENIED','Contact edit access is required to send email.');
   const suffix=path.slice('/admin/contacts/emails'.length);
   if(request.method==='GET'&&suffix===''){
-   const rows=await env.DB.prepare('SELECT * FROM contact_emails ORDER BY created_at DESC,id DESC LIMIT 30').all<Mail>();
-   return adminJson({from:sender,testMode:env.ENVIRONMENT==='test',emails:rows.results.map(publicMail)});
+   const params=new URL(request.url).searchParams,personId=params.get('personId')||undefined,page=Number(params.get('page')||1);
+   if(!Number.isInteger(page)||page<1||page>10000)throw new AdminError(422,'INVALID_PAGE','Choose a valid email history page.');
+   if(personId&&!await env.DB.prepare('SELECT id FROM people WHERE id=?').bind(personId).first())throw new AdminError(404,'NOT_FOUND','Contact not found.');
+   return adminJson({from:sender,testMode:env.ENVIRONMENT==='test',...await contactEmails(env,{personId,page})});
   }
   if(request.method!=='POST')throw new AdminError(405,'METHOD_NOT_ALLOWED','Method not allowed.');
   const retry=suffix.match(/^\/([a-f0-9-]{36})\/retry$/i);
@@ -92,8 +92,10 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
   let existing=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(body.sendId).first<Mail>();
   if(existing&&existing.request_hash!==hash)throw new AdminError(409,'CHANGED_EMAIL','This send request belongs to a saved message. Open Email history to review or retry it.');
   if(!existing){
-   const people=await selectedPeople(env,ids(body.personIds));
-   const linked=people.filter(p=>validEmail(p.email)&&to.includes(p.email.toLowerCase()));
+   await selectedPeople(env,ids(body.personIds));
+   // Manual recipients also link to any matching active contacts. Shared addresses
+   // produce one delivery but retain the history on every matching contact.
+   const linked=(await env.DB.prepare("SELECT id FROM people WHERE contact_status='active' AND lower(email) IN(SELECT value FROM json_each(?))").bind(JSON.stringify(to)).all<{id:string}>()).results;
    const signature=await signatureContent(env);
    const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body style="margin:0;background:${colors.white};color:${colors.ink};font:15px/1.6 Arial,sans-serif"><div style="max-width:640px;margin:auto;padding:24px"><div>${escape(message).replace(/\r?\n/g,'<br>')}</div>${givingEmailFooter('cid:brent-signature')}</div></body></html>`;
    const bcc=to.filter(address=>address!==sender);

@@ -1,5 +1,6 @@
 import {inquiryPayload,deliverInquiryEmail} from './inquiry-email';
 import {contactRelationships} from './contact-relationships';
+import {contactEmailActivity,contactEmails} from './contact-email-records';
 import {storedPhone} from './phone';
 import {actorContext,can,routeSection,currentPortal,effectiveUser,hasPortal,type MmtIdentity} from './mmt-permissions';
 import { contactGiving } from './contact-giving';
@@ -1188,9 +1189,11 @@ async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
      LIMIT ? OFFSET ?`,
   ).bind(...bindings, pageSize, (page - 1) * pageSize).all<PeopleListRow>();
   const [summary, filterOptions] = await Promise.all([adminSummary(env), adminFilterOptions(env)]);
+  const emailActivity=await contactEmailActivity(env,result.results.map(row=>row.id));
   return adminJson({
     people: result.results.map(row => ({
       id: row.id,
+      ...emailActivity.get(row.id),
       firstName: row.first_name,
       lastName: row.last_name,
       email: row.email,
@@ -1440,9 +1443,13 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
     createdAt: row.created_at,
     interests: parseJsonArray(row.interests_json),
   }));
+  const [emailActivity,emails]=await Promise.all([contactEmailActivity(env,[personId]),contactEmails(env,{personId})]);
   return adminJson({
     person: {
       id: person.id,
+      ...emailActivity.get(personId),
+      contactEmails:emails.emails,
+      contactEmailPagination:emails.pagination,
       firstName: person.first_name,
       lastName: person.last_name,
       preferredName: person.preferred_name,

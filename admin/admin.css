@@ -2171,4 +2171,6 @@
 .admin-contact-email-history details { padding: 14px 0; border-bottom: 1px solid var(--line); }
 .admin-contact-email-history summary { cursor: pointer; font-weight: 700; overflow-wrap: anywhere; }
 .admin-contact-email-history p { overflow-wrap: anywhere; }
+.admin-contact-select-all { display: inline-flex; align-items: center; gap: 8px; }
+.admin-contact-select-all input { width: 18px; height: 18px; }
 .admin-person-name-row input.admin-contact-select { width: 18px; height: 18px; flex: 0 0 18px; margin: 0; accent-color: var(--forest); }

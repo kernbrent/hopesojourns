@@ -640,6 +640,8 @@ function renderPersonCard(person) {
   activity.dataset.personExpanded = "";
   activity.append(element("strong", "", plural(person.submissionCount, "request")));
   activity.append(element("small", "", person.replyCount ? plural(person.replyCount, "saved reply") : "No reply prepared"));
+  activity.append(element('small','',person.lastEmailSentAt ? `Email sent ${formatDate(person.lastEmailSentAt)}` : 'No group email sent'));
+  if(person.awaitingInterestId) expandedIdentity.append(interestReplyButton(person));
 
   const viewEverything = element("button", "admin-button admin-button-outline admin-person-view-all", "View everything");
   viewEverything.type = "button";
@@ -792,7 +794,14 @@ function renderContactEmailToolbar() {
     document.querySelectorAll('[data-contact-select]').forEach(box => { box.checked = false; });
     updateGridSelectionState();
   });
-  heading.append(element('strong', '', 'Selected contacts'), count, clear);
+  const allLabel=element('label','admin-contact-select-all'),all=document.createElement('input');
+  all.type='checkbox';all.dataset.selectVisibleContacts='';
+  all.addEventListener('change',()=>{
+    peopleList.querySelectorAll('[data-contact-select]').forEach(box=>{box.checked=all.checked;if(all.checked)state.selectedPersonIds.add(box.dataset.contactSelect);else state.selectedPersonIds.delete(box.dataset.contactSelect);});
+    updateGridSelectionState();
+  });
+  allLabel.append(all,document.createTextNode('Select all visible contacts'));
+  heading.append(element('strong', '', 'Selected contacts'), allLabel, count, clear);
   toolbar.append(heading, contactEmailButtons());
   queueMicrotask(updateGridSelectionState);
   return toolbar;
@@ -807,14 +816,13 @@ function updateGridSelectionState() {
     button.disabled = count === 0;
     if (button.hasAttribute('data-contact-email') && window.MmtUser && !window.MmtUser.is_admin && window.MmtUser.permissions?.contacts !== 'edit') button.disabled = true;
   });
-  const contactList = state.view === 'people' ? peopleList : peopleGrid;
-  const rowBoxes = [...contactList.querySelectorAll("[data-contact-select]")];
-  const selectAll = peopleGrid.querySelector("[data-select-visible-contacts]");
-  if (selectAll) {
-    const checked = rowBoxes.filter(box => box.checked).length;
-    selectAll.checked = rowBoxes.length > 0 && checked === rowBoxes.length;
-    selectAll.indeterminate = checked > 0 && checked < rowBoxes.length;
-  }
+  document.querySelectorAll('[data-select-visible-contacts]').forEach(selectAll=>{
+    const list=selectAll.closest('#people-list')||peopleGrid;
+    const boxes=[...list.querySelectorAll('[data-contact-select]')],checked=boxes.filter(box=>box.checked).length;
+    selectAll.checked=boxes.length>0&&checked===boxes.length;
+    selectAll.indeterminate=checked>0&&checked<boxes.length;
+    selectAll.disabled=!boxes.length;
+  });
 }
 
 async function generateSelectedContactDocuments(kind, templateFile, taxYear, status, button) {
@@ -3253,6 +3261,7 @@ function renderPersonDetail(person) {
     renderContactEditor(person);
   });
   hero.append(edit);
+  if(person.awaitingInterestId)hero.append(interestReplyButton(person));
 
   const followup=element('a','admin-button','Tasks & next contact date');followup.href='/admin/ministry/#tasks/'+encodeURIComponent(person.id);hero.append(followup);
   hero.append(renderPersonStats(person));
@@ -3341,7 +3350,7 @@ function renderPersonDetail(person) {
   const registrations = renderRegistrations(person);
   if (registrations) grid.append(registrations);
   grid.append(
-    createReplyComposer(person, person.latestSubmissionId, "person"),
+    renderPersonEmailHistory(person),
     createReplyHistory(person, "person"),
     createDeletionPanel({
       title: "Delete this contact and all records",
@@ -3355,6 +3364,31 @@ function renderPersonDetail(person) {
   fragment.append(grid);
   submissionDetail.replaceChildren(fragment);
 }
+
+function interestReplyButton(person){
+  const button=element('button','admin-button admin-button-primary','Interest awaiting reply');button.type='button';
+  button.disabled=!!window.MmtUser&&!window.MmtUser.is_admin&&window.MmtUser.permissions?.contacts!=='edit';
+  button.addEventListener('click',()=>window.HSContactEmail.open(async(path,options)=>(await api(path,options)).result,[person.id],button));
+  return button;
+}
+
+function renderPersonEmailHistory(person){
+  const section=element('section','admin-detail-card admin-detail-card-wide admin-contact-email-history');
+  section.append(element('h3','','Contact email history'),element('p','admin-reply-help',person.lastEmailSentAt?`${plural(person.emailSentCount,'email')} accepted for delivery. Latest: ${formatDate(person.lastEmailSentAt)}.`:'No group emails have been accepted for delivery for this contact.'));
+  section.append(element('p','admin-reply-help','Accepted for delivery confirms provider acceptance, not receipt. Test captures, failed attempts, and uncertain deliveries do not count as sent.'));
+  for(const mail of person.contactEmails||[]){
+    const entry=element('details'),label=mail.status==='sent'?`Accepted for delivery ${formatDate(mail.sentAt)}`:mail.status==='captured'?'Test capture only — no email sent':titleCase(mail.status);
+    entry.append(element('summary','',`${mail.subject} · ${label}`),element('pre','admin-contact-email-message',mail.message));section.append(entry);
+  }
+  const history=element('button','admin-button admin-button-outline','View all contact emails');history.type='button';
+  history.addEventListener('click',()=>window.HSContactEmail.history(async(path,options)=>(await api(path,options)).result,history,person.id));section.append(history);
+  return section;
+}
+
+window.addEventListener('hs-contact-email-saved',event=>{
+  loadRecords();
+  if(submissionDialog.open&&event.detail.personIds.includes(state.currentRecordId))loadPersonDetail(state.currentRecordId);
+});
 
 function openTeamEmail(team) {
   const emails = [...new Set(team.members.map(member => member.email).filter(Boolean))];
