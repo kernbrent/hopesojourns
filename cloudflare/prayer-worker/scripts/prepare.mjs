@@ -1,0 +1,11 @@
+import { copyFileSync, cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+const migrations=new URL('../migrations/',import.meta.url);
+const schema=readdirSync(migrations).filter(name=>name.endsWith('.sql')).sort().map(name=>({name,sql:readFileSync(new URL(name,migrations),'utf8')}));
+writeFileSync(new URL('../src/schema.mjs',import.meta.url),`// Generated from migrations by npm run prepare; do not edit.\nexport const schema=${JSON.stringify(schema,null,2)};\n`);
+mkdirSync(new URL('../dist/', import.meta.url), { recursive: true });
+cpSync(new URL('../public/', import.meta.url), new URL('../dist/', import.meta.url), { recursive: true });
+copyFileSync(new URL('../../../styles.css', import.meta.url), new URL('../dist/styles.css', import.meta.url));
+mkdirSync(new URL('../dist/assets/', import.meta.url), { recursive: true });
+copyFileSync(new URL('../../../assets/hope-sojourns-logo.png', import.meta.url), new URL('../dist/assets/hope-sojourns-logo.png', import.meta.url));
+if (process.env.PORTAL_BRAND_LOGO_FILE) copyFileSync(process.env.PORTAL_BRAND_LOGO_FILE, new URL('../dist/assets/organization-logo.png', import.meta.url));
+console.log('Copied the canonical Hope Sojourns palette for the prayer portal.');

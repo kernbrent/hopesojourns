@@ -1,0 +1,13 @@
+{
+  "name": "hope-sojourns-prayer", "private": true, "type": "module",
+  "scripts": {
+    "prepare": "node scripts/prepare.mjs",
+    "test": "node scripts/test.mjs",
+    "dev": "npm run prepare && node ../interest-worker/node_modules/wrangler/bin/wrangler.js dev --local --port 8791",
+    "migrate:local": "node ../interest-worker/node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local",
+    "bootstrap:local": "node scripts/bootstrap.mjs",
+    "check": "node --check src/worker.mjs && node --check src/index.mjs && node --check src/prayer-store.mjs && node --check src/sqlite-database.mjs && node --check public/app.js && node scripts/validate-environments.mjs",
+    "deploy:dry:test":"npm run prepare && npm run check && node ../interest-worker/node_modules/wrangler/bin/wrangler.js deploy --dry-run --env test",
+    "deploy:dry:production":"npm run prepare && npm run check && node ../interest-worker/node_modules/wrangler/bin/wrangler.js deploy --dry-run --env production"
+  }
+}

@@ -1,8 +1,21 @@
 # Hope Sojourns website style guide
 
-Version 4.81
+Version 4.86
 
-Last reviewed: October 26, 2026
+Last reviewed: October 29, 2026
+
+## Independent prayer portal
+
+The separate prayer test hostname displays the shared gold test-site banner with plain-language notice that its accounts and prayer data are isolated from production. Production hides the banner. Initial administrator setup uses the existing invitation form and preserves the same visible labels, password guidance, and private-token handling as ordinary invitations. Do not publish temporary sample accounts or preview prayers to either hosted environment.
+
+The initial focus is men's accountability and prayer partners, with configurable welcome copy and organization details. Keep the Hope Sojourns identity intact. Group cards use existing paper surfaces and category/status labels; My groups & invitations and Discover groups distinguish belonging from discovery. Listed cards disclose only the name, description, type, and leader. Do not show private group membership in the people directory. Group details disclose leader versus portal-admin permissions and clarify that new approved members can see existing group-shared prayers.
+
+The composer separates **Share in** (community or an approved group) from **Who can see this?** (admins only, selected people, or the selected community/group). Reset to admins only when the context changes. Selected-group choices show current group members only. Group leaders do not automatically see restricted posts; portal admins do. Membership actions use clear verbs such as Ask to join, Approve request, Accept invitation, Revoke invitation, and Leave group. Keep errors inside the active modal, preserve visible field labels, and allow member controls to wrap on phones. Organization display settings and an optional proportional customer logo can vary in isolated future installations without changing group workflows; Hope Sojourns continues to use its canonical logo and palette.
+
+The local prayer portal in `cloudflare/prayer-worker/public/` uses the existing Hope Sojourns logo without cropping or recoloring, the established “Go with Hope. Serve with Faith.” tagline, the canonical `/styles.css` palette, forest actions, cream backgrounds, paper cards, Georgia headings, and existing semantic tokens. “Prayer portal” is a section label beside the ministry logo. The preparation command copies the shared stylesheet and original logo into ignored `dist/` assets. No new colors are introduced. The sign-in page introduces an invitation-only prayer community; the signed-in wall uses responsive navigation, readable prayer cards, post-type badges, and a quiet reflection panel on wide screens.
+
+Every post shows its audience. The composer defaults to **Only me and admins**, with separate choices for selected people and all portal members. Explain admin visibility alongside the audience control and clarify that following grants no additional access. Forms have visible labels, keyboard focus, live status feedback, native modal focus management, and explicit close controls. Use display names in the member directory; do not expose email addresses there. Invitations explicitly state that links must be shared privately and are not emailed automatically. Notifications are currently inside the portal only. The prayer portal has its own test and production hostnames, separate from MMT.
+
 
 ## Three public service offerings and corporate leadership
 
@@ -859,6 +872,12 @@ The People selection toolbar includes a labeled Select all visible contacts chec
 Inbox Show includes Emails sent, with readable cards for subject and accepted timestamp and expandable View sent copy details. Keep full message text and footer line breaks, wrap addresses on narrow screens, and distinguish To from BCC. Use Previous emails and Next emails with a page count. Accepted copies have no Complete, Delete, or Retry actions in this view. State clearly that acceptance does not confirm receipt and that test captures and unsuccessful sends remain in Email history. Reuse existing palette tokens and card styles.
 
 ## Revision history
+
+- October 29, 2026 — Version 4.86. Added the prayer test-environment banner and first-admin invitation presentation for the authorized release. Unreviewed Word editions remain unpublished.
+
+- October 28, 2026 — Version 4.84. Added accountability-group discovery, membership controls, group-aware sharing and audience disclosures, modal error feedback, and configurable organization presentation. Local work pending review.
+
+- October 28, 2026 — Version 4.83. Added the independent prayer portal visual system, audience disclosure, invitation controls, and notification presentation. Local work pending review and release preparation.
 
 - October 26, 2026 — Version 4.81. Added Select all visible contacts, per-contact email history, Interest awaiting reply, and the Emails sent inbox view. Local change pending release approval.
 

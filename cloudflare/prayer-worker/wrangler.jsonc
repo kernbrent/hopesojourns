@@ -1,0 +1,30 @@
+{
+  "name": "hope-sojourns-prayer-local",
+  "account_id": "dd6360191de72c9a8f0b45e1676cec65",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-09-10",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": { "directory": "dist", "binding": "ASSETS", "run_worker_first": true },
+  "d1_databases": [{
+    "binding": "DB", "database_name": "hope-sojourns-prayer-local",
+    "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations"
+  }],
+  "migrations": [{"tag":"prayer-v1","new_sqlite_classes":["PrayerStore"]}],
+  "env": {
+    "test": {
+      "name":"hope-sojourns-prayer-test", "workers_dev":false, "preview_urls":false,
+      "d1_databases":[],
+      "routes":[{"pattern":"prayer-test.hopesojourns.com","custom_domain":true}],
+      "vars":{"ENVIRONMENT":"test"},
+      "durable_objects":{"bindings":[{"name":"PRAYER_STORE","class_name":"PrayerStore"}]}
+    },
+    "production": {
+      "name":"hope-sojourns-prayer-production", "workers_dev":false, "preview_urls":false,
+      "d1_databases":[],
+      "routes":[{"pattern":"prayer.hopesojourns.com","custom_domain":true}],
+      "vars":{"ENVIRONMENT":"production"},
+      "durable_objects":{"bindings":[{"name":"PRAYER_STORE","class_name":"PrayerStore"}]}
+    }
+  }
+}
