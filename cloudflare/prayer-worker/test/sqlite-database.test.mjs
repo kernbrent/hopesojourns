@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {initializeDatabase,sqliteDatabase} from '../src/sqlite-database.mjs';
 import {storageFor} from './sqlite-fixture.mjs';
 import {schema} from '../src/schema.mjs';
+import {ageInYears,validBirthDate} from '../src/resource-access.mjs';
 test('hosted SQLite migrations are idempotent, isolated, and protect initial-admin claims',()=>{
  const sql=new DatabaseSync(':memory:'),storage=storageFor(sql);
  const setup={email:'initial@example.com',tokenHash:'a'.repeat(64),expiresAt:Date.now()+60000};
@@ -34,4 +35,13 @@ test('upgrading an existing owner preserves password and email while assigning a
  sql.prepare('INSERT INTO initial_admin_setup VALUES (1,?,?,?,?)').run('kernbrent@gmail.com','a'.repeat(64),Date.now()+1000,Date.now());
  initializeDatabase(storageFor(sql),{});
  const owner=sql.prepare('SELECT * FROM users').get();assert.equal(owner.username,'admin');assert.equal(owner.email,'kernbrent@gmail.com');assert.equal(owner.password,'preserved-password-hash');assert.equal(owner.is_owner,1);assert.equal(owner.role,'admin');
+});
+
+test('calendar age increments only on the UTC birthday and invalid or absent dates never grant access',()=>{
+ assert.equal(ageInYears('2008-10-30',new Date('2026-10-29T23:59:59Z')),17);
+ assert.equal(ageInYears('2008-10-30',new Date('2026-10-30T00:00:00Z')),18);
+ assert.equal(ageInYears('2008-02-29',new Date('2026-02-28T12:00:00Z')),17);
+ assert.equal(ageInYears('2008-02-29',new Date('2026-03-01T00:00:00Z')),18);
+ assert.equal(ageInYears(''),null);assert.equal(ageInYears('invalid'),null);
+ assert.equal(validBirthDate('2001-02-29'),false);
 });

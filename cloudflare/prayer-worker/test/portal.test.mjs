@@ -411,3 +411,87 @@ test('resource mutations fail closed when admin authority changes and roll back 
  f.sql.exec("CREATE TRIGGER fail_resource_tag BEFORE INSERT ON resource_tags WHEN NEW.tag='reject' BEGIN SELECT RAISE(ABORT,'rejected'); END;");
  assert.equal((await f.request('admin/resources','admin',resourceData({tags:['faith','reject']}))).status,500);assert.equal(f.sql.prepare('SELECT count(*) n FROM resources').get().n,2);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
 });
+
+test('members recommend actual resources privately; admins see a review count and approve explicitly',async()=>{
+ const f=fixture();await f.add('member');await f.add('other');await f.add('admin','admin');
+ const data=resourceData({title:'Recommended private title',tags:['recommend-only'],visible:true,featured:true,sort_order:-999,review_status:'approved'});
+ const response=await f.request('resources/recommend','member',data);assert.equal(response.status,201,JSON.stringify(await response.clone().json()));
+ const row=f.sql.prepare("SELECT * FROM resources WHERE title='Recommended private title'").get();assert.equal(row.review_status,'pending');assert.equal(row.visible,0);assert.equal(row.featured,0);assert.equal(row.sort_order,0);assert.equal(row.submitted_by,'member');
+ for(const who of ['member','other']) {const list=await (await f.request('resources?q=Recommended','member')).json();assert.equal(list.total,0);assert.ok(!list.tags.includes('recommend-only'));assert.equal((await f.request(`resources/${row.id}/image`,who)).status,404);}
+ assert.equal((await f.request('admin/resource-review-count','member')).status,403);assert.equal((await (await f.request('admin/resource-review-count','admin')).json()).pending,1);
+ const queue=await (await f.request('admin/resources?visibility=all&review_status=pending','admin')).json();assert.equal(queue.total,1);assert.equal(queue.items[0].submitted_name,'member');
+ assert.equal((await f.request(`admin/resources/${row.id}`,'admin',resourceData({revision:1,visible:true}))).status,409);
+ assert.equal((await f.request(`admin/resources/${row.id}/approve`,'member',{revision:1,reason:'Try to approve'})).status,403);
+ assert.equal((await f.request(`admin/resources/${row.id}/approve`,'admin',{revision:1,reason:'Reviewed content'})).status,200);
+ assert.equal((await (await f.request('admin/resource-review-count','admin')).json()).pending,0);
+ assert.equal((await (await f.request('resources?q=Recommended','member')).json()).total,1);
+ assert.equal((await f.request(`admin/resources/${row.id}/approve`,'admin',{revision:1,reason:'Repeat'})).status,409);
+ assert.equal(f.sql.prepare('SELECT action FROM admin_audit WHERE target_id=?').get(row.id).action,'approve');
+});
+test('declining recommendations and removing their images clears review queue without publishing',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');
+ const image={mime:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1S8AAAAASUVORK5CYII='};
+ assert.equal((await f.request('resources/recommend','member',resourceData({image}))).status,201);
+ const row=f.sql.prepare("SELECT * FROM resources WHERE review_status='pending'").get();
+ assert.equal((await f.request(`resources/${row.id}/image`,'member')).status,404);
+ assert.equal((await f.request(`resources/${row.id}/image`,'admin')).headers.get('content-type'),'image/png');
+ assert.equal((await f.request(`admin/resources/${row.id}/decline`,'admin',{revision:1,reason:'Not a fit'})).status,200);
+ assert.equal((await (await f.request('admin/resource-review-count','admin')).json()).pending,0);
+ assert.equal((await (await f.request('resources','member')).json()).total,2);
+ assert.equal((await f.request(`admin/resources/${row.id}/delete`,'admin',{revision:2,reason:'Remove declined suggestion',confirmation:'DELETE'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM resource_images').get().n,0);
+});
+test('profile gender and birth date stay private, validate calendar dates, and survive omitted legacy fields',async()=>{
+ const f=fixture();await f.add('member');await f.add('other');await f.add('admin','admin');
+ const data={username:'member',name:'Member',phone:'',timezone:'',bio:'',notify_requests:true,notify_updates:true,notify_answered:true,gender:'female',birth_date:'2000-02-29'};
+ const response=await f.request('profile','member',data);assert.equal(response.status,200);const saved=(await response.json()).user;assert.equal(saved.birth_date,'2000-02-29');assert.equal(saved.gender,'female');
+ const directory=await (await f.request('people','other')).json();assert.ok(directory.every(row=>!('gender' in row)&&!('birth_date' in row)));
+ const accounts=await (await f.request('admin/users','admin')).json();assert.equal(accounts.items.find(row=>row.id==='member').birth_date,'2000-02-29');
+ for(const birth_date of ['2001-02-29','2000-13-01','2030-01-01','1900-01-01','2000-1-1',123]) assert.equal((await f.request('profile','member',{...data,birth_date})).status,400);
+ assert.equal((await f.request('profile','member',{...data,gender:'invalid'})).status,400);
+ const {gender,birth_date,...legacy}=data;assert.equal((await f.request('profile','member',legacy)).status,200);assert.equal(f.sql.prepare("SELECT gender FROM users WHERE id='member'").get().gender,'female');
+ assert.equal((await f.request('admin/users/member/delete','admin',{reason:'Delete account',confirmation:'DELETE'})).status,200);const removed=f.sql.prepare("SELECT gender,birth_date FROM users WHERE id='member'").get();assert.equal(removed.gender,'');assert.equal(removed.birth_date,'');
+});
+test('gender and exact age boundaries gate lists, search, tags and image URLs, including missing birth dates',async()=>{
+ const f=fixture();for(const who of ['adult','minor','female','unknown','nogender']) await f.add(who);await f.add('admin','admin');
+ const today=new Date().toISOString().slice(0,10),year=Number(today.slice(0,4));
+ for(const [who,gender,birth] of [['adult','male',`${year-18}${today.slice(4)}`],['minor','male',`${year-17}${today.slice(4)}`],['female','female',`${year-20}${today.slice(4)}`],['unknown','male',''],['nogender','',`${year-20}${today.slice(4)}`]]) f.sql.prepare('UPDATE users SET gender=?,birth_date=? WHERE id=?').run(gender,birth,who);
+ const image={mime:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1S8AAAAASUVORK5CYII='};
+ const created=await (await f.request('admin/resources','admin',resourceData({title:'Restricted resource',tags:['restricted-only'],genders:['male'],min_age:18,max_age:20,image}))).json();assert.ok(created.id);
+ for(const [who,allowed] of [['adult',true],['minor',false],['female',false],['unknown',false],['nogender',false],['admin',true]]) {
+  const list=await (await f.request('resources?q=Restricted',''+who)).json();assert.equal(list.total,allowed?1:0,who);assert.equal(list.tags.includes('restricted-only'),allowed,who);
+  assert.equal((await f.request(`resources/${created.id}/image`,who)).status,allowed?200:404,who);
+ }
+ f.sql.prepare("UPDATE users SET birth_date=? WHERE id='adult'").run(`${year-21}${today.slice(4)}`);assert.equal((await f.request(`resources/${created.id}/image`,'adult')).status,404);
+ // Clearing birth date immediately revokes access in the same signed-in session.
+ f.sql.prepare("UPDATE users SET birth_date='' WHERE id='adult'").run();assert.equal((await (await f.request('resources?tag=restricted-only','adult')).json()).total,0);
+});
+test('age-only, gender-only and unrestricted resources correctly handle absent optional profile fields',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');
+ for(const changes of [{title:'Age only',min_age:0},{title:'Gender only',genders:['male','female']},{title:'No limits'}]) assert.equal((await f.request('admin/resources','admin',resourceData(changes))).status,201);
+ let list=await (await f.request('resources','member')).json();assert.deepEqual(list.items.filter(r=>['Age only','Gender only','No limits'].includes(r.title)).map(r=>r.title),['No limits']);
+ f.sql.prepare("UPDATE users SET gender='male' WHERE id='member'").run();list=await (await f.request('resources?q=Gender only','member')).json();assert.equal(list.total,1);
+ f.sql.prepare("UPDATE users SET gender='undisclosed' WHERE id='member'").run();assert.equal((await (await f.request('resources?q=Gender only','member')).json()).total,0);
+ for(const changes of [{min_age:30,max_age:18},{min_age:-1},{max_age:121},{min_age:18.5},{genders:['unknown']}]) assert.equal((await f.request('admin/resources','admin',resourceData(changes))).status,400);
+});
+test('resource images validate, replace and remove atomically; direct static cover paths are unavailable',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');
+ const image={mime:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1S8AAAAASUVORK5CYII='};
+ const created=await (await f.request('admin/resources','admin',resourceData({image,genders:['female'],min_age:21}))).json();assert.ok(created.id);
+ assert.equal((await f.request(`resources/${created.id}/image`)).status,401);assert.equal((await f.request(`resources/${created.id}/image`,'member')).status,404);
+ const response=await f.request(`resources/${created.id}/image`,'admin');assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('content-type'),'image/png');assert.deepEqual(new Uint8Array(await response.arrayBuffer()),new Uint8Array(Buffer.from(image.data,'base64')));
+ const apiRows=await (await f.request('admin/resources?visibility=all','admin')).json();assert.ok(apiRows.items.every(row=>!('data' in row)));
+ // A legacy admin edit cannot silently clear new audience restrictions or images.
+ assert.equal((await f.request(`admin/resources/${created.id}`,'admin',resourceData({revision:1}))).status,200);let stored=f.sql.prepare('SELECT * FROM resources WHERE id=?').get(created.id);assert.equal(stored.genders,'female');assert.equal(stored.min_age,21);assert.equal(f.sql.prepare('SELECT count(*) n FROM resource_images').get().n,1);
+ for(const invalid of [{mime:'image/svg+xml',data:image.data},{mime:'image/jpeg',data:image.data},{mime:'image/png',data:'!!!'},{mime:'image/png',data:'A'.repeat(350000)}]) assert.equal((await f.request(`admin/resources/${created.id}`,'admin',resourceData({revision:2,image:invalid}))).status,400);
+ assert.equal((await f.request(`admin/resources/${created.id}`,'admin',resourceData({revision:2,image:null}))).status,200);assert.equal((await f.request(`resources/${created.id}/image`,'admin')).status,404);
+ assert.equal((await worker.fetch(new Request('https://prayer.example.com/assets/resource-covers/wild-at-heart.jpg'),f.env)).status,404);
+});
+test('recommendation spam caps and stale admin approval fail closed',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');
+ for(let i=0;i<10;i++) assert.equal((await f.request('resources/recommend','member',resourceData({title:`Recommendation ${i}`}))).status,201);
+ assert.equal((await f.request('resources/recommend','member',resourceData())).status,429);
+ const row=f.sql.prepare("SELECT * FROM resources WHERE review_status='pending' LIMIT 1").get(),batch=f.env.DB.batch.bind(f.env.DB);
+ f.env.DB.batch=async statements=>{f.sql.prepare("UPDATE users SET role='member' WHERE id='admin'").run();return batch(statements);};
+ assert.equal((await f.request(`admin/resources/${row.id}/approve`,'admin',{revision:1,reason:'Stale actor'})).status,409);assert.equal(f.sql.prepare('SELECT review_status FROM resources WHERE id=?').get(row.id).review_status,'pending');
+});

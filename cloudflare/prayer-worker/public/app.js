@@ -2,6 +2,7 @@ const $ = selector => document.querySelector(selector);
 let user, csrf, people = [], groups = [], activeGroup = null, currentView = 'feed', olderThan, pendingDelete;
 let site = {allowMemberGroups:true,organizationName:'Hope Sojourns'}, sessionGeneration = 0;
 let adminTab='users',adminCursor=null,pendingAdminAction=null,adminLoadGeneration=0;
+let resourceImageChange,resourceImageGeneration=0,pendingResourceReview=null;
 let resourceCategories=[],resourceOffset=0,resourceGeneration=0,editingResource=null,editingCategory=null,deletingResource=null;
 let inviteToken = new URLSearchParams(location.hash.slice(1)).get('invite');
 let resetToken = new URLSearchParams(location.hash.slice(1)).get('reset');
@@ -204,6 +205,7 @@ async function refreshNotifications() {
   $('#unread').textContent = unread ? `(${unread})` : ''; $('#notifications').replaceChildren();
   if (!rows.length) empty($('#notifications'), 'You’re all caught up. Follow people to receive notifications about their new posts.');
   rows.forEach(row => $('#notifications').append(postCard(row,true)));
+  await refreshResourceReviewCount();
 }
 async function loadInvites() {
   const rows = await api('invites'); $('#invites').replaceChildren();
@@ -316,6 +318,7 @@ async function loadAdmin(append=false) {
 function adminAccount(person) {
   const card=element('article',undefined,'panel account-card');
   card.append(element('h3',person.name),element('p',`Username: ${person.username||person.email}`),element('p',person.email));
+  if(person.gender || person.birth_date) card.append(element('p',`Gender: ${person.gender||'Not provided'} · Birth date: ${person.birth_date||'Not provided'}`,'hint'));
   if(person.phone || person.timezone) card.append(element('p',`${person.phone||'No phone'} · ${person.timezone||'No time zone'}`,'hint'));
   if(person.bio) card.append(element('p',person.bio));
   const state=element('div',undefined,'account-state');
@@ -373,7 +376,7 @@ $('#reset-form').addEventListener('submit',event=>{event.preventDefault();const 
 })(event);});
 function renderProfile() {
   const form=$('#profile-form');
-  for(const key of ['name','username','email','phone','timezone','bio']) form.elements[key].value=user[key]||'';
+  for(const key of ['name','username','email','phone','timezone','bio','gender','birth_date']) form.elements[key].value=user[key]||'';
   for(const key of ['notify_requests','notify_updates','notify_answered']) form.elements[key].checked=user[key];
   $('#profile-role').textContent=`Access: ${user.owner?'Primary owner':user.role==='admin'?'Portal admin':'Regular member'}. Members cannot change their own role, status, or associated email here.`;
 }
@@ -393,6 +396,9 @@ setupAuth();
 api('site').then(applySite).then(()=>resetToken ? null : api('me')).then(data=>data && signedIn(data)).catch(error => { if (error.message !== 'Please sign in to the prayer portal.') notice(error.message,true); });
 setInterval(() => { if (user && !document.hidden) refreshNotifications().catch(error => notice(error.message,true)); },60000);
 function clearResources() {
+ resourceImageGeneration++;resourceImageChange=undefined;pendingResourceReview=null;
+ for(const id of ['resource-pending-count','admin-resource-count']) $(`#${id}`).textContent='';
+ $('#resource-review-banner').hidden=true;$('#resource-image-preview').removeAttribute('src');$('#resource-image-preview').hidden=true;
  resourceGeneration++; resourceCategories=[];editingResource=null;editingCategory=null;deletingResource=null;resourceOffset=0;
  for(const id of ['resource-items','resource-category-items']) $(`#${id}`).replaceChildren();
  for(const id of ['resource-form','resource-search','resource-category-form','resource-delete-form']) $(`#${id}`).reset();
@@ -409,9 +415,10 @@ function resourceOptions(select,items,placeholder) {
 }
 async function loadResources(append=false) {
  const generation=++resourceGeneration,form=$('#resource-search'),isAdmin=user.role==='admin';
- for(const id of ['add-resource','manage-categories','resource-visibility-label']) $(`#${id}`).hidden=!isAdmin;
+ for(const id of ['add-resource','manage-categories','resource-visibility-label','resource-review-label']) $(`#${id}`).hidden=!isAdmin;
+ $('#recommend-resource').hidden=isAdmin;
  const params=new URLSearchParams(new FormData(form));
- if(!isAdmin) params.set('visibility','visible');
+ if(!isAdmin) {params.set('visibility','visible');params.set('review_status','approved');}
  params.set('offset',append?resourceOffset:0);
  const [result,categories]=await Promise.all([api(`${isAdmin?'admin/':''}resources?${params}`),api('resource-categories')]);
  if(generation!==resourceGeneration || currentView!=='resources') return;
@@ -422,14 +429,22 @@ async function loadResources(append=false) {
  if(!result.items.length && !append) empty($('#resource-items'),'No resources match these filters. Try another topic or clear your filters.');
  for(const resource of result.items) $('#resource-items').append(resourceCard(resource,isAdmin));
  resourceOffset=result.nextOffset;$('#resource-more').hidden=!result.more;
+ await refreshResourceReviewCount();
  $('#resource-count').textContent=`${result.total} ${result.total===1?'resource':'resources'} found · ${Math.min(resourceOffset,result.total)} shown`;
 }
 function resourceCard(resource,isAdmin) {
  const card=element('article',undefined,`resource-card${resource.featured?' featured-resource':''}`),meta=element('div',undefined,'resource-meta');
  meta.append(element('span',resource.category_name,'badge'));
+ if(resource.review_status==='pending') meta.append(element('span','Pending approval','badge'));
+ if(resource.review_status==='declined') meta.append(element('span','Declined','badge'));
+ if(resource.genders) meta.append(element('span',resource.genders.split(',').map(g=>({male:'Male',female:'Female',another:'Another gender'})[g]).join(', '),'badge'));
+ if(resource.min_age!==null || resource.max_age!==null) meta.append(element('span',`Ages ${resource.min_age??0}–${resource.max_age??'up'}`,'badge'));
  if(resource.featured) meta.append(element('span','Featured','badge answered'));
  if(!resource.visible) meta.append(element('span','Hidden · admins only','badge'));
- card.append(meta,element('h3',resource.title));
+ card.append(meta);
+ if(resource.has_image) {const image=element('img',undefined,'resource-cover');image.src=`/api/resources/${encodeURIComponent(resource.id)}/image?v=${resource.revision}`;image.alt=`Image for ${resource.title}`;image.loading='lazy';image.addEventListener('error',()=>{image.hidden=true;});card.append(image);}
+ card.append(element('h3',resource.title));
+ if(isAdmin && resource.submitted_by) card.append(element('p',`Recommended by ${resource.submitted_name} · ${displayTime(resource.submitted_at)}`,'hint'));
  if(resource.creator) card.append(element('p',resource.creator,'resource-creator'));
  if(resource.description) card.append(element('p',resource.description,'resource-description'));
  const tags=element('div',undefined,'resource-tags');
@@ -439,18 +454,26 @@ function resourceCard(resource,isAdmin) {
  if(isAdmin) {
   card.append(element('p',`Display order: ${resource.sort_order}`,'hint'));
   const actions=element('div',undefined,'actions');
-  actions.append(button('Edit resource',()=>openResource(resource)),button(resource.visible?'Hide':'Show',()=>openResource({...resource,visible:!resource.visible})),button(resource.featured?'Remove feature':'Promote to featured',()=>openResource({...resource,featured:!resource.featured})),button('Delete',()=>openResourceDelete('resources',resource)));
+  actions.append(button('Edit resource',()=>openResource(resource)));
+  if(resource.review_status==='pending') actions.append(button('Approve',()=>openResourceReview(resource,'approve')),button('Decline',()=>openResourceReview(resource,'decline')));
+  if(resource.review_status==='approved') actions.append(button(resource.visible?'Hide':'Show',()=>openResource({...resource,visible:!resource.visible})),button(resource.featured?'Remove feature':'Promote to featured',()=>openResource({...resource,featured:!resource.featured})),button('Delete',()=>openResourceDelete('resources',resource)));
+  if(resource.review_status!=='approved') actions.append(button('Delete',()=>openResourceDelete('resources',resource)));
   card.append(actions);
  }
  return card;
 }
 function openResource(resource=null) {
- editingResource=resource;const form=$('#resource-form');form.reset();
+ editingResource=resource;resourceImageChange=undefined;resourceImageError='';resourceImageGeneration++;const form=$('#resource-form');form.reset();
+ const recommending=user.role!=='admin';$('#resource-admin-fields').hidden=recommending;$('#recommend-resource-help').hidden=!recommending;form.elements.reason.required=!recommending;
+ $('#save-resource').textContent=recommending?'Send recommendation':'Save resource';
+ const preview=$('#resource-image-preview');preview.hidden=!resource?.has_image;if(resource?.has_image) preview.src=`/api/resources/${encodeURIComponent(resource.id)}/image?v=${resource.revision}`;else preview.removeAttribute('src');
  resourceOptions(form.elements.category_id,resourceCategories);
+ for(const check of form.querySelectorAll('[name=resource_gender]')) check.checked=!!resource?.genders?.split(',').includes(check.value);
+ form.elements.min_age.value=resource?.min_age??'';form.elements.max_age.value=resource?.max_age??'';
  for(const key of ['title','creator','description','url','sort_order','category_id']) if(resource) form.elements[key].value=resource[key];
  form.elements.visible.checked=resource?!!resource.visible:true;form.elements.featured.checked=!!resource?.featured;
  form.elements.tags.value=resource?resource.tags.map(tag=>`#${tag}`).join(', '):'';
- $('#resource-editor-title').textContent=resource?'Edit resource':'Add resource';
+ $('#resource-editor-title').textContent=recommending?'Recommend a resource':resource?'Edit resource':'Add resource';
  $('#resource-editor .dialog-message').hidden=true;$('#resource-editor').showModal();
 }
 function renderResourceCategories() {
@@ -473,12 +496,19 @@ $('#resource-search').addEventListener('submit',event=>{event.preventDefault();a
 $('#reset-resources').addEventListener('click',action(async()=>{$('#resource-search').reset();await loadResources();}));
 $('#resource-more').addEventListener('click',action(()=>loadResources(true)));
 $('#add-resource').addEventListener('click',()=>openResource());
+$('#recommend-resource').addEventListener('click',()=>openResource());
 $('#manage-categories').addEventListener('click',()=>{editResourceCategory();renderResourceCategories();$('#resource-categories .dialog-message').hidden=true;$('#resource-categories').showModal();});
 $('#new-category').addEventListener('click',()=>editResourceCategory());
 for(const node of document.querySelectorAll('[data-close-resource]')) node.addEventListener('click',()=>$(`#${node.dataset.closeResource}`).close());
 $('#resource-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,target=editingResource;action(async()=>{
  const values=Object.fromEntries(new FormData(form));values.tags=values.tags.split(',').map(tag=>tag.trim()).filter(Boolean);values.sort_order=Number(values.sort_order);values.visible=form.elements.visible.checked;values.featured=form.elements.featured.checked;
+ values.genders=[...form.querySelectorAll('[name=resource_gender]:checked')].map(check=>check.value);
+ values.min_age=values.min_age===''?null:Number(values.min_age);values.max_age=values.max_age===''?null:Number(values.max_age);
+ if(form.elements.remove_image.checked) values.image=null;else if(resourceImageChange!==undefined) values.image=resourceImageChange;
+ if(resourceImageError && !form.elements.remove_image.checked) throw new Error(resourceImageError);
+ if($('#resource-image-file').disabled) throw new Error('Wait for the image to finish processing.');
  if(target) values.revision=target.revision;
+ if(user.role!=='admin') {await api('resources/recommend',values);$('#resource-editor').close();await loadResources();notice('Recommendation sent. Only portal admins can see it until approved.');return;}
  await api(`admin/resources${target?`/${encodeURIComponent(target.id)}`:''}`,values);$('#resource-editor').close();await loadResources();notice('Resource saved.');
 })(event);});
 $('#resource-category-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget)),target=editingCategory;action(async()=>{
@@ -489,3 +519,39 @@ $('#resource-delete-form').addEventListener('submit',event=>{event.preventDefaul
  values.revision=target.item.revision;await api(`admin/${target.type}/${encodeURIComponent(target.item.id)}/delete`,values);$('#resource-delete').close();await loadResources();
  if(target.type==='resource-categories') {renderResourceCategories();editResourceCategory();}notice('Item deleted.');
 })(event);});
+async function refreshResourceReviewCount() {
+ if(user?.role!=='admin') return;
+ const {pending}=await api('admin/resource-review-count');
+ for(const id of ['resource-pending-count','admin-resource-count']) $(`#${id}`).textContent=pending?`(${pending} to review)`:'';
+ $('#resource-review-banner').hidden=!pending;
+ $('#resource-review-summary').textContent=`${pending} resource ${pending===1?'recommendation needs':'recommendations need'} your review. `;
+}
+$('#review-recommendations').addEventListener('click',action(async()=>{
+ $('#resource-search').reset();$('#resource-search').elements.review_status.value='pending';$('#resource-search').elements.visibility.value='all';await loadResources();
+}));
+function openResourceReview(resource,decision) {
+ pendingResourceReview={resource,decision};$('#resource-review-form').reset();$('#resource-review .dialog-message').hidden=true;
+ $('#resource-review-title').textContent=`${decision==='approve'?'Approve':'Decline'}: ${resource.title}`;
+ $('#resource-review-help').textContent=decision==='approve'?'This adds the resource to the member library for the genders and ages selected on it. Review or edit its content, image, link, and audience before approving.':'This keeps the recommendation out of the member library and clears it from the pending queue.';
+ $('#confirm-resource-review').textContent=decision==='approve'?'Approve for the library':'Decline recommendation';$('#resource-review').showModal();
+}
+$('#resource-review-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget)),target=pendingResourceReview;action(async()=>{
+ values.revision=target.resource.revision;await api(`admin/resources/${encodeURIComponent(target.resource.id)}/${target.decision}`,values);$('#resource-review').close();await loadResources();notice(target.decision==='approve'?'Resource approved and available to its audience.':'Recommendation declined.');
+})(event);});
+let resourceImageError='';
+$('#resource-image-file').addEventListener('change',action(async()=>{
+ const input=$('#resource-image-file'),file=input.files[0],generation=++resourceImageGeneration;resourceImageError='';resourceImageChange=undefined;
+ if(!file) {$('#resource-image-preview').hidden=true;return;}
+ input.disabled=true;
+ try {
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15*1024*1024) throw new Error('Choose a JPEG, PNG, or WebP image under 15 MB.');
+  const bitmap=await createImageBitmap(file),scale=Math.min(1,1024/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  const context=canvas.getContext('2d');context.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+  let encoded;for(const quality of [.85,.7,.55,.4]) {encoded=canvas.toDataURL('image/jpeg',quality);if(encoded.length<=349550) break;}
+  if(encoded.length>349550) throw new Error('This image is still too large. Choose a smaller image.');
+  if(generation!==resourceImageGeneration) return;
+  resourceImageChange={mime:'image/jpeg',data:encoded.split(',')[1]};$('#resource-form').elements.remove_image.checked=false;$('#resource-image-preview').src=encoded;$('#resource-image-preview').hidden=false;
+ } catch(error) {if(generation===resourceImageGeneration) {resourceImageError=error.message;throw error;}}
+ finally {input.disabled=false;}
+}));

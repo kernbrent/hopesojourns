@@ -1,10 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.88
+Version 4.89
 
 Last reviewed: October 29, 2026
 
 ## Independent prayer portal
+
+The local resource approval/audience revision shows Recommend a resource to regular members, with plain notice that only admins see the submission until approval. Admin navigation includes pending-review counts and the library includes a review banner and review-state filter. Pending cards show submitter and approval state; Approve/Decline require a reason in a native dialog. Cards display proportional, uncropped images, gender/age audience badges, and external provider links. The resource editor supports image selection/removal with preview, gender checkboxes (none means unrestricted), and optional minimum/maximum ages. Explicitly explain that any age restriction requires a birth date and admins can review all resources. My account labels gender and birth date as optional/private, offers Not provided, Male, Female, Another gender, and Prefer not to say, and explains their effect on resource availability. Reuse existing forest/gold/neutral tokens and visible labels. Keep image upload and review errors inside their active dialog.
 
 The local Resources section uses existing Hope Sojourns typography, paper cards, forest buttons, and gold featured accents. Show a category badge, title, creator, description, clickable hashtag filters, and a clearly labeled external resource link. Keep search and category/tag/featured/sort filters in a labeled responsive form with result counts, clear filters, and load more. Admins additionally see visibility filters, add/edit/hide/feature/order/delete controls, and category management. Hide opens the editor with member visibility off; promote opens it with Featured selected. State that featured items lead recommended order and lower order numbers appear first. Changes require a reason; permanent deletion requires typed DELETE. Keep every editor in a native dialog with local error feedback and visible close controls. Categories can be renamed and ordered, and must be empty before removal. Member views never reveal hidden resources or hidden-only tags. Reuse existing palette tokens without introducing colors.
 
@@ -877,6 +879,8 @@ The People selection toolbar includes a labeled Select all visible contacts chec
 Inbox Show includes Emails sent, with readable cards for subject and accepted timestamp and expandable View sent copy details. Keep full message text and footer line breaks, wrap addresses on narrow screens, and distinguish To from BCC. Use Previous emails and Next emails with a page count. Accepted copies have no Complete, Delete, or Retry actions in this view. State clearly that acceptance does not confirm receipt and that test captures and unsuccessful sends remain in Email history. Reuse existing palette tokens and card styles.
 
 ## Revision history
+
+- October 29, 2026 — Version 4.89. Added local recommendation/approval presentation, pending counts, book covers and image previews, demographic audience controls, and private profile disclosures. Pending release approval.
 
 - October 29, 2026 — Version 4.88. Added local resource cards, featured styling, searchable filters, responsive curation forms, category controls, and deletion confirmations. Pending release approval.
 

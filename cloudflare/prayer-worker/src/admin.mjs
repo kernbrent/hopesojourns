@@ -17,7 +17,7 @@ export async function handleAdmin(request,db,auth,url,h) {
  }
  if(path==='/api/admin/users' && method==='GET') {
   const search=(url.searchParams.get('search')||'').slice(0,200);
-  const rows=(await db.prepare(`SELECT id,email,name,username,phone,timezone,bio,role,status,is_owner,created_at FROM users WHERE instr(lower(name||' '||email||' '||coalesce(username,'')),lower(?))>0 AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 51`).bind(search,...page()).all()).results;
+  const rows=(await db.prepare(`SELECT id,email,name,username,phone,timezone,bio,gender,birth_date,role,status,is_owner,created_at FROM users WHERE instr(lower(name||' '||email||' '||coalesce(username,'')),lower(?))>0 AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 51`).bind(search,...page()).all()).results;
   const result=paged(rows);
   for(const person of result.items) {
    const limit=await db.prepare('SELECT attempts,expires_at FROM login_limits WHERE key=?').bind(`email:${await digest(person.email)}`).first();
@@ -105,7 +105,7 @@ export async function handleAdmin(request,db,auth,url,h) {
     db.prepare(`DELETE FROM recipients WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM group_members WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM login_limits WHERE key=? AND ${guard}`).bind(limit,op),
-    db.prepare(`UPDATE users SET name='Deleted member',email=?,username=NULL,phone='',timezone='',bio='',password='deleted',role='member',status='deleted' WHERE id=? AND ${guard}`).bind(`deleted+${id}@prayer.invalid`,id,op)
+    db.prepare(`UPDATE users SET name='Deleted member',email=?,username=NULL,phone='',timezone='',bio='',gender='',birth_date='',password='deleted',role='member',status='deleted' WHERE id=? AND ${guard}`).bind(`deleted+${id}@prayer.invalid`,id,op)
    ]);
   }
  }

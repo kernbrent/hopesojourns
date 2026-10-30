@@ -1,6 +1,7 @@
 import { handleGroups } from './groups.mjs';
 import {handleAdmin} from './admin.mjs';
 import {handleResources} from './resources.mjs';
+import {profileGenders,validBirthDate} from './resource-access.mjs';
 import { siteConfig } from './site-config.mjs';
 const COOKIE = '__Host-hs_prayer';
 const kinds = ['request', 'update', 'answered'];
@@ -23,7 +24,7 @@ function requireValue(condition, message, status = 400) { if (!condition) throw 
 const json = (value, status = 200, headers = {}) => Response.json(value, { status, headers });
 const now = () => Date.now();
 const publicUser = u => ({ id:u.id,name:u.name,role:u.role,owner:!!u.is_owner,username:u.username||u.email,email:u.email,
- phone:u.phone||'',timezone:u.timezone||'',bio:u.bio||'',notify_requests:u.notify_requests!==0,notify_updates:u.notify_updates!==0,notify_answered:u.notify_answered!==0 });
+ phone:u.phone||'',timezone:u.timezone||'',bio:u.bio||'',gender:u.gender||'',birth_date:u.birth_date||'',notify_requests:u.notify_requests!==0,notify_updates:u.notify_updates!==0,notify_answered:u.notify_answered!==0 });
 // This predicate must be used for every read, including notification joins.
 function visibilityFor(id,role) {
   return `(p.author_id = ${id} OR ${role} = 'admin' OR
@@ -42,7 +43,7 @@ async function session(db, user) {
 async function body(request) {
   requireValue((request.headers.get('content-type') || '').includes('application/json'), 'Use JSON.', 415);
   const raw = await request.text();
-  requireValue(raw.length <= 16000, 'This submission is too large.', 413);
+  requireValue(raw.length <= (/^\/api\/(?:admin\/)?resources(?:\/|$)/.test(new URL(request.url).pathname)?400000:16000), 'This submission is too large.', 413);
   try { return JSON.parse(raw); } catch { throw new HttpError(400, 'Invalid JSON.'); }
 }
 function text(value, max, label) {
@@ -72,8 +73,8 @@ async function api(request, env, url) {
   const config = siteConfig(env);
   if (path === '/api/site' && method === 'GET') return json(config);
   if (path === '/api/health' && method === 'GET') {
-    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags')").first();
-    requireValue(schema.count === 10, 'Portal database setup is incomplete.', 503);
+    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images')").first();
+    requireValue(schema.count === 11, 'Portal database setup is incomplete.', 503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
@@ -138,8 +139,8 @@ async function api(request, env, url) {
     WHERE s.token_hash=? AND s.expires_at>? AND u.status='active'`).bind(await digest(raw), now()).first();
   requireValue(auth, 'Please sign in to the prayer portal.', 401);
   if (method !== 'GET') requireValue(request.headers.get('x-csrf-token') === auth.csrf, 'Your session changed. Refresh and try again.', 403);
-  if(/^\/api\/(?:admin\/)?(?:resources|resource-categories)(?:\/|$)/.test(path)) {
-    const response=await handleResources(request,db,auth,url,{json,body,text,requireValue});
+  if(/^\/api\/(?:admin\/)?(?:resources|resource-categories|resource-review-count)(?:\/|$)/.test(path)) {
+    const response=await handleResources(request,db,auth,url,{json,body,text,requireValue,rateLimit,assets:env.ASSETS});
     if(response) return response;
   }
   if(path.startsWith('/api/admin/')) {
@@ -156,9 +157,12 @@ async function api(request, env, url) {
     const phone=typeof data.phone==='string'?data.phone.trim():'',zone=typeof data.timezone==='string'?data.timezone.trim():'',bio=typeof data.bio==='string'?data.bio.trim():'';
     requireValue(phone.length<=40 && zone.length<=80 && bio.length<=500,'Phone, time zone, or introduction is too long.');
     if(zone) {try {new Intl.DateTimeFormat('en',{timeZone:zone}).format();} catch {throw new HttpError(400,'Choose a valid time zone, such as America/Chicago.');}}
+    const gender=data.gender ?? auth.gender ?? '',birthDate=data.birth_date ?? auth.birth_date ?? '';
+    requireValue(profileGenders.includes(gender),'Choose a valid gender option.');
+    requireValue(validBirthDate(birthDate),'Enter a valid birth date, no more than 120 years ago and not in the future.');
     for(const key of ['notify_requests','notify_updates','notify_answered']) requireValue(typeof data[key]==='boolean','Choose notification preferences.');
     requireValue(!await db.prepare('SELECT id FROM users WHERE id<>? AND (username=? COLLATE NOCASE OR email=? COLLATE NOCASE)').bind(auth.id,loginName,loginName).first(),'That username is already in use.');
-    const result=await db.prepare("UPDATE users SET username=?,name=?,phone=?,timezone=?,bio=?,notify_requests=?,notify_updates=?,notify_answered=? WHERE id=? AND status='active'").bind(loginName,name,phone,zone,bio,+data.notify_requests,+data.notify_updates,+data.notify_answered,auth.id).run();
+    const result=await db.prepare("UPDATE users SET username=?,name=?,phone=?,timezone=?,bio=?,gender=?,birth_date=?,notify_requests=?,notify_updates=?,notify_answered=? WHERE id=? AND status='active'").bind(loginName,name,phone,zone,bio,gender,birthDate,+data.notify_requests,+data.notify_updates,+data.notify_answered,auth.id).run();
     requireValue(result.meta.changes===1,'Your account is no longer available.',401);
     return json({user:publicUser(await db.prepare('SELECT * FROM users WHERE id=?').bind(auth.id).first())});
   }

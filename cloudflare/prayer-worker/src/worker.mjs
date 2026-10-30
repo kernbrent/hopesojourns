@@ -12,7 +12,7 @@ export default {
           for(;;) {
             const {value,done}=await reader.read();if(done) break;
             length+=value.length;
-            if(length>65536) {await reader.cancel();return Response.json({error:'This submission is too large.'},{status:413,headers:{'Cache-Control':'no-store'}});}
+            if(length>(/^\/api\/(?:admin\/)?resources(?:\/|$)/.test(new URL(request.url).pathname)?400000:65536)) {await reader.cancel();return Response.json({error:'This submission is too large.'},{status:413,headers:{'Cache-Control':'no-store'}});}
             chunks.push(value);
           }
           const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks) {bytes.set(chunk,offset);offset+=chunk.length;}

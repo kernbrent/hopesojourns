@@ -118,3 +118,7 @@
 #resource-more { margin-top:1rem; }
 #resource-category-items { margin-bottom:1.5rem; }
 @media(max-width:700px) { .resource-filters { grid-template-columns:1fr; }.resource-card { padding:1.1rem; } }
+.resource-cover { width:150px; height:220px; object-fit:contain; object-position:center; display:block; margin:1rem 0; background:var(--forest-wash); border-radius:6px; }
+.resource-image-preview { display:block; width:140px; height:190px; object-fit:contain; margin:1rem 0; }
+#resource-review-banner { margin:1rem 0; border-left:4px solid var(--gold); }
+#resource-pending-count,#admin-resource-count { font-size:.72rem; font-weight:700; }
