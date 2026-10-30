@@ -11,5 +11,13 @@ export const schema=[
   {
     "name": "0003_initial_admin.sql",
     "sql": "-- Seeded only through the authenticated deployment CLI, never via a public route.\n-- Acceptance is allowed only while the organization has no user accounts.\nCREATE TABLE initial_admin_setup (\n id INTEGER PRIMARY KEY CHECK(id=1), email TEXT NOT NULL COLLATE NOCASE,\n token_hash TEXT NOT NULL UNIQUE, expires_at INTEGER NOT NULL, used_at INTEGER\n);\n"
+  },
+  {
+    "name": "0004_administration.sql",
+    "sql": "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','suspended','deleted'));\nALTER TABLE users ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0 CHECK(is_owner IN (0,1));\nUPDATE users SET is_owner=1 WHERE role='admin' AND email IN (SELECT email FROM initial_admin_setup WHERE used_at IS NOT NULL);\nUPDATE invites SET role='member' WHERE used_at IS NULL;\nCREATE TABLE password_resets (\n token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),\n expires_at INTEGER NOT NULL, used_at INTEGER, created_by TEXT NOT NULL REFERENCES users(id)\n);\nCREATE TABLE admin_audit (\n id TEXT PRIMARY KEY, actor_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL,\n target_type TEXT NOT NULL, target_id TEXT NOT NULL, reason TEXT NOT NULL, created_at INTEGER NOT NULL\n);\nCREATE INDEX admin_audit_created ON admin_audit(created_at);\n"
+  },
+  {
+    "name": "0005_account_profiles.sql",
+    "sql": "ALTER TABLE users ADD COLUMN username TEXT COLLATE NOCASE;\nUPDATE users SET username=email;\nUPDATE users SET username='admin',name=CASE WHEN lower(name)=lower(email) THEN 'Admin' ELSE name END WHERE is_owner=1 AND email='kernbrent@gmail.com';\nCREATE UNIQUE INDEX users_username ON users(username COLLATE NOCASE) WHERE username IS NOT NULL;\nALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT '';\nALTER TABLE users ADD COLUMN timezone TEXT NOT NULL DEFAULT '';\nALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT '';\nALTER TABLE users ADD COLUMN notify_requests INTEGER NOT NULL DEFAULT 1 CHECK(notify_requests IN (0,1));\nALTER TABLE users ADD COLUMN notify_updates INTEGER NOT NULL DEFAULT 1 CHECK(notify_updates IN (0,1));\nALTER TABLE users ADD COLUMN notify_answered INTEGER NOT NULL DEFAULT 1 CHECK(notify_answered IN (0,1));\n"
   }
 ];

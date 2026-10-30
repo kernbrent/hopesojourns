@@ -17,7 +17,7 @@ function fixture() {
   }, async batch(statements) { sql.exec('BEGIN'); try { const result = []; for (const statement of statements) result.push(await statement.run()); sql.exec('COMMIT'); return result; } catch(error) { sql.exec('ROLLBACK'); throw error; } } };
   const env = { DB: db, ASSETS: { fetch: async () => new Response('public shell') } };
   async function add(id, role = 'member') {
-    sql.prepare('INSERT INTO users VALUES (?,?,?,?,?,?)').run(id,`${id}@example.com`,id,'unused',role,Date.now());
+    sql.prepare('INSERT INTO users (id,email,name,password,role,created_at) VALUES (?,?,?,?,?,?)').run(id,`${id}@example.com`,id,'unused',role,Date.now());
     sql.prepare('INSERT INTO sessions VALUES (?,?,?,?)').run(await digest(id),id,`csrf-${id}`,Date.now()+60000);
   }
   async function request(path, who, data, method) {
@@ -216,4 +216,119 @@ test('health verifies required schema and reports the deployed version without e
   const health=await (await f.request('health')).json();
   assert.deepEqual(health,{service:'hope-sojourns-prayer',version:'release-123',environment:'test',ready:true});
   f.sql.exec('DROP TABLE initial_admin_setup'); assert.equal((await f.request('health')).status,503);
+});
+test('admin routes reject ordinary users; all restricted content is available only to admins',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');
+ await f.request('posts','member',post('admins'));
+ for(const endpoint of ['users','posts','groups','audit']) {
+  assert.equal((await f.request(`admin/${endpoint}`)).status,401);
+  assert.equal((await f.request(`admin/${endpoint}`,'member')).status,403);
+  assert.equal((await f.request(`admin/${endpoint}`,'admin')).status,200);
+ }
+ assert.equal((await (await f.request('admin/posts','admin')).json()).items.length,1);
+ assert.equal((await f.request('admin/users/admin/delete','admin',{reason:'Self',confirmation:'DELETE'})).status,409);
+ assert.equal((await f.request('admin/users/member/suspend','member',{reason:'Attack'})).status,403);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
+});
+test('suspension revokes sessions, prevents login, and reactivation requires a fresh login',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');
+ f.sql.prepare('UPDATE users SET password=? WHERE id=?').run(await passwordHash('member valid password'),'member');
+ assert.equal((await f.request('admin/users/member/suspend','admin',{reason:'Review required'})).status,200);
+ assert.equal((await f.request('me','member')).status,401);
+ assert.equal((await f.request('login',null,{identifier:'member@example.com',password:'member valid password'})).status,401);
+ assert.equal((await f.request('admin/users/member/reactivate','admin',{reason:'Review completed'})).status,200);
+ assert.equal((await f.request('me','member')).status,401);
+ assert.equal((await f.request('login',null,{identifier:'member@example.com',password:'member valid password'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,2);
+});
+test('unlock clears the canonical email lock shared by username/email sign-in',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');f.sql.prepare("UPDATE users SET username='membername' WHERE id='member'").run();
+ for(let i=0;i<10;i++) await f.request('login',null,{identifier:i%2?'membername':'member@example.com',password:'wrong'});
+ assert.equal((await f.request('login',null,{identifier:'membername',password:'wrong'})).status,429);
+ assert.equal((await f.request('admin/users/member/unlock','admin',{reason:'Confirmed account owner'})).status,200);
+ assert.equal((await f.request('login',null,{identifier:'membername',password:'wrong'})).status,401);
+});
+test('invitations always create regular members and admins promote explicitly after enrollment',async()=>{
+ const f=fixture();await f.add('owner','admin');f.sql.prepare("UPDATE users SET is_owner=1 WHERE id='owner'").run();
+ assert.equal((await f.request('invites','owner',{email:'person@example.com',role:'admin'})).status,400);
+ const created=await (await f.request('invites','owner',{email:'person@example.com'})).json();
+ // Even legacy or externally altered invitation metadata cannot grant admin.
+ f.sql.prepare("UPDATE invites SET role='admin'").run();
+ const response=await f.request('accept',null,{token:new URL(created.link).hash.slice(8),name:'Person',username:'personname',password:'a secure person password',role:'admin'});
+ assert.equal(response.status,200);const joined=await response.json();assert.equal(joined.user.role,'member');assert.equal(joined.user.owner,false);
+ assert.equal((await f.request(`admin/users/${joined.user.id}/role`,'owner',{role:'admin',reason:'Delegated portal administration'})).status,200);
+ const login=await (await f.request('login',null,{identifier:'PERSONNAME',password:'a secure person password'})).json();assert.equal(login.user.role,'admin');
+ assert.equal((await f.request('admin/users/owner/role',null,{role:'member',reason:'Attempt'})).status,401);
+ await f.add('otheradmin','admin');
+ for(const action of ['delete','suspend','role','password-reset','username']) assert.equal((await f.request(`admin/users/owner/${action}`,'otheradmin',{reason:'Attempt',role:'member',confirmation:'DELETE',username:'replacement'})).status,409);
+});
+test('password-reset links are hashed, single-use, and revoke sessions without changing username',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');f.sql.prepare("UPDATE users SET username='partner' WHERE id='member'").run();
+ const result=await (await f.request('admin/users/member/password-reset','admin',{reason:'Account owner requested recovery'})).json();
+ const raw=new URL(result.link).hash.slice(7);assert.equal(raw.length,64);assert.notEqual(f.sql.prepare('SELECT token_hash FROM password_resets').get().token_hash,raw);
+ assert.equal((await f.request('me','member')).status,401);
+ assert.equal((await f.request('reset-password',null,{token:raw,password:'new private member password'})).status,200);
+ assert.equal((await f.request('reset-password',null,{token:raw,password:'another member password'})).status,400);
+ assert.equal((await f.request('login',null,{identifier:'partner',password:'new private member password'})).status,200);
+ const second=await (await f.request('admin/users/member/password-reset','admin',{reason:'Second request'})).json();f.sql.prepare('UPDATE password_resets SET expires_at=0').run();
+ assert.equal((await f.request('reset-password',null,{token:new URL(second.link).hash.slice(7),password:'another member password'})).status,400);
+});
+test('account deletion removes their prayers, transfers groups, anonymizes credentials and retains audit',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');await f.add('friend');
+ const group=await makeGroup(f,'member');await joinGroup(f,group,'friend','member');
+ await f.request('posts','member',{...post('members'),groupId:group});await f.request('posts','friend',{...post('members'),groupId:group});
+ assert.equal((await f.request('admin/users/member/delete','admin',{reason:'Account removal'})).status,400);
+ assert.equal((await f.request('admin/users/member/delete','admin',{reason:'Account removal',confirmation:'DELETE'})).status,200);
+ const deleted=f.sql.prepare("SELECT * FROM users WHERE id='member'").get();assert.equal(deleted.status,'deleted');assert.equal(deleted.name,'Deleted member');assert.notEqual(deleted.email,'member@example.com');assert.equal(deleted.password,'deleted');
+ assert.equal(f.sql.prepare('SELECT owner_id FROM groups WHERE id=?').get(group).owner_id,'admin');
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM posts').get().n,1);assert.equal((await f.request('me','member')).status,401);
+ assert.ok(!(await (await f.request('people','friend')).json()).some(person=>person.id==='member'));
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,1);
+});
+test('moderation deletes restricted posts and groups without retaining private content in audit',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');const group=await makeGroup(f,'member');
+ const created=await (await f.request('posts','member',{...post('admins'),groupId:group})).json();
+ assert.equal((await f.request(`admin/posts/${created.id}/delete`,'member',{reason:'Attempt',confirmation:'DELETE'})).status,403);
+ assert.equal((await f.request(`admin/posts/${created.id}/delete`,'admin',{reason:'Inappropriate content',confirmation:'DELETE'})).status,200);
+ await f.request('posts','member',{...post('members'),groupId:group});
+ assert.equal((await f.request(`admin/groups/${group}/delete`,'admin',{reason:'Harmful group',confirmation:'DELETE'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM groups').get().n,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM posts').get().n,0);
+ const audit=await (await f.request('admin/audit','admin')).json();assert.equal(audit.length,2);assert.ok(audit.every(entry=>!('body' in entry)&&!('password' in entry)));
+});
+test('profiles accept usernames and optional fields without exposing private data or allowing privilege changes',async()=>{
+ const f=fixture();await f.add('member');await f.add('friend');
+ const profile={username:'prayer.partner',name:'A Prayer Partner',phone:'+1 972 555 0101',timezone:'America/Chicago',bio:'Glad to pray with you.',notify_requests:false,notify_updates:true,notify_answered:true,role:'admin',status:'active',is_owner:1,email:'changed@example.com'};
+ const response=await f.request('profile','member',profile);assert.equal(response.status,200);const saved=(await response.json()).user;
+ assert.equal(saved.username,'prayer.partner');assert.equal(saved.email,'member@example.com');assert.equal(saved.role,'member');assert.equal(saved.owner,false);
+ const directory=await (await f.request('people','friend')).json(),person=directory.find(x=>x.id==='member');assert.equal(person.bio,profile.bio);assert.equal(person.username,profile.username);assert.ok(!('phone' in person)&&!('email' in person)&&!('timezone' in person));
+ assert.equal((await f.request('profile','friend',{...profile,username:'PRAYER.PARTNER'})).status,400);
+ assert.equal((await f.request('profile','member',{...profile,username:'friend@example.com'})).status,400);
+ assert.equal((await f.request('profile','member',{...profile,username:'admin'})).status,400);
+ assert.equal((await f.request('profile','member',{...profile,timezone:'Invalid/TimeZone'})).status,400);
+ await f.request('follow','member',{userId:'friend',following:true,requests:true,updates:true,answered:true});
+ await f.request('posts','friend',post('members'));assert.equal((await (await f.request('notifications','member')).json()).length,0);
+ await f.request('posts','friend',post('members',[],'update'));assert.equal((await (await f.request('notifications','member')).json()).length,1);
+});
+test('a stale admin session cannot act after its account is suspended mid-request',async()=>{
+ const f=fixture();await f.add('a','admin');await f.add('b','admin');
+ const prepare=f.env.DB.prepare.bind(f.env.DB);let intercepted=false;
+ f.env.DB.prepare=query=>{
+  const statement=prepare(query);
+  if(query.includes('SELECT u.*,s.csrf') && !intercepted) {
+   const first=statement.first.bind(statement);statement.first=async()=>{const result=await first();intercepted=true;f.sql.prepare("UPDATE users SET status='suspended' WHERE id='b'").run();return result;};
+  }
+  return statement;
+ };
+ assert.equal((await f.request('admin/users/a/suspend','b',{reason:'Stale action'})).status,409);
+ assert.equal(f.sql.prepare("SELECT status FROM users WHERE id='a'").get().status,'active');
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
+});
+test('a failed account-deletion batch rolls back group transfer, audit, and account changes',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');const group=await makeGroup(f,'member');
+ await f.request('posts','member',post('members'));
+ f.sql.exec("CREATE TRIGGER reject_post_delete BEFORE DELETE ON posts BEGIN SELECT RAISE(ABORT,'synthetic failure'); END;");
+ assert.equal((await f.request('admin/users/member/delete','admin',{reason:'Remove',confirmation:'DELETE'})).status,500);
+ assert.equal(f.sql.prepare("SELECT status FROM users WHERE id='member'").get().status,'active');
+ assert.equal(f.sql.prepare('SELECT owner_id FROM groups WHERE id=?').get(group).owner_id,'member');
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
 });

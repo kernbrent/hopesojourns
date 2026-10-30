@@ -87,6 +87,15 @@
 .member-row button { font-size:.75rem; padding:.4rem .7rem; }
 .group-alerts,.group-invite-form { margin:1.3rem 0; }
 .dialog-message { margin:1rem 0; padding:.8rem; color:var(--error); background:var(--coral-wash); border:1px solid var(--error); border-radius:8px; }
+.admin-tabs { display:flex; flex-wrap:wrap; gap:.5rem; margin:1rem 0; }
+.prayer-portal .admin-tabs button[aria-pressed=true] { background:var(--forest); color:var(--paper); }
+.admin-search { display:flex; align-items:end; flex-wrap:wrap; gap:.7rem; margin:1rem 0; }
+.admin-search label { flex:1; min-width:180px; margin:0; }
+.account-card h3 { margin:.3rem 0; }
+.account-card .actions { margin-top:1rem; }
+.account-card .actions button { font-size:.8rem; }
+.account-state { display:flex; flex-wrap:wrap; gap:.5rem; margin:.5rem 0; }
+#admin-more { margin-top:1rem; }
 .prayer-portal .portal-label { flex-shrink:0; }
 .portal-footer { padding:1.5rem 4vw; border-top:1px solid var(--line); font-size:.7rem; color:var(--muted); letter-spacing:.12em; }
 .portal-footer span { float:right; letter-spacing:normal; }

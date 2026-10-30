@@ -1,15 +1,18 @@
 const $ = selector => document.querySelector(selector);
 let user, csrf, people = [], groups = [], activeGroup = null, currentView = 'feed', olderThan, pendingDelete;
 let site = {allowMemberGroups:true,organizationName:'Hope Sojourns'}, sessionGeneration = 0;
+let adminTab='users',adminCursor=null,pendingAdminAction=null,adminLoadGeneration=0;
 let inviteToken = new URLSearchParams(location.hash.slice(1)).get('invite');
+let resetToken = new URLSearchParams(location.hash.slice(1)).get('reset');
 // A fragment keeps the bearer invitation out of HTTP logs and Referer headers.
-if (inviteToken) history.replaceState(null, '', '/');
+if (inviteToken || resetToken) history.replaceState(null, '', '/');
 const labels = { request: 'Prayer request', update: 'Update', answered: 'Answered prayer' };
 const audiences = { members: 'All portal members + admins', selected: 'Selected people + admins', admins: 'Only the author + admins' };
 function element(tag, content, className) {
   const node = document.createElement(tag); if (content !== undefined) node.textContent = content;
   if (className) node.className = className; return node;
 }
+function displayTime(value) {return new Date(value).toLocaleString(undefined,user?.timezone?{timeZone:user.timezone}:undefined);}
 function notice(message, error = false) {
   $('#message').textContent = message; $('#message').className = error ? 'error' : ''; $('#message').hidden = !message;
   const local = $('dialog[open] .dialog-message');
@@ -40,18 +43,21 @@ async function api(path, data, method) {
 function action(fn) { return async event => { const button = event?.submitter || (event?.currentTarget?.tagName === 'BUTTON' ? event.currentTarget : null); if (button) button.disabled = true;
   try { await fn(event); } catch (error) { notice(error.message, true); } finally { if (button) button.disabled = false; } }; }
 function setupAuth() {
-  $('#login-form').hidden = !!inviteToken; $('#accept-form').hidden = !inviteToken;
-  $('#auth-title').textContent = inviteToken ? 'You’re invited.' : 'Come on in.';
-  $('#auth-description').textContent = inviteToken ? 'Set up your own prayer portal account.' : 'Sign in with your prayer portal account.';
+  $('#login-form').hidden = !!inviteToken || !!resetToken; $('#accept-form').hidden = !inviteToken || !!resetToken; $('#reset-form').hidden=!resetToken;
+  $('#auth-title').textContent = resetToken?'Choose a new password.':inviteToken ? 'You’re invited.' : 'Come on in.';
+  $('#auth-description').textContent = resetToken?'Use this private reset link to restore access.':inviteToken ? 'Set up your own prayer portal account.' : 'Sign in with your prayer portal account.';
 }
 function signedOut() { sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
-  for (const id of ['posts','people','notifications','invites','recipients','groups','group-overview','group-members','group-actions','group-preferences','group-member-invite']) $(`#${id}`).replaceChildren();
+  for (const id of ['posts','people','notifications','invites','recipients','groups','group-overview','group-members','group-actions','group-preferences','group-member-invite','admin-items']) $(`#${id}`).replaceChildren();
+  $('#profile-form').reset();
+  adminLoadGeneration++;$('#admin-private-link').value='';$('#admin-link-result').hidden=true;pendingAdminAction=null;
   $('#invite-link').value = ''; $('#invite-result').hidden = true; $('dialog[open]')?.close(); setupAuth(); }
 async function signedIn(data) {
   sessionGeneration++;
   user = data.user; csrf = data.csrf; inviteToken = null;
   $('#invites-nav').hidden = user.role !== 'admin';
-  $('#greeting').textContent = `Welcome, ${user.name}. There is room for your story here.`;
+  $('#admin-nav').hidden = user.role !== 'admin';
+  $('#greeting').textContent = `Welcome, ${user.name}.${user.role==='admin'?user.owner?' You are the portal owner.':' You have portal admin access.':' There is room for your story here.'}`;
   [people,groups] = await Promise.all([api('people'),api('groups')]); await showView('feed'); await refreshNotifications();
   $('#welcome').hidden = true; $('#community').hidden = false; $('#logout').hidden = false;
 }
@@ -59,12 +65,15 @@ function empty(container, message) { container.replaceChildren(element('div', me
 function postCard(post, notification = false) {
   const card = element('article', undefined, 'post');
   const meta = element('div', undefined, 'post-meta');
-  meta.append(element('span', post.author_name.slice(0, 1).toUpperCase(), 'avatar'), element('strong', post.author_name), element('span', new Date(post.created_at).toLocaleString()), element('span', labels[post.kind], `badge ${post.kind}`));
+  meta.append(element('span', post.author_name.slice(0, 1).toUpperCase(), 'avatar'), element('strong', post.author_name), element('span', displayTime(post.created_at)), element('span', labels[post.kind], `badge ${post.kind}`));
   if (notification && !post.read_at) meta.append(element('span', 'New', 'badge'));
   const audience = post.group_id ? {members:'Group members + portal admins',selected:'Selected group members + portal admins',admins:'Only the author + portal admins'}[post.audience] : audiences[post.audience];
   const footer = element('div', undefined, 'post-bottom'); footer.append(element('span', `${post.group_name ? `${post.group_name} · ` : ''}${audience}`));
   if (!notification && (post.author_id === user.id || user.role === 'admin')) {
-    const button = element('button', 'Remove'); button.addEventListener('click', () => { pendingDelete = post.id; $('#delete-dialog').showModal(); }); footer.append(button);
+    const button = element('button', 'Remove'); button.addEventListener('click', () => {
+      if(user.role==='admin' && post.author_id!==user.id) openAdminAction('posts',post.id,'delete',post.title);
+      else {pendingDelete = post.id; $('#delete-dialog').showModal();}
+    }); footer.append(button);
   }
   card.append(meta, element('h3', post.title), element('div', post.body, 'post-body'), footer); return card;
 }
@@ -84,6 +93,8 @@ function renderPeople() {
   if (!filtered.length) empty($('#people'),'No people match your search.');
   for (const person of filtered) {
     const form = element('form', undefined, 'person'); form.append(element('h3', `${person.name}${person.id === user.id ? ' · You' : ''}${person.role === 'admin' ? ' · Portal admin' : ''}`));
+    if(person.username) form.append(element('p',`@${person.username}`,'hint'));
+    if(person.bio) form.append(element('p',person.bio));
     if (person.id !== user.id) {
     const choices = element('div', undefined, 'choices');
     for (const [key,label] of [['following','Follow this person'],['requests','Prayer requests'],['updates','Updates'],['answered','Answered prayers']]) {
@@ -205,7 +216,7 @@ async function loadInvites() {
 async function showView(view) {
   currentView = view; notice('');
   if(view!=='group') activeGroup=null;
-  for (const name of ['feed','people','notifications','invites','groups','group-detail']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
+  for (const name of ['feed','people','notifications','invites','groups','group-detail','admin','profile']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
   document.querySelectorAll('[data-view]').forEach(button => { const selected = button.dataset.view === view || (view==='group' && button.dataset.view==='groups'); button.classList.toggle('active',selected); if (selected) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
   if (view === 'feed' || view === 'following') { $('#feed-title').textContent = view === 'feed' ? 'The prayer wall' : 'People I follow'; await loadPosts(); }
   if (view === 'people') { [people,groups]=await Promise.all([api('people'),api('groups')]); renderPeople(); }
@@ -216,6 +227,8 @@ async function showView(view) {
   }
   if (view === 'notifications') await refreshNotifications();
   if (view === 'invites' && user.role === 'admin') await loadInvites();
+  if(view==='admin' && user.role==='admin') await loadAdmin();
+  if(view==='profile') {const current=await api('me');user=current.user;renderProfile();}
 }
 $('#login-form').addEventListener('submit',event => { event.preventDefault(); action(async () => {
   const form = event.currentTarget; const data = Object.fromEntries(new FormData(form)); const result = await api('login',data); form.reset(); notice(''); await signedIn(result);
@@ -232,7 +245,7 @@ async function composerAudience() {
   let candidates=people.filter(person=>person.id!==user.id);
   if(groupId) {
     const group=await api(`groups/${encodeURIComponent(groupId)}`);
-    candidates=group.members.filter(person=>person.status==='approved' && person.user_id!==user.id).map(person=>({id:person.user_id,name:person.name}));
+    candidates=group.members.filter(person=>person.status==='approved' && person.account_status==='active' && person.user_id!==user.id).map(person=>({id:person.user_id,name:person.name}));
   }
   // Late responses from a previously selected group must not replace the choices.
   if($('#post-group').value!==groupId) return;
@@ -268,6 +281,102 @@ $('#invite-form').addEventListener('submit',event => { event.preventDefault(); a
   const result = await api('invites',Object.fromEntries(new FormData(event.currentTarget))); $('#invite-link').value = result.link; $('#invite-result').hidden = false; await loadInvites(); notice('Invitation created. Share its private link directly with the invited person.');
 })(event); });
 $('#copy-invite').addEventListener('click',action(async () => { await navigator.clipboard.writeText($('#invite-link').value); notice('Invitation link copied.'); }));
+async function loadAdmin(append=false) {
+  const generation=++adminLoadGeneration,mode=adminTab;
+  const params=new URLSearchParams({search:$('#admin-search').value});
+  if(append && adminCursor) params.set('before',adminCursor);
+  const result=await api(`admin/${mode}?${params}`);
+  if(generation!==adminLoadGeneration || currentView!=='admin' || !user || user.role!=='admin') return;
+  document.querySelectorAll('[data-admin-tab]').forEach(node=>node.setAttribute('aria-pressed',String(node.dataset.adminTab===mode)));
+  $('#admin-search-form').hidden=mode==='audit';
+  if(!append) $('#admin-items').replaceChildren();
+  const items=mode==='audit'?result:result.items;
+  if(!items.length && !append) empty($('#admin-items'),mode==='audit'?'No administrative actions have been recorded. The most recent 100 actions will appear here.':'No matching accounts or content.');
+  for(const item of items) {
+    if(mode==='users') $('#admin-items').append(adminAccount(item));
+    if(mode==='posts') {
+      const card=postCard(item,true),actions=element('div',undefined,'actions');
+      actions.append(button('Delete prayer',()=>openAdminAction('posts',item.id,'delete',item.title)));card.append(actions);$('#admin-items').append(card);
+    }
+    if(mode==='groups') {
+      const card=element('article',undefined,'group-card');
+      card.append(element('h3',item.name),element('p',item.description),element('p',`Led by ${item.owner_name} · ${item.discoverable?'Listed':'Unlisted'} · ${item.member_count} members · ${item.post_count} prayers`,'hint'));
+      const actions=element('div',undefined,'actions');actions.append(button('View group',()=>openGroup(item.id)),button('Delete group',()=>openAdminAction('groups',item.id,'delete',item.name)));card.append(actions);$('#admin-items').append(card);
+    }
+    if(mode==='audit') {
+      const card=element('article',undefined,'panel');
+      card.append(element('strong',`${item.actor_name} · ${item.action}`),element('p',`${item.target_type} · ${item.target_id}`,'hint'),element('p',item.reason),element('p',displayTime(item.created_at),'hint'));$('#admin-items').append(card);
+    }
+  }
+  adminCursor=result.cursor;$('#admin-more').hidden=mode==='audit' || !result.more;
+}
+function adminAccount(person) {
+  const card=element('article',undefined,'panel account-card');
+  card.append(element('h3',person.name),element('p',`Username: ${person.username||person.email}`),element('p',person.email));
+  if(person.phone || person.timezone) card.append(element('p',`${person.phone||'No phone'} · ${person.timezone||'No time zone'}`,'hint'));
+  if(person.bio) card.append(element('p',person.bio));
+  const state=element('div',undefined,'account-state');
+  state.append(element('span',person.is_owner?'Primary owner':person.role==='admin'?'Portal admin':'Regular member','badge'),element('span',person.status,'badge'));
+  if(person.locked_until) state.append(element('span',`Sign-in locked until ${new Date(person.locked_until).toLocaleTimeString()}`,'badge'));
+  card.append(state,element('p',`Joined ${new Date(person.created_at).toLocaleDateString()}`,'hint'));
+  if(person.id===user.id) card.append(element('p','Your account — self-suspension, self-deletion, and self-demotion are blocked.','hint'));
+  else if(person.status!=='deleted') {
+    const actions=element('div',undefined,'actions');
+    actions.append(button('Unlock sign-in',()=>openAdminAction('users',person.id,'unlock',person.name)));
+    if(!person.is_owner) {
+      actions.append(button('Change username',()=>openAdminAction('users',person.id,'username',person.name)));
+      if(person.bio) actions.append(button('Clear introduction',()=>openAdminAction('users',person.id,'clear-bio',person.name)));
+      actions.append(button(person.status==='active'?'Suspend account':'Reactivate account',()=>openAdminAction('users',person.id,person.status==='active'?'suspend':'reactivate',person.name)));
+      if(person.status==='active') actions.append(button('Create password-reset link',()=>openAdminAction('users',person.id,'password-reset',person.name)));
+      actions.append(button(person.role==='admin'?'Make regular member':'Grant admin access',()=>openAdminAction('users',person.id,'role',person.name,person.role==='admin'?'member':'admin')));
+      actions.append(button('Delete account',()=>openAdminAction('users',person.id,'delete',person.name)));
+    } else card.append(element('p','Primary-owner access is protected from suspension, deletion, role changes, and password resets by other admins.','hint'));
+    card.append(actions);
+  }
+  return card;
+}
+function openAdminAction(type,id,action,name,role) {
+  pendingAdminAction={type,id,action,role};$('#admin-action-form').reset();$('#admin-action .dialog-message').hidden=true;
+  const titles={'clear-bio':'Clear introduction',username:'Change username',suspend:'Suspend account',reactivate:'Reactivate account',unlock:'Unlock sign-in','password-reset':'Create password-reset link',role:role==='admin'?'Grant admin access':'Make regular member',delete:type==='users'?'Delete account':type==='groups'?'Delete group':'Delete prayer'};
+  const descriptions={
+    'clear-bio':'This removes the person’s public introduction from the directory while keeping the account and its prayers. The introduction text is not retained in the audit log.',
+    username:'This changes the sign-in username and signs the person out. Their email stays attached to the same account and can still be used to sign in.',
+    suspend:'This signs the person out immediately and blocks sign-in. Existing prayers and groups remain until separately moderated.',
+    reactivate:'This restores account access and clears the temporary email sign-in lock. The person must sign in again.',
+    unlock:'This clears the temporary email sign-in lock. It does not reactivate a suspended account. Shared network rate limits remain in effect.',
+    'password-reset':'This signs the person out and creates a private, single-use link valid for one hour. Share it directly with the account owner; they choose their own password. No email is sent automatically.',
+    role:role==='admin'?'This explicitly grants access to every prayer, including restricted prayers, and to account and content moderation. The person is signed out so their next login uses the new role. Invitations still create regular members.':'This removes admin permissions and signs the person out. They retain regular member access.',
+    delete:type==='users'?'This permanently removes their prayers, signs them out, anonymizes their account, and transfers their groups to you. Other members’ prayers remain. The minimal audit record is retained. The account cannot be restored.':type==='groups'?'This permanently removes the group, all its prayers, membership records, and related notifications. This cannot be undone.':'This permanently removes the prayer and its notifications. This cannot be undone.'
+  };
+  $('#admin-action-title').textContent=`${titles[action]}: ${name}`;$('#admin-action-help').textContent=descriptions[action];
+  $('#admin-delete-confirm').hidden=action!=='delete';$('#admin-action-form').elements.confirmation.required=action==='delete';
+  $('#admin-username-field').hidden=action!=='username';$('#admin-action-form').elements.username.required=action==='username';
+  $('#admin-action-submit').textContent=titles[action];$('#admin-action').showModal();
+}
+document.querySelectorAll('[data-admin-tab]').forEach(node=>node.addEventListener('click',action(async()=>{adminTab=node.dataset.adminTab;$('#admin-private-link').value='';$('#admin-link-result').hidden=true;await loadAdmin();})));
+$('#admin-search-form').addEventListener('submit',event=>{event.preventDefault();action(()=>loadAdmin())(event);});
+$('#admin-more').addEventListener('click',action(()=>loadAdmin(true)));
+$('#close-admin-action').addEventListener('click',()=>$('#admin-action').close());
+$('#admin-action-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget)),target=pendingAdminAction;action(async()=>{
+  const result=await api(`admin/${target.type}/${encodeURIComponent(target.id)}/${target.action}`,{reason:values.reason,confirmation:values.confirmation,username:values.username,role:target.role});
+  $('#admin-action').close();if(currentView==='admin') await loadAdmin();else {await loadPosts();await refreshNotifications();}
+  if(result.link) {$('#admin-private-link').value=result.link;$('#admin-link-result').hidden=false;notice('Private password-reset link created. Share it only with that account owner.');}
+  else notice('Admin action completed and recorded.');
+})(event);});
+$('#copy-admin-link').addEventListener('click',action(async()=>{await navigator.clipboard.writeText($('#admin-private-link').value);notice('Private reset link copied.');}));
+$('#reset-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget));action(async()=>{
+  if(values.password!==values.confirm) throw new Error('The two passwords do not match.');
+  await api('reset-password',{token:resetToken,password:values.password});resetToken=null;event.target.reset();setupAuth();notice('Password saved. Sign in with your username or email and new password.');
+})(event);});
+function renderProfile() {
+  const form=$('#profile-form');
+  for(const key of ['name','username','email','phone','timezone','bio']) form.elements[key].value=user[key]||'';
+  for(const key of ['notify_requests','notify_updates','notify_answered']) form.elements[key].checked=user[key];
+  $('#profile-role').textContent=`Access: ${user.owner?'Primary owner':user.role==='admin'?'Portal admin':'Regular member'}. Members cannot change their own role, status, or associated email here.`;
+}
+$('#profile-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form));for(const key of ['notify_requests','notify_updates','notify_answered']) data[key]=form.elements[key].checked;action(async()=>{
+  const result=await api('profile',data);user=result.user;renderProfile();$('#greeting').textContent=`Welcome, ${user.name}.${user.role==='admin'?user.owner?' You are the portal owner.':' You have portal admin access.':''}`;notice('Account details and notification preferences saved.');
+})(event);});
 $('#group-search').addEventListener('input',renderGroups);
 $('#people-search').addEventListener('input',renderPeople);
 $('#back-to-groups').addEventListener('click',action(()=>showView('groups')));
@@ -278,5 +387,5 @@ $('#group-form').addEventListener('submit',event=>{event.preventDefault(); const
   $('#create-group').close(); groups=await api('groups'); await openGroup(result.id); notice('Your group is ready. Invite people or approve their requests to join.');
 })(event);});
 setupAuth();
-api('site').then(applySite).then(()=>api('me')).then(signedIn).catch(error => { if (error.message !== 'Please sign in to the prayer portal.') notice(error.message,true); });
+api('site').then(applySite).then(()=>resetToken ? null : api('me')).then(data=>data && signedIn(data)).catch(error => { if (error.message !== 'Please sign in to the prayer portal.') notice(error.message,true); });
 setInterval(() => { if (user && !document.hidden) refreshNotifications().catch(error => notice(error.message,true)); },60000);

@@ -7,7 +7,7 @@ if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || '') || !data.name?.trim() |
 const quote = value => `'${String(value).replaceAll("'", "''")}'`;
 mkdirSync('.wrangler', { recursive: true });
 const file = '.wrangler/bootstrap.sql';
-writeFileSync(file, `INSERT INTO users VALUES (${[crypto.randomUUID(),data.email.toLowerCase(),data.name.trim(),await passwordHash(data.password),'admin',Date.now()].map(quote).join(',')});`);
+writeFileSync(file, `INSERT INTO users (id,email,name,password,role,created_at) VALUES (${[crypto.randomUUID(),data.email.toLowerCase(),data.name.trim(),await passwordHash(data.password),'admin',Date.now()].map(quote).join(',')});`);
 try {
   const result = spawnSync(process.execPath, ['../interest-worker/node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--file',file], { stdio: ['ignore','pipe','pipe'] });
   if (result.status) throw new Error('Local admin provisioning failed. Confirm local migrations have run and this email is not already registered.');

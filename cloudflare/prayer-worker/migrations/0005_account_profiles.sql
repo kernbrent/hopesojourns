@@ -1,0 +1,10 @@
+ALTER TABLE users ADD COLUMN username TEXT COLLATE NOCASE;
+UPDATE users SET username=email;
+UPDATE users SET username='admin',name=CASE WHEN lower(name)=lower(email) THEN 'Admin' ELSE name END WHERE is_owner=1 AND email='kernbrent@gmail.com';
+CREATE UNIQUE INDEX users_username ON users(username COLLATE NOCASE) WHERE username IS NOT NULL;
+ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN timezone TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN notify_requests INTEGER NOT NULL DEFAULT 1 CHECK(notify_requests IN (0,1));
+ALTER TABLE users ADD COLUMN notify_updates INTEGER NOT NULL DEFAULT 1 CHECK(notify_updates IN (0,1));
+ALTER TABLE users ADD COLUMN notify_answered INTEGER NOT NULL DEFAULT 1 CHECK(notify_answered IN (0,1));

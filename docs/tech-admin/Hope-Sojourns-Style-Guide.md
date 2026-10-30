@@ -1,10 +1,14 @@
 # Hope Sojourns website style guide
 
-Version 4.86
+Version 4.87
 
 Last reviewed: October 29, 2026
 
 ## Independent prayer portal
+
+The authorized admin/profile revision adds a clearly labeled Admin entry for portal admins and My account for all members. State Primary owner or Portal admin in the greeting. Admin uses wrapping Accounts, All prayers, All groups, and Audit log controls with labeled search, account status/role/lock badges, and paginated results. Confirm role grants with explicit disclosure of access to every prayer. Confirm destructive removals with a reason and typed DELETE, explaining account anonymization, authored-prayer removal, and group ownership transfer. Keep private recovery links in a one-time copy panel, never in content lists or audit copies.
+
+My account distinguishes display name from sign-in username and associated email. Phone, email, and time zone are labeled private; the introduction explicitly states that it appears in the member directory. Do not display email-style usernames as public handles. Explain master notification controls and their relationship to group/person subscriptions. Invitation wording states that every recipient joins as a regular member and admin access is a later explicit action. Use the existing semantic palette and responsive native forms/dialogs; add no new colors. These interface changes are authorized for release to both prayer environments.
 
 The separate prayer test hostname displays the shared gold test-site banner with plain-language notice that its accounts and prayer data are isolated from production. Production hides the banner. Initial administrator setup uses the existing invitation form and preserves the same visible labels, password guidance, and private-token handling as ordinary invitations. Do not publish temporary sample accounts or preview prayers to either hosted environment.
 
@@ -15,7 +19,6 @@ The composer separates **Share in** (community or an approved group) from **Who 
 The local prayer portal in `cloudflare/prayer-worker/public/` uses the existing Hope Sojourns logo without cropping or recoloring, the established “Go with Hope. Serve with Faith.” tagline, the canonical `/styles.css` palette, forest actions, cream backgrounds, paper cards, Georgia headings, and existing semantic tokens. “Prayer portal” is a section label beside the ministry logo. The preparation command copies the shared stylesheet and original logo into ignored `dist/` assets. No new colors are introduced. The sign-in page introduces an invitation-only prayer community; the signed-in wall uses responsive navigation, readable prayer cards, post-type badges, and a quiet reflection panel on wide screens.
 
 Every post shows its audience. The composer defaults to **Only me and admins**, with separate choices for selected people and all portal members. Explain admin visibility alongside the audience control and clarify that following grants no additional access. Forms have visible labels, keyboard focus, live status feedback, native modal focus management, and explicit close controls. Use display names in the member directory; do not expose email addresses there. Invitations explicitly state that links must be shared privately and are not emailed automatically. Notifications are currently inside the portal only. The prayer portal has its own test and production hostnames, separate from MMT.
-
 
 ## Three public service offerings and corporate leadership
 
@@ -872,6 +875,8 @@ The People selection toolbar includes a labeled Select all visible contacts chec
 Inbox Show includes Emails sent, with readable cards for subject and accepted timestamp and expandable View sent copy details. Keep full message text and footer line breaks, wrap addresses on narrow screens, and distinguish To from BCC. Use Previous emails and Next emails with a page count. Accepted copies have no Complete, Delete, or Retry actions in this view. State clearly that acceptance does not confirm receipt and that test captures and unsuccessful sends remain in Email history. Reuse existing palette tokens and card styles.
 
 ## Revision history
+
+- October 29, 2026 — Version 4.87. Prepared authorized admin/profile navigation, role/status controls, explicit admin grants, deletion confirmations, username and contact-field disclosures, and profile notification settings. Unreviewed Word editions remain unpublished pending required document review.
 
 - October 29, 2026 — Version 4.86. Added the prayer test-environment banner and first-admin invitation presentation for the authorized release. Unreviewed Word editions remain unpublished.
 

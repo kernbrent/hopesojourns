@@ -6,7 +6,7 @@ const quote = value => `'${String(value).replaceAll("'","''")}'`;
 const stored = await passwordHash('local-preview-only-2026');
 const time = Date.now();
 const users = [['preview-admin','Preview Admin','admin'],['preview-anna','Anna Mitchell','member'],['preview-daniel','Daniel Carter','member'],['preview-ruth','Ruth Bennett','member'],['preview-james','James Wilson','member'],['preview-michael','Michael Brooks','member']];
-let sql = users.map(([id,name,role]) => `INSERT OR IGNORE INTO users VALUES (${[id,`${id}@example.invalid`,name,stored,role,time].map(quote).join(',')});`).join('\n');
+let sql = users.map(([id,name,role]) => `INSERT OR IGNORE INTO users (id,email,name,password,role,created_at) VALUES (${[id,`${id}@example.invalid`,name,stored,role,time].map(quote).join(',')});`).join('\n');
 for (const [i,author,title,body,kind,audience] of [
   [1,'preview-anna','Peace for the next step','Our family is stepping into a new season. Would you pray for clarity, patience, and the courage to trust God one day at a time?','request','members'],
   [2,'preview-daniel','A door opened this week','Thank you for praying alongside us. We had a wonderful conversation with our ministry partners and have a clear next step. Grateful for this community.','update','members'],
