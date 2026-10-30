@@ -1,10 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.87
+Version 4.88
 
 Last reviewed: October 29, 2026
 
 ## Independent prayer portal
+
+The local Resources section uses existing Hope Sojourns typography, paper cards, forest buttons, and gold featured accents. Show a category badge, title, creator, description, clickable hashtag filters, and a clearly labeled external resource link. Keep search and category/tag/featured/sort filters in a labeled responsive form with result counts, clear filters, and load more. Admins additionally see visibility filters, add/edit/hide/feature/order/delete controls, and category management. Hide opens the editor with member visibility off; promote opens it with Featured selected. State that featured items lead recommended order and lower order numbers appear first. Changes require a reason; permanent deletion requires typed DELETE. Keep every editor in a native dialog with local error feedback and visible close controls. Categories can be renamed and ordered, and must be empty before removal. Member views never reveal hidden resources or hidden-only tags. Reuse existing palette tokens without introducing colors.
 
 The authorized admin/profile revision adds a clearly labeled Admin entry for portal admins and My account for all members. State Primary owner or Portal admin in the greeting. Admin uses wrapping Accounts, All prayers, All groups, and Audit log controls with labeled search, account status/role/lock badges, and paginated results. Confirm role grants with explicit disclosure of access to every prayer. Confirm destructive removals with a reason and typed DELETE, explaining account anonymization, authored-prayer removal, and group ownership transfer. Keep private recovery links in a one-time copy panel, never in content lists or audit copies.
 
@@ -875,6 +877,8 @@ The People selection toolbar includes a labeled Select all visible contacts chec
 Inbox Show includes Emails sent, with readable cards for subject and accepted timestamp and expandable View sent copy details. Keep full message text and footer line breaks, wrap addresses on narrow screens, and distinguish To from BCC. Use Previous emails and Next emails with a page count. Accepted copies have no Complete, Delete, or Retry actions in this view. State clearly that acceptance does not confirm receipt and that test captures and unsuccessful sends remain in Email history. Reuse existing palette tokens and card styles.
 
 ## Revision history
+
+- October 29, 2026 — Version 4.88. Added local resource cards, featured styling, searchable filters, responsive curation forms, category controls, and deletion confirmations. Pending release approval.
 
 - October 29, 2026 — Version 4.87. Prepared authorized admin/profile navigation, role/status controls, explicit admin grants, deletion confirmations, username and contact-field disclosures, and profile notification settings. Unreviewed Word editions remain unpublished pending required document review.
 

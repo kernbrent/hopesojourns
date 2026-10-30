@@ -104,3 +104,17 @@
 @media(max-width:700px) { .prayer-brand img { width:160px; }.prayer-portal .portal-label { display:none; }.portal-header { gap:.75rem; }.portal-layout nav { max-width:100%; }.section-heading { flex-wrap:wrap; } }
 @media(max-width:1150px) { .portal-layout { grid-template-columns:190px minmax(0,1fr); gap:1.5rem; }.reflection { display:none; } }
 @media(max-width:700px) { .welcome { grid-template-columns:1fr; gap:2rem; padding:1rem 0; }.welcome h1 { font-size:3rem; }.welcome blockquote { margin:1rem 0; }.portal-layout { grid-template-columns:1fr; }.portal-layout nav { display:flex; overflow:auto; gap:.3rem; padding-bottom:.5rem; }.nav-item { white-space:nowrap; }.sidebar-note { display:none; }.community-heading { align-items:start; flex-direction:column; margin-top:0; }.private-label { display:none; }#logout { margin-left:auto; }.portal-footer span { display:block; float:none; }.section-heading { align-items:start; }.section-heading h2 { font-size:1.5rem; }.post { padding:1.1rem; } }
+.resource-filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 1rem; }
+.resource-card { padding:1.6rem; background:var(--paper); border:1px solid var(--line); border-radius:14px; overflow-wrap:anywhere; }
+.resource-card.featured-resource { border-top:4px solid var(--gold); }
+.resource-card h3 { font:400 1.7rem Georgia,serif; margin:.8rem 0 .4rem; color:var(--forest-dark); }
+.resource-meta,.resource-tags { display:flex; flex-wrap:wrap; gap:.5rem; }
+.resource-creator { color:var(--muted); margin-top:0; }
+.resource-description { white-space:pre-wrap; }
+.resource-tags { margin:1rem 0; }
+.prayer-portal .resource-tags button { padding:.3rem .6rem; font-size:.75rem; background:var(--forest-wash); }
+.resource-card .actions { border-top:1px solid var(--line); padding-top:1rem; margin-top:1rem; }
+.resource-card .actions button { font-size:.8rem; }
+#resource-more { margin-top:1rem; }
+#resource-category-items { margin-bottom:1.5rem; }
+@media(max-width:700px) { .resource-filters { grid-template-columns:1fr; }.resource-card { padding:1.1rem; } }

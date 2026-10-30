@@ -9,7 +9,7 @@ test('hosted SQLite migrations are idempotent, isolated, and protect initial-adm
  const setup={email:'initial@example.com',tokenHash:'a'.repeat(64),expiresAt:Date.now()+60000};
  initializeDatabase(storage,{INITIAL_ADMIN_SETUP:JSON.stringify(setup)});
  initializeDatabase(storage,{INITIAL_ADMIN_SETUP:JSON.stringify(setup)});
- assert.equal(sql.prepare('SELECT count(*) n FROM _prayer_migrations').get().n,5);
+ assert.equal(sql.prepare('SELECT count(*) n FROM _prayer_migrations').get().n,schema.length);
  assert.equal(sql.prepare('SELECT token_hash FROM initial_admin_setup').get().token_hash,setup.tokenHash);
  sql.prepare('INSERT INTO users (id,email,name,password,role,created_at) VALUES (?,?,?,?,?,?)').run('admin',setup.email,'Admin','unused','admin',Date.now());
  initializeDatabase(storage,{INITIAL_ADMIN_SETUP:JSON.stringify({...setup,tokenHash:'b'.repeat(64)})});

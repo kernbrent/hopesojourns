@@ -1,5 +1,6 @@
 import { handleGroups } from './groups.mjs';
 import {handleAdmin} from './admin.mjs';
+import {handleResources} from './resources.mjs';
 import { siteConfig } from './site-config.mjs';
 const COOKIE = '__Host-hs_prayer';
 const kinds = ['request', 'update', 'answered'];
@@ -71,8 +72,8 @@ async function api(request, env, url) {
   const config = siteConfig(env);
   if (path === '/api/site' && method === 'GET') return json(config);
   if (path === '/api/health' && method === 'GET') {
-    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit')").first();
-    requireValue(schema.count === 7, 'Portal database setup is incomplete.', 503);
+    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags')").first();
+    requireValue(schema.count === 10, 'Portal database setup is incomplete.', 503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
@@ -137,6 +138,10 @@ async function api(request, env, url) {
     WHERE s.token_hash=? AND s.expires_at>? AND u.status='active'`).bind(await digest(raw), now()).first();
   requireValue(auth, 'Please sign in to the prayer portal.', 401);
   if (method !== 'GET') requireValue(request.headers.get('x-csrf-token') === auth.csrf, 'Your session changed. Refresh and try again.', 403);
+  if(/^\/api\/(?:admin\/)?(?:resources|resource-categories)(?:\/|$)/.test(path)) {
+    const response=await handleResources(request,db,auth,url,{json,body,text,requireValue});
+    if(response) return response;
+  }
   if(path.startsWith('/api/admin/')) {
     const response=await handleAdmin(request,db,auth,url,{json,body,text,requireValue,digest,token,username});
     if(response) return response;

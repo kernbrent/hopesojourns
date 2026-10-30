@@ -2,6 +2,7 @@ const $ = selector => document.querySelector(selector);
 let user, csrf, people = [], groups = [], activeGroup = null, currentView = 'feed', olderThan, pendingDelete;
 let site = {allowMemberGroups:true,organizationName:'Hope Sojourns'}, sessionGeneration = 0;
 let adminTab='users',adminCursor=null,pendingAdminAction=null,adminLoadGeneration=0;
+let resourceCategories=[],resourceOffset=0,resourceGeneration=0,editingResource=null,editingCategory=null,deletingResource=null;
 let inviteToken = new URLSearchParams(location.hash.slice(1)).get('invite');
 let resetToken = new URLSearchParams(location.hash.slice(1)).get('reset');
 // A fragment keeps the bearer invitation out of HTTP logs and Referer headers.
@@ -15,7 +16,7 @@ function element(tag, content, className) {
 function displayTime(value) {return new Date(value).toLocaleString(undefined,user?.timezone?{timeZone:user.timezone}:undefined);}
 function notice(message, error = false) {
   $('#message').textContent = message; $('#message').className = error ? 'error' : ''; $('#message').hidden = !message;
-  const local = $('dialog[open] .dialog-message');
+  const local = [...document.querySelectorAll('dialog[open] .dialog-message')].at(-1);
   if (local) { local.textContent = message; local.hidden = !error || !message; }
 }
 function applySite(config) {
@@ -49,9 +50,10 @@ function setupAuth() {
 }
 function signedOut() { sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
   for (const id of ['posts','people','notifications','invites','recipients','groups','group-overview','group-members','group-actions','group-preferences','group-member-invite','admin-items']) $(`#${id}`).replaceChildren();
+  clearResources();
   $('#profile-form').reset();
   adminLoadGeneration++;$('#admin-private-link').value='';$('#admin-link-result').hidden=true;pendingAdminAction=null;
-  $('#invite-link').value = ''; $('#invite-result').hidden = true; $('dialog[open]')?.close(); setupAuth(); }
+  $('#invite-link').value = ''; $('#invite-result').hidden = true; document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close()); setupAuth(); }
 async function signedIn(data) {
   sessionGeneration++;
   user = data.user; csrf = data.csrf; inviteToken = null;
@@ -216,7 +218,7 @@ async function loadInvites() {
 async function showView(view) {
   currentView = view; notice('');
   if(view!=='group') activeGroup=null;
-  for (const name of ['feed','people','notifications','invites','groups','group-detail','admin','profile']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
+  for (const name of ['feed','people','notifications','invites','groups','group-detail','admin','profile','resources']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
   document.querySelectorAll('[data-view]').forEach(button => { const selected = button.dataset.view === view || (view==='group' && button.dataset.view==='groups'); button.classList.toggle('active',selected); if (selected) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
   if (view === 'feed' || view === 'following') { $('#feed-title').textContent = view === 'feed' ? 'The prayer wall' : 'People I follow'; await loadPosts(); }
   if (view === 'people') { [people,groups]=await Promise.all([api('people'),api('groups')]); renderPeople(); }
@@ -228,6 +230,7 @@ async function showView(view) {
   if (view === 'notifications') await refreshNotifications();
   if (view === 'invites' && user.role === 'admin') await loadInvites();
   if(view==='admin' && user.role==='admin') await loadAdmin();
+  if(view==='resources') await loadResources();
   if(view==='profile') {const current=await api('me');user=current.user;renderProfile();}
 }
 $('#login-form').addEventListener('submit',event => { event.preventDefault(); action(async () => {
@@ -389,3 +392,100 @@ $('#group-form').addEventListener('submit',event=>{event.preventDefault(); const
 setupAuth();
 api('site').then(applySite).then(()=>resetToken ? null : api('me')).then(data=>data && signedIn(data)).catch(error => { if (error.message !== 'Please sign in to the prayer portal.') notice(error.message,true); });
 setInterval(() => { if (user && !document.hidden) refreshNotifications().catch(error => notice(error.message,true)); },60000);
+function clearResources() {
+ resourceGeneration++; resourceCategories=[];editingResource=null;editingCategory=null;deletingResource=null;resourceOffset=0;
+ for(const id of ['resource-items','resource-category-items']) $(`#${id}`).replaceChildren();
+ for(const id of ['resource-form','resource-search','resource-category-form','resource-delete-form']) $(`#${id}`).reset();
+ resourceOptions($('#resource-search').elements.category,[],'All categories');
+ resourceOptions($('#resource-search').elements.tag,[],'All tags');
+ resourceOptions($('#resource-form').elements.category_id,[]);
+ $('#resource-count').textContent='';
+}
+function resourceOptions(select,items,placeholder) {
+ const value=select.value;select.replaceChildren();
+ if(placeholder) {const option=element('option',placeholder);option.value='';select.append(option);}
+ for(const item of items) {const option=element('option',item.name);option.value=item.id;select.append(option);}
+ if([...select.options].some(option=>option.value===value)) select.value=value;
+}
+async function loadResources(append=false) {
+ const generation=++resourceGeneration,form=$('#resource-search'),isAdmin=user.role==='admin';
+ for(const id of ['add-resource','manage-categories','resource-visibility-label']) $(`#${id}`).hidden=!isAdmin;
+ const params=new URLSearchParams(new FormData(form));
+ if(!isAdmin) params.set('visibility','visible');
+ params.set('offset',append?resourceOffset:0);
+ const [result,categories]=await Promise.all([api(`${isAdmin?'admin/':''}resources?${params}`),api('resource-categories')]);
+ if(generation!==resourceGeneration || currentView!=='resources') return;
+ resourceCategories=categories;
+ resourceOptions(form.elements.category,categories,'All categories');
+ resourceOptions(form.elements.tag,result.tags.map(tag=>({id:tag,name:`#${tag}`})),'All tags');
+ if(!append) $('#resource-items').replaceChildren();
+ if(!result.items.length && !append) empty($('#resource-items'),'No resources match these filters. Try another topic or clear your filters.');
+ for(const resource of result.items) $('#resource-items').append(resourceCard(resource,isAdmin));
+ resourceOffset=result.nextOffset;$('#resource-more').hidden=!result.more;
+ $('#resource-count').textContent=`${result.total} ${result.total===1?'resource':'resources'} found · ${Math.min(resourceOffset,result.total)} shown`;
+}
+function resourceCard(resource,isAdmin) {
+ const card=element('article',undefined,`resource-card${resource.featured?' featured-resource':''}`),meta=element('div',undefined,'resource-meta');
+ meta.append(element('span',resource.category_name,'badge'));
+ if(resource.featured) meta.append(element('span','Featured','badge answered'));
+ if(!resource.visible) meta.append(element('span','Hidden · admins only','badge'));
+ card.append(meta,element('h3',resource.title));
+ if(resource.creator) card.append(element('p',resource.creator,'resource-creator'));
+ if(resource.description) card.append(element('p',resource.description,'resource-description'));
+ const tags=element('div',undefined,'resource-tags');
+ for(const tag of resource.tags) {const chip=button(`#${tag}`,async()=>{$('#resource-search').elements.tag.value=tag;await loadResources();});chip.setAttribute('aria-label',`Filter resources tagged ${tag}`);tags.append(chip);}
+ card.append(tags);
+ if(resource.url) {const link=element('a','Explore resource ↗');link.href=resource.url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',`Explore ${resource.title} (opens in a new tab)`);card.append(link);}
+ if(isAdmin) {
+  card.append(element('p',`Display order: ${resource.sort_order}`,'hint'));
+  const actions=element('div',undefined,'actions');
+  actions.append(button('Edit resource',()=>openResource(resource)),button(resource.visible?'Hide':'Show',()=>openResource({...resource,visible:!resource.visible})),button(resource.featured?'Remove feature':'Promote to featured',()=>openResource({...resource,featured:!resource.featured})),button('Delete',()=>openResourceDelete('resources',resource)));
+  card.append(actions);
+ }
+ return card;
+}
+function openResource(resource=null) {
+ editingResource=resource;const form=$('#resource-form');form.reset();
+ resourceOptions(form.elements.category_id,resourceCategories);
+ for(const key of ['title','creator','description','url','sort_order','category_id']) if(resource) form.elements[key].value=resource[key];
+ form.elements.visible.checked=resource?!!resource.visible:true;form.elements.featured.checked=!!resource?.featured;
+ form.elements.tags.value=resource?resource.tags.map(tag=>`#${tag}`).join(', '):'';
+ $('#resource-editor-title').textContent=resource?'Edit resource':'Add resource';
+ $('#resource-editor .dialog-message').hidden=true;$('#resource-editor').showModal();
+}
+function renderResourceCategories() {
+ $('#resource-category-items').replaceChildren();
+ for(const category of resourceCategories) {
+  const row=element('div',undefined,'member-row');row.append(element('strong',category.name),element('span',`Order ${category.sort_order}`,'hint'));
+  row.append(button('Edit',()=>editResourceCategory(category)),button('Delete',()=>openResourceDelete('resource-categories',category)));$('#resource-category-items').append(row);
+ }
+}
+function editResourceCategory(category=null) {
+ editingCategory=category;$('#resource-category-form').reset();$('#category-editor-title').textContent=category?'Edit category':'Add category';
+ if(category) {$('#resource-category-form').elements.name.value=category.name;$('#resource-category-form').elements.sort_order.value=category.sort_order;}
+}
+function openResourceDelete(type,item) {
+ deletingResource={type,item};$('#resource-delete-form').reset();$('#resource-delete-title').textContent=`Delete ${type==='resources'?'resource':'category'}: ${item.title||item.name}`;
+ $('#resource-delete .dialog-message').hidden=true;$('#resource-delete').showModal();
+}
+$('#admin-resources').addEventListener('click',action(async()=>{$('#resource-search').elements.visibility.value='all';await showView('resources');}));
+$('#resource-search').addEventListener('submit',event=>{event.preventDefault();action(()=>loadResources())(event);});
+$('#reset-resources').addEventListener('click',action(async()=>{$('#resource-search').reset();await loadResources();}));
+$('#resource-more').addEventListener('click',action(()=>loadResources(true)));
+$('#add-resource').addEventListener('click',()=>openResource());
+$('#manage-categories').addEventListener('click',()=>{editResourceCategory();renderResourceCategories();$('#resource-categories .dialog-message').hidden=true;$('#resource-categories').showModal();});
+$('#new-category').addEventListener('click',()=>editResourceCategory());
+for(const node of document.querySelectorAll('[data-close-resource]')) node.addEventListener('click',()=>$(`#${node.dataset.closeResource}`).close());
+$('#resource-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,target=editingResource;action(async()=>{
+ const values=Object.fromEntries(new FormData(form));values.tags=values.tags.split(',').map(tag=>tag.trim()).filter(Boolean);values.sort_order=Number(values.sort_order);values.visible=form.elements.visible.checked;values.featured=form.elements.featured.checked;
+ if(target) values.revision=target.revision;
+ await api(`admin/resources${target?`/${encodeURIComponent(target.id)}`:''}`,values);$('#resource-editor').close();await loadResources();notice('Resource saved.');
+})(event);});
+$('#resource-category-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget)),target=editingCategory;action(async()=>{
+ values.sort_order=Number(values.sort_order);if(target) values.revision=target.revision;
+ await api(`admin/resource-categories${target?`/${encodeURIComponent(target.id)}`:''}`,values);await loadResources();renderResourceCategories();editResourceCategory();notice('Category saved.');
+})(event);});
+$('#resource-delete-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget)),target=deletingResource;action(async()=>{
+ values.revision=target.item.revision;await api(`admin/${target.type}/${encodeURIComponent(target.item.id)}/delete`,values);$('#resource-delete').close();await loadResources();
+ if(target.type==='resource-categories') {renderResourceCategories();editResourceCategory();}notice('Item deleted.');
+})(event);});

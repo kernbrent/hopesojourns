@@ -332,3 +332,82 @@ test('a failed account-deletion batch rolls back group transfer, audit, and acco
  assert.equal(f.sql.prepare('SELECT owner_id FROM groups WHERE id=?').get(group).owner_id,'member');
  assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
 });
+
+const resourceData=(changes={})=>({title:'A helpful resource',creator:'A speaker',description:'Encouragement for the journey',url:'https://example.com/resource',category_id:'books',visible:true,featured:false,sort_order:30,tags:['#Faith','spiritual growth','faith'],reason:'Curate the library',...changes});
+test('resource library seeds books and categories; authentication and admin permissions protect all writes',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');
+ for(const path of ['resources','resource-categories','admin/resources','admin/resource-categories']) assert.equal((await f.request(path)).status,401);
+ const library=await (await f.request('resources','member')).json();assert.equal(library.total,2);assert.equal(library.items[0].creator,'John Eldredge');assert.equal(library.items[1].creator,'Joshua Harris');
+ assert.equal((await (await f.request('resource-categories','member')).json()).length,12);
+ for(const [path,data] of [['admin/resources',resourceData()],['admin/resource-categories',{name:'Counseling',sort_order:5,reason:'Add category'}],['admin/resources/wild-at-heart/delete',{revision:1,reason:'Remove',confirmation:'DELETE'}]]) assert.equal((await f.request(path,'member',data)).status,403);
+ for(const [origin,csrf] of [['https://evil.example','csrf-admin'],['https://prayer.example.com','wrong']]) {
+  const response=await worker.fetch(new Request('https://prayer.example.com/api/admin/resources',{method:'POST',headers:{Origin:origin,Cookie:'__Host-hs_prayer=admin','X-CSRF-Token':csrf,'Content-Type':'application/json'},body:JSON.stringify(resourceData())}),f.env);assert.equal(response.status,403);
+ }
+});
+test('hidden resources and tags never leak through member searches, counts, filters or pagination',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');
+ assert.equal((await f.request('admin/resources','admin',resourceData({title:'Hidden unique secret',visible:false,featured:true,tags:['secret-only']}))).status,201);
+ for(const filter of ['', '?q=secret','?tag=secret-only','?featured=1','?category=books&q=secret']) {
+  const result=await (await f.request(`resources${filter}`,'member')).json();assert.ok(result.items.every(row=>row.visible));assert.ok(!result.tags.includes('secret-only'));assert.equal(result.total,filter?0:2);
+ }
+ assert.equal((await f.request('resources?visibility=all','member')).status,403);
+ assert.equal((await f.request('resources?visibility=hidden','member')).status,403);
+ const admin=await (await f.request('admin/resources?visibility=hidden','admin')).json();assert.equal(admin.total,1);assert.equal(admin.items[0].title,'Hidden unique secret');assert.ok(admin.tags.includes('secret-only'));
+});
+test('resources support tags, combined filters, featured/manual ordering, categories and stable pagination',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');
+ for(const data of [resourceData({title:'Zulu',sort_order:-10}),resourceData({title:'Alpha',featured:true,sort_order:10}),resourceData({title:'Beta',featured:true,sort_order:0})]) assert.equal((await f.request('admin/resources','admin',data)).status,201);
+ let rows=await (await f.request('resources?category=books&tag=%23FAITH&featured=1&q=speaker','member')).json();assert.deepEqual(rows.items.map(r=>r.title),['Beta','Alpha']);assert.deepEqual(rows.items[0].tags,['faith','spiritual-growth']);
+ rows=await (await f.request('resources?q=%23spiritual-growth&sort=title','member')).json();assert.deepEqual(rows.items.map(r=>r.title),['Alpha','Beta','Wild at Heart','Zulu']);
+ assert.equal((await (await f.request('resources?q=Eldredge','member')).json()).total,1);
+ assert.equal((await (await f.request('resources?category=music','member')).json()).total,0);
+ for(let i=0;i<52;i++) f.sql.prepare('INSERT INTO resources (id,category_id,title,created_at,updated_at) VALUES (?,\'music\',?,1,1)').run(`r-${String(i).padStart(2,'0')}`,'Same title');
+ const first=await (await f.request('resources?category=music','member')).json();assert.equal(first.items.length,50);assert.equal(first.more,true);
+ const second=await (await f.request(`resources?category=music&offset=${first.nextOffset}`,'member')).json();assert.equal(second.items.length,2);assert.equal(second.more,false);assert.equal(new Set([...first.items,...second.items].map(r=>r.id)).size,52);
+ for(const query of ['sort=invalid','offset=-1','offset=no','featured=2','visibility=invalid','tag=%25']) assert.equal((await f.request(`resources?${query}`,'member')).status,400);
+});
+test('resource edits, hide/promote/order changes and deletion are audited and reject outdated revisions',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');
+ const created=await (await f.request('admin/resources','admin',resourceData())).json();assert.ok(created.id);
+ const edit=resourceData({title:'Edited resource',visible:false,featured:true,sort_order:-20,tags:['#new-tag'],revision:1});
+ assert.equal((await f.request(`admin/resources/${created.id}`,'admin',edit)).status,200);
+ assert.equal((await f.request(`admin/resources/${created.id}`,'admin',edit)).status,409);
+ assert.equal((await (await f.request('resources?q=Edited','member')).json()).total,0);
+ const row=f.sql.prepare('SELECT * FROM resources WHERE id=?').get(created.id);assert.equal(row.revision,2);assert.equal(row.featured,1);assert.equal(row.sort_order,-20);
+ assert.deepEqual(f.sql.prepare('SELECT tag FROM resource_tags WHERE resource_id=?').all(created.id).map(r=>r.tag),['new-tag']);
+ const remove={revision:2,reason:'Outdated material',confirmation:'DELETE'};
+ assert.equal((await f.request(`admin/resources/${created.id}/delete`,'admin',{...remove,confirmation:''})).status,400);
+ assert.equal((await f.request(`admin/resources/${created.id}/delete`,'admin',remove)).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM resource_tags WHERE resource_id=?').get(created.id).n,0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM resources WHERE id=?').get(created.id).n,0);
+ assert.deepEqual(f.sql.prepare("SELECT action FROM admin_audit WHERE target_id=? ORDER BY rowid").all(created.id).map(r=>r.action),['create','edit','delete']);
+});
+test('category management permits custom names/order and blocks deletion until resources move',async()=>{
+ const f=fixture();await f.add('admin','admin');
+ const data={name:'Retreats',sort_order:-5,reason:'Add new category'};
+ const created=await (await f.request('admin/resource-categories','admin',data)).json();assert.ok(created.id);
+ assert.equal((await f.request('admin/resource-categories','admin',{...data,name:'RETREATS'})).status,409);
+ assert.equal((await f.request(`admin/resource-categories/${created.id}`,'admin',{...data,name:'Retreat guides',revision:1})).status,200);
+ assert.equal((await f.request(`admin/resource-categories/${created.id}`,'admin',{...data,revision:1})).status,409);
+ assert.equal((await f.request('admin/resources','admin',resourceData({category_id:created.id}))).status,201);
+ const remove={reason:'Consolidate',confirmation:'DELETE',revision:2};
+ assert.equal((await f.request(`admin/resource-categories/${created.id}/delete`,'admin',remove)).status,409);
+ f.sql.prepare("UPDATE resources SET category_id='books' WHERE category_id=?").run(created.id);
+ assert.equal((await f.request(`admin/resource-categories/${created.id}/delete`,'admin',remove)).status,200);
+ assert.equal((await f.request('admin/resources','admin',resourceData({category_id:created.id}))).status,409);
+});
+test('resource validation rejects unsafe links, excessive tags and invalid data without partial writes',async()=>{
+ const f=fixture();await f.add('admin','admin');
+ for(const changes of [{url:'javascript:alert(1)'},{url:'data:text/html,hi'},{url:'http://example.com'},{url:'https://user:pass@example.com'},{url:'not a url'},{tags:['bad/tag']},{tags:Array(21).fill('faith')},{title:''},{sort_order:1.5},{visible:'true'},{reason:''},{description:'a'.repeat(4001)}]) assert.equal((await f.request('admin/resources','admin',resourceData(changes))).status,400,JSON.stringify(changes));
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM resources').get().n,2);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
+ assert.equal((await f.request('admin/resources','admin',resourceData({url:'',creator:'',description:'A prayer stored directly in the library.',category_id:'prayers',tags:[]}))).status,201);
+});
+test('resource mutations fail closed when admin authority changes and roll back failed tag writes',async()=>{
+ const f=fixture();await f.add('admin','admin');
+ const originalBatch=f.env.DB.batch.bind(f.env.DB);
+ f.env.DB.batch=async statements=>{f.sql.prepare("UPDATE users SET role='member' WHERE id='admin'").run();return originalBatch(statements);};
+ assert.equal((await f.request('admin/resources','admin',resourceData())).status,409);assert.equal(f.sql.prepare('SELECT count(*) n FROM resources').get().n,2);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
+ f.env.DB.batch=originalBatch;f.sql.prepare("UPDATE users SET role='admin' WHERE id='admin'").run();
+ f.sql.exec("CREATE TRIGGER fail_resource_tag BEFORE INSERT ON resource_tags WHEN NEW.tag='reject' BEGIN SELECT RAISE(ABORT,'rejected'); END;");
+ assert.equal((await f.request('admin/resources','admin',resourceData({tags:['faith','reject']}))).status,500);assert.equal(f.sql.prepare('SELECT count(*) n FROM resources').get().n,2);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
+});
