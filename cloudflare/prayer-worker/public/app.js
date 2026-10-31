@@ -296,6 +296,7 @@ async function loadAdmin(append=false) {
   $('#admin-search-form').hidden=mode==='audit';
   if(!append) $('#admin-items').replaceChildren();
   const items=mode==='audit'?result:result.items;
+  if(mode==='audit' && items.length) $('#admin-items').append(auditTable(items));
   if(!items.length && !append) empty($('#admin-items'),mode==='audit'?'No administrative actions have been recorded. The most recent 100 actions will appear here.':'No matching accounts or content.');
   for(const item of items) {
     if(mode==='users') $('#admin-items').append(adminAccount(item));
@@ -308,12 +309,23 @@ async function loadAdmin(append=false) {
       card.append(element('h3',item.name),element('p',item.description),element('p',`Led by ${item.owner_name} · ${item.discoverable?'Listed':'Unlisted'} · ${item.member_count} members · ${item.post_count} prayers`,'hint'));
       const actions=element('div',undefined,'actions');actions.append(button('View group',()=>openGroup(item.id)),button('Delete group',()=>openAdminAction('groups',item.id,'delete',item.name)));card.append(actions);$('#admin-items').append(card);
     }
-    if(mode==='audit') {
-      const card=element('article',undefined,'panel');
-      card.append(element('strong',`${item.actor_name} · ${item.action}`),element('p',`${item.target_type} · ${item.target_id}`,'hint'),element('p',item.reason),element('p',displayTime(item.created_at),'hint'));$('#admin-items').append(card);
-    }
   }
   adminCursor=result.cursor;$('#admin-more').hidden=mode==='audit' || !result.more;
+}
+function auditTable(items) {
+  const region=element('div',undefined,'audit-grid');
+  region.tabIndex=0;region.setAttribute('role','region');region.setAttribute('aria-label','Audit report. Scroll to view all columns and rows.');
+  const table=element('table');
+  table.append(element('caption',`${items.length} most recent administrative ${items.length===1?'action':'actions'} · newest first`));
+  const head=element('thead'),heading=element('tr');
+  for(const label of ['Date / time','Admin','Action','Item type','Item','Reason']) {const cell=element('th',label);cell.scope='col';heading.append(cell);}
+  head.append(heading);const body=element('tbody');
+  for(const item of items) {
+    const row=element('tr'),date=element('td'),time=element('time',displayTime(item.created_at));time.dateTime=new Date(item.created_at).toISOString();date.append(time);row.append(date);
+    for(const value of [item.actor_name,item.action,item.target_type,item.target_id,item.reason]) row.append(element('td',value));
+    body.append(row);
+  }
+  table.append(head,body);region.append(table);return region;
 }
 function adminAccount(person) {
   const card=element('article',undefined,'panel account-card');

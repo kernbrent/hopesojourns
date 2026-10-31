@@ -1,10 +1,12 @@
 # Hope Sojourns developer guide
 
-Version 4.97
+Version 4.98
 
 Last reviewed: October 29, 2026
 
 ## Independent prayer portal
+
+The prayer Admin audit view renders the existing latest-100 audit response as a semantic table with Date / time, Admin, Action, Item type, Item, and Reason columns. Text is inserted through textContent, timestamps retain account time-zone formatting, and the focusable container supports horizontal and vertical scrolling with sticky column headers. No audit API, ordering, storage, or authorization changes are required.
 
 The local recommendation/audience revision adds POST /api/resources/recommend for active regular members. Recommendations create real pending resources with forced hidden/unfeatured status, submitter metadata, normalized tags, and optional images; members cannot read them, including their own submissions. Admin-only /api/admin/resource-review-count supplies pending badges on Resources and Admin, refreshed at sign-in and each minute. Review filters expose pending/approved/declined states; audited POST /api/admin/resources/:id/approve or /decline requires a reason and current revision. Approval publishes to the configured audience. Ordinary edits cannot publish pending items. Recommendations are capped at ten attempts per 15 minutes and twenty pending items per member. Migration 0007 adds review metadata and resource_images, and seeds the two book covers without restoring deleted resources. Image files use JPEG/PNG/WebP signatures and a 256 KB stored limit; the browser resizes uploads proportionally, while image-bearing resource JSON is bounded to 400,000 bytes. Files are stored with the resource atomically and served only through authenticated /api/resources/:id/image with no-store. Packaged covers are internally read from ASSETS; direct public paths are denied. No remote image URL is fetched for member content. Migration 0008 adds optional private gender/birth_date fields and resource gender audiences/min_age/max_age. src/resource-access.mjs applies the same approved/visible, gender, and inclusive age predicate to member rows, totals, tags, and images. A missing/invalid birth date denies every age-restricted resource, including a minimum age of zero. Unknown/undisclosed gender cannot match a gender restriction. Admin review bypasses demographic restrictions. Birth dates use valid ISO calendar dates and birthdays on the UTC calendar; these are member-supplied profile entries rather than verified ages. Profile fields never appear in the people directory and are cleared by account anonymization. Legacy edits preserve omitted demographic restrictions. External provider links remain controlled by their providers.
 
@@ -1301,6 +1303,8 @@ Inbox Show adds Emails sent for users with Contacts read access. GET /admin/mini
 Interest awaiting reply appears on a contact's expanded summary and complete record when an open interest submission has neither an accepted contact email sent after that submission nor a sent reply to that submission. The button opens the same BCC composer for that contact. Automatic acknowledgments, test captures, failures, and uncertain results do not clear it. A newer interest submission can make it reappear. Closed inquiries do not show it. The group send does not automatically close the inquiry or update Last Contacted. Test these rules, contact association, history pagination, inbox copies and source permissions in contact-email-records.test.ts, alongside the existing contact-email, inquiries, ministry-inbox and contact UI checks. No real email delivery is needed for validation.
 
 ## Revision history
+
+- October 29, 2026 — Version 4.98. Documented prayer audit table presentation; existing audit API and permissions are unchanged. Local review only.
 
 - October 29, 2026 — Version 4.97. Added local recommendations with admin review badges, authenticated resource images and book covers, private gender/birth-date profile fields, and server-enforced resource audiences. Pending release approval.
 
