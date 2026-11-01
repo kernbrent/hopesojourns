@@ -44,7 +44,7 @@ export async function handleResources(request,db,auth,url,h) {
   const row=await db.prepare(`SELECT r.id,r.image_key,i.mime,i.data FROM resources r LEFT JOIN resource_images i ON i.resource_id=r.id WHERE r.id=? AND (${access.sql})`).bind(imageMatch[1],...access.args).first();
   requireValue(row && (row.data||row.image_key),'Image unavailable.',404);
   if(row.data) return new Response(Uint8Array.from(atob(row.data),c=>c.charCodeAt(0)),{headers:{'Content-Type':row.mime}});
-  requireValue(['/assets/resource-covers/wild-at-heart.jpg','/assets/resource-covers/not-even-a-hint.jpg'].includes(row.image_key),'Image unavailable.',404);
+  requireValue(['/assets/resource-covers/wild-at-heart.jpg','/assets/resource-covers/not-even-a-hint.jpg','/assets/resource-covers/connection-codes.jpg'].includes(row.image_key),'Image unavailable.',404);
   return assets.fetch(new Request(new URL(row.image_key,url.origin)));
  }
  if(path==='/api/admin/resource-review-count' && method==='GET') return json(await db.prepare("SELECT count(*) AS pending FROM resources WHERE review_status='pending'").first());

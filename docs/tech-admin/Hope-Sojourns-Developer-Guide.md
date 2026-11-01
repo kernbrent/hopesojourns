@@ -1,10 +1,12 @@
 # Hope Sojourns developer guide
 
-Version 4.98
+Version 4.99
 
-Last reviewed: October 29, 2026
+Last reviewed: October 30, 2026
 
 ## Independent prayer portal
+
+Migration 0009 adds The Connection Codes with authenticated packaged cover delivery and four relationship tags, and replaces the two existing seed descriptions with original paragraphs. It changes only descriptions, timestamps, and revisions on those existing books; visibility, moderation state, audiences, images, and order remain intact. Migration tracking prevents later admin edits or deletions being undone. The expanded suite runs 43 tests on each storage adapter.
 
 The prayer Admin audit view renders the existing latest-100 audit response as a semantic table with Date / time, Admin, Action, Item type, Item, and Reason columns. Text is inserted through textContent, timestamps retain account time-zone formatting, and the focusable container supports horizontal and vertical scrolling with sticky column headers. No audit API, ordering, storage, or authorization changes are required.
 
@@ -1303,6 +1305,8 @@ Inbox Show adds Emails sent for users with Contacts read access. GET /admin/mini
 Interest awaiting reply appears on a contact's expanded summary and complete record when an open interest submission has neither an accepted contact email sent after that submission nor a sent reply to that submission. The button opens the same BCC composer for that contact. Automatic acknowledgments, test captures, failures, and uncertain results do not clear it. A newer interest submission can make it reappear. Closed inquiries do not show it. The group send does not automatically close the inquiry or update Last Contacted. Test these rules, contact association, history pagination, inbox copies and source permissions in contact-email-records.test.ts, alongside the existing contact-email, inquiries, ministry-inbox and contact UI checks. No real email delivery is needed for validation.
 
 ## Revision history
+
+- October 30, 2026 — Version 4.99. Added the third curated book and paragraph descriptions; verified restriction preservation and one-time migration behavior. Local review only.
 
 - October 29, 2026 — Version 4.98. Documented prayer audit table presentation; existing audit API and permissions are unchanged. Local review only.
 

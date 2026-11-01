@@ -45,3 +45,21 @@ test('calendar age increments only on the UTC birthday and invalid or absent dat
  assert.equal(ageInYears(''),null);assert.equal(ageInYears('invalid'),null);
  assert.equal(validBirthDate('2001-02-29'),false);
 });
+
+
+test('curated book upgrade preserves moderation and restrictions, never restores deleted books, and runs once',()=>{
+ const sql=new DatabaseSync(':memory:');
+ sql.exec('CREATE TABLE _prayer_migrations(name TEXT PRIMARY KEY,applied_at INTEGER NOT NULL)');
+ for(const migration of schema.slice(0,8)) {sql.exec(migration.sql);sql.prepare('INSERT INTO _prayer_migrations VALUES (?,?)').run(migration.name,Date.now());}
+ sql.exec("UPDATE resources SET visible=0,review_status='declined',genders='male',min_age=21,featured=1,sort_order=-20,image_key='',revision=7 WHERE id='wild-at-heart'; DELETE FROM resources WHERE id='not-even-a-hint';");
+ initializeDatabase(storageFor(sql),{});
+ const book=sql.prepare("SELECT * FROM resources WHERE id='wild-at-heart'").get();
+ assert.ok(book.description.split(/\s+/).length>=65);assert.equal(book.revision,8);
+ for(const [key,value] of Object.entries({visible:0,review_status:'declined',genders:'male',min_age:21,featured:1,sort_order:-20,image_key:''})) assert.equal(book[key],value,key);
+ assert.equal(sql.prepare("SELECT count(*) n FROM resources WHERE id='not-even-a-hint'").get().n,0);
+ assert.equal(sql.prepare("SELECT count(*) n FROM resource_tags WHERE resource_id='connection-codes'").get().n,4);
+ sql.exec("UPDATE resources SET description='Administrator revised paragraph' WHERE id='wild-at-heart'; DELETE FROM resources WHERE id='connection-codes';");
+ initializeDatabase(storageFor(sql),{});
+ assert.equal(sql.prepare("SELECT description FROM resources WHERE id='wild-at-heart'").get().description,'Administrator revised paragraph');
+ assert.equal(sql.prepare("SELECT count(*) n FROM resources WHERE id='connection-codes'").get().n,0);
+});

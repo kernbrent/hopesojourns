@@ -1,10 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.90
+Version 4.91
 
-Last reviewed: October 29, 2026
+Last reviewed: October 30, 2026
 
 ## Independent prayer portal
+
+The three curated books use original paragraph descriptions explaining their themes and possible group-discussion use. The Connection Codes card retains the full retailer cover image, existing proportional image treatment, Books category, clickable relationship tags, and a clearly labeled retailer link.
 
 Audit log uses a compact semantic table with Date / time, Admin, Action, Item type, Item, and Reason columns. Keep newest actions first, a sticky forest header, alternating shared-token row backgrounds, wrapping reasons, and keyboard-accessible scrolling within the table container on small screens.
 
@@ -881,6 +883,8 @@ The People selection toolbar includes a labeled Select all visible contacts chec
 Inbox Show includes Emails sent, with readable cards for subject and accepted timestamp and expandable View sent copy details. Keep full message text and footer line breaks, wrap addresses on narrow screens, and distinguish To from BCC. Use Previous emails and Next emails with a page count. Accepted copies have no Complete, Delete, or Retry actions in this view. State clearly that acceptance does not confirm receipt and that test captures and unsuccessful sends remain in Email history. Reuse existing palette tokens and card styles.
 
 ## Revision history
+
+- October 30, 2026 — Version 4.91. Added The Connection Codes cover and paragraph-length descriptions for all three curated books. Local review only.
 
 - October 29, 2026 — Version 4.90. Replaced prayer audit tiles with a compact accessible table and contained scrolling. Local review only.
 
