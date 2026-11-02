@@ -36,6 +36,7 @@ const CONTACT_TYPE_OPTIONS = [
   ["leader", "Leader"],
   ["donor", "Donor"],
   ["potential_donor", "Potential Donor"],
+  ["newsletter", "Newsletter"],
   ["board_member", "Board Member"],
   ["portal_access", "Portal Access"],
   ["ministry_contact", "Ministry Contact"],
@@ -463,7 +464,7 @@ function contactInput(body: Record<string, unknown>): ContactInput {
   const requestedPreference = body.contactPreference === "phone" ? "phone" : "email";
   const contactPreference = requestedPreference === "phone" && !phone ? "email" : requestedPreference === "email" && !email ? "phone" : requestedPreference;
   const contactStatus = body.contactStatus === "inactive" ? "inactive" : "active";
-  const contactTypes = cleanChoiceArray(body.contactTypes, ALLOWED_CONTACT_TYPES, 11, "Choose valid contact types.").filter(type => type !== "portal_access");
+  const contactTypes = cleanChoiceArray(body.contactTypes, ALLOWED_CONTACT_TYPES, ALLOWED_CONTACT_TYPES.size, "Choose valid contact types.").filter(type => type !== "portal_access");
   return {
     firstName,
     lastName,

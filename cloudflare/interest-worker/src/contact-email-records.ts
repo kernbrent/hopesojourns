@@ -1,8 +1,9 @@
 import type {AdminEnv} from './admin';
+import type {EmailAttachment} from './contact-email-attachments';
 
 export type Mail={id:string;request_hash:string;payload_json:string;status:string;attempt_key:string;started_at:string|null;updated_at:string;created_at:string;sent_at:string|null;error:string|null};
-export function savedMail(mail:Mail){const saved=JSON.parse(mail.payload_json);return {payload:saved.delivery||saved,recipients:saved.recipients||saved.to,privateRecipients:!!saved.delivery};}
-export function publicMail(mail:Mail){const {payload:p,recipients,privateRecipients}=savedMail(mail);return {id:mail.id,from:'admin@hopesojourns.com',to:recipients,visibleTo:privateRecipients?['admin@hopesojourns.com']:p.to,privateRecipients,retryAllowed:privateRecipients||p.to.length===1,subject:p.subject,message:p.text,status:mail.status,error:mail.error,createdAt:mail.created_at,sentAt:mail.sent_at};}
+export function savedMail(mail:Mail){const saved=JSON.parse(mail.payload_json);return {payload:saved.delivery||saved,recipients:saved.recipients||saved.to,privateRecipients:!!saved.delivery,attachments:(saved.delivery?saved.attachments||[]:[]) as EmailAttachment[]};}
+export function publicMail(mail:Mail){const {payload:p,recipients,privateRecipients,attachments}=savedMail(mail);return {id:mail.id,from:'admin@hopesojourns.com',to:recipients,visibleTo:privateRecipients?['admin@hopesojourns.com']:p.to,privateRecipients,retryAllowed:privateRecipients||p.to.length===1,subject:p.subject,message:p.text,status:mail.status,error:mail.error,createdAt:mail.created_at,sentAt:mail.sent_at,attachments:attachments.map((a,index)=>({filename:a.filename,size:a.size,url:`/api/interest/admin/contacts/emails/${mail.id}/attachments/${index}`}))};}
 
 // Keep the original contact associations even when an address is edited later.
 export async function contactEmailActivity(env:AdminEnv,personIds:string[]){

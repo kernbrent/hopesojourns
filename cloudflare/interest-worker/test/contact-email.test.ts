@@ -77,3 +77,57 @@ it('fails clearly when the standard signature is missing and reports provider re
  const f=await setup();f.files.delete(signatureKey);expect((await f.call('',f.body)).status).toBe(503);expect(f.fetchMock).not.toHaveBeenCalled();
  f.files.set(signatureKey,new Uint8Array([1]));f.fetchMock.mockImplementationOnce(async()=>new Response('{}',{status:422}));const result=await (await f.call('',f.body)).json() as any;expect(result.email.status).toBe('failed');expect(result.email.error).toContain('provider rejected');
 });
+
+it('updates Last Contacted only for actual recipient contacts, including shared and manually added addresses',async()=>{
+ const f=await setup();
+ f.sqlite.prepare("UPDATE people SET email='manual@example.test' WHERE id='invalid'").run();
+ f.sqlite.prepare("UPDATE people SET last_contacted_at='2026-01-01',last_contacted_note='Earlier phone call'").run();
+ const result=await (await f.call('',{...f.body,subject:'Payment Options for Your Mexico Trip'})).json() as any;
+ expect(result.email.status).toBe('sent');
+ for(const id of ['one','two','invalid'])expect(f.sqlite.prepare('SELECT last_contacted_at,last_contacted_note FROM people WHERE id=?').get(id)).toEqual({last_contacted_at:result.email.sentAt,last_contacted_note:'Email sent: Payment Options for Your Mexico Trip'});
+ expect(f.sqlite.prepare("SELECT last_contacted_at,last_contacted_note FROM people WHERE id='blank'").get()).toEqual({last_contacted_at:'2026-01-01',last_contacted_note:'Earlier phone call'});
+});
+
+it('does not mark selected contacts whose addresses were removed from the final email',async()=>{
+ const f=await setup();await f.call('',{...f.body,to:['manual@example.test']});
+ expect(f.sqlite.prepare('SELECT COUNT(*) n FROM people WHERE last_contacted_at IS NOT NULL OR last_contacted_note IS NOT NULL').get()!.n).toBe(0);
+});
+
+it.each(['capture','rejected','uncertain','unconfigured'])('preserves existing contact dates and notes for %s email',async mode=>{
+ const f=await setup();
+ f.sqlite.prepare("UPDATE people SET last_contacted_at='2026-01-01',last_contacted_note='Earlier phone call'").run();
+ if(mode==='capture')f.env.ENVIRONMENT='test';
+ if(mode==='rejected')f.fetchMock.mockImplementationOnce(async()=>new Response('{}',{status:422}));
+ if(mode==='uncertain')f.fetchMock.mockImplementationOnce(async()=>{throw Error('timeout');});
+ if(mode==='unconfigured')f.env.MMT_EMAIL_DELIVERY_MODE='capture';
+ await f.call('',f.body);
+ expect(f.sqlite.prepare("SELECT COUNT(*) n FROM people WHERE last_contacted_at='2026-01-01' AND last_contacted_note='Earlier phone call'").get()!.n).toBe(4);
+});
+
+it('updates activity once after an accepted retry and keeps later contact edits on repeated requests',async()=>{
+ const f=await setup();f.fetchMock.mockImplementationOnce(async()=>{throw Error('timeout');});
+ await f.call('',f.body);
+ expect(f.sqlite.prepare("SELECT last_contacted_at FROM people WHERE id='one'").get()!.last_contacted_at).toBeNull();
+ const result=await (await f.call('/'+f.body.sendId+'/retry',{})).json() as any;
+ expect(f.sqlite.prepare("SELECT last_contacted_at,last_contacted_note FROM people WHERE id='one'").get()).toEqual({last_contacted_at:result.email.sentAt,last_contacted_note:'Email sent: Group update'});
+ f.sqlite.prepare("UPDATE people SET last_contacted_note='Follow-up phone call' WHERE id='one'").run();
+ await f.call('',f.body);await f.call('/'+f.body.sendId+'/retry',{});
+ expect(f.sqlite.prepare("SELECT last_contacted_note FROM people WHERE id='one'").get()!.last_contacted_note).toBe('Follow-up phone call');
+ expect(f.fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it('limits the email note to 50 characters and preserves newer contact activity',async()=>{
+ const f=await setup();f.sqlite.prepare("UPDATE people SET last_contacted_at='2099-01-01',last_contacted_note='Newer contact' WHERE id='two'").run();
+ await f.call('',{...f.body,subject:'A very long subject about trip preparation and payments that exceeds the note limit'});
+ const note=f.sqlite.prepare("SELECT last_contacted_note FROM people WHERE id='one'").get()!.last_contacted_note as string;
+ expect(note).toBe('Email sent: A very long subject about trip prepara');expect(note.length).toBe(50);
+ expect(f.sqlite.prepare("SELECT last_contacted_at,last_contacted_note FROM people WHERE id='two'").get()).toEqual({last_contacted_at:'2099-01-01',last_contacted_note:'Newer contact'});
+});
+
+it('rolls back sent status and contact activity together when finalization fails',async()=>{
+ const f=await setup(),batch=f.env.DB.batch.bind(f.env.DB);
+ vi.spyOn(f.env.DB,'batch').mockImplementation(statements=>batch(statements.some(s=>(s as any).sql.includes('UPDATE people SET last_contacted_at'))?[...statements,f.env.DB.prepare('INSERT INTO nonexistent_table VALUES(1)')]:statements));
+ expect((await f.call('',f.body)).status).toBe(500);
+ expect(f.sqlite.prepare('SELECT status,sent_at FROM contact_emails').get()).toEqual({status:'sending',sent_at:null});
+ expect(f.sqlite.prepare('SELECT COUNT(*) n FROM people WHERE last_contacted_at IS NOT NULL OR last_contacted_note IS NOT NULL').get()!.n).toBe(0);
+});

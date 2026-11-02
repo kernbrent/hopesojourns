@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.91
+Version 4.92
 
-Last reviewed: October 30, 2026
+Last reviewed: November 2, 2026
 
 ## Independent prayer portal
 
@@ -874,6 +874,10 @@ On the public dated trip page, show Notes from the journey before the photo/vide
 
 ## Contact email composer
 
+Center the email composer and history card inside a full-viewport native dialog shell at every browser zoom and window size. Keep the paper card at most 850 pixels wide, within the available height with a small outer gutter, and scroll its content internally. The heading and Close button remain accessible in a sticky wrapping header. Allow long addresses and attachment filenames to wrap without widening the card. Preserve the open draft when the viewport changes; do not require users to reset zoom. Use the existing paper, forest, line, and shadow tokens with no new colors.
+
+After accepted contact email delivery, show the acceptance date in Last Contacted and a short Email sent: subject note, limited to 50 characters. Preserve newer contact activity. Test captures and unsuccessful sends must not appear as completed contact activity; full message details remain in email history.
+
 Use the existing Selected contacts toolbar and primary Email selected contacts action in People and Contact spreadsheet. Contact checkboxes have person-specific accessible labels; the selected count remains visible across filters and pages. Keep the compact contact name, checkbox, and summary expansion controls distinct. Disable composing with no selection or without Contacts edit access.
 
 The contact email composer uses the existing native modal dialog and paper/forest palette, with a maximum desktop width of 850 pixels, a viewport-limited scroll area, and a fixed To: admin@hopesojourns.com line and full-width labeled BCC (hidden recipients), Subject, and Message fields. Wrap action buttons on phones. Display the standard Hope Sojourns footer below Message with its oval logo, Brent Kern signature, phone number, Christian Steps Ministries affiliation, WitLooL explanation, and both ministry links. The footer is included automatically; preserve its image proportions. Explain recipient separators, the 50-address limit, and that BCC hides addresses from other recipients beside the field. Show skipped contacts, configuration issues, and send status in readable text. Test capture must say that no email was sent; live acceptance must say Accepted for delivery. Use expandable history rows that distinguish visible To from hidden BCC or original visible recipients, with wrapped addresses and preserved message line breaks. Escape and Close protect unsent text from accidental dismissal and restore focus to the opening control.
@@ -882,7 +886,11 @@ The People selection toolbar includes a labeled Select all visible contacts chec
 
 Inbox Show includes Emails sent, with readable cards for subject and accepted timestamp and expandable View sent copy details. Keep full message text and footer line breaks, wrap addresses on narrow screens, and distinguish To from BCC. Use Previous emails and Next emails with a page count. Accepted copies have no Complete, Delete, or Retry actions in this view. State clearly that acceptance does not confirm receipt and that test captures and unsuccessful sends remain in Email history. Reuse existing palette tokens and card styles.
 
+The contact email composer places a labeled Attachments (optional) file picker below Message. Show supported file types and the limits of five files, 5 MB per file, and 10 MB total. List each chosen filename and size with an accessible Remove button. Wrap long filenames and controls on phones. Disable file selection and removal after submission alongside the message fields. Saved contact history and Inbox > Emails sent show private attachment download links with filenames and sizes.
+
 ## Revision history
+
+- November 2, 2026 — Version 4.92. Reviewed Newsletter category labels, attachment controls, saved downloads, centered email dialogs, and accepted-delivery contact activity for the authorized release.
 
 - October 30, 2026 — Version 4.91. Added The Connection Codes cover and paragraph-length descriptions for all three curated books. Local review only.
 
@@ -896,9 +904,13 @@ Inbox Show includes Emails sent, with readable cards for subject and accepted ti
 
 - October 29, 2026 — Version 4.86. Added the prayer test-environment banner and first-admin invitation presentation for the authorized release. Unreviewed Word editions remain unpublished.
 
+- October 28, 2026 — Version 4.85. Defined centered, viewport-bounded email cards with sticky close controls and automatic Last Contacted display after accepted delivery. Local changes pending release approval.
+
 - October 28, 2026 — Version 4.84. Added accountability-group discovery, membership controls, group-aware sharing and audience disclosures, modal error feedback, and configurable organization presentation. Local work pending review.
 
 - October 28, 2026 — Version 4.83. Added the independent prayer portal visual system, audience disclosure, invitation controls, and notification presentation. Local work pending review and release preparation.
+
+- October 27, 2026 — Version 4.82. Added email attachments, file limits, saved private downloads, and attachment-preserving retries. Local change pending release approval.
 
 - October 26, 2026 — Version 4.81. Added Select all visible contacts, per-contact email history, Interest awaiting reply, and the Emails sent inbox view. Local change pending release approval.
 

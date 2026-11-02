@@ -1,5 +1,6 @@
 import {AdminError,adminJson,authenticate,auditStatement,hashText,readAdminJson,type AdminEnv} from './admin';
 import {can} from './mmt-permissions';
+import {readEmailBody,attachmentBytes,attachmentType} from './contact-email-attachments';
 import {Buffer} from 'node:buffer';
 import {givingEmailFooter} from './gift-email-template';
 import {signatureKey} from './gift-thanks';
@@ -34,6 +35,8 @@ async function deliver(env:AdminEnv,id:string){
  // Never replay a legacy group payload that exposes addresses. Do not change an
  // uncertain provider payload or its key: it may already have been accepted.
  if(!saved.privateRecipients&&saved.payload.to.length>1)throw new AdminError(409,'VISIBLE_RECIPIENTS','This older saved email uses visible recipients and cannot be retried. Ask an administrator to verify its delivery with the email provider before preparing a private replacement.');
+ const deliveryPayload={...saved.payload};
+ if(saved.attachments.length){const files=[];for(const item of saved.attachments)files.push({filename:item.filename,content:Buffer.from(await attachmentBytes(env,item)).toString('base64')});deliveryPayload.attachments=[...(saved.payload.attachments||[]),...files];}
  const now=new Date().toISOString();
  if(['sending','uncertain'].includes(mail.status)&&(!mail.started_at||Date.now()-Date.parse(mail.started_at)>=23*3600000))throw new AdminError(409,'VERIFY_DELIVERY','Check delivery with the email provider before another attempt; the safe retry window has expired.');
  if(mail.status==='sending'&&Date.now()-Date.parse(mail.updated_at)<60000)throw new AdminError(409,'SENDING','This email is already sending. Refresh its status shortly.');
@@ -45,15 +48,25 @@ async function deliver(env:AdminEnv,id:string){
  if(env.ENVIRONMENT!=='test'){
   if(env.MMT_EMAIL_PROVIDER!=='resend'||env.MMT_EMAIL_DELIVERY_MODE!=='live'||!env.RESEND_API_KEY){status='failed';error='Portal email is not configured for live delivery.';}
   else try{
-   const r=await fetch('https://api.resend.com/emails',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify(saved.payload)});
+   const r=await fetch('https://api.resend.com/emails',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify(deliveryPayload)});
    if(r.ok){providerId=(await r.json() as {id?:string}).id||null;status=providerId?'sent':'uncertain';}
    else{status=r.status>=400&&r.status<500&&![408,409,429].includes(r.status)?'failed':'uncertain';await r.body?.cancel();}
    if(status!=='sent')error=status==='failed'?'The provider rejected this email. Check the sender and recipients before retrying.':'Delivery is uncertain. Use Retry saved email within 23 hours; do not compose a replacement.';
   }catch{status='uncertain';error='Delivery is uncertain. Use Retry saved email within 23 hours; do not compose a replacement.';}
  }
  const sentAt=status==='sent'?new Date().toISOString():null;
+ // Finalize delivery and contact activity atomically. Only the contacts linked to
+ // the saved recipient list are updated, including manually added/shared emails.
+ const contactUpdates=sentAt?[
+  env.DB.prepare(`UPDATE people SET last_contacted_at=?,last_contacted_note=?,updated_at=?
+   WHERE id IN(SELECT person_id FROM contact_email_people WHERE email_id=?)
+   AND (last_contacted_at IS NULL OR julianday(last_contacted_at)<=julianday(?))
+   AND EXISTS(SELECT 1 FROM contact_emails WHERE id=? AND attempt_key=? AND status='sent' AND sent_at=?)`)
+   .bind(sentAt,('Email sent: '+saved.payload.subject).slice(0,50),sentAt,id,sentAt,id,key,sentAt)
+ ]:[];
  await env.DB.batch([
   env.DB.prepare('UPDATE contact_emails SET status=?,provider_id=?,error=?,sent_at=?,updated_at=? WHERE id=? AND attempt_key=?').bind(status,providerId,error,sentAt,new Date().toISOString(),id,key),
+  ...contactUpdates,
   auditStatement(env,'contact_email',id,status)
  ]);
  return publicMail({...mail,status,error,sent_at:sentAt});
@@ -64,6 +77,13 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
   const edit=request.method!=='GET',session=await authenticate(request,env,edit);
   if(!can(session.user,'contacts',edit))throw new AdminError(403,'ACCESS_DENIED','Contact edit access is required to send email.');
   const suffix=path.slice('/admin/contacts/emails'.length);
+  const download=suffix.match(/^\/([a-f0-9-]{36})\/attachments\/(\d+)$/i);
+  if(request.method==='GET'&&download){
+   const mail=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(download[1]).first<Mail>();
+   const item=mail?savedMail(mail).attachments[Number(download[2])]:null;
+   if(!item)throw new AdminError(404,'NOT_FOUND','Attachment not found.');
+   return new Response(await attachmentBytes(env,item),{headers:{'Content-Type':attachmentType(item.filename),'Content-Disposition':`attachment; filename="attachment.${item.filename.split('.').pop()}"; filename*=UTF-8''${encodeURIComponent(item.filename).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16))}`,'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff'}});
+  }
   if(request.method==='GET'&&suffix===''){
    const params=new URL(request.url).searchParams,personId=params.get('personId')||undefined,page=Number(params.get('page')||1);
    if(!Number.isInteger(page)||page<1||page>10000)throw new AdminError(422,'INVALID_PAGE','Choose a valid email history page.');
@@ -73,7 +93,7 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
   if(request.method!=='POST')throw new AdminError(405,'METHOD_NOT_ALLOWED','Method not allowed.');
   const retry=suffix.match(/^\/([a-f0-9-]{36})\/retry$/i);
   if(retry)return adminJson({email:await deliver(env,retry[1])});
-  const body=await readAdminJson(request);
+  const {body,files}=suffix===''?await readEmailBody(request):{body:await readAdminJson(request),files:[]};
   if(suffix==='/preview'){
    const people=await selectedPeople(env,ids(body.personIds));
    const recipients=[...new Set(people.filter(p=>validEmail(p.email)).map(p=>p.email.toLowerCase()))];
@@ -88,7 +108,7 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
   if(typeof body.subject!=='string'||!body.subject.trim()||body.subject.length>160||/[\u0000-\u001f\u007f]/.test(body.subject))throw new AdminError(422,'SUBJECT_REQUIRED','Enter a subject of up to 160 characters on one line.');
   if(typeof body.message!=='string'||!body.message.trim()||body.message.length>10000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body.message))throw new AdminError(422,'MESSAGE_REQUIRED','Enter a message of up to 10,000 characters.');
   const subject=body.subject.trim(),message=body.message.trim();
-  const hash=await hashText(JSON.stringify({to,subject,message}));
+  const hash=await hashText(JSON.stringify({to,subject,message,...(files.length?{attachments:files.map(f=>({filename:f.metadata.filename,sha256:f.metadata.sha256}))}:{})}));
   let existing=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(body.sendId).first<Mail>();
   if(existing&&existing.request_hash!==hash)throw new AdminError(409,'CHANGED_EMAIL','This send request belongs to a saved message. Open Email history to review or retry it.');
   if(!existing){
@@ -99,7 +119,8 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
    const signature=await signatureContent(env);
    const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body style="margin:0;background:${colors.white};color:${colors.ink};font:15px/1.6 Arial,sans-serif"><div style="max-width:640px;margin:auto;padding:24px"><div>${escape(message).replace(/\r?\n/g,'<br>')}</div>${givingEmailFooter('cid:brent-signature')}</div></body></html>`;
    const bcc=to.filter(address=>address!==sender);
-   const payload=JSON.stringify({recipients:to,delivery:{from:`Hope Sojourns <${sender}>`,to:[sender],...(bcc.length?{bcc}:{}),reply_to:sender,subject,text:message+'\n\n'+footerText,html,attachments:[{filename:'brent-kern-signature.png',content:signature,content_id:'brent-signature'}]}});
+   for(const file of files)await env.RECEIPTS.put(file.metadata.key,file.bytes,{httpMetadata:{contentType:attachmentType(file.metadata.filename)}});
+   const payload=JSON.stringify({recipients:to,...(files.length?{attachments:files.map(f=>f.metadata)}:{}),delivery:{from:`Hope Sojourns <${sender}>`,to:[sender],...(bcc.length?{bcc}:{}),reply_to:sender,subject,text:message+'\n\n'+footerText,html,attachments:[{filename:'brent-kern-signature.png',content:signature,content_id:'brent-signature'}]}});
    const now=new Date().toISOString();
    await env.DB.prepare("INSERT OR IGNORE INTO contact_emails(id,request_hash,payload_json,attempt_key,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(body.sendId,hash,payload,'contact-'+body.sendId,session.user.id,now,now).run();
    existing=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(body.sendId).first<Mail>();

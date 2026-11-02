@@ -142,7 +142,10 @@ def add_index(doc: Document, lines: list[str], heading_lookup: dict[str, str]) -
     table.autofit = False
     for cell in table.rows[0].cells:
         cell.width = Inches(3.2)
-    midpoint = (len(entries) + 1) // 2
+    # Balance by rendered label length instead of letter count: a long A–I
+    # column can otherwise strand a single J entry on an almost empty page.
+    weights = [len(letter) + sum(len(term) + len(heading_lookup.get(anchor, "")) + 5 for term, anchor in items) for letter, items in entries]
+    midpoint = min(range(1, len(entries)), key=lambda split: abs(sum(weights[:split]) - sum(weights[split:]))) if len(entries) > 1 else len(entries)
     for col, group in enumerate((entries[:midpoint], entries[midpoint:])):
         cell = table.cell(0, col)
         for entry_number, (letter, items) in enumerate(group):

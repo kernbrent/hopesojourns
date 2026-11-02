@@ -248,6 +248,7 @@ const CONTACT_TYPE_LABELS = {
   leader: "Leader",
   donor: "Donor",
   potential_donor: "Potential Donor",
+  newsletter: "Newsletter",
   board_member: "Board Member",
   portal_access: "Portal Access",
   ministry_contact: "Ministry Contact",
@@ -3378,7 +3379,7 @@ function renderPersonEmailHistory(person){
   section.append(element('p','admin-reply-help','Accepted for delivery confirms provider acceptance, not receipt. Test captures, failed attempts, and uncertain deliveries do not count as sent.'));
   for(const mail of person.contactEmails||[]){
     const entry=element('details'),label=mail.status==='sent'?`Accepted for delivery ${formatDate(mail.sentAt)}`:mail.status==='captured'?'Test capture only — no email sent':titleCase(mail.status);
-    entry.append(element('summary','',`${mail.subject} · ${label}`),element('pre','admin-contact-email-message',mail.message));section.append(entry);
+    entry.append(element('summary','',`${mail.subject} · ${label}`),element('pre','admin-contact-email-message',mail.message));window.HSContactEmail.attachmentLinks(entry,mail);section.append(entry);
   }
   const history=element('button','admin-button admin-button-outline','View all contact emails');history.type='button';
   history.addEventListener('click',()=>window.HSContactEmail.history(async(path,options)=>(await api(path,options)).result,history,person.id));section.append(history);

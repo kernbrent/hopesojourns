@@ -24,13 +24,18 @@
     const status = node('p', '', 'admin-form-status');
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
-    content.append(heading, close, status);
+    const header = node('header', null, 'admin-contact-email-header');
+    header.append(heading, close);
+    content.append(header, status);
     dialog.append(content);
     document.body.append(dialog);
     dialog.addEventListener('close', () => { dialog.remove(); if (trigger?.isConnected) trigger.focus(); });
     dialog.addEventListener('cancel', event => { if (!mayClose()) event.preventDefault(); });
     dialog.showModal();
     return { dialog, content, status, setCloseGuard: guard => { mayClose = guard; } };
+  }
+  function attachmentLinks(parent,mail){
+    for(const file of mail.attachments||[]){const link=node('a',`${file.filename} (${Math.ceil(file.size/1024)} KB)`);link.href=file.url;link.download=file.filename;const row=node('p');row.append(link);parent.append(row);}
   }
   async function history(api, trigger, personId) {
     const { content, status } = modal('Contact email history', trigger);
@@ -47,6 +52,7 @@
         result.emails.forEach(mail => {
           const details = node('details');
           details.append(node('summary', `${mail.subject} — ${description(mail)}`), node('p', `From: ${mail.from}`), node('p', `To: ${(mail.visibleTo || mail.to).join(', ')}`), node('p', `${mail.privateRecipients ? 'BCC (hidden recipients)' : 'Original visible recipients'}: ${mail.to.join(', ')}`), node('p', `Created: ${new Date(mail.createdAt).toLocaleString()}`), node('pre', mail.message, 'admin-contact-email-message'));
+          attachmentLinks(details,mail);
           if(mail.sentAt)details.append(node('p',`Accepted for delivery: ${new Date(mail.sentAt).toLocaleString()}`));
           if (mail.retryAllowed === false && !['sent', 'captured'].includes(mail.status)) details.append(node('p', 'This older email used visible recipients. Ask an administrator to verify delivery before preparing a private replacement. Retrying it is blocked.'));
           if (mail.error) details.append(node('p', mail.error));
@@ -102,6 +108,12 @@
       const subject = field('Subject', 'input', 'subject', '', 160);
       const message = field('Message', 'textarea', 'message', '', 10000);
       message.rows = 12;
+      const attachmentLabel=node('label','Attach files (optional)');
+      const picker=node('input');picker.type='file';picker.multiple=true;picker.setAttribute('aria-label','Attach files to this email');picker.accept='.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv,.rtf,.jpg,.jpeg,.png,.webp';
+      attachmentLabel.append(picker);form.append(attachmentLabel,node('p','Choose up to 5 files: 5 MB per file, 10 MB total. PDF, Word, Excel, PowerPoint, OpenDocument, text, CSV, RTF, or images.'));
+      const attachmentList=node('ul',null,'admin-contact-email-attachments');form.append(attachmentList);let attachments=[];
+      const showFiles=()=>{attachmentList.replaceChildren();for(const file of attachments){const row=node('li',`${file.name} (${Math.ceil(file.size/1024)} KB) `);row.append(button('Remove '+file.name,()=>{attachments=attachments.filter(f=>f!==file);showFiles();}));attachmentList.append(row);}};
+      picker.addEventListener('change',()=>{const next=[...attachments,...picker.files];picker.value='';if(next.length>5||next.some(f=>!f.size||f.size>5*1024*1024)||next.reduce((sum,f)=>sum+f.size,0)>10*1024*1024){status.textContent='Choose up to 5 nonempty files, no more than 5 MB each and 10 MB total.';return;}attachments=next;showFiles();status.textContent='';});
       const footer = node('section', null, 'admin-contact-email-footer');
       footer.setAttribute('aria-label', 'Standard Hope Sojourns email footer');
       footer.append(node('strong', 'Included automatically with every email'));
@@ -125,7 +137,7 @@
       status.textContent = preview.testMode ? 'Test mode: this saves a preview without delivering an email.' : preview.ready ? '' : 'Live email delivery is not configured. Ask an administrator to check the sender settings.';
       const sendId = crypto.randomUUID();
       let started = false;
-      const dirty = () => to.value !== preview.to.join(', ') || subject.value || message.value;
+      const dirty = () => to.value !== preview.to.join(', ') || subject.value || message.value || attachments.length;
       setCloseGuard(() => started || !dirty() || window.confirm('Discard this unsent email?'));
       // Keep the draft fixed after submission so every retry uses the saved payload.
       form.addEventListener('submit', async event => {
@@ -133,25 +145,27 @@
         if (started || !form.reportValidity()) return;
         const recipients = to.value.split(/[,;\n]+/).map(v => v.trim()).filter(Boolean);
         started = true;
-        [to, subject, message, send].forEach(input => { input.disabled = true; });
+        [to, subject, message, picker, send,...attachmentList.querySelectorAll('button')].forEach(input => { input.disabled = true; });
         status.textContent = preview.testMode ? 'Saving test capture…' : 'Sending email…';
         try {
-          const result = await api('/contacts/emails', { method: 'POST', body: { sendId, personIds, to: recipients, subject: subject.value, message: message.value } });
+          const body={sendId,personIds,to:recipients,subject:subject.value,message:message.value};
+          let outgoing=body;if(attachments.length){outgoing=new FormData();outgoing.set('email',JSON.stringify(body));for(const file of attachments)outgoing.append('files',file);}
+          const result = await api('/contacts/emails', { method: 'POST', body: outgoing });
           status.textContent = description(result.email) + (result.email.error ? `. ${result.email.error}` : '.');
           window.dispatchEvent(new CustomEvent('hs-contact-email-saved',{detail:{personIds,email:result.email}}));
         } catch (error) {
           status.textContent = error.message;
           if (error.status >= 400 && error.status < 500 && error.status !== 409) {
             started = false;
-            [to, subject, message, send].forEach(input => { input.disabled = false; });
+            [to, subject, message, picker, send,...attachmentList.querySelectorAll('button')].forEach(input => { input.disabled = false; });
           } else {
             status.textContent += ' Open Email history to check the saved message before retrying.';
           }
         }
       });
       to.focus({ preventScroll: true });
-      dialog.scrollTop = 0;
+      content.scrollTop = 0;
     } catch (error) { status.textContent = error.message; }
   }
-  window.HSContactEmail = { open, history };
+  window.HSContactEmail = { open, history, attachmentLinks };
 })();
