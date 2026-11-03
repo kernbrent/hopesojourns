@@ -17,7 +17,7 @@ export async function handleAdmin(request,db,auth,url,h) {
  }
  if(path==='/api/admin/users' && method==='GET') {
   const search=(url.searchParams.get('search')||'').slice(0,200);
-  const rows=(await db.prepare(`SELECT id,email,name,username,phone,timezone,bio,gender,birth_date,role,status,is_owner,created_at FROM users WHERE instr(lower(name||' '||email||' '||coalesce(username,'')),lower(?))>0 AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 51`).bind(search,...page()).all()).results;
+  const rows=(await db.prepare(`SELECT id,email,name,username,phone,timezone,bio,gender,birth_date,role,status,access_level,is_owner,created_at FROM users WHERE instr(lower(name||' '||email||' '||coalesce(username,'')),lower(?))>0 AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 51`).bind(search,...page()).all()).results;
   const result=paged(rows);
   for(const person of result.items) {
    const limit=await db.prepare('SELECT attempts,expires_at FROM login_limits WHERE key=?').bind(`email:${await digest(person.email)}`).first();
@@ -45,7 +45,7 @@ export async function handleAdmin(request,db,auth,url,h) {
  const [,type,id,action]=match,data=await body(request),reason=text(data.reason,500,'Reason');
  if(type==='users') {
   requireValue(id!==auth.id,'Use another admin to manage your own account; self-removal and self-demotion are blocked.',409);
-  const target=await db.prepare('SELECT id,email,name,role,status,is_owner FROM users WHERE id=?').bind(id).first();
+  const target=await db.prepare('SELECT id,email,name,role,status,is_owner,access_level FROM users WHERE id=?').bind(id).first();
   requireValue(target && target.status!=='deleted','Account unavailable.',404);
   requireValue(!target.is_owner || action==='unlock','The primary owner cannot be suspended, deleted, demoted, or password-reset by another admin.',409);
   const exists="EXISTS(SELECT 1 FROM users WHERE id=? AND status<>'deleted')";
@@ -72,6 +72,7 @@ export async function handleAdmin(request,db,auth,url,h) {
    db.prepare(`DELETE FROM login_limits WHERE key=? AND ${guard}`).bind(limit,op)
   ]);
   if(action==='role') {
+   requireValue(target.access_level==='full','Approve the access request before changing this account’s role.',409);
    requireValue(['admin','member'].includes(data.role),'Choose admin or member.');
    return change(`role:${data.role}`,'user',id,reason,data.role==='member'?safe:exists,data.role==='member'?[id,id]:[id],(guard,op)=>[
     db.prepare(`UPDATE users SET role=? WHERE id=? AND ${guard}`).bind(data.role,id,op),

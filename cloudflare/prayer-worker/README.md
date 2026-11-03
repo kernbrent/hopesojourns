@@ -121,3 +121,14 @@ The email has a one-hour fragment link, one-use instructions, an ignore-if-unreq
 Admins see delivery state and can issue manual fallback/replacement links after identity verification. Another admin cannot manually reset the primary owner; owner self-service recovery goes to their associated email. Private admin links remain manual and are never emailed automatically.
 
 Admin routes: GET `/api/admin/portal-requests?status=pending|approved|declined|completed|all&search=...&before=...`, GET `/api/admin/portal-requests/count`, and POST `/:id/approve|decline|reissue` with revision/reason and verified=true for link issuance. The suite has 52 tests per storage adapter and includes mock provider acceptance/failure, nonproduction capture, generic responses, profile transfer, stale authority, rollback and one-use recovery.
+
+
+## Provisional access and Global prayers
+
+Migration 0012 preserves existing users as full members and existing prayers as non-Global. Request access now asks for a password and immediately signs in a provisional regular member. The request profile never stores that password; the account stores its hash. Duplicate requests and existing accounts receive generic confirmation without changing their data. Older pending requests without passwords retain their private invitation process.
+
+Provisional users can read Global prayers and eligible resources/categories/images, view/edit their own profile, and sign out. All other routes are denied server-side. Resource review state, gender and age restrictions remain in effect, including missing birth dates. Provisional identities are excluded from the member directory and group invitations. Admin approval verifies email ownership and upgrades the same account without another password. Decline suspends the provisional account and revokes sessions and reset links. A normal reactivation cannot grant full membership or admin access. Refresh access reloads current permissions after approval.
+
+Global is explicitly selected in Share in. It means every signed-in user, including provisional accounts, regardless of group or demographics. Existing prayers stay within their original audiences. New Global posts require global=true, audience=members, no group and no selected recipients. The database enforces the group/audience invariant. GET /api/posts?global=1 filters Global prayers. POST /api/posts/:id/global accepts global, reason and confirmed=true, requires the active full author or current admin, and atomically audits conversion, clears group/recipient restrictions and removes stale notifications. Limiting a Global post makes it visible to all full members; original private/group audiences are not restored. No prayer is public without sign-in.
+
+Verification: 58 tests per storage adapter (116 total), with provisional route isolation, demographic image protection, approval/decline, rollback and Global conversion coverage. Local-only until release approval.

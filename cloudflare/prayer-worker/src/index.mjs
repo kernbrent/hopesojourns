@@ -24,16 +24,16 @@ class HttpError extends Error { constructor(status, message) { super(message); t
 function requireValue(condition, message, status = 400) { if (!condition) throw new HttpError(status, message); }
 const json = (value, status = 200, headers = {}) => Response.json(value, { status, headers });
 const now = () => Date.now();
-const publicUser = u => ({ id:u.id,name:u.name,role:u.role,owner:!!u.is_owner,username:u.username||u.email,email:u.email,
+const publicUser = u => ({ id:u.id,name:u.name,role:u.role,access_level:u.access_level||'full',owner:!!u.is_owner,username:u.username||u.email,email:u.email,
  phone:u.phone||'',timezone:u.timezone||'',bio:u.bio||'',gender:u.gender||'',birth_date:u.birth_date||'',notify_requests:u.notify_requests!==0,notify_updates:u.notify_updates!==0,notify_answered:u.notify_answered!==0 });
 // This predicate must be used for every read, including notification joins.
-function visibilityFor(id,role) {
-  return `(p.author_id = ${id} OR ${role} = 'admin' OR
-    ((p.group_id IS NULL OR EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id=p.group_id AND gm.user_id=${id} AND gm.status='approved'))
-    AND (p.audience='members' OR (p.audience='selected' AND EXISTS (SELECT 1 FROM recipients r WHERE r.post_id=p.id AND r.user_id=${id})))))`;
+function visibilityFor(id,role,access) {
+  return `(${role}='admin' OR p.is_global=1 OR (${access}='full' AND
+    (p.author_id=${id} OR ((p.group_id IS NULL OR EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id=p.group_id AND gm.user_id=${id} AND gm.status='approved'))
+    AND (p.audience='members' OR (p.audience='selected' AND EXISTS (SELECT 1 FROM recipients r WHERE r.post_id=p.id AND r.user_id=${id})))))))`;
 }
-export const visibility = visibilityFor('?','?');
-const visibleArgs = u => [u.id, u.role, u.id, u.id];
+export const visibility = visibilityFor('?','?','?');
+const visibleArgs = u => [u.role,u.access_level||'full',u.id,u.id,u.id];
 function cookie(value, age) { return `${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}`; }
 async function session(db, user) {
   const raw = token(), csrf = token();
@@ -55,10 +55,10 @@ function email(value) {
   const result = text(value, 254, 'Email').toLowerCase();
   requireValue(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result), 'Enter a valid email address.'); return result;
 }
-function password(value) { requireValue(typeof value === 'string' && value.length >= 12 && value.length <= 128, 'Use a password of 12–128 characters.'); return value; }
+function password(value) { requireValue(typeof value === 'string' && value.length >= 12 && value.length <= 128, 'Use a password of 12â€“128 characters.'); return value; }
 function username(value,address,owner=false) {
   const name=(typeof value==='string' && value.trim()?value:address).trim().toLowerCase();
-  requireValue(name===address.toLowerCase() || /^[a-z0-9][a-z0-9._-]{2,39}$/.test(name),'Use 3–40 letters, numbers, dots, underscores, or dashes, or use your own email.');
+  requireValue(name===address.toLowerCase() || /^[a-z0-9][a-z0-9._-]{2,39}$/.test(name),'Use 3â€“40 letters, numbers, dots, underscores, or dashes, or use your own email.');
   requireValue(name!=='admin' || owner,'The username admin is reserved for the primary owner.');
   return name;
 }
@@ -79,7 +79,7 @@ async function api(request, env, url, ctx) {
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
-  const requestHelp=await handlePublicRequests(request,db,url,{json,body,text,email,username,requireValue,digest,rateLimit,token,defer:ctx?.waitUntil?promise=>ctx.waitUntil(promise):null},env);
+  const requestHelp=await handlePublicRequests(request,db,url,{json,body,text,email,username,requireValue,digest,rateLimit,token,password,passwordHash,session,defer:ctx?.waitUntil?promise=>ctx.waitUntil(promise):null},env);
   if(requestHelp) return requestHelp;
   if (path === '/api/login' && method === 'POST') {
     const data = await body(request), identifier=text(data.identifier ?? data.email,254,'Username or email').toLowerCase();
@@ -150,6 +150,12 @@ async function api(request, env, url, ctx) {
     WHERE s.token_hash=? AND s.expires_at>? AND u.status='active'`).bind(await digest(raw), now()).first();
   requireValue(auth, 'Please sign in to the prayer portal.', 401);
   if (method !== 'GET') requireValue(request.headers.get('x-csrf-token') === auth.csrf, 'Your session changed. Refresh and try again.', 403);
+  // Provisional accounts may only read Global prayers, eligible resources, and their own account.
+  if(auth.access_level==='provisional') {
+    const allowed=(method==='GET' && (['/api/me','/api/posts','/api/resources','/api/resource-categories'].includes(path) || /^\/api\/resources\/[^/]+\/image$/.test(path))) ||
+      (method==='POST' && ['/api/profile','/api/logout'].includes(path));
+    requireValue(allowed,'Admin approval is required for this feature.',403);
+  }
   if(/^\/api\/(?:admin\/)?(?:resources|resource-categories|resource-review-count)(?:\/|$)/.test(path)) {
     const response=await handleResources(request,db,auth,url,{json,body,text,requireValue,rateLimit,assets:env.ASSETS});
     if(response) return response;
@@ -186,11 +192,11 @@ async function api(request, env, url, ctx) {
   if (path === '/api/people' && method === 'GET') {
     return json((await db.prepare(`SELECT u.id,u.name,u.role,u.bio,CASE WHEN instr(coalesce(u.username,''),'@')=0 THEN u.username ELSE NULL END AS username,f.followed_id IS NOT NULL AS following,
       f.requests,f.updates,f.answered FROM users u LEFT JOIN follows f ON f.followed_id=u.id AND f.follower_id=?
-      WHERE u.status='active' ORDER BY u.name,u.id`).bind(auth.id).all()).results);
+      WHERE u.status='active' AND u.access_level='full' ORDER BY u.name,u.id`).bind(auth.id).all()).results);
   }
   if (path === '/api/follow' && method === 'POST') {
     const data = await body(request);
-    requireValue(data.userId !== auth.id && await db.prepare("SELECT id FROM users WHERE id=? AND status='active'").bind(String(data.userId)).first(), 'Choose another portal member.');
+    requireValue(data.userId !== auth.id && await db.prepare("SELECT id FROM users WHERE id=? AND status='active' AND access_level='full'").bind(String(data.userId)).first(), 'Choose another portal member.');
     requireValue(typeof data.following === 'boolean', 'Choose whether to follow this person.');
     if (!data.following) await db.prepare('DELETE FROM follows WHERE follower_id=? AND followed_id=?').bind(auth.id, data.userId).run();
     else {
@@ -203,14 +209,15 @@ async function api(request, env, url, ctx) {
   if (path === '/api/posts' && method === 'GET') {
     const kind = url.searchParams.get('kind'), following = url.searchParams.get('following') === '1';
     const groupId = url.searchParams.get('group') || '';
+    const globalOnly=url.searchParams.get('global')==='1';
     requireValue(!kind || kinds.includes(kind), 'Unknown post type.');
     const [stamp, beforeId = ''] = (url.searchParams.get('before') || `${Number.MAX_SAFE_INTEGER}`).split(':');
     const before = Number(stamp);
     requireValue(Number.isSafeInteger(before) && before > 0 && beforeId.length <= 36, 'Invalid page.');
     const rows = await db.prepare(`SELECT p.*,u.name AS author_name,g.name AS group_name FROM posts p JOIN users u ON u.id=p.author_id LEFT JOIN groups g ON g.id=p.group_id WHERE ${visibility}
       AND (?='' OR p.kind=?) AND (?=0 OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.followed_id=p.author_id))
-      AND (?='' OR p.group_id=?)
-      AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?)) ORDER BY p.created_at DESC,p.id DESC LIMIT 51`).bind(...visibleArgs(auth), kind || '', kind || '', +following, auth.id, groupId,groupId,before, before, beforeId).all();
+      AND (?='' OR p.group_id=?) AND (?=0 OR p.is_global=1)
+      AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?)) ORDER BY p.created_at DESC,p.id DESC LIMIT 51`).bind(...visibleArgs(auth), kind || '', kind || '', +following, auth.id, groupId,groupId,+globalOnly,before, before, beforeId).all();
     const posts = rows.results.slice(0, 50), last = posts.at(-1);
     return json({ posts, more: rows.results.length > 50, cursor: last ? `${last.created_at}:${last.id}` : null });
   }
@@ -220,33 +227,49 @@ async function api(request, env, url, ctx) {
     requireValue(kinds.includes(data.kind), 'Choose a post type.');
     requireValue(['members','selected','admins'].includes(data.audience), 'Choose who can see this post.');
     const groupId = data.groupId ? text(data.groupId,80,'Group') : null;
+    requireValue(data.global===undefined || typeof data.global==='boolean','Choose Global visibility.');
+    const globalPost=data.global===true;
+    requireValue(!globalPost || (!groupId && data.audience==='members' && (!data.recipients || data.recipients.length===0)),'Global prayers must be shared with everyone without a group or selected recipients.');
     if (groupId) requireValue(await db.prepare("SELECT 1 FROM group_members WHERE group_id=? AND user_id=? AND status='approved'").bind(groupId,auth.id).first(),'Join this group before posting to it.',403);
     const recipients = data.audience === 'selected' && Array.isArray(data.recipients) ? [...new Set(data.recipients)] : [];
-    requireValue(data.audience !== 'selected' || (recipients.length > 0 && recipients.length <= 50), 'Select 1–50 people.');
+    requireValue(data.audience !== 'selected' || (recipients.length > 0 && recipients.length <= 50), 'Select 1â€“50 people.');
     for (const person of recipients) requireValue(typeof person === 'string' && person !== auth.id && await db.prepare("SELECT id FROM users WHERE id=? AND status='active'").bind(person).first(), 'One of the selected people is unavailable.');
     if (groupId) for (const person of recipients) requireValue(await db.prepare("SELECT 1 FROM group_members WHERE group_id=? AND user_id=? AND status='approved'").bind(groupId,person).first(),'Selected people must belong to this group.');
-    const statements = [db.prepare(`INSERT INTO posts (id,author_id,title,body,kind,audience,created_at,group_id)
-      SELECT ?,?,?,?,?,?,?,? WHERE ? IS NULL OR EXISTS (SELECT 1 FROM group_members WHERE group_id=? AND user_id=? AND status='approved')`).bind(id,auth.id,title,content,data.kind,data.audience,time,groupId,groupId,groupId,auth.id)];
+    const statements = [db.prepare(`INSERT INTO posts (id,author_id,title,body,kind,audience,created_at,group_id,is_global)
+      SELECT ?,?,?,?,?,?,?,?,? WHERE ? IS NULL OR EXISTS (SELECT 1 FROM group_members WHERE group_id=? AND user_id=? AND status='approved')`).bind(id,auth.id,title,content,data.kind,data.audience,time,groupId,+globalPost,groupId,groupId,auth.id)];
     for (const person of recipients) statements.push(db.prepare('INSERT INTO recipients VALUES (?,?)').bind(id, person));
     const preference = { request: 'requests', update: 'updates', answered: 'answered' }[data.kind];
     statements.push(db.prepare(`INSERT INTO notifications (id,user_id,post_id,created_at)
       SELECT lower(hex(randomblob(16))),u.id,p.id,? FROM users u JOIN posts p ON p.id=?
-      WHERE u.id<>p.author_id AND u.status='active' AND u.notify_${preference}=1 AND ${visibilityFor('u.id','u.role')} AND
+      WHERE u.id<>p.author_id AND u.status='active' AND u.notify_${preference}=1 AND ${visibilityFor('u.id','u.role','u.access_level')} AND
       (EXISTS (SELECT 1 FROM follows f WHERE f.follower_id=u.id AND f.followed_id=p.author_id AND f.${preference}=1)
       OR EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id=p.group_id AND gm.user_id=u.id AND gm.status='approved' AND gm.${preference}=1))`).bind(time, id));
     const result = await db.batch(statements);
     requireValue(result[0].meta.changes === 1,'Your group membership changed. Refresh before posting.',403);
     return json({ id }, 201);
   }
+  if(/^\/api\/posts\/[^/]+\/global$/.test(path) && method==='POST') {
+    const data=await body(request),id=path.split('/')[3],reason=text(data.reason,500,'Reason');
+    requireValue(typeof data.global==='boolean' && data.confirmed===true,'Confirm the visibility change.');
+    const audit=crypto.randomUUID(),guard='EXISTS(SELECT 1 FROM admin_audit WHERE id=?)';
+    const result=await db.batch([
+      db.prepare(`INSERT INTO admin_audit SELECT ?,?,'global-visibility','post',?,?,? WHERE EXISTS(SELECT 1 FROM posts WHERE id=? AND (author_id=? OR EXISTS(SELECT 1 FROM users WHERE id=? AND role='admin' AND status='active'))) AND EXISTS(SELECT 1 FROM users WHERE id=? AND status='active' AND access_level='full')`).bind(audit,auth.id,id,reason,now(),id,auth.id,auth.id,auth.id),
+      db.prepare(`UPDATE posts SET is_global=?,group_id=NULL,audience='members' WHERE id=? AND ${guard}`).bind(+data.global,id,audit),
+      db.prepare(`DELETE FROM recipients WHERE post_id=? AND ${guard}`).bind(id,audit),
+      db.prepare(`DELETE FROM notifications WHERE post_id=? AND ${guard}`).bind(id,audit)
+    ]);
+    requireValue(result[0].meta.changes===1,'Post unavailable or your access changed.',404);
+    return json({ok:true});
+  }
   if (/^\/api\/posts\/[^/]+$/.test(path) && method === 'DELETE') {
     const id = path.split('/').pop();
     const target=await db.prepare('SELECT author_id FROM posts WHERE id=?').bind(id).first();
-    if(auth.role==='admin' && target && target.author_id!==auth.id) throw new HttpError(400,'Use Admin → All prayers to remove another person’s prayer with an audit reason.');
+    if(auth.role==='admin' && target && target.author_id!==auth.id) throw new HttpError(400,'Use Admin â†’ All prayers to remove another personâ€™s prayer with an audit reason.');
     const result = await db.prepare('DELETE FROM posts WHERE id=? AND (author_id=? OR ?=\'admin\')').bind(id, auth.id, auth.role).run();
     requireValue(result.meta.changes, 'Post unavailable.', 404); return json({ ok: true });
   }
   if (path === '/api/notifications' && method === 'GET') {
-    return json((await db.prepare(`SELECT n.id,n.read_at,n.created_at,p.id AS post_id,p.title,p.body,p.kind,p.audience,p.group_id,g.name AS group_name,u.name AS author_name
+    return json((await db.prepare(`SELECT n.id,n.read_at,n.created_at,p.id AS post_id,p.title,p.body,p.kind,p.audience,p.is_global,p.group_id,g.name AS group_name,u.name AS author_name
       FROM notifications n JOIN posts p ON p.id=n.post_id JOIN users u ON u.id=p.author_id LEFT JOIN groups g ON g.id=p.group_id WHERE n.user_id=? AND ${visibility}
       ORDER BY n.created_at DESC LIMIT 100`).bind(auth.id, ...visibleArgs(auth)).all()).results);
   }

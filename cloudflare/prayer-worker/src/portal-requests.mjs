@@ -33,6 +33,18 @@ export async function handlePublicRequests(request,db,url,h,env) {
  await rateLimit(db,`portal-help-address:${await digest(identifier)}`,3);
  const account=await db.prepare("SELECT id,email,status FROM users WHERE email=? COLLATE NOCASE OR username=? COLLATE NOCASE").bind(identifier,identifier).first();
  if(profile && account || !profile && (!account || account.status!=='active')) return response();
+ if(profile && data.password!==undefined) {
+  const stored=await h.passwordHash(h.password(data.password)),id=crypto.randomUUID(),requestId=crypto.randomUUID(),time=Date.now();
+  const results=await db.batch([
+   db.prepare(`INSERT OR IGNORE INTO users (id,email,name,password,role,created_at,username,phone,timezone,bio,gender,birth_date,notify_requests,notify_updates,notify_answered,access_level)
+    SELECT ?,?,?,?,'member',?,?,?,?,?,?,?,?,?,?,'provisional' WHERE NOT EXISTS(SELECT 1 FROM portal_requests WHERE kind='access' AND email=? AND status='pending') AND NOT EXISTS(SELECT 1 FROM users WHERE username=? COLLATE NOCASE OR email=? COLLATE NOCASE OR username=? COLLATE NOCASE)`)
+    .bind(id,profile.email,profile.name,stored,time,profile.username,profile.phone,profile.timezone,profile.bio,profile.gender,profile.birth_date,+profile.notify_requests,+profile.notify_updates,+profile.notify_answered,profile.email,profile.username,profile.username,profile.email),
+   db.prepare(`INSERT INTO portal_requests (id,kind,email,profile,user_id,created_at) SELECT ?,'access',?,?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=?)`)
+    .bind(requestId,profile.email,JSON.stringify(profile),id,time,id)
+  ]);
+  if(results[0].meta.changes===1) return h.session(db,await db.prepare('SELECT * FROM users WHERE id=?').bind(id).first());
+  return response();
+ }
  if(!profile) {await beginPasswordRecovery(db,account,env,url,h);return response();}
  await db.prepare(`INSERT OR IGNORE INTO portal_requests (id,kind,email,profile,user_id,created_at) VALUES (?,?,?,?,?,?)`)
   .bind(crypto.randomUUID(),profile?'access':'password',profile?.email||account.email,JSON.stringify(profile||{}),account?.id||null,Date.now()).run();
@@ -65,7 +77,10 @@ export async function handleRequestAdmin(request,db,auth,url,h) {
  if(action!=='decline') {
   requireValue(data.verified===true,'Verify the requester owns the associated email before approving.');
   const raw=token(),hash=await digest(raw);
-  if(row.kind==='access') {
+  if(row.kind==='access' && row.user_id) {
+   condition+=" AND EXISTS(SELECT 1 FROM users WHERE id=? AND email=? AND status='active' AND access_level='provisional' AND role='member')";args.push(row.user_id,row.email);
+   writes.push(db.prepare(`UPDATE users SET access_level='full' WHERE id=? AND ${guard}`).bind(row.user_id,audit));
+  } else if(row.kind==='access') {
    const profile=JSON.parse(row.profile),loginName=username(profile.username,row.email);
    condition+=" AND NOT EXISTS(SELECT 1 FROM users WHERE email=? COLLATE NOCASE OR username=? COLLATE NOCASE OR email=? COLLATE NOCASE OR username=? COLLATE NOCASE)";args.push(row.email,row.email,loginName,loginName);
    const invitation=crypto.randomUUID();
@@ -80,8 +95,14 @@ export async function handleRequestAdmin(request,db,auth,url,h) {
    link=`${url.origin}/#reset=${raw}`;
   }
  }
+ if(action==='decline' && row.kind==='access' && row.user_id) {
+  condition+=" AND EXISTS(SELECT 1 FROM users WHERE id=? AND access_level='provisional' AND role='member' AND is_owner=0)";args.push(row.user_id);
+  writes.push(db.prepare(`UPDATE users SET status='suspended' WHERE id=? AND ${guard}`).bind(row.user_id,audit));
+  writes.push(db.prepare(`DELETE FROM sessions WHERE user_id=? AND ${guard}`).bind(row.user_id,audit));
+  writes.push(db.prepare(`DELETE FROM password_resets WHERE user_id=? AND ${guard}`).bind(row.user_id,audit));
+ }
  const batch=[db.prepare(`INSERT INTO admin_audit SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND role='admin' AND status='active') AND (${condition})`).bind(audit,auth.id,`${action}:${row.kind}`,'portal-request',id,reason,time,auth.id,...args),...writes,
-  db.prepare(`UPDATE portal_requests SET status=?,reviewed_at=?,reviewed_by=?,revision=revision+1 WHERE id=? AND ${guard}`).bind(action==='decline'?'declined':'approved',time,auth.id,id,audit)];
+  db.prepare(`UPDATE portal_requests SET status=?,reviewed_at=?,reviewed_by=?,revision=revision+1 WHERE id=? AND ${guard}`).bind(action==='decline'?'declined':row.kind==='access' && row.user_id?'completed':'approved',time,auth.id,id,audit)];
  const results=await db.batch(batch);requireValue(results[0].meta.changes===1,'This request or account changed, the username is unavailable, or owner recovery requires the owner’s signed-in session. Refresh and review.',409);
  return json({ok:true,...(link?{link,kind:row.kind}:{})});
 }

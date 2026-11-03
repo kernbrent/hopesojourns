@@ -71,7 +71,7 @@ export async function handleGroups(request, db, auth, url, helpers, config) {
   if (action === 'members' && !target && method === 'POST') {
     requireValue(manager,'Only the group leader or a portal admin can invite members.',403);
     const data = await body(request), person = text(data.userId,80,'Member');
-    requireValue(person !== group.owner_id && await db.prepare("SELECT id FROM users WHERE id=? AND status='active'").bind(person).first(),'Choose another active portal member.');
+    requireValue(person !== group.owner_id && await db.prepare("SELECT id FROM users WHERE id=? AND status='active' AND access_level='full'").bind(person).first(),'Choose another active portal member.');
     await rateLimit(db,`group-invite:${auth.id}`,30);
     const result = await db.prepare(`INSERT INTO group_members (group_id,user_id,status,requested_at,decided_by) VALUES (?,?,'invited',?,?)
       ON CONFLICT(group_id,user_id) DO UPDATE SET status='invited',requested_at=excluded.requested_at,decided_at=NULL,decided_by=excluded.decided_by
@@ -85,7 +85,7 @@ export async function handleGroups(request, db, auth, url, helpers, config) {
     const data = await body(request);
     const status = {approve:'approved',decline:'declined',remove:'removed'}[data.decision];
     requireValue(status,'Choose approve, decline, or remove.');
-    if(status==='approved') requireValue(await db.prepare("SELECT id FROM users WHERE id=? AND status='active'").bind(target).first(),'This account is not active.');
+    if(status==='approved') requireValue(await db.prepare("SELECT id FROM users WHERE id=? AND status='active' AND access_level='full'").bind(target).first(),'This account is not active.');
     const result = await db.prepare(`UPDATE group_members SET status=?,decided_at=?,decided_by=? WHERE group_id=? AND user_id=?
       AND ((?='approved' AND status='pending') OR (?='declined' AND status='pending') OR (?='removed' AND status IN ('approved','invited')))` ).bind(status,Date.now(),auth.id,id,target,status,status,status).run();
     requireValue(result.meta.changes,'Membership changed. Refresh the group and try again.',409);

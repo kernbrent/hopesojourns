@@ -504,7 +504,7 @@ test('recommendation spam caps and stale admin approval fail closed',async()=>{
 const application=(extra={})=>({name:'New Applicant',email:'applicant@example.com',username:'applicant',phone:'972-555-0101',timezone:'America/Chicago',bio:'I would like to join the group.',gender:'male',birth_date:'1990-05-02',notify_requests:true,notify_updates:false,notify_answered:true,...extra});
 test('public access requests collect profile fields privately without creating accounts or granting roles',async()=>{
  const f=fixture();await f.add('admin','admin');await f.add('member');
- assert.equal((await f.request('access-requests',null,application({role:'admin',is_owner:1,password:'must-not-be-stored'}))).status,202);
+ assert.equal((await f.request('access-requests',null,application({role:'admin',is_owner:1}))).status,202);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM users').get().n,2);
  const row=f.sql.prepare('SELECT * FROM portal_requests').get(),profile=JSON.parse(row.profile);
  assert.equal(row.status,'pending');assert.equal(profile.username,'applicant');assert.equal(profile.birth_date,'1990-05-02');assert.equal(profile.notify_updates,false);assert.ok(!('role' in profile) && !('password' in profile));
@@ -615,4 +615,78 @@ test('test recovery cannot send live email and provider failures stay generic, i
   assert.equal((await f.request('password-help',null,{identifier:'member@example.com'})).status,202);assert.equal(calls,2);
   assert.equal(f.sql.prepare("SELECT count(*) n FROM portal_requests WHERE status='pending'").get().n,0);assert.equal((await f.request('me','member')).status,200);
  } finally {globalThis.fetch=original;}
+});
+
+
+test('provisional request creates only a restricted account with hashed password and private profile',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');
+ const response=await f.request('access-requests',null,application({password:'provisional-password',role:'admin',access_level:'full',is_owner:1}));
+ assert.equal(response.status,200,await response.clone().text());const joined=await response.json();
+ assert.equal(joined.user.role,'member');assert.equal(joined.user.owner,false);assert.equal(joined.user.access_level,'provisional');
+ const saved=f.sql.prepare('SELECT * FROM users WHERE id=?').get(joined.user.id);assert.notEqual(saved.password,'provisional-password');assert.equal(saved.bio,application().bio);
+ const q=f.sql.prepare('SELECT * FROM portal_requests').get();assert.equal(q.user_id,saved.id);assert.equal(q.status,'pending');assert.ok(!q.profile.includes('password'));
+ assert.ok(!(await (await f.request('people','member')).json()).some(p=>p.id===saved.id));
+ const cookie=response.headers.get('set-cookie').split(';')[0];
+ async function direct(path,data,method) {return worker.fetch(new Request('https://prayer.example.com/api/'+path,{method:method||(data?'POST':'GET'),headers:{Origin:'https://prayer.example.com',Cookie:cookie,'X-CSRF-Token':joined.csrf,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined}),f.env);}
+ for(const path of ['people','groups','groups/discover','notifications','invites','admin/users','admin/portal-requests','admin/resources']) assert.equal((await direct(path)).status,403,path);
+ for(const [path,data,method] of [['posts',post('members')],['follow',{userId:'member',following:true}],['groups',{name:'Secret group'}],['resources/recommend',{}],['notifications/read',{}],['posts/any',null,'DELETE']]) assert.equal((await direct(path,data,method)).status,403,path);
+ assert.equal((await direct('resources')).status,200);assert.equal((await direct('resource-categories')).status,200);
+ assert.equal((await (await direct('me')).json()).user.access_level,'provisional');
+ assert.equal((await f.request('access-requests',null,application({password:'attacker-password'}))).status,202);assert.equal(f.sql.prepare('SELECT count(*) n FROM users').get().n,3);
+ assert.equal((await f.request('login',null,{identifier:application().email,password:'attacker-password'})).status,401);
+ assert.equal((await f.request(`admin/users/${saved.id}/role`,'admin',{role:'admin',reason:'Skip approval'})).status,409);
+ assert.equal((await f.request(`admin/portal-requests/${q.id}/approve`,'admin',{revision:1,reason:'Verified identity',verified:true})).status,200);
+ assert.equal(f.sql.prepare('SELECT status FROM portal_requests').get().status,'completed');assert.equal(f.sql.prepare('SELECT count(*) n FROM invites').get().n,0);
+ assert.equal((await (await direct('me')).json()).user.access_level,'full');assert.equal((await direct('people')).status,200);
+});
+
+test('Global prayers alone are visible provisionally even with existing group and recipient subscriptions',async()=>{
+ const f=fixture();for(const id of ['author','provisional','member']) await f.add(id);await f.add('admin','admin');f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='provisional'");
+ for(const audience of ['members','selected','admins']) assert.equal((await f.request('posts','author',post(audience,['provisional']))).status,201);
+ const created=await f.request('posts','author',{...post('members'),global:true});assert.equal(created.status,201,await created.clone().text());const globalId=(await created.json()).id;
+ let rows=(await (await f.request('posts','provisional')).json()).posts;assert.equal(rows.length,1);assert.equal(rows[0].id,globalId);assert.equal(rows[0].is_global,1);assert.equal(rows[0].group_id,null);
+ assert.equal((await (await f.request('posts?global=1','member')).json()).posts.length,1);
+ for(const data of [{...post('admins'),global:true},{...post('selected',['member']),global:true},{...post('members'),global:true,groupId:'any-group'},{...post('members'),global:'true'}]) assert.equal((await f.request('posts','author',data)).status,400);
+ assert.throws(()=>f.sql.prepare("UPDATE posts SET audience='admins' WHERE id=?").run(globalId));
+ assert.equal((await f.request(`posts/${globalId}/global`,'member',{global:false,confirmed:true,reason:'Unauthorized'})).status,404);
+ assert.equal((await f.request(`posts/${globalId}/global`,'author',{global:false,reason:'No confirmation'})).status,400);
+ assert.equal((await f.request(`posts/${globalId}/global`,'author',{global:false,confirmed:true,reason:'Limit audience'})).status,200);
+ assert.equal((await (await f.request('posts','provisional')).json()).posts.length,0);
+ assert.equal((await f.request(`posts/${globalId}/global`,'admin',{global:true,confirmed:true,reason:'Global encouragement'})).status,200);
+ assert.equal((await (await f.request('posts','provisional')).json()).posts.length,1);
+});
+
+test('declining provisional membership revokes sessions and recovery links without upgrading on reactivation',async()=>{
+ const f=fixture();await f.add('admin','admin');const response=await f.request('access-requests',null,application({password:'provisional-password'}));assert.equal(response.status,200,await response.clone().text());const person=(await response.json()).user;
+ await f.request('password-help',null,{identifier:person.email});const q=f.sql.prepare("SELECT * FROM portal_requests WHERE kind='access'").get();
+ assert.equal((await f.request(`admin/portal-requests/${q.id}/decline`,'admin',{revision:1,reason:'Not verified'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM sessions WHERE user_id=?').get(person.id).n,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM password_resets WHERE user_id=?').get(person.id).n,0);
+ assert.equal((await f.request('login',null,{identifier:person.email,password:'provisional-password'})).status,401);
+ assert.equal((await f.request(`admin/users/${person.id}/reactivate`,'admin',{reason:'Reconsider'})).status,200);assert.equal(f.sql.prepare('SELECT access_level FROM users WHERE id=?').get(person.id).access_level,'provisional');
+});
+
+test('provisional resource discovery and images honor demographic and moderation restrictions',async()=>{
+ const f=fixture();await f.add('provisional');f.sql.exec("UPDATE users SET access_level='provisional',birth_date='',gender='' WHERE id='provisional'; UPDATE resources SET min_age=18 WHERE id='not-even-a-hint'; UPDATE resources SET genders='male' WHERE id='wild-at-heart'");
+ const resources=await (await f.request('resources','provisional')).json();assert.ok(!resources.items.some(r=>['not-even-a-hint','wild-at-heart'].includes(r.id)));
+ for(const id of ['wild-at-heart','not-even-a-hint']) assert.equal((await f.request(`resources/${id}/image`,'provisional')).status,404);
+});
+
+
+test('provisional creation and approval roll back atomically when their guarded writes fail',async()=>{
+ const f=fixture();await f.add('admin','admin');
+ f.sql.exec("CREATE TRIGGER fail_application BEFORE INSERT ON portal_requests BEGIN SELECT RAISE(ABORT,'synthetic'); END");
+ assert.equal((await f.request('access-requests',null,application({password:'provisional-password'}))).status,500);assert.equal(f.sql.prepare('SELECT count(*) n FROM users').get().n,1);
+ f.sql.exec('DROP TRIGGER fail_application');const response=await f.request('access-requests',null,application({password:'provisional-password'}));assert.equal(response.status,200);const joined=await response.json(),q=f.sql.prepare('SELECT * FROM portal_requests').get();
+ f.sql.exec("CREATE TRIGGER fail_promotion BEFORE UPDATE OF access_level ON users BEGIN SELECT RAISE(ABORT,'synthetic'); END");
+ assert.equal((await f.request(`admin/portal-requests/${q.id}/approve`,'admin',{revision:1,verified:true,reason:'Verify'})).status,500);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);assert.equal(f.sql.prepare('SELECT access_level FROM users WHERE id=?').get(joined.user.id).access_level,'provisional');
+});
+
+test('making a restricted group prayer Global explicitly clears its group and recipient limits',async()=>{
+ const f=fixture();for(const id of ['author','friend','provisional'])await f.add(id);f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='provisional'");
+ const group=(await(await f.request('groups','author',{name:'Circle',description:'Private circle',kind:'accountability',discoverable:true})).json()).id;
+ await f.request(`groups/${group}/join`,'friend',{});await f.request(`groups/${group}/members/friend`,'author',{status:'approved'});
+ const response=await f.request('posts','author',{...post('selected',['friend']),groupId:group});assert.equal(response.status,201,await response.clone().text());const id=(await response.json()).id;
+ assert.equal((await f.request(`posts/${id}/global`,'author',{global:true,confirmed:true,reason:'Share broadly'})).status,200);
+ const row=f.sql.prepare('SELECT * FROM posts WHERE id=?').get(id);assert.equal(row.group_id,null);assert.equal(row.audience,'members');assert.equal(row.is_global,1);assert.equal(f.sql.prepare('SELECT count(*) n FROM recipients WHERE post_id=?').get(id).n,0);
+ assert.equal((await(await f.request('posts','provisional')).json()).posts[0].id,id);
 });
