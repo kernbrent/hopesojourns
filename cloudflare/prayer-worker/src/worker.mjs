@@ -1,7 +1,7 @@
 import app from './index.mjs';
 export {PrayerStore} from './prayer-store.mjs';
 export default {
-  async fetch(request,env) {
+  async fetch(request,env,ctx) {
     if(env.PRAYER_STORE && new URL(request.url).pathname.startsWith('/api/')) {
       try {
         // Buffer before forwarding so handlers that intentionally ignore a JSON
@@ -22,6 +22,6 @@ export default {
       }
       catch {return Response.json({error:'The prayer portal is temporarily unavailable. Please try again.'},{status:503,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
     }
-    return app.fetch(request,env);
+    return app.fetch(request,env,ctx);
   }
 };

@@ -133,3 +133,11 @@
 .resource-image-preview { display:block; width:140px; height:190px; object-fit:contain; margin:1rem 0; }
 #resource-review-banner { margin:1rem 0; border-left:4px solid var(--gold); }
 #resource-pending-count,#admin-resource-count { font-size:.72rem; font-weight:700; }
+
+.prayer-portal .request-trap { display:none; }
+#auth-options { margin-top:1rem; }
+#back-sign-in { margin-top:1rem; }
+.request-profile dt { font-weight:600; margin-top:.65rem; }
+.request-profile dd { margin:.15rem 0; overflow-wrap:anywhere; white-space:pre-wrap; }
+
+.welcome.access-request-open { align-items:start; }

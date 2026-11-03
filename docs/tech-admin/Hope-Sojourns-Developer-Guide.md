@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 5.02
+Version 5.04
 
-Last reviewed: November 2, 2026
+Last reviewed: November 3, 2026
 
 ## Newsletter contact category
 
@@ -15,6 +15,10 @@ Contact email attachments are included in the existing composer and backend work
 The contact-email sender remains fixed at `admin@hopesojourns.com`. Resend requires verified owned-domain senders. Future selectable senders need an authorized sender allowlist; personal Gmail sending needs a separately authorized Gmail delivery integration. Reply-To alone does not change From.
 
 ## Independent prayer portal
+
+Sign-in help uses src/portal-requests.mjs, src/password-recovery.mjs and additive migrations 0010/0011. Public same-origin JSON POST /api/access-requests validates all existing profile fields, stores no password or role, and creates a pending private request rather than an account. IP/address throttles, duplicate suppression and a bot field limit abuse. Admin-only /api/admin/portal-requests and /count provide pending badges, status/search/cursor review, required reasons and atomic audit guards. POST /:id/approve|decline|reissue checks revisions and active admin authority; access approval requires explicit email-ownership verification and issues a seven-day member invitation. POST /api/invitation-details accepts the fragment token in the body to prefill name/username; enrollment atomically copies optional profile fields and alert settings. Links are hashed and shown once for manual private delivery. Account deletion removes associated request profiles before invitations. Health checks twelve required tables.
+
+POST /api/password-help automatically emails a one-hour, single-use reset link only to the canonical email of an active account, including the primary owner. Known/unknown accounts receive identical confirmation; no password or session changes until reset consumption. Production uses Resend through PRAYER_RESEND_API_KEY, PRAYER_EMAIL_DELIVERY_MODE=live and PRAYER_EMAIL_FROM=admin@hopesojourns.com. Configure that separate Worker secret before release; no key is copied from MMT. Nonproduction always captures without external mail, regardless of delivery mode. Background delivery uses the Worker/Durable Object context, a per-attempt idempotency key and a 15-second timeout; never log/store raw links or provider credentials. Transport failure invalidates the undisclosed token and remains pending for verified manual follow-up; another attempt closes the failed record and retries. Admin review shows sent/captured/failed state. Another admin cannot manually reset the owner. Successful reset invalidates all other reset links and sessions. The suite runs 52 tests per storage adapter, including provider mocks, capture enforcement, one-time links and field privacy.
 
 Migration 0009 adds The Connection Codes with authenticated packaged cover delivery and four relationship tags, and replaces the two existing seed descriptions with original paragraphs. It changes only descriptions, timestamps, and revisions on those existing books; visibility, moderation state, audiences, images, and order remain intact. Migration tracking prevents later admin edits or deletions being undone. The expanded suite runs 43 tests on each storage adapter.
 
@@ -1325,6 +1329,8 @@ Files are stored in the environment's private RECEIPTS bucket under contact-emai
 GET /admin/contacts/emails/:id/attachments/:index requires authentication and Contacts read access, resolves only immutable saved metadata, verifies bytes, and returns a forced download with private no-store and nosniff headers. Contact histories and Emails sent show filename/size links, never R2 keys or public URLs. Test delivery payloads, immutable retries, access control, downloads, corrupt files, unsupported formats, and size/count limits with contact-email-attachments.test.ts. No real email is needed for validation.
 
 ## Revision history
+
+- November 3, 2026 — Version 5.04. Added full-profile access requests, audited approval, automatic reset email with isolated capture mode, and privacy/recovery tests. Local review only.
 
 - November 2, 2026 - Version 5.02: Recorded read-only audience verification, the explicit James Bryant inclusion, and one-time migration behavior for the authorized dual-environment release.
 

@@ -1,6 +1,7 @@
 const $ = selector => document.querySelector(selector);
 let user, csrf, people = [], groups = [], activeGroup = null, currentView = 'feed', olderThan, pendingDelete;
 let site = {allowMemberGroups:true,organizationName:'Hope Sojourns'}, sessionGeneration = 0;
+let authMode='login',pendingRequestReview=null;
 let adminTab='users',adminCursor=null,pendingAdminAction=null,adminLoadGeneration=0;
 let resourceImageChange,resourceImageGeneration=0,pendingResourceReview=null;
 let resourceCategories=[],resourceOffset=0,resourceGeneration=0,editingResource=null,editingCategory=null,deletingResource=null;
@@ -17,11 +18,12 @@ function element(tag, content, className) {
 function displayTime(value) {return new Date(value).toLocaleString(undefined,user?.timezone?{timeZone:user.timezone}:undefined);}
 function notice(message, error = false) {
   $('#message').textContent = message; $('#message').className = error ? 'error' : ''; $('#message').hidden = !message;
-  const local = [...document.querySelectorAll('dialog[open] .dialog-message')].at(-1);
+  const local = [...document.querySelectorAll('dialog[open] .dialog-message, .auth-card form:not([hidden]) .auth-message')].at(-1);
   if (local) { local.textContent = message; local.hidden = !error || !message; }
 }
 function applySite(config) {
   site = config;
+  $('#recovery-test-notice').hidden=config.environment==='production';
   $('#environment-banner').hidden = config.environment === 'production';
   $('#environment-banner').textContent = config.environment === 'test' ? 'Test prayer portal — separate accounts and prayer data' : 'Local preview — sample data only';
   for (const id of ['community-name','community-eyebrow']) $(`#${id}`).textContent = config.communityName;
@@ -45,9 +47,14 @@ async function api(path, data, method) {
 function action(fn) { return async event => { const button = event?.submitter || (event?.currentTarget?.tagName === 'BUTTON' ? event.currentTarget : null); if (button) button.disabled = true;
   try { await fn(event); } catch (error) { notice(error.message, true); } finally { if (button) button.disabled = false; } }; }
 function setupAuth() {
-  $('#login-form').hidden = !!inviteToken || !!resetToken; $('#accept-form').hidden = !inviteToken || !!resetToken; $('#reset-form').hidden=!resetToken;
-  $('#auth-title').textContent = resetToken?'Choose a new password.':inviteToken ? 'You’re invited.' : 'Come on in.';
-  $('#auth-description').textContent = resetToken?'Use this private reset link to restore access.':inviteToken ? 'Set up your own prayer portal account.' : 'Sign in with your prayer portal account.';
+  $('#welcome').classList.toggle('access-request-open',authMode==='access');
+  $('#login-form').hidden = authMode!=='login' || !!inviteToken || !!resetToken;
+  $('#access-form').hidden=authMode!=='access' || !!inviteToken || !!resetToken;
+  $('#password-help-form').hidden=authMode!=='recovery' || !!inviteToken || !!resetToken;
+  $('#auth-options').hidden=authMode!=='login' || !!inviteToken || !!resetToken;
+  $('#back-sign-in').hidden=authMode==='login' && !inviteToken && !resetToken; $('#accept-form').hidden = !inviteToken || !!resetToken; $('#reset-form').hidden=!resetToken;
+  $('#auth-title').textContent = authMode==='access'?'Request access.':authMode==='recovery'?'Reset your password.':resetToken?'Choose a new password.':inviteToken ? 'You’re invited.' : 'Come on in.';
+  $('#auth-description').textContent = authMode==='access'?'Only portal admins can review your request.':authMode==='recovery'?'We will email a private password-reset link to your account address.':resetToken?'Use this private reset link to restore access.':inviteToken ? 'Set up your own prayer portal account.' : 'Sign in with your prayer portal account.';
 }
 function signedOut() { sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
   for (const id of ['posts','people','notifications','invites','recipients','groups','group-overview','group-members','group-actions','group-preferences','group-member-invite','admin-items']) $(`#${id}`).replaceChildren();
@@ -206,6 +213,7 @@ async function refreshNotifications() {
   if (!rows.length) empty($('#notifications'), 'You’re all caught up. Follow people to receive notifications about their new posts.');
   rows.forEach(row => $('#notifications').append(postCard(row,true)));
   await refreshResourceReviewCount();
+  await refreshRequestCount();
 }
 async function loadInvites() {
   const rows = await api('invites'); $('#invites').replaceChildren();
@@ -289,16 +297,19 @@ $('#copy-invite').addEventListener('click',action(async () => { await navigator.
 async function loadAdmin(append=false) {
   const generation=++adminLoadGeneration,mode=adminTab;
   const params=new URLSearchParams({search:$('#admin-search').value});
+  if(mode==='portal-requests') params.set('status',$('#request-status').value);
   if(append && adminCursor) params.set('before',adminCursor);
   const result=await api(`admin/${mode}?${params}`);
   if(generation!==adminLoadGeneration || currentView!=='admin' || !user || user.role!=='admin') return;
   document.querySelectorAll('[data-admin-tab]').forEach(node=>node.setAttribute('aria-pressed',String(node.dataset.adminTab===mode)));
   $('#admin-search-form').hidden=mode==='audit';
+  $('#request-status-label').hidden=mode!=='portal-requests';
   if(!append) $('#admin-items').replaceChildren();
   const items=mode==='audit'?result:result.items;
   if(mode==='audit' && items.length) $('#admin-items').append(auditTable(items));
   if(!items.length && !append) empty($('#admin-items'),mode==='audit'?'No administrative actions have been recorded. The most recent 100 actions will appear here.':'No matching accounts or content.');
   for(const item of items) {
+    if(mode==='portal-requests') $('#admin-items').append(requestCard(item));
     if(mode==='users') $('#admin-items').append(adminAccount(item));
     if(mode==='posts') {
       const card=postCard(item,true),actions=element('div',undefined,'actions');
@@ -378,7 +389,7 @@ $('#close-admin-action').addEventListener('click',()=>$('#admin-action').close()
 $('#admin-action-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget)),target=pendingAdminAction;action(async()=>{
   const result=await api(`admin/${target.type}/${encodeURIComponent(target.id)}/${target.action}`,{reason:values.reason,confirmation:values.confirmation,username:values.username,role:target.role});
   $('#admin-action').close();if(currentView==='admin') await loadAdmin();else {await loadPosts();await refreshNotifications();}
-  if(result.link) {$('#admin-private-link').value=result.link;$('#admin-link-result').hidden=false;notice('Private password-reset link created. Share it only with that account owner.');}
+  if(result.link) {$('#admin-link-label').textContent='Private password-reset link';$('#admin-link-help').textContent='Share privately with the account owner. Expires after one hour; works once. It is not emailed automatically.';$('#admin-private-link').value=result.link;$('#admin-link-result').hidden=false;notice('Private password-reset link created. Share it only with that account owner.');}
   else notice('Admin action completed and recorded.');
 })(event);});
 $('#copy-admin-link').addEventListener('click',action(async()=>{await navigator.clipboard.writeText($('#admin-private-link').value);notice('Private reset link copied.');}));
@@ -405,7 +416,7 @@ $('#group-form').addEventListener('submit',event=>{event.preventDefault(); const
   $('#create-group').close(); groups=await api('groups'); await openGroup(result.id); notice('Your group is ready. Invite people or approve their requests to join.');
 })(event);});
 setupAuth();
-api('site').then(applySite).then(()=>resetToken ? null : api('me')).then(data=>data && signedIn(data)).catch(error => { if (error.message !== 'Please sign in to the prayer portal.') notice(error.message,true); });
+api('site').then(applySite).then(()=>resetToken || inviteToken ? null : api('me')).then(data=>data && signedIn(data)).catch(error => { if (error.message !== 'Please sign in to the prayer portal.') notice(error.message,true); });
 setInterval(() => { if (user && !document.hidden) refreshNotifications().catch(error => notice(error.message,true)); },60000);
 function clearResources() {
  resourceImageGeneration++;resourceImageChange=undefined;pendingResourceReview=null;
@@ -543,12 +554,12 @@ $('#review-recommendations').addEventListener('click',action(async()=>{
 }));
 function openResourceReview(resource,decision) {
  pendingResourceReview={resource,decision};$('#resource-review-form').reset();$('#resource-review .dialog-message').hidden=true;
- $('#resource-review-title').textContent=`${decision==='approve'?'Approve':'Decline'}: ${resource.title}`;
- $('#resource-review-help').textContent=decision==='approve'?'This adds the resource to the member library for the genders and ages selected on it. Review or edit its content, image, link, and audience before approving.':'This keeps the recommendation out of the member library and clears it from the pending queue.';
- $('#confirm-resource-review').textContent=decision==='approve'?'Approve for the library':'Decline recommendation';$('#resource-review').showModal();
+ $('#resource-review-title').textContent=`${decision!=='decline'?'Approve':'Decline'}: ${resource.title}`;
+ $('#resource-review-help').textContent=decision!=='decline'?'This adds the resource to the member library for the genders and ages selected on it. Review or edit its content, image, link, and audience before approving.':'This keeps the recommendation out of the member library and clears it from the pending queue.';
+ $('#confirm-resource-review').textContent=decision!=='decline'?'Approve for the library':'Decline recommendation';$('#resource-review').showModal();
 }
 $('#resource-review-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget)),target=pendingResourceReview;action(async()=>{
- values.revision=target.resource.revision;await api(`admin/resources/${encodeURIComponent(target.resource.id)}/${target.decision}`,values);$('#resource-review').close();await loadResources();notice(target.decision==='approve'?'Resource approved and available to its audience.':'Recommendation declined.');
+ values.revision=target.resource.revision;await api(`admin/resources/${encodeURIComponent(target.resource.id)}/${target.decision}`,values);$('#resource-review').close();await loadResources();notice(target.decision!=='decline'?'Resource approved and available to its audience.':'Recommendation declined.');
 })(event);});
 let resourceImageError='';
 $('#resource-image-file').addEventListener('change',action(async()=>{
@@ -567,3 +578,47 @@ $('#resource-image-file').addEventListener('change',action(async()=>{
  } catch(error) {if(generation===resourceImageGeneration) {resourceImageError=error.message;throw error;}}
  finally {input.disabled=false;}
 }));
+
+function chooseAuth(mode) {authMode=mode;inviteToken=null;resetToken=null;notice('');setupAuth();$('#auth-title').tabIndex=-1;$('#auth-title').focus();}
+$('#request-access').addEventListener('click',()=>chooseAuth('access'));
+$('#forgot-password').addEventListener('click',()=>chooseAuth('recovery'));
+$('#back-sign-in').addEventListener('click',()=>chooseAuth('login'));
+$('#access-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form));for(const key of ['notify_requests','notify_updates','notify_answered']) data[key]=form.elements[key].checked;action(async()=>{const result=await api('access-requests',data);form.reset();chooseAuth('login');notice(result.message);})(event);});
+$('#password-help-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form));action(async()=>{const result=await api('password-help',data);form.reset();chooseAuth('login');notice(result.message);})(event);});
+if(inviteToken) api('invitation-details',{token:inviteToken}).then(result=>{if(result.profile) for(const key of ['name','username']) $('#accept-form').elements[key].value=result.profile[key];}).catch(error=>notice(error.message,true));
+async function refreshRequestCount() {
+ const pending=user?.role==='admin'?(await api('admin/portal-requests/count')).pending:0;
+ for(const id of ['admin-request-count','request-tab-count']) $(`#${id}`).textContent=pending?`${pending} pending ${pending===1?'request':'requests'}`:'';
+}
+function requestCard(item) {
+ const card=element('article',undefined,'panel'),profile=item.profile;
+ card.append(element('h3',item.kind==='access'?profile.name:'Password recovery'),element('p',`${item.email} · ${item.status} · ${displayTime(item.created_at)}`));
+ if(item.kind==='password') card.append(element('p',`Reset email: ${item.email_status==='sent'?'Accepted by email provider':item.email_status==='captured'?'Captured in test; no email sent':item.email_status==='failed'?'Delivery failed — contact the verified account owner':item.email_status==='sending'?'Sending':'Not sent'}`,'hint'));
+ if(item.kind==='access') {
+  const details=element('dl',undefined,'request-profile');
+  for(const [label,value] of [['Requested username',profile.username],['Phone',profile.phone],['Time zone',profile.timezone],['Gender',profile.gender],['Birth date',profile.birth_date],['Introduction (public after joining)',profile.bio],['Prayer-request alerts',profile.notify_requests?'On':'Off'],['Update alerts',profile.notify_updates?'On':'Off'],['Answered-prayer alerts',profile.notify_answered?'On':'Off']]) details.append(element('dt',label),element('dd',value||'Not provided'));
+  card.append(details);
+ }
+ if(item.status==='pending') {
+  const actions=element('div',undefined,'actions');
+  if(!item.is_owner || item.user_id===user.id) actions.append(button(item.kind==='access'?'Approve & create invitation':'Verify & create reset link',()=>openRequestReview(item,'approve')));
+  else card.append(element('p','Primary-owner recovery requires the owner’s signed-in session or help from the site operator. Another admin cannot reset the owner’s password.','hint'));
+  actions.append(button('Decline request',()=>openRequestReview(item,'decline')));card.append(actions);
+ } else if(item.status==='approved') {card.append(element('p','A private link was issued. A replacement invalidates the earlier link.','hint'));if(!item.is_owner || item.user_id===user.id) card.append(button('Create replacement link',()=>openRequestReview(item,'reissue')));}
+ return card;
+}
+function openRequestReview(item,decision) {
+ pendingRequestReview={item,decision};$('#request-review-form').reset();
+ $('#request-review-title').textContent=decision!=='decline'?`Approve ${item.kind==='access'?'access':'password recovery'} request`:'Decline request';
+ $('#request-review-help').textContent=decision==='decline'?`Record why this request from ${item.email} is being declined.`:item.kind==='access'?`Verify ${item.email} belongs to the requester. This creates a seven-day invitation for a regular member. Their submitted profile will be applied when they set their password. Share the private link only with that email owner.`:`Verify the identity of the account owner at ${item.email}. This creates a one-hour reset link; sessions end only when it is used. It is not emailed automatically.`;
+ $('#request-verify-label').hidden=decision!=='approve';$('#request-review-form').elements.verified.required=decision!=='decline';
+ $('#request-review-submit').textContent=decision!=='decline'?'Approve & create private link':'Decline request';$('#request-review-dialog .dialog-message').hidden=true;$('#request-review-dialog').showModal();
+}
+$('#close-request-review').addEventListener('click',()=>$('#request-review-dialog').close());
+$('#request-status').addEventListener('change',action(()=>loadAdmin()));
+$('#request-review-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,{item,decision}=pendingRequestReview;action(async()=>{
+ const result=await api(`admin/portal-requests/${encodeURIComponent(item.id)}/${decision}`,{revision:item.revision,reason:form.elements.reason.value,verified:form.elements.verified.checked});
+ $('#request-review-dialog').close();await loadAdmin();await refreshRequestCount();
+ if(result.link) {$('#admin-link-label').textContent=result.kind==='access'?'Private account-setup link':'Private password-reset link';$('#admin-link-help').textContent=`Share only with the verified email owner. Works once; expires after ${result.kind==='access'?'seven days':'one hour'}. It is not emailed automatically.`;$('#admin-private-link').value=result.link;$('#admin-link-result').hidden=false;}
+ notice(result.link?'Private link created. Copy it now and share only with the verified email owner.':'Request declined and recorded in the audit log.');
+})(event);});

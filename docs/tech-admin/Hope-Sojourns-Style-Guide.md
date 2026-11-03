@@ -1,10 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.92
+Version 4.94
 
-Last reviewed: November 2, 2026
+Last reviewed: November 3, 2026
 
 ## Independent prayer portal
+
+The prayer sign-in card offers Request access and Forgot password? with a Back to sign in action. Access requests show all existing profile fields: display name, username, associated email, optional phone/time zone/introduction/gender/birth date, and three notification choices. Keep private/public labels explicit, collect no password before approval, and state that new members receive no admin access. The long form aligns the welcome copy at the top and retains readable single-column fields; validation feedback appears beside submission. Admin navigation shows pending request counts; Access & password requests offers status/search filters and profile review. Approval/replacement uses a native dialog with a reason and explicit identity-verification checkbox. Show admin-issued private links once in a labeled copy panel with expiry and manual-delivery wording. Forgot password explains automatic delivery to the associated account email, one-hour expiry, generic confirmation and the separate MMT identity; test mode explicitly says no email is sent. Reuse the shared palette, visible focus, native labels and responsive wrapping.
 
 The three curated books use original paragraph descriptions explaining their themes and possible group-discussion use. The Connection Codes card retains the full retailer cover image, existing proportional image treatment, Books category, clickable relationship tags, and a clearly labeled retailer link.
 
@@ -889,6 +891,8 @@ Inbox Show includes Emails sent, with readable cards for subject and accepted ti
 The contact email composer places a labeled Attachments (optional) file picker below Message. Show supported file types and the limits of five files, 5 MB per file, and 10 MB total. List each chosen filename and size with an accessible Remove button. Wrap long filenames and controls on phones. Disable file selection and removal after submission alongside the message fields. Saved contact history and Inbox > Emails sent show private attachment download links with filenames and sizes.
 
 ## Revision history
+
+- November 3, 2026 — Version 4.94. Added sign-in help forms, full-profile access requests, pending badges and verified admin review dialogs. Local review only.
 
 - November 2, 2026 — Version 4.92. Reviewed Newsletter category labels, attachment controls, saved downloads, centered email dialogs, and accepted-delivery contact activity for the authorized release.
 

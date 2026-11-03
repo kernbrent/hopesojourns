@@ -99,6 +99,7 @@ export async function handleAdmin(request,db,auth,url,h) {
     db.prepare(`DELETE FROM posts WHERE author_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM sessions WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM password_resets WHERE user_id=? AND ${guard}`).bind(id,op),
+    db.prepare(`DELETE FROM portal_requests WHERE (email=? OR user_id=?) AND ${guard}`).bind(target.email,id,op),
     db.prepare(`DELETE FROM invites WHERE email=? AND ${guard}`).bind(target.email,op),
     db.prepare(`DELETE FROM notifications WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM follows WHERE (follower_id=? OR followed_id=?) AND ${guard}`).bind(id,id,op),

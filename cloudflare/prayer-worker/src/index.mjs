@@ -1,3 +1,4 @@
+import {handlePublicRequests,handleRequestAdmin} from './portal-requests.mjs';
 import { handleGroups } from './groups.mjs';
 import {handleAdmin} from './admin.mjs';
 import {handleResources} from './resources.mjs';
@@ -68,16 +69,18 @@ async function rateLimit(db, key, max) {
     expires_at=CASE WHEN expires_at <= ? THEN excluded.expires_at ELSE expires_at END RETURNING attempts`).bind(key, time + 900000, time, time).first();
   requireValue(row.attempts <= max, 'Too many attempts. Try again in 15 minutes.', 429);
 }
-async function api(request, env, url) {
+async function api(request, env, url, ctx) {
   const db = env.DB, path = url.pathname, method = request.method;
   const config = siteConfig(env);
   if (path === '/api/site' && method === 'GET') return json(config);
   if (path === '/api/health' && method === 'GET') {
-    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images')").first();
-    requireValue(schema.count === 11, 'Portal database setup is incomplete.', 503);
+    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests')").first();
+    requireValue(schema.count === 12, 'Portal database setup is incomplete.', 503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
+  const requestHelp=await handlePublicRequests(request,db,url,{json,body,text,email,username,requireValue,digest,rateLimit,token,defer:ctx?.waitUntil?promise=>ctx.waitUntil(promise):null},env);
+  if(requestHelp) return requestHelp;
   if (path === '/api/login' && method === 'POST') {
     const data = await body(request), identifier=text(data.identifier ?? data.email,254,'Username or email').toLowerCase();
     await rateLimit(db, `ip:${await digest(request.headers.get('CF-Connecting-IP') || 'local')}`, 60);
@@ -101,6 +104,8 @@ async function api(request, env, url) {
       db.prepare("UPDATE users SET password=? WHERE id=? AND status='active' AND EXISTS(SELECT 1 FROM password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at>?)").bind(stored,reset.user_id,hash,now()),
       db.prepare('UPDATE password_resets SET used_at=? WHERE token_hash=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND password=?)').bind(time,hash,reset.user_id,stored),
       db.prepare('DELETE FROM sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM password_resets WHERE token_hash=? AND used_at=?)').bind(reset.user_id,hash,time),
+      db.prepare('UPDATE password_resets SET used_at=? WHERE user_id=? AND used_at IS NULL AND EXISTS(SELECT 1 FROM password_resets WHERE token_hash=? AND used_at=?)').bind(time,reset.user_id,hash,time),
+      db.prepare("UPDATE portal_requests SET status='completed',revision=revision+1 WHERE kind='password' AND user_id=? AND status='approved' AND EXISTS(SELECT 1 FROM password_resets WHERE token_hash=? AND used_at=?)").bind(reset.user_id,hash,time),
       db.prepare('DELETE FROM login_limits WHERE key=? AND EXISTS(SELECT 1 FROM password_resets WHERE token_hash=? AND used_at=?)').bind(`email:${await digest(reset.email)}`,hash,time)
     ]);
     requireValue(result[0].meta.changes===1,'This password reset is no longer available.');
@@ -117,7 +122,9 @@ async function api(request, env, url) {
     }
     requireValue(invite, 'This invitation has expired or was already used. Ask an admin for a new one.');
     requireValue(!await db.prepare('SELECT id FROM users WHERE email=?').bind(invite.email).first(), 'This email already has an account. Sign in instead.');
-    const loginName=username(invite.initial && invite.email==='kernbrent@gmail.com'?'admin':data.username,invite.email,!!invite.initial);
+    const approvedRequest=!invite.initial && await db.prepare("SELECT id,profile FROM portal_requests WHERE invite_id=? AND status='approved'").bind(invite.id).first();
+    const applicant=approvedRequest?JSON.parse(approvedRequest.profile):null;
+    const loginName=username(invite.initial && invite.email==='kernbrent@gmail.com'?'admin':data.username||applicant?.username,invite.email,!!invite.initial);
     requireValue(!await db.prepare('SELECT id FROM users WHERE username=? COLLATE NOCASE OR email=? COLLATE NOCASE').bind(loginName,loginName).first(),'That username is already in use.');
     const user = { id: crypto.randomUUID(), name: text(data.name, 80, 'Name'), email:invite.email,username:loginName,role: invite.initial?'admin':'member',is_owner:invite.initial?1:0 };
     const stored = await passwordHash(password(data.password));
@@ -129,10 +136,14 @@ async function api(request, env, url) {
     ] : [
       db.prepare(`INSERT INTO users (id,email,name,password,role,created_at,username)
         SELECT ?,email,?,?,'member',?,? FROM invites WHERE token_hash=? AND used_at IS NULL AND expires_at>?`).bind(user.id, user.name, stored, now(),loginName, hash, now()),
+      ...(applicant?[
+        db.prepare('UPDATE users SET phone=?,timezone=?,bio=?,gender=?,birth_date=?,notify_requests=?,notify_updates=?,notify_answered=? WHERE id=?').bind(applicant.phone,applicant.timezone,applicant.bio,applicant.gender,applicant.birth_date,+applicant.notify_requests,+applicant.notify_updates,+applicant.notify_answered,user.id),
+        db.prepare("UPDATE portal_requests SET status='completed',revision=revision+1 WHERE id=? AND EXISTS(SELECT 1 FROM users WHERE id=?)").bind(approvedRequest.id,user.id)
+      ]:[]),
       db.prepare('UPDATE invites SET used_at=? WHERE token_hash=? AND EXISTS(SELECT 1 FROM users WHERE id=?)').bind(now(), hash, user.id)
     ]);
     requireValue(result[0].meta.changes === 1, 'This invitation is no longer available.');
-    return session(db, user);
+    return session(db, await db.prepare('SELECT * FROM users WHERE id=?').bind(user.id).first());
   }
   const raw = (request.headers.get('cookie') || '').split(';').map(x => x.trim()).find(x => x.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
   const auth = raw && await db.prepare(`SELECT u.*,s.csrf,s.token_hash FROM sessions s JOIN users u ON u.id=s.user_id
@@ -144,6 +155,8 @@ async function api(request, env, url) {
     if(response) return response;
   }
   if(path.startsWith('/api/admin/')) {
+    const requestAdmin=await handleRequestAdmin(request,db,auth,url,{json,body,text,requireValue,digest,token,username});
+    if(requestAdmin) return requestAdmin;
     const response=await handleAdmin(request,db,auth,url,{json,body,text,requireValue,digest,token,username});
     if(response) return response;
   }
@@ -260,11 +273,11 @@ async function api(request, env, url) {
   throw new HttpError(404, 'Page unavailable.');
 }
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     let response;
     try {
       const url = new URL(request.url);
-      if (url.pathname.startsWith('/api/')) response = await api(request, env, url);
+      if (url.pathname.startsWith('/api/')) response = await api(request, env, url, ctx);
       else if (['/','/index.html','/app.js','/portal.css','/styles.css',siteConfig(env).logoPath,'/favicon.ico'].includes(url.pathname)) response = await env.ASSETS.fetch(request);
       else response = json({ error: 'Page unavailable.' }, 404);
     } catch (error) {

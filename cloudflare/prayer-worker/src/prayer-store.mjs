@@ -4,7 +4,8 @@ import {sqliteDatabase,initializeDatabase} from './sqlite-database.mjs';
 export class PrayerStore {
   constructor(ctx,env) {
     initializeDatabase(ctx.storage,env);
+    this.ctx=ctx;
     this.env={...env,DB:sqliteDatabase(ctx.storage)};
   }
-  async fetch(request) {return app.fetch(request,this.env);}
+  async fetch(request) {return app.fetch(request,this.env,this.ctx);}
 }

@@ -500,3 +500,119 @@ test('recommendation spam caps and stale admin approval fail closed',async()=>{
  f.env.DB.batch=async statements=>{f.sql.prepare("UPDATE users SET role='member' WHERE id='admin'").run();return batch(statements);};
  assert.equal((await f.request(`admin/resources/${row.id}/approve`,'admin',{revision:1,reason:'Stale actor'})).status,409);assert.equal(f.sql.prepare('SELECT review_status FROM resources WHERE id=?').get(row.id).review_status,'pending');
 });
+
+const application=(extra={})=>({name:'New Applicant',email:'applicant@example.com',username:'applicant',phone:'972-555-0101',timezone:'America/Chicago',bio:'I would like to join the group.',gender:'male',birth_date:'1990-05-02',notify_requests:true,notify_updates:false,notify_answered:true,...extra});
+test('public access requests collect profile fields privately without creating accounts or granting roles',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');
+ assert.equal((await f.request('access-requests',null,application({role:'admin',is_owner:1,password:'must-not-be-stored'}))).status,202);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM users').get().n,2);
+ const row=f.sql.prepare('SELECT * FROM portal_requests').get(),profile=JSON.parse(row.profile);
+ assert.equal(row.status,'pending');assert.equal(profile.username,'applicant');assert.equal(profile.birth_date,'1990-05-02');assert.equal(profile.notify_updates,false);assert.ok(!('role' in profile) && !('password' in profile));
+ for(const who of [undefined,'member']) {assert.equal((await f.request('admin/portal-requests',who)).status,who?403:401);assert.equal((await f.request('admin/portal-requests/count',who)).status,who?403:401);}
+ assert.equal((await (await f.request('admin/portal-requests/count','admin')).json()).pending,1);
+ assert.equal((await f.request('access-requests',null,application({bio:'Overwrite attempt'}))).status,202);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM portal_requests').get().n,1);assert.equal(JSON.parse(f.sql.prepare('SELECT profile FROM portal_requests').get().profile).bio,profile.bio);
+ assert.ok(!(await (await f.request('people','member')).json()).some(person=>person.name==='New Applicant'));
+ const list=await (await f.request('admin/portal-requests?search=applicant','admin')).json();assert.equal(list.items[0].profile.phone,profile.phone);
+});
+test('verified access approval issues a one-use member invitation and carries every profile field into enrollment',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.request('access-requests',null,application());const row=f.sql.prepare('SELECT * FROM portal_requests').get();
+ const path=`admin/portal-requests/${row.id}/approve`;
+ assert.equal((await f.request(path,'admin',{revision:1,reason:'Approve without verification'})).status,400);
+ const approved=await (await f.request(path,'admin',{revision:1,reason:'Verified email owner by existing contact',verified:true})).json();assert.ok(approved.link);
+ const raw=approved.link.split('#invite=')[1];assert.ok(!JSON.stringify(f.sql.prepare('SELECT * FROM portal_requests').get()).includes(raw));
+ assert.equal((await f.request(path,'admin',{revision:1,reason:'Repeat',verified:true})).status,409);
+ const details=await (await f.request('invitation-details',null,{token:raw})).json();assert.equal(details.profile.name,'New Applicant');
+ const response=await f.request('accept',null,{token:raw,name:details.profile.name,password:'new-applicant-password',role:'admin'});assert.equal(response.status,200,await response.clone().text());
+ const user=(await response.json()).user;assert.equal(user.role,'member');assert.equal(user.owner,false);assert.equal(user.username,'applicant');
+ for(const key of ['phone','timezone','bio','gender','birth_date','notify_requests','notify_updates','notify_answered']) assert.equal(user[key],application()[key],key);
+ assert.equal(f.sql.prepare('SELECT status FROM portal_requests').get().status,'completed');
+ assert.equal((await (await f.request('invitation-details',null,{token:raw})).json()).profile,null);
+ assert.equal((await f.request('accept',null,{token:raw,name:'Replay',password:'new-applicant-password'})).status,400);
+});
+test('declines and failed or stale approvals leave no usable invitation and preserve transactional audit boundaries',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');await f.request('access-requests',null,application());const row=f.sql.prepare('SELECT * FROM portal_requests').get(),path=`admin/portal-requests/${row.id}`;
+ assert.equal((await f.request(`${path}/approve`,'member',{revision:1,reason:'Escalate',verified:true})).status,403);
+ f.sql.exec("CREATE TRIGGER reject_request_invite BEFORE INSERT ON invites BEGIN SELECT RAISE(ABORT,'synthetic failure'); END;");
+ assert.equal((await f.request(`${path}/approve`,'admin',{revision:1,reason:'Verified',verified:true})).status,500);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);assert.equal(f.sql.prepare('SELECT status FROM portal_requests').get().status,'pending');
+ f.sql.exec('DROP TRIGGER reject_request_invite');
+ assert.equal((await f.request(`${path}/decline`,'admin',{revision:1,reason:'Not part of this community'})).status,200);
+ assert.equal((await f.request(`${path}/approve`,'admin',{revision:1,reason:'Stale',verified:true})).status,409);assert.equal(f.sql.prepare('SELECT count(*) n FROM invites').get().n,0);
+ assert.equal((await (await f.request('admin/portal-requests/count','admin')).json()).pending,0);
+});
+test('request validation, reserved names, bots, origin checks and throttling protect the unauthenticated queue',async()=>{
+ for(const extra of [{name:''},{email:'bad'},{username:'admin'},{timezone:'not/a-zone'},{gender:'invalid'},{birth_date:'2050-01-01'},{notify_updates:'yes'},{phone:'x'.repeat(41)}]) {
+  const f=fixture();assert.equal((await f.request('access-requests',null,application(extra))).status,400,JSON.stringify(extra));assert.equal(f.sql.prepare('SELECT count(*) n FROM portal_requests').get().n,0);
+ }
+ const f=fixture();assert.equal((await f.request('access-requests',null,application({website:'bot'}))).status,202);assert.equal(f.sql.prepare('SELECT count(*) n FROM portal_requests').get().n,0);
+ const bad=await worker.fetch(new Request('https://prayer.example.com/api/access-requests',{method:'POST',headers:{Origin:'https://evil.example','Content-Type':'application/json'},body:JSON.stringify(application())}),f.env);assert.equal(bad.status,403);
+ for(let i=0;i<3;i++) assert.equal((await f.request('access-requests',null,application())).status,202);
+ assert.equal((await f.request('access-requests',null,application())).status,429);
+});
+test('failed automatic email remains private and permits verified manual fallback without revoking sessions',async()=>{
+ const f=fixture();f.env.ENVIRONMENT='production';await f.add('admin','admin');await f.add('member');
+ const known=await (await f.request('password-help',null,{identifier:'member@example.com'})).json(),unknown=await (await f.request('password-help',null,{identifier:'unknown@example.com'})).json();assert.deepEqual(known,unknown);
+ assert.equal((await f.request('me','member')).status,200);assert.equal(f.sql.prepare('SELECT count(*) n FROM portal_requests').get().n,1);
+ const row=f.sql.prepare('SELECT * FROM portal_requests').get(),path=`admin/portal-requests/${row.id}/approve`;
+ assert.equal((await f.request(path,'admin',{revision:row.revision,reason:'Unverified'})).status,400);
+ const issued=await (await f.request(path,'admin',{revision:row.revision,reason:'Identity verified privately',verified:true})).json();assert.ok(issued.link);const raw=issued.link.split('#reset=')[1];
+ assert.equal((await f.request('me','member')).status,200);assert.notEqual(f.sql.prepare('SELECT token_hash FROM password_resets').get().token_hash,raw);
+ assert.equal((await f.request('reset-password',null,{token:raw,password:'replacement-user-password'})).status,200);
+ assert.equal((await f.request('me','member')).status,401);assert.equal(f.sql.prepare('SELECT status FROM portal_requests').get().status,'completed');
+ assert.equal((await f.request('reset-password',null,{token:raw,password:'replacement-user-password'})).status,400);
+ assert.equal((await f.request('login',null,{identifier:'member@example.com',password:'replacement-user-password'})).status,200);
+});
+test('request approval rechecks live admin authority, username conflicts and primary-owner protection',async()=>{
+ const f=fixture();f.env.ENVIRONMENT='production';await f.add('admin','admin');await f.add('owner','admin');f.sql.exec("UPDATE users SET is_owner=1 WHERE id='owner'");
+ await f.request('password-help',null,{identifier:'owner@example.com'});let row=f.sql.prepare('SELECT * FROM portal_requests').get();
+ assert.equal((await f.request(`admin/portal-requests/${row.id}/approve`,'admin',{revision:1,reason:'Attempt owner reset',verified:true})).status,409);
+ await f.request('access-requests',null,application());row=f.sql.prepare("SELECT * FROM portal_requests WHERE kind='access'").get();
+ const batch=f.env.DB.batch.bind(f.env.DB);f.env.DB.batch=async statements=>{f.sql.exec("UPDATE users SET role='member' WHERE id='admin'");return batch(statements);};
+ assert.equal((await f.request(`admin/portal-requests/${row.id}/approve`,'admin',{revision:1,reason:'Stale admin',verified:true})).status,409);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM invites').get().n,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
+});
+
+test('replacement request links invalidate the original and preserve the applicant profile',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.request('access-requests',null,application());let row=f.sql.prepare('SELECT * FROM portal_requests').get();
+ const first=await (await f.request(`admin/portal-requests/${row.id}/approve`,'admin',{revision:1,verified:true,reason:'Verified owner'})).json();
+ row=f.sql.prepare('SELECT * FROM portal_requests').get();
+ const second=await (await f.request(`admin/portal-requests/${row.id}/reissue`,'admin',{revision:row.revision,verified:true,reason:'Old link lost'})).json();assert.ok(second.link);assert.notEqual(first.link,second.link);
+ const old=first.link.split('#invite=')[1],fresh=second.link.split('#invite=')[1];
+ assert.equal((await (await f.request('invitation-details',null,{token:old})).json()).profile,null);
+ assert.equal((await f.request('accept',null,{token:old,name:'Old',password:'new-account-password'})).status,400);
+ const profile=(await (await f.request('invitation-details',null,{token:fresh})).json()).profile;assert.equal(profile.phone,application().phone);
+ const join=await f.request('accept',null,{token:fresh,name:profile.name,password:'new-account-password'});assert.equal(join.status,200);const id=(await join.json()).user.id;
+ assert.equal((await f.request(`admin/users/${id}/delete`,'admin',{reason:'Remove synthetic member',confirmation:'DELETE'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM portal_requests').get().n,0);
+});
+
+test('automatic recovery emails only the canonical account address, including the owner, and never leaks or persists raw links',async()=>{
+ const f=fixture();await f.add('owner','admin');f.sql.exec("UPDATE users SET is_owner=1 WHERE id='owner'");
+ f.env.ENVIRONMENT='production';f.env.PRAYER_EMAIL_DELIVERY_MODE='live';f.env.PRAYER_RESEND_API_KEY='test-only-key';
+ const original=globalThis.fetch,mail=[];
+ globalThis.fetch=async (url,options)=>{assert.equal(url,'https://api.resend.com/emails');mail.push(JSON.parse(options.body));return Response.json({id:`test-email-${mail.length}`});};
+ try {
+  const knownResponse=await f.request('password-help',null,{identifier:'owner@example.com',email:'attacker@example.com'}),known=await knownResponse.json();assert.equal(knownResponse.status,202);
+  const unknown=await (await f.request('password-help',null,{identifier:'unknown@example.com'})).json();assert.deepEqual(known,unknown);assert.equal(mail.length,1);assert.deepEqual(mail[0].to,['owner@example.com']);
+  const raw=mail[0].text.match(/#reset=([a-f0-9]{64})/)[1];assert.ok(!JSON.stringify(known).includes(raw));assert.ok(!JSON.stringify(f.sql.prepare('SELECT * FROM portal_requests').all()).includes(raw));assert.notEqual(f.sql.prepare('SELECT token_hash FROM password_resets').get().token_hash,raw);
+  assert.equal(f.sql.prepare('SELECT email_status FROM portal_requests').get().email_status,'sent');assert.equal((await f.request('me','owner')).status,200);
+  await f.request('password-help',null,{identifier:'owner@example.com'});const second=mail[1].text.match(/#reset=([a-f0-9]{64})/)[1];
+  assert.equal((await f.request('reset-password',null,{token:second,password:'owner-replacement-password'})).status,200);
+  assert.equal((await f.request('reset-password',null,{token:raw,password:'old-link-replacement-password'})).status,400);
+  assert.equal((await f.request('me','owner')).status,401);
+ } finally {globalThis.fetch=original;}
+});
+test('test recovery cannot send live email and provider failures stay generic, invalidate tokens and allow later retry',async()=>{
+ const f=fixture();await f.add('member');f.env.ENVIRONMENT='test';f.env.PRAYER_EMAIL_DELIVERY_MODE='live';f.env.PRAYER_RESEND_API_KEY='fake-key';
+ const original=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;return new Response('rejected',{status:500});};
+ try {
+  assert.equal((await f.request('password-help',null,{identifier:'member@example.com'})).status,202);assert.equal(calls,0);assert.equal(f.sql.prepare('SELECT email_status FROM portal_requests').get().email_status,'captured');
+  f.env.ENVIRONMENT='production';assert.equal((await f.request('password-help',null,{identifier:'member@example.com'})).status,202);assert.equal(calls,1);
+  assert.equal(f.sql.prepare("SELECT email_status FROM portal_requests WHERE status='pending'").get().email_status,'failed');
+  assert.equal(f.sql.prepare('SELECT count(*) n FROM password_resets').get().n,1); // Only the earlier captured token remains.
+  globalThis.fetch=async()=>{calls++;return Response.json({id:'accepted-retry'});};
+  assert.equal((await f.request('password-help',null,{identifier:'member@example.com'})).status,202);assert.equal(calls,2);
+  assert.equal(f.sql.prepare("SELECT count(*) n FROM portal_requests WHERE status='pending'").get().n,0);assert.equal((await f.request('me','member')).status,200);
+ } finally {globalThis.fetch=original;}
+});
