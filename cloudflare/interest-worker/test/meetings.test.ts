@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import {afterEach,expect,it} from 'vitest';
 import {ministryFixture} from './ministry-fixture';
 import {handleMeetings} from '../src/meetings';
@@ -115,4 +116,44 @@ it('edits, completes, cancels and reopens meeting tasks directly while preservin
  const noCsrf=f.request(path,{id:t.id,revision:t.revision+5,status:'completed'});noCsrf.headers.delete('x-csrf-token');expect((await handlePlanning(noCsrf,f.env,path)).status).toBe(403);
  f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,must_change_password,permissions_json,registered_at,updated_at) VALUES('task-reader','task-reader','Read','Only','reader@example.test',0,'{"contacts":"read"}','now','now');UPDATE admin_sessions SET user_id='task-reader'`);
  expect((await update({revision:t.revision+5,status:'completed'})).status).toBe(403);
+});
+
+it('finishes a simplified meeting in one save while keeping ordinary introduction tasks open and reminders optional',async()=>{
+ const f=await fixture(),p={...person('Simple Contact'),createReminder:false},task={id:crypto.randomUUID(),title:'Introduce George to Scott',owner_id:'primary',status:'open',direction:'mine'};
+ const draft=meeting({simplified:true,finish:true,participants:[p],notes:'Conversation notes',tasks:[task]});
+ const r=await f.call(draft);expect(r.status).toBe(201);expect(r.data.meeting).toMatchObject({archived:1,follow_up:'closed',occurrence_status:'held',notes:'Conversation notes'});expect(r.data.meeting.tasks).toHaveLength(1);expect(r.data.meeting.tasks[0]).toMatchObject({id:task.id,status:'open',task_kind:'action'});expect(r.data.meeting.introductions).toHaveLength(0);
+ expect((await f.call(draft)).data.replayed).toBe(true);
+ const inbox=await handleMinistryAdminRequest(f.request('/admin/ministry/inbox'),f.env,'/admin/ministry/inbox');expect((await inbox.json() as any).items.find((i:any)=>i.id==='meeting-task:'+task.id).status).toBe('action');
+ const m=r.data.meeting;expect((await f.call({...m,simplified:true,archived:0,follow_up:'open',introductions:[],operationId:crypto.randomUUID()})).status).toBe(200);
+ const opted=await f.call(meeting({simplified:true,participants:[{...person('Reminder Requested'),createReminder:true}]}));expect(opted.data.meeting.tasks).toHaveLength(1);expect(opted.data.meeting.tasks[0].task_kind).toBe('contact_details');
+});
+it('migrates every introduction stage into one shared task without losing history, existing actions, or target relationships',async()=>{
+ const f=await ministryFixture('0064_meeting_relationships.sql');fixtures.push(f);
+ const id=crypto.randomUUID(),target=crypto.randomUUID(),action=crypto.randomUUID();
+ f.sqlite.prepare("INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,created_at,updated_at) VALUES(?,'George','Sample','george','sample','','','now','now')").run(target);
+ f.sqlite.prepare("INSERT INTO meetings(id,title,starts_at,ends_at,created_by,created_at,updated_at) VALUES(?,'Earlier meeting','2026-11-01T15:00:00Z','2026-11-01T16:00:00Z','primary','now','now')").run(id);
+ f.sqlite.prepare("INSERT INTO ministry_tasks(id,title,meeting_id,created_at,updated_at) VALUES(?,'Existing action',?,'now','now')").run(action,id);
+ const stages=['promised','made','outreach_pending','connected','closed','canceled'];const ids=stages.map(()=>crypto.randomUUID());
+ stages.forEach((stage,n)=>{f.sqlite.prepare("INSERT INTO meeting_introductions(id,meeting_id,introducers_json,target_json,status,notes,promised_date,made_date,next_action,created_at,updated_at) VALUES(?,?,?,?,?,'Keep my notes','2026-10-29','2026-11-01','Send the email','now','now')").run(ids[n],id,JSON.stringify([{kind:'person',id:target}]),JSON.stringify({kind:'person',id:target}),stage);f.sqlite.prepare("INSERT INTO meeting_introduction_entities VALUES(?,'introducer',?,NULL)").run(ids[n],target);});
+ f.sqlite.prepare('UPDATE meeting_introductions SET notes=? WHERE id=?').run('Keep my notes '+ 'x'.repeat(3986),ids[5]);
+ f.sqlite.exec(readFileSync(new URL('../migrations/0065_simplify_meeting_introductions.sql',import.meta.url),'utf8'));
+ f.sqlite.exec(readFileSync(new URL('../migrations/0066_task_deleted_at.sql',import.meta.url),'utf8'));
+ expect(f.sqlite.prepare('SELECT count(*) n FROM meeting_introductions WHERE converted_task_id IS NOT NULL').get()?.n).toBe(6);
+ for(let n=0;n<stages.length;n++){const t=f.sqlite.prepare('SELECT * FROM ministry_tasks WHERE id=?').get(ids[n]);expect(t).toMatchObject({person_id:target,meeting_id:id,introduction_id:ids[n],status:n<3?'open':n===5?'canceled':'completed'});expect(t?.notes).toContain('Keep my notes');expect(t?.notes).toContain('George Sample');expect(t?.notes).toContain('2026-10-29');if(n<5)expect(t?.notes).toContain('Send the email');expect(String(t?.notes).length).toBeLessThanOrEqual(4000);}
+ expect(f.sqlite.prepare('SELECT length(notes) n FROM meeting_introductions WHERE id=?').get(ids[5])?.n).toBe(4000);
+ expect(f.sqlite.prepare('SELECT title FROM ministry_tasks WHERE id=?').get(action)?.title).toBe('Existing action');expect(f.sqlite.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+ const inbox=await handleMinistryAdminRequest(f.request('/admin/ministry/inbox'),f.env,'/admin/ministry/inbox');const items=(await inbox.json() as any).items;expect(items.filter((i:any)=>i.id.startsWith('meeting-intro:'))).toHaveLength(0);expect(items.filter((i:any)=>i.id.startsWith('meeting-task:'))).toHaveLength(7);
+ const response=await handleMeetings(f.request('/admin/meetings'),f.env,'/admin/meetings');const m=(await response.json() as any).meetings[0];const edit={...m,simplified:true,introductions:[],tasks:m.tasks.map((t:any)=>({...t,related:t.person_id?{kind:'person',id:t.person_id}:null})),operationId:crypto.randomUUID()};
+ const saved=await handleMeetings(f.request('/admin/meetings',edit),f.env,'/admin/meetings');expect(saved.status).toBe(200);expect(f.sqlite.prepare('SELECT count(*) n FROM ministry_tasks').get()?.n).toBe(7);expect(f.sqlite.prepare('SELECT count(*) n FROM meeting_introductions').get()?.n).toBe(6);
+ expect((await handleMeetings(f.request('/admin/meetings',{...m,operationId:crypto.randomUUID()}),f.env,'/admin/meetings')).status).toBe(409);
+});
+
+it('deletes a mistaken meeting task atomically on save and restores it without changing its creation date or links',async()=>{
+ const f=await fixture(),task={id:crypto.randomUUID(),title:'Mistaken follow-up',owner_id:'primary',status:'open'};const first=await f.call(meeting({tasks:[task]}));const original=first.data.meeting.tasks[0],m=first.data.meeting;
+ const saved=await f.call({...m,simplified:true,operationId:crypto.randomUUID(),tasks:[{...original,delete:true}]});expect(saved.status).toBe(200);expect(saved.data.meeting.tasks).toEqual([]);
+ const get=async()=>{const r=await handleMinistryAdminRequest(f.request('/admin/ministry/inbox'),f.env,'/admin/ministry/inbox');return (await r.json() as any).items;};expect((await get()).some((i:any)=>i.id==='meeting-task:'+task.id)).toBe(false);
+ expect((await f.call({...m,operationId:crypto.randomUUID()})).status).toBe(409);
+ const deleted=f.sqlite.prepare('SELECT * FROM ministry_tasks WHERE id=?').get(task.id);expect(deleted).toMatchObject({created_at:original.created_at,meeting_id:m.id,status:'open',revision:2});expect(deleted?.deleted_at).toBeTruthy();
+ const restored=await handlePlanning(f.request('/admin/planning/tasks/restore',{id:task.id,revision:2}),f.env,'/admin/planning/tasks/restore');expect(restored.status).toBe(200);expect((await get()).some((i:any)=>i.id==='meeting-task:'+task.id)).toBe(true);
+ expect(f.sqlite.prepare('SELECT created_at,meeting_id,deleted_at FROM ministry_tasks WHERE id=?').get(task.id)).toMatchObject({created_at:original.created_at,meeting_id:m.id,deleted_at:null});
 });

@@ -16,12 +16,12 @@ export async function meetingData(env:AdminEnv,id?:string){
  const meetings=await rows(env,'SELECT * FROM meetings'+(id?' WHERE id=?':'')+' ORDER BY starts_at DESC',...(id?[id]:[]));
  const participants=await rows(env,`SELECT x.*,p.first_name||' '||p.last_name person_name,m.name ministry_name FROM meeting_participants x LEFT JOIN people p ON p.id=x.person_id LEFT JOIN ministries m ON m.id=x.ministry_id`);
  const introductions=await rows(env,'SELECT * FROM meeting_introductions ORDER BY created_at,id');
- const tasks=await rows(env,`SELECT t.*,u.first_name||' '||u.last_name owner_name FROM ministry_tasks t LEFT JOIN mmt_users u ON u.id=t.owner_id WHERE t.meeting_id IS NOT NULL ORDER BY t.due_date IS NULL,t.due_date,t.created_at`);
+ const tasks=await rows(env,`SELECT t.*,u.first_name||' '||u.last_name owner_name FROM ministry_tasks t LEFT JOIN mmt_users u ON u.id=t.owner_id WHERE t.meeting_id IS NOT NULL AND t.deleted_at IS NULL ORDER BY t.due_date IS NULL,t.due_date,t.created_at`);
  const names=new Map((await rows(env,"SELECT id,'person' kind,trim(first_name||' '||last_name) name FROM people UNION ALL SELECT id,'ministry',name FROM ministries")).map(p=>[p.kind+':'+p.id,p.name]));
  const named=(e:Entity)=>({...e,name:names.get(e.kind+':'+e.id)||'Unavailable record'});
  return meetings.map(m=>({...m,participants:participants.filter(p=>p.meeting_id===m.id).map(p=>named({kind:p.person_id?'person':'ministry',id:p.person_id||p.ministry_id})),introductions:introductions.filter(i=>i.meeting_id===m.id).map(i=>({...i,introducers:JSON.parse(i.introducers_json).map(named),target:i.target_json?named(JSON.parse(i.target_json)):null})),tasks:tasks.filter(t=>t.meeting_id===m.id)}));
 }
-export async function meetingInboxItems(env:AdminEnv){return [...await rows(env,`SELECT 'meeting-task:'||t.id id,CASE WHEN t.task_kind='contact_details' THEN 'Complete contact details' WHEN t.direction='waiting' THEN 'Waiting on commitment' ELSE 'Meeting follow-up' END kind,t.title,t.notes detail,CASE WHEN t.status='open' THEN 'action' ELSE 'completed' END status,t.created_at,t.due_date,'/admin/meetings/?meeting='||t.meeting_id action_url FROM ministry_tasks t WHERE t.meeting_id IS NOT NULL`),...await rows(env,`SELECT 'meeting-intro:'||i.id id,'Pending introduction' kind,COALESCE(json_extract(i.target_json,'$.name'),NULLIF(i.pending_name,''),'Introduction') title,i.next_action detail,CASE WHEN i.status IN ('connected','closed','canceled') THEN 'completed' ELSE 'action' END status,i.created_at,'/admin/meetings/?meeting='||i.meeting_id action_url FROM meeting_introductions i`)];}
+export async function meetingInboxItems(env:AdminEnv){return [...await rows(env,`SELECT 'meeting-task:'||t.id id,CASE WHEN t.task_kind='contact_details' THEN 'Complete contact details' WHEN t.direction='waiting' THEN 'Waiting on commitment' ELSE 'Meeting follow-up' END kind,t.title,t.notes detail,CASE WHEN t.status='open' THEN 'action' ELSE 'completed' END status,t.created_at,t.due_date,'/admin/meetings/?meeting='||t.meeting_id action_url FROM ministry_tasks t WHERE t.meeting_id IS NOT NULL AND t.deleted_at IS NULL`),...await rows(env,`SELECT 'meeting-intro:'||i.id id,'Pending introduction' kind,COALESCE(json_extract(i.target_json,'$.name'),NULLIF(i.pending_name,''),'Introduction') title,i.next_action detail,CASE WHEN i.status IN ('connected','closed','canceled') THEN 'completed' ELSE 'action' END status,i.created_at,'/admin/meetings/?meeting='||i.meeting_id action_url FROM meeting_introductions i WHERE i.converted_task_id IS NULL`)];}
 async function save(request:Request,env:AdminEnv,userId:string){
  const b=await readAdminJson(request),id=uuid(b.id),operation=uuid(b.operationId),fingerprint=await hash(b);
  const replay=await env.DB.prepare('SELECT * FROM meeting_operations WHERE id=?').bind(operation).first<Row>();
@@ -38,7 +38,7 @@ async function save(request:Request,env:AdminEnv,userId:string){
    if(raw.confirmNew!==true)bad('Review matching contacts and confirm Add as new contact.');
    const personId=key,parts=name.split(/\s+/),first=parts.shift()!,last=parts.join(' ');
    statements.push(env.DB.prepare(`INSERT INTO people(id,first_name,last_name,first_name_normalized,last_name_normalized,email,email_normalized,record_source,approved_duplicate,created_at,updated_at) VALUES(?,?,?,?,?,'','','manual',1,?,?)`).bind(personId,first,last,first.normalize('NFKC').toLowerCase(),last.normalize('NFKC').toLowerCase(),now,now),env.DB.prepare('INSERT INTO meeting_contact_keys VALUES(?,?)').bind(key,personId));
-   statements.push(env.DB.prepare(`INSERT INTO ministry_tasks(id,title,notes,person_id,owner_id,status,meeting_id,task_kind,created_at,updated_at) VALUES(?,?,?,?,?,'open',?,'contact_details',?,?)`).bind(crypto.randomUUID(),'Complete contact details: '+name,'Created from a meeting. Open the contact and complete the details when known.',personId,userId,id,now,now));
+   if(raw.createReminder!==false)statements.push(env.DB.prepare(`INSERT INTO ministry_tasks(id,title,notes,person_id,owner_id,status,meeting_id,task_kind,created_at,updated_at) VALUES(?,?,?,?,?,'open',?,'contact_details',?,?)`).bind(crypto.randomUUID(),'Complete contact details: '+name,'Created from a meeting. Open the contact and complete the details when known.',personId,userId,id,now,now));
    statements.push(auditStatement(env,'person',personId,'meeting_minimal_contact_created',{meetingId:id,actorUserId:userId}));
    const e:Entity={kind:'person',id:personId};newKeys.set(key,e);return e;
   }
@@ -50,13 +50,15 @@ async function save(request:Request,env:AdminEnv,userId:string){
  if(!allDay){starts=new Date(starts).toISOString();ends=new Date(ends).toISOString();}
  if(Date.parse(ends)<=Date.parse(starts))bad('The end must be after the start.');
  const title=text(b.title),type=text(b.meeting_type||'Meeting',80);if(!title)bad('Enter a meeting title.');
- const occurrence=choice(b.occurrence_status||'planned',['planned','held','canceled','not_held']),follow=choice(b.follow_up||'open',['open','closed']),archived=Number(b.archived===true||b.archived===1);
+ const finishing=b.simplified===true&&b.finish===true;
+ if(finishing)b.retainOpen=true; // Finish explicitly retains tasks, as explained beside the button.
+ const occurrence=choice(finishing?'held':b.occurrence_status||'planned',['planned','held','canceled','not_held']),follow=choice(finishing?'closed':b.follow_up||'open',['open','closed']),archived=Number(finishing||b.archived===true||b.archived===1);
  const oldData=prior?(await meetingData(env,id))[0]:null;
  const introductions=list(b.introductions),tasks=list(b.tasks),participants=list(b.participants);
  // Existing work is retained. Omitting it from a save never completes or deletes it.
- const existingOpen=(oldData?.tasks||[]).filter((t:Row)=>t.status==='open'&&!tasks.some(x=>x.id===t.id&&['completed','canceled'].includes(x.status)));
- const pendingIntros=(oldData?.introductions||[]).filter((i:Row)=>!['connected','closed','canceled'].includes(i.status)&&!introductions.some(x=>x.id===i.id&&['connected','closed','canceled'].includes(x.status)));
- const unresolved=existingOpen.length+pendingIntros.length+tasks.filter(t=>t.status==='open').length+introductions.filter(i=>!['connected','closed','canceled'].includes(i.status)).length;
+ const existingOpen=(oldData?.tasks||[]).filter((t:Row)=>t.status==='open'&&!tasks.some(x=>x.id===t.id&&(x.delete===true||['completed','canceled'].includes(x.status))));
+ const pendingIntros=(oldData?.introductions||[]).filter((i:Row)=>!i.converted_task_id&&!['connected','closed','canceled'].includes(i.status)&&!introductions.some(x=>x.id===i.id&&['connected','closed','canceled'].includes(x.status)));
+ const unresolved=existingOpen.length+pendingIntros.length+tasks.filter(t=>t.status==='open'&&t.delete!==true).length+introductions.filter(i=>!['connected','closed','canceled'].includes(i.status)).length;
  if((follow==='closed'&&prior?.follow_up!=='closed'||archived&&!prior?.archived)&&unresolved&&b.retainOpen!==true)bad('Review unresolved work and explicitly retain it, or resolve/cancel it before closing.','OPEN_WORK',409);
  let source=prior?.source_snapshot||null;
  const calendar=b.source?b.source as Row:null;
@@ -74,7 +76,8 @@ async function save(request:Request,env:AdminEnv,userId:string){
  for(const e of new Map(entities.map(e=>[e.kind+e.id,e])).values())statements.push(env.DB.prepare('INSERT INTO meeting_participants VALUES(?,?,?)').bind(id,e.kind==='person'?e.id:null,e.kind==='ministry'?e.id:null));
  const introIds=new Set<string>();
  for(const i of introductions){const introId=uuid(i.id);if(introIds.has(introId))bad('Duplicate introduction.');introIds.add(introId);
-  const existing=await env.DB.prepare('SELECT meeting_id FROM meeting_introductions WHERE id=?').bind(introId).first<Row>();if(existing&&existing.meeting_id!==id)bad('Introduction belongs to another meeting.');
+  const existing=await env.DB.prepare('SELECT meeting_id,converted_task_id FROM meeting_introductions WHERE id=?').bind(introId).first<Row>();if(existing&&existing.meeting_id!==id)bad('Introduction belongs to another meeting.');
+  if(existing?.converted_task_id)bad('This introduction is now a task. Update it in the task list.','INTRODUCTION_IS_TASK',409);
   const introducers=[];for(const r of list(i.introducers,30))introducers.push(await entity(r));
   const target=i.target?await entity(i.target):null,pending=text(i.pending_name||'',180);
   if(i.target_mode==='named'&&!target)bad('Link an existing contact or confirm Add as a new person for this named introduction.','INTRODUCTION_CONTACT_REQUIRED');
@@ -85,14 +88,20 @@ async function save(request:Request,env:AdminEnv,userId:string){
  }
  const taskIds=new Set<string>();
  for(const t of tasks){const taskId=uuid(t.id);if(taskIds.has(taskId))bad('Duplicate action.');taskIds.add(taskId);
-  const existing=await env.DB.prepare('SELECT * FROM ministry_tasks WHERE id=?').bind(taskId).first<Row>();if(existing&&(existing.meeting_id!==id||Number(t.revision)!==existing.revision))bad('An action changed. Reload before saving.','CONFLICT',409);
+  const existing=await env.DB.prepare('SELECT * FROM ministry_tasks WHERE id=?').bind(taskId).first<Row>();if(existing&&(existing.deleted_at||existing.meeting_id!==id||Number(t.revision)!==existing.revision))bad('An action changed. Reload before saving.','CONFLICT',409);
   if(existing)statements.push(env.DB.prepare('INSERT INTO meeting_save_guard(id,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM ministry_tasks WHERE id=? AND revision=?) THEN 1 ELSE 0 END').bind(taskId,taskId,existing.revision));
+  if(t.delete===true){
+   if(!existing)bad('Only saved tasks can be deleted.');
+   statements.push(env.DB.prepare('UPDATE ministry_tasks SET deleted_at=?,revision=revision+1,updated_at=? WHERE id=?').bind(now,now,taskId),auditStatement(env,'ministry_task',taskId,'deleted',{actorUserId:userId,meetingId:id,before:existing}),env.DB.prepare('DELETE FROM meeting_save_guard WHERE id=?').bind(taskId));
+   continue;
+  }
   const related=t.related?await entity(t.related):null,owner=t.owner_id?text(t.owner_id,100):null;
   if(owner&&!await env.DB.prepare("SELECT id FROM mmt_users WHERE id=? AND status='active' AND hs_access=1").bind(owner).first())bad('Choose an active responsible user.');
   const intro=t.introduction_id?uuid(t.introduction_id):null;if(intro&&!introIds.has(intro)&&!(oldData?.introductions||[]).some((i:Row)=>i.id===intro))bad('Choose an introduction from this meeting.');
   if(existing?.task_kind==='contact_details'&&related&&related.id!==existing.person_id)bad('Contact reminders must stay linked to their original contact.');
   const taskTitle=text(t.title);if(!taskTitle)bad('Describe each action.');
   statements.push(env.DB.prepare(`INSERT INTO ministry_tasks(id,title,notes,person_id,ministry_id,owner_id,due_date,status,meeting_id,introduction_id,direction,responsible_name,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,notes=excluded.notes,person_id=excluded.person_id,ministry_id=excluded.ministry_id,owner_id=excluded.owner_id,due_date=excluded.due_date,status=excluded.status,introduction_id=excluded.introduction_id,direction=excluded.direction,responsible_name=excluded.responsible_name,revision=ministry_tasks.revision+1,updated_at=excluded.updated_at`).bind(taskId,taskTitle,text(t.notes||'',4000),existing?.task_kind==='contact_details'?existing.person_id:related?.kind==='person'?related.id:null,related?.kind==='ministry'?related.id:null,owner,day(t.due_date),choice(t.status||'open',['open','completed','canceled']),id,intro,choice(t.direction||'mine',['mine','waiting']),text(t.responsible_name||'',180),now,now));
+  if(b.simplified===true&&intro&&taskId===intro)statements.push(env.DB.prepare('UPDATE meeting_introductions SET converted_task_id=? WHERE id=? AND meeting_id=? AND converted_task_id IS NULL').bind(taskId,intro,id));
   if(existing)statements.push(env.DB.prepare('DELETE FROM meeting_save_guard WHERE id=?').bind(taskId));
  }
  if((follow==='closed'&&prior?.follow_up!=='closed'||archived&&!prior?.archived)&&newKeys.size&&b.retainOpen!==true)bad('New contacts create open contact-detail reminders. Review and retain that independent work before closing.','OPEN_WORK',409);

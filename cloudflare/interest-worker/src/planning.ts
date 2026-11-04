@@ -14,7 +14,7 @@ export async function readiness(env:AdminEnv,id:string){
  const t=await trip(env,id);
  const [content,members,costs,tasks,reviews,charges,payments]=await Promise.all([
  rows(env,'SELECT * FROM trip_content WHERE trip_id=? ORDER BY id',id),rows(env,'SELECT * FROM trip_members WHERE trip_id=? ORDER BY person_id',id),
- rows(env,"SELECT * FROM trip_cost_items WHERE trip_id=? AND payment_status!='canceled' ORDER BY id",id),rows(env,'SELECT * FROM ministry_tasks WHERE trip_id=? ORDER BY id',id),
+ rows(env,"SELECT * FROM trip_cost_items WHERE trip_id=? AND payment_status!='canceled' ORDER BY id",id),rows(env,'SELECT * FROM ministry_tasks WHERE trip_id=? AND deleted_at IS NULL ORDER BY id',id),
  rows(env,'SELECT * FROM trip_reviews WHERE trip_id=?',id),rows(env,"SELECT id,amount,status FROM trip_charges WHERE trip_id=? AND status NOT IN ('canceled','waived') ORDER BY id",id),rows(env,"SELECT id,amount,status FROM trip_payments WHERE trip_id=? AND status='received' ORDER BY id",id)]);
  const incomplete=content.filter(c=>placeholder.test(String(c.content))||(!String(c.content).trim()&&c.content_type!=='itinerary'));
  const activeTasks=tasks.filter(x=>x.status==='open');
@@ -49,15 +49,29 @@ export async function handlePlanning(request:Request,env:AdminEnv,path:string):P
  const edit=request.method!=='GET',session=await authenticate(request,env,edit),user=session.user;
  const url=new URL(request.url),suffix=path.slice('/admin/planning'.length),now=new Date().toISOString();
  if(suffix==='/dashboard'&&request.method==='GET'){
- const tasks=(await rows(env,`SELECT t.*,p.first_name||' '||p.last_name person_name,tr.title trip_title,u.first_name||' '||u.last_name owner_name FROM ministry_tasks t LEFT JOIN people p ON p.id=t.person_id LEFT JOIN trips tr ON tr.id=t.trip_id LEFT JOIN mmt_users u ON u.id=t.owner_id ORDER BY t.due_date IS NULL,t.due_date,t.created_at DESC`)).filter(t=>{try{taskAccess(user,t);return true;}catch{return false;}});
+ const tasks=(await rows(env,`SELECT t.*,p.first_name||' '||p.last_name person_name,tr.title trip_title,u.first_name||' '||u.last_name owner_name FROM ministry_tasks t LEFT JOIN people p ON p.id=t.person_id LEFT JOIN trips tr ON tr.id=t.trip_id LEFT JOIN mmt_users u ON u.id=t.owner_id ${url.searchParams.get('includeDeleted')==='1'?'':'WHERE t.deleted_at IS NULL'} ORDER BY t.due_date IS NULL,t.due_date,t.created_at DESC`)).filter(t=>{try{taskAccess(user,t);return true;}catch{return false;}});
  const trips=can(user,'trips')?await rows(env,"SELECT id,title,start_date,end_date,status FROM trips WHERE status NOT IN ('archived','canceled') ORDER BY start_date"):[];
  const users=await rows(env,"SELECT id,first_name,last_name FROM mmt_users WHERE status='active' AND hs_access=1 ORDER BY first_name,last_name");
  const inquiries=can(user,'contacts')?await rows(env,"SELECT w.submission_id,w.due_date,w.next_action,w.owner_id,p.first_name||' '||p.last_name person_name,u.first_name||' '||u.last_name owner_name FROM inquiry_workflows w JOIN interest_submissions s ON s.id=w.submission_id JOIN people p ON p.id=s.person_id LEFT JOIN mmt_users u ON u.id=w.owner_id WHERE w.stage!='closed' ORDER BY w.due_date IS NULL,w.due_date,w.created_at"):[];
  return adminJson({inquiries,tasks:tasks.map(t=>({...t,canEdit:(()=>{try{taskAccess(user,t,true);return true;}catch{return false;}})()})),trips,owners:users,people:can(user,'contacts')?await rows(env,'SELECT id,first_name,last_name FROM people ORDER BY last_name_normalized'):[],canEdit:{trips:can(user,'trips',true),contacts:can(user,'contacts',true),inbox:can(user,'inbox',true)}});
  }
+ if(['/tasks/delete','/tasks/restore'].includes(suffix)&&request.method==='POST'){
+  const b=await readAdminJson(request),prior=await env.DB.prepare('SELECT * FROM ministry_tasks WHERE id=?').bind(String(b.id||'')).first<Row>();
+  if(!prior)throw new AdminError(404,'NOT_FOUND','Task not found.');taskAccess(user,prior,true);
+  const restoring=suffix==='/tasks/restore';
+  if(Number(b.revision)!==prior.revision||restoring!==!!prior.deleted_at)throw new AdminError(409,'CONFLICT','This task changed. Refresh before trying again.');
+  const guard=crypto.randomUUID(),deleted=restoring?null:now;
+  try{await env.DB.batch([
+   env.DB.prepare('INSERT INTO meeting_save_guard(id,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM ministry_tasks WHERE id=? AND revision=?) THEN 1 ELSE 0 END').bind(guard,prior.id,prior.revision),
+   env.DB.prepare('UPDATE ministry_tasks SET deleted_at=?,revision=revision+1,updated_at=? WHERE id=?').bind(deleted,now,prior.id),
+   auditStatement(env,'ministry_task',String(prior.id),restoring?'restored':'deleted',{actorUserId:user.id,before:prior}),
+   env.DB.prepare('DELETE FROM meeting_save_guard WHERE id=?').bind(guard)
+  ]);}catch(e){if(String(e).includes('CHECK constraint'))throw new AdminError(409,'CONFLICT','This task changed. Refresh before trying again.');throw e;}
+  return adminJson({id:prior.id,revision:Number(prior.revision)+1,deletedAt:deleted});
+ }
  if(suffix==='/tasks'&&request.method==='POST'){
  const b=await readAdminJson(request),prior=b.id?await env.DB.prepare('SELECT * FROM ministry_tasks WHERE id=?').bind(String(b.id)).first<Row>():null;
- if(b.id&&!prior)throw new AdminError(404,'NOT_FOUND','Task not found.');if(prior)taskAccess(user,prior,true);
+ if(b.id&&!prior)throw new AdminError(404,'NOT_FOUND','Task not found.');if(prior)taskAccess(user,prior,true);if(prior?.deleted_at)throw new AdminError(409,'TASK_DELETED','Restore this task from Deleted tasks before editing.');
  if(prior?.meeting_id){
   // Direct task editing preserves every source relationship and contact reminder.
   if(('tripId' in b&&(b.tripId||null)!==prior.trip_id)||('personId' in b&&(b.personId||null)!==prior.person_id))throw new AdminError(422,'TASK_LINK_LOCKED','Manage this task’s contact and meeting links in the source meeting.');

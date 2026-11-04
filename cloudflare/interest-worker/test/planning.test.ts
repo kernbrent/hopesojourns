@@ -32,3 +32,17 @@ it('copies selected template drafts to new dates without financial or private da
  expect((await f.call('/admin/trips',{title:'Too short',location:'Test',startDate:'2027-02-01',endDate:'2027-02-01',templateId})).status).toBe(422);
 });
 it('requires authentication and CSRF for planning writes',async()=>{const f=await setup();const path='/admin/planning/tasks';expect((await handlePlanning(new Request('http://localhost:4188/api/interest'+path,{method:'POST',headers:{cookie:'hs_admin_session='+f.token,'content-type':'application/json'},body:JSON.stringify({title:'No CSRF'})}),f.env,path)).status).toBe(403);expect((await handlePlanning(new Request('http://localhost:4188/api/interest/admin/planning/dashboard'),f.env,'/admin/planning/dashboard')).status).toBe(401);});
+
+it('soft-deletes and restores tasks with permission, CSRF and revision checks while keeping original data',async()=>{
+ const f=await setup(),created=await f.plan('/tasks',{title:'Accidental task',tripId:f.id,notes:'Preserve these notes'});const {id}=await created.json() as any;const before=f.sqlite.prepare('SELECT * FROM ministry_tasks WHERE id=?').get(id);
+ const noCsrf=f.request('/admin/planning/tasks/delete',{id,revision:1});noCsrf.headers.delete('x-csrf-token');expect((await handlePlanning(noCsrf,f.env,'/admin/planning/tasks/delete')).status).toBe(403);
+ expect((await f.plan('/tasks/delete',{id,revision:0})).status).toBe(409);expect((await f.plan('/tasks/delete',{id,revision:1})).status).toBe(200);
+ expect(((await (await f.plan('/dashboard')).json()) as any).tasks).toHaveLength(0);
+ const all=await handlePlanning(f.request('/admin/planning/dashboard?includeDeleted=1'),f.env,'/admin/planning/dashboard');expect((await all.json() as any).tasks[0]).toMatchObject({id,notes:'Preserve these notes',created_at:before?.created_at,revision:2});
+ expect((await f.plan('/tasks',{id,revision:2,title:'Cannot resurrect',tripId:f.id})).status).toBe(409);
+ expect((await f.plan('/tasks/restore',{id,revision:1})).status).toBe(409);expect((await f.plan('/tasks/restore',{id,revision:2})).status).toBe(200);
+ const restored=f.sqlite.prepare('SELECT * FROM ministry_tasks WHERE id=?').get(id);expect(restored).toMatchObject({title:'Accidental task',trip_id:f.id,notes:'Preserve these notes',created_at:before?.created_at,deleted_at:null,revision:3});
+ f.sqlite.exec("INSERT INTO mmt_users(id,username,first_name,last_name,email,phone,country,is_admin,permissions_json,status,must_change_password,registered_at,updated_at) VALUES('task-reader','task-reader','Read','Only','task-reader@example.test','','US',0,'{\"trips\":\"read\"}','active',0,'now','now'); UPDATE admin_sessions SET user_id='task-reader'");
+ expect((await f.plan('/tasks/delete',{id,revision:3})).status).toBe(403);f.sqlite.prepare("UPDATE ministry_tasks SET deleted_at='now',revision=4 WHERE id=?").run(id);expect((await f.plan('/tasks/restore',{id,revision:4})).status).toBe(403);
+ f.sqlite.close();
+});

@@ -1,18 +1,16 @@
 # Hope Sojourns website style guide
 
-Version 4.98
+Version 4.100
 
-Last reviewed: November 3, 2026
+Last reviewed: November 4, 2026
 
 ## Meeting and relationship workspace
 
-Place Meetings & relationships under People & ministry in the shared MMT navigation. Reuse paper/cream surfaces, forest actions, Georgia headings, labeled forms, spreadsheet tables, native dialogs and `/styles.css` tokens. Distinguish Person and Ministry chips; ministry links never imply member attendance. Suggest similar contacts with identifying details. Named targets require a contact choice; unnamed promises explicitly create no contact-details reminder. New-person choices and save confirmations explain contact creation and link to the contact, Inbox and Tasks. Task cards show Edit task, Mark complete or Reopen task, and Open contact when linked; wrap these existing-style controls on phones.
+Show Meeting title, When, People, Meeting notes and Next steps. Task summaries show title, Created, owner and due date. Independent down/up arrows reveal Task, Who, Due, Done and Task details. Use buttons for Open contact and Delete, with Restore under Deleted tasks. Start saved tasks collapsed and new tasks expanded; preserve keyboard focus and allow multiple open rows. Use Add task for introductions and other follow-up. Hide separate introduction stages and My action / Waiting fields. New-person chips offer an unchecked contact-details reminder. Retain similar-contact matching and explicit new-person selection.
 
-Grid rows start collapsed and show at most two summary lines per cell. Use a labeled down arrow that changes to an up arrow when expanded, with aria-expanded and aria-controls. Expand each row independently; preserve other expanded rows and keep the toggle focused. Complete text and secondary actions appear in the expanded details. Use existing palette tokens and contained horizontal scrolling.
+More details holds type (Coffee by default), end, all-day dates, location, outcome, restoration and earlier introduction history. Hide calendar import. Save stores edits; Finish meeting marks Held and moves the record to Past meetings, retaining open tasks. Explain that beside the buttons; remove separate closure and retention controls.
 
-Keep Grid / Calendar separate from Active / History. Default Calendar to Month; Week separates all-day entries and uses lanes for overlaps. Include previous/next and Today controls. Both views open the same editor. Compact entries show time, participants and short location. Use forest wash for meetings, cream for history and coral for canceled entries, with visible status text. On phones, wrap forms and contain horizontal grid/calendar scrolling.
-
-Separate Did the meeting happen, Follow-up status and Move to History. Show unresolved actions, introductions and waiting commitments before closure, with explicit retention of independent open work. Introducers and targets remain separate from participants; each target saves independently. Flag source proposals with gold wash, state which fields applying them changes, and preserve local notes and relationships. Label location name and street address separately. Show Google Maps directions only for a nonempty address, without requesting current location. Label America/Chicago times and Sunday-first weeks. Use existing palette colors.
+Default to compact Grid rows in Upcoming & recent: unfinished records plus finished meetings from the last 90 days. Offer Past meetings, All meetings and optional Month/Week calendar views with Sunday-first America/Chicago times. Row arrows independently expand/collapse with aria-expanded and aria-controls. Clamp summaries to two lines; expansion exposes full text. Use shared paper/forest tokens, Georgia headings, native controls and visible keyboard focus. Wrap task/footer controls on phones and contain table scrolling.
 
 ## Independent prayer portal
 
@@ -903,6 +901,10 @@ Inbox Show includes Emails sent, with readable cards for subject and accepted ti
 The contact email composer places a labeled Attachments (optional) file picker below Message. Show supported file types and the limits of five files, 5 MB per file, and 10 MB total. List each chosen filename and size with an accessible Remove button. Wrap long filenames and controls on phones. Disable file selection and removal after submission alongside the message fields. Saved contact history and Inbox > Emails sent show private attachment download links with filenames and sizes.
 
 ## Revision history
+
+- November 4, 2026 - Version 4.100: Added task Created dates, independent compact down/up controls, contact buttons and reversible Delete / Restore. Release authorized for test and production.
+
+- November 4, 2026 - Version 4.99: Simplified meeting entry, ordinary introduction tasks, optional contact reminders and one Finish meeting action. Local review only; not deployed.
 
 - November 3, 2026 — Version 4.98. Added provisional navigation and status, Global composer/filter labels and explicit audience-change confirmation. Local review only.
 
