@@ -497,6 +497,8 @@ function showDashboard(session) {
   switchView(requestedAdminView());
   const linkedPerson=new URLSearchParams(location.search).get("person");
   if(linkedPerson && /^[0-9a-f-]{36}$/i.test(linkedPerson)){history.replaceState(null,"","/admin/#people");openPerson(linkedPerson);}
+  const linkedMinistry=new URLSearchParams(location.search).get('ministry');
+  if(linkedMinistry&&/^[0-9a-f-]{36}$/i.test(linkedMinistry)){history.replaceState(null,'','/admin/#ministries');openMinistry(linkedMinistry);}
   if (location.hash === "#settings") openAdminSettings();
 }
 
@@ -3059,7 +3061,7 @@ function renderContactEditor(person = null) {
   const fields = element("div", "admin-editor-grid");
   fields.append(
     editorField("First name", "firstName", person?.firstName, { required: true, maximum: 80 }),
-    editorField("Last name", "lastName", person?.lastName, { required: true, maximum: 80 }),
+    editorField("Last name", "lastName", person?.lastName, { required: !person?.meetingMinimal, maximum: 80 }),
     editorField("Preferred name", "preferredName", person?.preferredName, { maximum: 80 }),
     editorField("Organization", "organization", person?.organization, { maximum: 160 }),
     editorField("Email address", "email", person?.email, { type: "email", maximum: 254 }),
@@ -3236,7 +3238,7 @@ function renderRelatedContacts(person) {
       const save=element('button','admin-button admin-button-primary','Save relationship');save.type='submit';save.disabled=true;
       find.addEventListener('click',async()=>{
         find.disabled=true;save.disabled=true;choice.replaceChildren();
-        try{const {result:found}=await api(`/people?search=${encodeURIComponent(search.value.trim())}&pageSize=50&sort=name_asc`);
+        try{const {result:found}=await api(`/people?similar=1&search=${encodeURIComponent(search.value.trim())}&pageSize=50&sort=name_asc`);
           const blank=element('option','','Choose a contact');blank.value='';choice.append(blank);
           for(const p of found.people.filter(p=>p.id!==person.id)){const option=element('option','',`${p.firstName} ${p.lastName} · ${p.email||p.phone||'No contact details'}`);option.value=p.id;choice.append(option);}
           save.disabled=choice.options.length<2;status.textContent=save.disabled?'No matching contacts. Add a contact first, then link them here.':found.pagination.total>50?'Showing the first 50 matches. Narrow your search if needed.':'Choose the person and how they are related.';
@@ -3333,6 +3335,7 @@ function renderPersonDetail(person) {
   if (!person.interests.length && !person.trips.length) interests.append(element("p", "admin-reply-help", "No trips or interests are recorded for this person."));
 
   grid.append(profile, ministries, renderRelatedContacts(person));
+  if(window.HSMeetingProfiles)grid.append(window.HSMeetingProfiles.section('person',person.id));
   if (person.giving?.gifts?.length > 0) grid.append(renderContactGiving(person.giving));
   if (person.canViewJourneyHistory) {
     const history=element('section','admin-detail-card admin-detail-card-wide');
@@ -3651,6 +3654,7 @@ function renderMinistryDetail(ministry) {
   fragment.append(hero);
 
   const grid = element("div", "admin-detail-grid");
+  if(window.HSMeetingProfiles)grid.append(window.HSMeetingProfiles.section('ministry',ministry.id));
   const profile = element("section", "admin-detail-card");
   profile.append(element("h3", "", "Ministry profile"));
   const address = [ministry.addressLine1, ministry.addressLine2, [ministry.city, ministry.region, ministry.postalCode].filter(Boolean).join(", "), ministry.country].filter(Boolean).join(" · ");

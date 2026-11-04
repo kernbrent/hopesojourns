@@ -23,6 +23,7 @@ export function routeSection(path:string):Section|'self'|'admin'{
  if(path==='/admin/inquiries'||path.startsWith('/admin/inquiries/'))return 'contacts';
  if(path.startsWith('/admin/interest-reviews/'))return 'contacts';
  if(path.startsWith('/admin/planning/'))return 'self'; // Each planning record enforces linked workspace permissions.
+ if(path==='/admin/meetings'||path.startsWith('/admin/meetings/'))return 'contacts';
  if(path.startsWith('/admin/knowledge'))return 'self'; // Knowledge actions check granular permissions.
  if(path.startsWith('/admin/account/'))return 'admin';
  if(path.startsWith('/admin/destinations'))return 'destinations';

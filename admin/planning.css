@@ -3,6 +3,7 @@
 .planning-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
 .planning-card{padding:1rem;background:var(--paper);border:1px solid var(--forest-soft);border-radius:12px;margin:.75rem 0;overflow-wrap:anywhere}
 .planning-card h3{margin:0 0 .5rem}.planning-card p{white-space:pre-wrap}
+.planning-task-actions{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-top:.75rem}
 .planning-dialog{max-width:800px;width:calc(100% - 2rem);max-height:90dvh;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--forest-soft);border-radius:12px;padding:1.5rem}
 .planning-dialog::backdrop{background:rgba(var(--forest-deep-rgb),.5)}
 .planning-dialog label{display:grid;gap:.35rem;margin:.8rem 0}.planning-dialog input,.planning-dialog select,.planning-dialog textarea{font:inherit;width:100%;box-sizing:border-box;padding:.65rem;border:1px solid var(--forest-soft);border-radius:6px;background:var(--paper);color:var(--ink)}

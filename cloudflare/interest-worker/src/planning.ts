@@ -6,7 +6,7 @@ const placeholder=/\b(TBD|TODO)\b|Add the high-level plan|Review before publishi
 function text(v:unknown,max=180,required=true){if(typeof v!=='string'||v.length>max||(required&&!v.trim()))throw new AdminError(422,'INVALID_FIELD','Complete the required fields.');return v.trim();}
 function date(v:unknown){if(v==null||v==='')return null;const s=text(v,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s))||new Date(s).toISOString().slice(0,10)!==s)throw new AdminError(422,'INVALID_DATE','Choose a valid date.');return s;}
 function requireAccess(user:MmtIdentity,section:'trips'|'contacts'|'inbox',edit=false){if(!can(user,section,edit))throw new AdminError(403,'ACCESS_DENIED','You do not have access to this record.');}
-function taskAccess(user:MmtIdentity,t:Row,edit=false){if(t.trip_id)requireAccess(user,'trips',edit);if(t.person_id)requireAccess(user,'contacts',edit);if(!t.trip_id&&!t.person_id)requireAccess(user,'inbox',edit);}
+function taskAccess(user:MmtIdentity,t:Row,edit=false){if(t.trip_id)requireAccess(user,'trips',edit);if(t.person_id||t.meeting_id||t.ministry_id)requireAccess(user,'contacts',edit);if(!t.trip_id&&!t.person_id&&!t.meeting_id&&!t.ministry_id)requireAccess(user,'inbox',edit);}
 async function rows(env:AdminEnv,sql:string,...args:(string|number|null)[]){return (await env.DB.prepare(sql).bind(...args).all<Row>()).results;}
 async function trip(env:AdminEnv,id:string){const t=await env.DB.prepare('SELECT * FROM trips WHERE id=?').bind(id).first<Row>();if(!t)throw new AdminError(404,'NOT_FOUND','Trip not found.');return t;}
 async function digest(value:unknown){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value)))),b=>b.toString(16).padStart(2,'0')).join('');}
@@ -58,6 +58,23 @@ export async function handlePlanning(request:Request,env:AdminEnv,path:string):P
  if(suffix==='/tasks'&&request.method==='POST'){
  const b=await readAdminJson(request),prior=b.id?await env.DB.prepare('SELECT * FROM ministry_tasks WHERE id=?').bind(String(b.id)).first<Row>():null;
  if(b.id&&!prior)throw new AdminError(404,'NOT_FOUND','Task not found.');if(prior)taskAccess(user,prior,true);
+ if(prior?.meeting_id){
+  // Direct task editing preserves every source relationship and contact reminder.
+  if(('tripId' in b&&(b.tripId||null)!==prior.trip_id)||('personId' in b&&(b.personId||null)!==prior.person_id))throw new AdminError(422,'TASK_LINK_LOCKED','Manage this task’s contact and meeting links in the source meeting.');
+  if(Number(b.revision)!==prior.revision)throw new AdminError(409,'CONFLICT','This task changed. Refresh before editing.');
+  const title=text(b.title??prior.title),notes=text(b.notes??prior.notes,4000,false),due=date(b.dueDate===undefined?prior.due_date:b.dueDate),status=String(b.status??prior.status),owner=b.ownerId===undefined?prior.owner_id:b.ownerId||null;
+  const direction=String(b.direction??prior.direction),responsible=text(b.responsibleName??prior.responsible_name,180,false);
+  if(!['open','completed','canceled'].includes(status)||!['mine','waiting'].includes(direction))throw new AdminError(422,'INVALID_STATUS','Choose a valid task status and next step.');
+  if(owner&&!await env.DB.prepare("SELECT id FROM mmt_users WHERE id=? AND status='active' AND hs_access=1").bind(owner).first())throw new AdminError(422,'INVALID_OWNER','Choose an active portal user.');
+  const guard=crypto.randomUUID();
+  try{await env.DB.batch([
+   env.DB.prepare('INSERT INTO meeting_save_guard(id,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM ministry_tasks WHERE id=? AND revision=?) THEN 1 ELSE 0 END').bind(guard,prior.id,prior.revision),
+   env.DB.prepare('UPDATE ministry_tasks SET title=?,notes=?,owner_id=?,due_date=?,status=?,direction=?,responsible_name=?,revision=revision+1,updated_at=? WHERE id=?').bind(title,notes,owner,due,status,direction,responsible,now,prior.id),
+   auditStatement(env,'ministry_task',String(prior.id),'meeting_task_updated',{actorUserId:user.id,meetingId:prior.meeting_id,before:prior,changes:{title,notes,ownerId:owner,dueDate:due,status,direction,responsibleName:responsible}}),
+   env.DB.prepare('DELETE FROM meeting_save_guard WHERE id=?').bind(guard)
+  ]);}catch(e){if(String(e).includes('CHECK constraint'))throw new AdminError(409,'CONFLICT','This task changed. Refresh before editing.');throw e;}
+  return adminJson({id:prior.id,revision:Number(prior.revision)+1,status});
+ }
  const row={trip_id:b.tripId||null,person_id:b.personId||null};taskAccess(user,row,true);
  if(row.trip_id)await trip(env,String(row.trip_id));if(row.person_id&&!await env.DB.prepare('SELECT id FROM people WHERE id=?').bind(row.person_id).first())throw new AdminError(422,'INVALID_PERSON','Choose an existing contact.');
  if(b.ownerId&&!await env.DB.prepare("SELECT id FROM mmt_users WHERE id=? AND status='active' AND hs_access=1").bind(b.ownerId).first())throw new AdminError(422,'INVALID_OWNER','Choose an active portal user.');

@@ -1,5 +1,6 @@
 import {inquiryPayload,deliverInquiryEmail} from './inquiry-email';
 import {contactRelationships} from './contact-relationships';
+import {contactNameScore} from './contact-name-search';
 import {contactEmailActivity,contactEmails} from './contact-email-records';
 import {storedPhone} from './phone';
 import {actorContext,can,routeSection,currentPortal,effectiveUser,hasPortal,type MmtIdentity} from './mmt-permissions';
@@ -454,20 +455,20 @@ type MinistryInput = {
   tripIds: string[];
 };
 
-function contactInput(body: Record<string, unknown>): ContactInput {
+function contactInput(body: Record<string, unknown>, meetingMinimal=false): ContactInput {
   const firstName = cleanLine(body.firstName, 80);
   const lastName = cleanLine(body.lastName, 80);
-  if (!firstName || !lastName) throw new AdminError(422, "INVALID_CONTACT", "Enter the contact’s first and last name.");
+  if (!firstName || (!lastName&&!meetingMinimal)) throw new AdminError(422, "INVALID_CONTACT", "Enter the contact’s first and last name.");
   const email = cleanEmail(body.email) ?? "";
   const phone = storedPhone(cleanPhone(body.phone),typeof body.country==='string'?body.country:undefined);
-  if (!email && !phone) throw new AdminError(422, "INVALID_CONTACT", "Enter at least an email address or phone number.");
+  if (!email && !phone&&!meetingMinimal) throw new AdminError(422, "INVALID_CONTACT", "Enter at least an email address or phone number.");
   const requestedPreference = body.contactPreference === "phone" ? "phone" : "email";
   const contactPreference = requestedPreference === "phone" && !phone ? "email" : requestedPreference === "email" && !email ? "phone" : requestedPreference;
   const contactStatus = body.contactStatus === "inactive" ? "inactive" : "active";
   const contactTypes = cleanChoiceArray(body.contactTypes, ALLOWED_CONTACT_TYPES, ALLOWED_CONTACT_TYPES.size, "Choose valid contact types.").filter(type => type !== "portal_access");
   return {
     firstName,
-    lastName,
+    lastName:lastName||'',
     preferredName: cleanOptionalLine(body.preferredName, 80),
     email,
     phone,
@@ -1103,6 +1104,12 @@ async function listSubmissions(request: Request, env: AdminEnv): Promise<Respons
 async function listPeople(request: Request, env: AdminEnv): Promise<Response> {
   await authenticate(request, env);
   const url = new URL(request.url);
+  if(url.searchParams.get('similar')==='1'){
+    const query=(url.searchParams.get('search')||'').slice(0,100);
+    const candidates=(await env.DB.prepare('SELECT id,first_name,last_name,email,phone,organization FROM people ORDER BY last_name_normalized,first_name_normalized').all<{id:string;first_name:string;last_name:string;email:string;phone:string|null;organization:string|null}>()).results;
+    const matches=candidates.map(p=>({p,score:contactNameScore(query,p.first_name+' '+p.last_name,[p.email,p.phone,p.organization].filter(Boolean).join(' '))})).filter((m):m is typeof m&{score:number}=>m.score!==null).sort((a,b)=>a.score-b.score);
+    return adminJson({people:matches.slice(0,50).map(({p,score})=>({id:p.id,firstName:p.first_name,lastName:p.last_name,email:p.email,phone:p.phone,organization:p.organization,similarName:score>=3})),pagination:{total:matches.length,page:1,pageSize:50}});
+  }
   const filters = adminFilters(url);
   const page = positiveInteger(url.searchParams.get("page"), 1, 10_000);
   const pageSize = positiveInteger(url.searchParams.get("pageSize"), 25, 50);
@@ -1302,7 +1309,8 @@ async function createContact(request: Request, env: AdminEnv): Promise<Response>
 
 async function updateContact(request: Request, env: AdminEnv, personId: string): Promise<Response> {
   await authenticate(request, env, true);
-  const input = contactInput(await readAdminJson(request));
+  const minimal=!!await env.DB.prepare('SELECT person_id FROM meeting_contact_keys WHERE person_id=?').bind(personId).first();
+  const input = contactInput(await readAdminJson(request),minimal);
   await validateContactTrips(env, input.tripIds);
   const existing = await env.DB.prepare("SELECT id FROM people WHERE id = ?1 LIMIT 1")
     .bind(personId).first<{ id: string }>();
@@ -1469,6 +1477,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
       notes: person.notes,
       rejectionNotes: (await env.DB.prepare('SELECT id,trip_id,trip_title,reason,reviewer_name,created_at FROM contact_traveler_review_notes WHERE person_id=? ORDER BY created_at DESC,id').bind(personId).all()).results,
       recordSource: person.record_source,
+      meetingMinimal:!!await env.DB.prepare('SELECT person_id FROM meeting_contact_keys WHERE person_id=?').bind(personId).first(),
       contactStatus: person.contact_status,
       lastContactedAt: person.last_contacted_at,
       lastContactedNote: person.last_contacted_note,

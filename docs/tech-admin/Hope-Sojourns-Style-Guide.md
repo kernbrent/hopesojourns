@@ -4,6 +4,16 @@ Version 4.98
 
 Last reviewed: November 3, 2026
 
+## Meeting and relationship workspace
+
+Place Meetings & relationships under People & ministry in the shared MMT navigation. Reuse paper/cream surfaces, forest actions, Georgia headings, labeled forms, spreadsheet tables, native dialogs and `/styles.css` tokens. Distinguish Person and Ministry chips; ministry links never imply member attendance. Suggest similar contacts with identifying details. Named targets require a contact choice; unnamed promises explicitly create no contact-details reminder. New-person choices and save confirmations explain contact creation and link to the contact, Inbox and Tasks. Task cards show Edit task, Mark complete or Reopen task, and Open contact when linked; wrap these existing-style controls on phones.
+
+Grid rows start collapsed and show at most two summary lines per cell. Use a labeled down arrow that changes to an up arrow when expanded, with aria-expanded and aria-controls. Expand each row independently; preserve other expanded rows and keep the toggle focused. Complete text and secondary actions appear in the expanded details. Use existing palette tokens and contained horizontal scrolling.
+
+Keep Grid / Calendar separate from Active / History. Default Calendar to Month; Week separates all-day entries and uses lanes for overlaps. Include previous/next and Today controls. Both views open the same editor. Compact entries show time, participants and short location. Use forest wash for meetings, cream for history and coral for canceled entries, with visible status text. On phones, wrap forms and contain horizontal grid/calendar scrolling.
+
+Separate Did the meeting happen, Follow-up status and Move to History. Show unresolved actions, introductions and waiting commitments before closure, with explicit retention of independent open work. Introducers and targets remain separate from participants; each target saves independently. Flag source proposals with gold wash, state which fields applying them changes, and preserve local notes and relationships. Label location name and street address separately. Show Google Maps directions only for a nonempty address, without requesting current location. Label America/Chicago times and Sunday-first weeks. Use existing palette colors.
+
 ## Independent prayer portal
 
 Request access now collects a new password and explains provisional read-only access while awaiting approval. The pending banner identifies Global prayers and eligible resources, with Refresh access after approval. Provisional navigation exposes only Prayer wall, Resources and My account; hide posting and recommendations. Label Global clearly as including provisional users, distinct from full portal membership. The composer offers Global in Share in, locks its audience to everyone signed in and explains that no group or demographic restriction applies. The wall offers a Global-only filter and explicit Global labels on cards. Make Global / Limit to members opens a native confirmation dialog with a reason, audience consequences and an explicit checkbox. Preserve existing audiences until a user deliberately changes them. Admin cards label provisional accounts and the review dialog explains promotion versus suspension; approval does not create another password or setup link. Reuse existing palette tokens and responsive form styles.
@@ -896,7 +906,15 @@ The contact email composer places a labeled Attachments (optional) file picker b
 
 - November 3, 2026 — Version 4.98. Added provisional navigation and status, Global composer/filter labels and explicit audience-change confirmation. Local review only.
 
+- November 3, 2026 - Version 4.97: Added compact meeting grid rows with independent down-arrow expansion and up-arrow collapse. Local review only.
+
+- November 3, 2026 - Version 4.96: Made task editing, completion, reopening and contact access visible on task cards. Local review only.
+
+- November 3, 2026 - Version 4.95: Separated named introduction targets from unnamed promises, blocked unselected names, and made contact creation and Inbox/Tasks reminders explicit. Local review only.
+
 - November 3, 2026 — Version 4.94. Added sign-in help forms, full-profile access requests, pending badges and verified admin review dialogs. Local review only.
+
+- November 3, 2026 - Version 4.93: Added meeting grid/calendar, relationship pickers, source review, separate closure/History controls and responsive details standards. Local review only.
 
 - November 2, 2026 — Version 4.92. Reviewed Newsletter category labels, attachment controls, saved downloads, centered email dialogs, and accepted-delivery contact activity for the authorized release.
 

@@ -1,4 +1,5 @@
 import {travelerApplications} from './traveler-application-review';
+import {meetingInboxItems} from './meetings';
 import {contactEmails} from './contact-email-records';
 import {can,type MmtIdentity} from './mmt-permissions';
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type AdminEnv} from './admin';
@@ -32,6 +33,7 @@ async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  const inquiryEmails=can(user,'contacts')?(await env.DB.prepare("SELECT e.id,e.inquiry_id,e.kind,e.status,e.error,e.updated_at created_at,s.id submission_id FROM inquiry_emails e LEFT JOIN interest_submissions s ON s.id=e.inquiry_id WHERE e.status IN ('queued','sending','failed','uncertain') ORDER BY e.updated_at DESC").all<Row>()).results:[];
  const applications=can(user,'contacts')&&can(user,'trips')?await travelerApplications(env):[];
  const items:Row[]=[
+ ...(can(user,'contacts')?await meetingInboxItems(env):[]),
  ...applications.map(a=>({...a,id:'application:'+a.id,kind:'Traveler application',title:a.name+' — '+a.trip_title,detail:a.indicator,status:a.needsReview?'action':'completed',reviewRequired:true})),
  ...inquiryEmails.map(r=>({...r,id:'inquiry-email:'+r.id,kind:'Inquiry email',title:'Review '+r.kind+' delivery',status:'action',detail:r.error||'Delivery needs review.',action_url:r.submission_id?'/admin/?inquiry='+r.inquiry_id+'#requests':'/admin/ministry/#interest-review/'+r.inquiry_id})),
  ...duplicates.map(r=>({...r,id:'duplicate:'+r.id,kind:'Contact match review',title:(JSON.parse(String(r.payload_json)).firstName+' '+JSON.parse(String(r.payload_json)).lastName),payload_json:undefined,status:r.status==='pending'?'action':'completed',detail:r.status==='pending'?'Possible existing contact. Review before attaching interests.':'Contact review resolved.',reviewRequired:r.status==='pending',action_url:'/admin/ministry/#interest-review/'+r.id})),
@@ -54,6 +56,7 @@ async function updateInbox(request:Request,env:AdminEnv,user:MmtIdentity){
  if(!['complete','reopen','delete','restore'].includes(action))throw new AdminError(422,'INVALID_ACTION','Choose Complete, Reopen, Delete, or Restore.');
  const item=(await inboxItems(env,user)).find(item=>item.id===itemId);
  if(!item)throw new AdminError(404,'INBOX_ITEM_NOT_FOUND','This inbox item is no longer available to you. Refresh the inbox.');
+ if(itemId.startsWith('meeting-task:')||itemId.startsWith('meeting-intro:'))throw new AdminError(409,'MEETING_WORKFLOW','Open the source meeting to complete, cancel, or reopen this work.');
  if(itemId.startsWith('request:')&&['complete','delete','reopen'].includes(action))throw new AdminError(409,'INQUIRY_WORKFLOW','Open the inquiry and update its stage or close it with a reason.');
  if(itemId.startsWith('application:'))throw new AdminError(409,'APPLICATION_REVIEW','Open the application and record the review decision. Its inbox status follows the application.');
  if(item.reviewRequired)throw new AdminError(409,'REVIEW_REQUIRED','Choose Add as new, Update existing, or Reject in the contact review.');

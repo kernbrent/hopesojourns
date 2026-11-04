@@ -3,7 +3,7 @@
  const home='/admin/ministry/';
  const groups=[
  ['trips','Trips & destinations',[['Trips','/admin/trips/','trips'],['Devotional library','/admin/trips/?library=devotionals','trips'],['Destinations','/admin/destinations/','destinations']]],
- ['people','People & ministry',[['People','/admin/#people','contacts'],['Contact spreadsheet','/admin/#grid','contacts'],['Ministries & partners','/admin/#ministries','contacts'],['Teams','/admin/#teams','contacts'],['Requests','/admin/#requests','contacts'],['Internship toolkit','/admin/#internship-toolkit','contacts']]],
+ ['people','People & ministry',[['People','/admin/#people','contacts'],['Contact spreadsheet','/admin/#grid','contacts'],['Meetings & relationships','/admin/meetings/','contacts'],['Ministries & partners','/admin/#ministries','contacts'],['Teams','/admin/#teams','contacts'],['Requests','/admin/#requests','contacts'],['Internship toolkit','/admin/#internship-toolkit','contacts']]],
  ['finances','Finances',[['Dashboard','/admin/finance/','finances'],['Income','/admin/finance/#income','finances'],['Expenses','/admin/finance/#expenses','finances'],['Invoices','/admin/finance/#invoices','finances'],['Mileage','/admin/finance/#mileage','finances'],['Reports','/admin/finance/#reports','finances'],['Payment inbox','/admin/#csm-inbox','finances'],['Finance settings','/admin/finance/#settings','finances']]],
  ['volunteer','Volunteer Time',[['Volunteer Time','/admin/volunteer/','volunteer']]],
  ['account','Account & settings',[['My profile','/admin/account/','self'],['Change password','/admin/account/#password','self'],['Users & access requests','/admin/account/#users','admin'],['Portal settings','/admin/#settings','contacts']]]];

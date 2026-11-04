@@ -12,6 +12,7 @@
 /.codex-tmp/
 /.wrangler/
 /node_modules/
+/cloudflare/interest-worker/test/.meetings-preview.mjs
 /output/
 
 # Staff-only MMT guide: the repository and its GitHub remote are public.

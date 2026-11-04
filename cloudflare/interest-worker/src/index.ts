@@ -1,4 +1,5 @@
 import {ageRanges} from './interest-profile';
+import {handleMeetings} from './meetings';
 import {handleTravelerVetting} from './traveler-vetting';
 import {handleVolunteer} from './volunteer';
 import {startDueTrips} from './trip-progress';
@@ -475,6 +476,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   if (path === '/admin/inquiries' || path.startsWith('/admin/inquiries/')) return handleInquiries(request,env,path);
   if (path.startsWith('/admin/interest-reviews/')) return handleInterestReview(request,env,path);
   if (path==='/admin/volunteer'||path.startsWith('/admin/volunteer/')) return handleVolunteer(request,env,path);
+  if (path==='/admin/meetings'||path.startsWith('/admin/meetings/')) return handleMeetings(request,env,path);
   if (path.startsWith('/admin/planning/')) return handlePlanning(request,env,path);
   if (path.startsWith('/admin/ministry/')) return handleMinistryAdminRequest(request,env,path);
   if (path.startsWith("/admin/trip-platform") || path.startsWith("/admin/trips")) {

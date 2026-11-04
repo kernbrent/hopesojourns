@@ -1,0 +1,22 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Hope Sojourns//Local Meeting Samples//EN
+BEGIN:VEVENT
+UID:local-coffee-series@example.test
+DTSTART:20261106T150000Z
+DTEND:20261106T160000Z
+RRULE:FREQ=WEEKLY;COUNT=3
+SUMMARY:Sample calendar coffee
+LOCATION:Example Coffee House
+ATTENDEE;CN=Scott Sample:mailto:scott@example.test
+ATTENDEE;CN=Casey Example:mailto:casey@example.test
+DESCRIPTION:Synthetic calendar event for selective import testing.
+END:VEVENT
+BEGIN:VEVENT
+UID:local-all-day@example.test
+DTSTART;VALUE=DATE:20261112
+DTEND;VALUE=DATE:20261113
+SUMMARY:Sample all day gathering
+LOCATION:Example Ministry Hall
+END:VEVENT
+END:VCALENDAR
