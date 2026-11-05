@@ -1,3 +1,4 @@
+import {decorateReactions} from './reactions.mjs';
 import {resourceAccess} from './resource-access.mjs';
 // The library belongs to this installation. Authentication/CSRF precede this handler.
 export async function handleResources(request,db,auth,url,h) {
@@ -77,6 +78,7 @@ export async function handleResources(request,db,auth,url,h) {
   const args=[...access.args,review,review,visibility,visibility==='hidden'?0:1,category,category,featured,Number(featured),tag,tag,q,q,q.replace(/^#+/,'')];
   const total=(await db.prepare(`SELECT count(*) AS n FROM resources r JOIN resource_categories c ON c.id=r.category_id WHERE ${where}`).bind(...args).first()).n;
   const rows=(await db.prepare(`SELECT r.*,c.name AS category_name,CASE WHEN r.image_key<>'' OR EXISTS(SELECT 1 FROM resource_images i WHERE i.resource_id=r.id) THEN 1 ELSE 0 END AS has_image FROM resources r JOIN resource_categories c ON c.id=r.category_id WHERE ${where} ORDER BY ${sorts[sort]} LIMIT 50 OFFSET ?`).bind(...args,offset).all()).results;
+  await decorateReactions(db,rows,'resources',auth.id);
   for(const row of rows) {
    if(!admin) for(const key of ['submitted_by','submitted_at','reviewed_by','reviewed_at','image_key']) delete row[key];
    else if(row.submitted_by) row.submitted_name=(await db.prepare('SELECT name FROM users WHERE id=?').bind(row.submitted_by).first())?.name||'Former member';

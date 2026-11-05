@@ -683,10 +683,83 @@ test('provisional creation and approval roll back atomically when their guarded 
 
 test('making a restricted group prayer Global explicitly clears its group and recipient limits',async()=>{
  const f=fixture();for(const id of ['author','friend','provisional'])await f.add(id);f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='provisional'");
- const group=(await(await f.request('groups','author',{name:'Circle',description:'Private circle',kind:'accountability',discoverable:true})).json()).id;
- await f.request(`groups/${group}/join`,'friend',{});await f.request(`groups/${group}/members/friend`,'author',{status:'approved'});
+ const group=await makeGroup(f,'author');
+ await joinGroup(f,group,'friend','author');
  const response=await f.request('posts','author',{...post('selected',['friend']),groupId:group});assert.equal(response.status,201,await response.clone().text());const id=(await response.json()).id;
  assert.equal((await f.request(`posts/${id}/global`,'author',{global:true,confirmed:true,reason:'Share broadly'})).status,200);
  const row=f.sql.prepare('SELECT * FROM posts WHERE id=?').get(id);assert.equal(row.group_id,null);assert.equal(row.audience,'members');assert.equal(row.is_global,1);assert.equal(f.sql.prepare('SELECT count(*) n FROM recipients WHERE post_id=?').get(id).n,0);
  assert.equal((await(await f.request('posts','provisional')).json()).posts[0].id,id);
+});
+
+
+test('list view defaults expanded, persists per account and cannot alter account authority',async()=>{
+ const f=fixture();for(const id of ['member','other','provisional'])await f.add(id);f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='provisional'");
+ assert.equal((await(await f.request('me','member')).json()).user.list_view,'expanded');
+ assert.equal((await f.request('preferences','member',{list_view:'collapsed',role:'admin',access_level:'full',user_id:'other'})).status,200);
+ assert.equal((await(await f.request('me','member')).json()).user.list_view,'collapsed');assert.equal((await(await f.request('me','other')).json()).user.list_view,'expanded');
+ assert.equal(f.sql.prepare("SELECT role FROM users WHERE id='member'").get().role,'member');
+ assert.equal((await f.request('preferences','provisional',{list_view:'collapsed'})).status,200);
+ assert.equal((await f.request('preferences','member',{list_view:'bad'})).status,400);assert.equal((await f.request('preferences',null,{list_view:'collapsed'})).status,401);
+ assert.equal((await f.request('preferences','member',{list_view:'expanded'})).status,200);
+});
+
+test('hearts are idempotent per user, tallied on authorized prayer and notification reads, and removable',async()=>{
+ const f=fixture();for(const id of ['author','friend','other'])await f.add(id);await f.add('admin','admin');
+ await f.request('follow','friend',{userId:'author',following:true,requests:true,updates:true,answered:true});
+ const id=(await(await f.request('posts','author',post('members'))).json()).id;
+ for(let n=0;n<2;n++)assert.equal((await f.request(`posts/${id}/heart`,'friend',{active:true})).status,200);
+ const added=await(await f.request(`posts/${id}/heart`,'other',{active:true})).json();assert.deepEqual(added,{count:2,active:true});
+ const row=(await(await f.request('posts','friend')).json()).posts[0];assert.equal(row.heart_count,2);assert.equal(row.hearted,true);assert.ok(!('reactors' in row));
+ const note=(await(await f.request('notifications','friend')).json())[0];assert.equal(note.heart_count,2);assert.equal(note.hearted,true);
+ const admin=(await(await f.request('admin/posts','admin')).json()).items[0];assert.equal(admin.heart_count,2);assert.equal(admin.hearted,false);
+ for(let n=0;n<2;n++)assert.deepEqual(await(await f.request(`posts/${id}/heart`,'friend',{active:false})).json(),{count:1,active:false});
+ assert.equal((await f.request(`posts/${id}/heart`,'other',{active:'yes'})).status,400);
+ assert.equal((await f.request(`posts/${id}/heart`,null,{active:true})).status,401);
+ assert.equal((await f.request(`posts/${id}`,'author',null,'DELETE')).status,200);assert.equal(f.sql.prepare('SELECT count(*) n FROM post_hearts').get().n,0);
+});
+
+test('prayer reactions enforce selected and current group audiences and reject provisional accounts',async()=>{
+ const f=fixture();for(const id of ['author','friend','outsider','provisional'])await f.add(id);f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='provisional'");
+ const id=(await(await f.request('posts','author',post('selected',['friend']))).json()).id;
+ assert.equal((await f.request(`posts/${id}/heart`,'outsider',{active:true})).status,404);assert.equal(f.sql.prepare('SELECT count(*) n FROM post_hearts').get().n,0);
+ assert.equal((await f.request(`posts/${id}/heart`,'friend',{active:true})).status,200);
+ const group=await makeGroup(f,'author');
+ await joinGroup(f,group,'friend','author');
+ const groupPost=await f.request('posts','author',{...post('members'),groupId:group});assert.equal(groupPost.status,201);const groupId=(await groupPost.json()).id;
+ assert.equal((await f.request(`posts/${groupId}/heart`,'friend',{active:true})).status,200);
+ await f.request(`groups/${group}/leave`,'friend',{});assert.equal((await f.request(`posts/${groupId}/heart`,'friend',{active:false})).status,404);
+ const global=(await(await f.request('posts','author',{...post('members'),global:true})).json()).id;assert.equal((await f.request(`posts/${global}/heart`,'provisional',{active:true})).status,403);
+});
+
+test('resource thumbs respect moderation and demographic visibility and remain unique per account',async()=>{
+ const f=fixture();for(const id of ['member','other','provisional'])await f.add(id);await f.add('admin','admin');f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='provisional'");
+ const path='resources/wild-at-heart/thumb';
+ for(let n=0;n<2;n++)assert.deepEqual(await(await f.request(path,'member',{active:true})).json(),{count:1,active:true});
+ assert.deepEqual(await(await f.request(path,'other',{active:true})).json(),{count:2,active:true});
+ let row=(await(await f.request('resources','member')).json()).items.find(r=>r.id==='wild-at-heart');assert.equal(row.thumb_count,2);assert.equal(row.thumbed,true);
+ row=(await(await f.request('admin/resources','admin')).json()).items.find(r=>r.id==='wild-at-heart');assert.equal(row.thumb_count,2);assert.equal(row.thumbed,false);
+ assert.equal((await f.request(path,'provisional',{active:true})).status,403);
+ f.sql.exec("UPDATE resources SET min_age=18 WHERE id='wild-at-heart'");assert.equal((await f.request(path,'member',{active:false})).status,404);
+ f.sql.exec("UPDATE users SET birth_date='1990-01-01' WHERE id='member'; UPDATE resources SET genders='male' WHERE id='wild-at-heart'");assert.equal((await f.request(path,'member',{active:true})).status,404);
+ f.sql.exec("UPDATE users SET gender='male' WHERE id='member'");assert.deepEqual(await(await f.request(path,'member',{active:false})).json(),{count:1,active:false});
+ for(const [column,value] of [['visible',0],['review_status','pending']]) {f.sql.prepare('UPDATE resources SET '+column+'=? WHERE id=?').run(value,'wild-at-heart');assert.equal((await f.request(path,'member',{active:true})).status,404);f.sql.exec("UPDATE resources SET visible=1,review_status='approved' WHERE id='wild-at-heart'");}
+ f.sql.exec("DELETE FROM resources WHERE id='wild-at-heart'");assert.equal(f.sql.prepare('SELECT count(*) n FROM resource_thumbs').get().n,0);
+});
+
+test('reactions enforce CSRF and origin, and account deletion removes given reactions',async()=>{
+ const f=fixture();await f.add('admin','admin');for(const id of ['author','member'])await f.add(id);
+ const id=(await(await f.request('posts','author',post('members'))).json()).id;
+ for(const [origin,csrf] of [['https://evil.example','csrf-member'],['https://prayer.example.com','bad']]) {
+  const response=await worker.fetch(new Request(`https://prayer.example.com/api/posts/${id}/heart`,{method:'POST',headers:{Origin:origin,'X-CSRF-Token':csrf,Cookie:'__Host-hs_prayer=member','Content-Type':'application/json'},body:JSON.stringify({active:true})}),f.env);assert.equal(response.status,403);
+ }
+ await f.request(`posts/${id}/heart`,'member',{active:true});await f.request('resources/wild-at-heart/thumb','member',{active:true});
+ assert.equal((await f.request('admin/users/member/delete','admin',{reason:'Remove synthetic account',confirmation:'DELETE'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM post_hearts').get().n,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM resource_thumbs').get().n,0);
+ assert.equal((await f.request('preferences','member',{list_view:'expanded'})).status,401);
+});
+
+test('reaction writes recheck current account state and resource audience after authentication',async()=>{
+ const f=fixture();await f.add('member');const prepare=f.env.DB.prepare.bind(f.env.DB);let changed=false;
+ f.env.DB.prepare=query=>{if(query.startsWith('INSERT OR IGNORE INTO resource_thumbs') && !changed) {changed=true;f.sql.exec("UPDATE users SET status='suspended' WHERE id='member'");}return prepare(query);};
+ assert.equal((await f.request('resources/wild-at-heart/thumb','member',{active:true})).status,404);assert.equal(f.sql.prepare('SELECT count(*) n FROM resource_thumbs').get().n,0);
 });

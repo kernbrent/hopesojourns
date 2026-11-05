@@ -58,13 +58,13 @@ function setupAuth() {
 }
 function signedOut() { sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
   for (const id of ['posts','people','notifications','invites','recipients','groups','group-overview','group-members','group-actions','group-preferences','group-member-invite','admin-items']) $(`#${id}`).replaceChildren();
-  clearResources();
+  clearResources();applyListView('expanded');
   $('#profile-form').reset();
   adminLoadGeneration++;$('#admin-private-link').value='';$('#admin-link-result').hidden=true;pendingAdminAction=null;
   $('#invite-link').value = ''; $('#invite-result').hidden = true; document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close()); setupAuth(); }
 async function signedIn(data) {
   sessionGeneration++;
-  user = data.user; csrf = data.csrf; inviteToken = null;
+  user = data.user; csrf = data.csrf; inviteToken = null; applyListView(user.list_view||'expanded');
   $('#invites-nav').hidden = user.role !== 'admin';
   $('#admin-nav').hidden = user.role !== 'admin';
   $('#greeting').textContent = `Welcome, ${user.name}.${user.role==='admin'?user.owner?' You are the portal owner.':' You have portal admin access.':' There is room for your story here.'}`;
@@ -90,7 +90,8 @@ function postCard(post, notification = false) {
     }); footer.append(button);
     const globalButton=element('button',post.is_global?'Limit to members':'Make Global');globalButton.addEventListener('click',()=>openGlobal(post));footer.append(globalButton);
   }
-  card.append(meta, element('h3', post.title), element('div', post.body, 'post-body'), footer); return card;
+  card.dataset.listPreview=`${post.author_name} · ${labels[post.kind]} · ${audience}`;
+  card.append(meta, element('h3', post.title), element('div', post.body, 'post-body'), reactionButton('posts',post),footer); return card;
 }
 async function loadPosts(append = false) {
   const params = new URLSearchParams({ global:$('#global-filter').checked?'1':'0', kind: $('#kind-filter').value, following: currentView === 'following' ? '1' : '0' });
@@ -128,7 +129,7 @@ function renderPeople() {
       for (const group of led) links.append(button(group.name,() => openGroup(group.id)));
       form.append(links);
     }
-    $('#people').append(form);
+    form.dataset.listPreview=[person.username?`@${person.username}`:'',person.bio].filter(Boolean).join(' · ');$('#people').append(form);
   }
 }
 const categoryLabels = {accountability:'Accountability',prayer:'Prayer group',partners:'Prayer partners',other:'Community group'};
@@ -154,7 +155,7 @@ function renderGroups() {
     actions.append(button(g.membership==='approved' ? 'Open group' : 'View group',()=>openGroup(g.id)));
     if(g.membership==='invited') actions.append(button('Accept invitation',()=>membershipAction(g.id,'join',{}),'primary'));
     else if((!g.membership || g.membership==='left') && g.discoverable) actions.append(button('Ask to join',()=>membershipAction(g.id,'join',{}),'primary'));
-    card.append(actions); $('#groups').append(card);
+    card.dataset.listPreview=`${categoryLabels[g.category]} · Led by ${g.owner_name}${g.membership?' · '+statusLabels[g.membership]:''}`;card.append(actions); $('#groups').append(card);
   });
 }
 async function membershipAction(id,route,data,message) {
@@ -485,6 +486,8 @@ function resourceCard(resource,isAdmin) {
  for(const tag of resource.tags) {const chip=button(`#${tag}`,async()=>{$('#resource-search').elements.tag.value=tag;await loadResources();});chip.setAttribute('aria-label',`Filter resources tagged ${tag}`);tags.append(chip);}
  card.append(tags);
  if(resource.url) {const link=element('a','Explore resource ↗');link.href=resource.url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',`Explore ${resource.title} (opens in a new tab)`);card.append(link);}
+ card.dataset.listPreview=[resource.creator,resource.category_name,resource.visible?'':'Hidden',resource.review_status==='approved'?'':resource.review_status].filter(Boolean).join(' · ');
+ card.append(reactionButton('resources',resource));
  if(isAdmin) {
   card.append(element('p',`Display order: ${resource.sort_order}`,'hint'));
   const actions=element('div',undefined,'actions');
@@ -646,3 +649,48 @@ $('#global-form').addEventListener('submit',event=>{event.preventDefault();actio
  await api(`posts/${encodeURIComponent(target.post.id)}/global`,{global:target.global,reason:form.elements.reason.value,confirmed:form.elements.confirmed.checked});
  $('#global-dialog').close();if(currentView==='admin') await loadAdmin();else await loadPosts();notice('Prayer audience updated and recorded.');
 })(event);});
+
+
+// One saved account preference controls every card list, including later pages.
+function applyListView(value) {
+ const mode=value==='collapsed'?'collapsed':'expanded';$('#community').dataset.listView=mode;
+ document.querySelectorAll('[data-list-view]').forEach(control=>{if(control.tagName==='BUTTON')control.setAttribute('aria-pressed',String(control.dataset.listView===mode));});
+ document.querySelectorAll('details.list-item').forEach(item=>{item.open=mode==='expanded';});
+}
+for(const control of document.querySelectorAll('button[data-list-view]')) control.addEventListener('click',action(async()=>{
+ const controls=[...document.querySelectorAll('button[data-list-view]')];controls.forEach(node=>node.disabled=true);
+ try {const result=await api('preferences',{list_view:control.dataset.listView});user.list_view=result.list_view;applyListView(result.list_view);}
+ finally {controls.forEach(node=>node.disabled=false);}
+}));
+function reactionButton(type,row) {
+ const prayer=type==='posts',count=Number(row[prayer?'heart_count':'thumb_count'])||0,active=!!row[prayer?'hearted':'thumbed'];
+ const control=element('button',undefined,'reaction-button');control.type='button';control.dataset.reactionType=type;control.dataset.reactionId=row.post_id||row.id;
+ control.disabled=user?.access_level==='provisional';
+ function paint(total,mine) {control.dataset.reactionActive=String(mine);control.setAttribute('aria-pressed',String(mine));control.textContent=`${prayer?'♥':'👍'} ${total}`;control.setAttribute('aria-label',`${mine?'Remove':'Add'} ${prayer?'heart':'thumbs up'}: ${row.title}. ${total} ${prayer?'hearts':'thumbs up'}`);control.title=user?.access_level==='provisional'?'Full membership is required to react.':`${mine?'Remove':'Add'} your ${prayer?'heart':'thumbs up'}`;}
+ paint(count,active);
+ control.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();action(async()=>{
+  const result=await api(`${type}/${encodeURIComponent(control.dataset.reactionId)}/${prayer?'heart':'thumb'}`,{active:control.dataset.reactionActive!=='true'});
+  for(const node of document.querySelectorAll('.reaction-button')) if(node.dataset.reactionType===type && node.dataset.reactionId===control.dataset.reactionId) node.updateReaction(result.count,result.active);
+ })(event);});
+ control.updateReaction=paint;return control;
+}
+function enhanceList(container) {
+ for(const card of [...container.children]) {
+  if(!card.matches('.post,.person,.group-card,.resource-card,.panel,.member-row')) continue;
+  const heading=card.querySelector('h3,h2')||card.querySelector('strong');if(!heading) continue;
+  const title=heading.textContent,item=element('details',undefined,'list-item'),summary=element('summary'),copy=element('span',undefined,'list-summary-copy');
+  const preview=card.dataset.listPreview||card.querySelector('p')?.textContent||'';
+  copy.append(element('span',title,'list-summary-title'),element('span',preview,'list-summary-preview'));
+  const state=element('span','Expand','list-disclosure');summary.append(copy,state);
+  const reaction=card.querySelector('.reaction-button');if(reaction) {
+   const type=reaction.dataset.reactionType,prayer=type==='posts',row={id:reaction.dataset.reactionId,title};row[prayer?'heart_count':'thumb_count']=Number(reaction.textContent.replace(/[^0-9]/g,''));row[prayer?'hearted':'thumbed']=reaction.dataset.reactionActive==='true';
+   summary.append(reactionButton(type,row));
+  }
+  item.open=(user?.list_view||'expanded')==='expanded';
+  const label=()=>{state.textContent=item.open?'Collapse':'Expand';summary.setAttribute('aria-label',`${item.open?'Collapse':'Expand'} ${title}`);};item.addEventListener('toggle',label);label();
+  container.insertBefore(item,card);item.append(summary,card);
+ }
+}
+for(const id of ['posts','people','groups','notifications','invites','admin-items','group-members','resource-items','resource-category-items']) {
+ const container=$(`#${id}`);new MutationObserver(()=>enhanceList(container)).observe(container,{childList:true});enhanceList(container);
+}

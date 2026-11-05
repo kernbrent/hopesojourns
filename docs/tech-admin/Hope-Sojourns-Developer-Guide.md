@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.13
+Version 5.14
 
 Last reviewed: November 5, 2026
 
@@ -44,6 +44,10 @@ Contact email attachments are included in the existing composer and backend work
 The contact-email sender remains fixed at `admin@hopesojourns.com`. Resend requires verified owned-domain senders. Future selectable senders need an authorized sender allowlist; personal Gmail sending needs a separately authorized Gmail delivery integration. Reply-To alone does not change From.
 
 ## Independent prayer portal
+
+Migration 0013 adds users.list_view with expanded as the default, plus post_hearts and resource_thumbs keyed uniquely by item and user. POST /api/preferences changes only the authenticated account’s expanded/collapsed preference and supports provisional accounts. The UI applies that saved preference across card lists, pagination and future sign-ins; individual native details rows can still be opened independently. Mutation observers enhance only direct list children and do not replace existing form handlers. Audit reports retain their compact table.
+
+POST /api/posts/:id/heart and /api/resources/:id/thumb accept an explicit boolean active and are idempotent. Full membership, session/Origin/CSRF checks, throttling, current account authority, the common prayer visibility predicate and resource audience rules guard mutations. Counts and the viewer’s own selection are attached only to authorized feed, notification, admin and resource rows; reactor identities are never returned. Unavailable items return 404. Provisional users see tallies but cannot react. Item deletion cascades reactions; account anonymization removes the user’s given reactions. A single grouped query decorates each page after visibility filtering. The test suite now runs 64 tests per storage adapter, 128 total.
 
 Migration 0012 adds users.access_level (full/provisional, existing users full) and posts.is_global (existing prayers remain non-Global). Password-bearing access requests atomically create a provisional regular-member account, a pending linked request and a session. Passwords are hashed and excluded from the stored request profile. Existing accounts and duplicate pending requests cannot be overwritten; older requests without passwords retain the invitation workflow. Provisional accounts may GET their own account, Global prayers and eligible resource lists/categories/images, and POST their profile or logout. All other authenticated routes are blocked before dispatch. Resource moderation, gender and age checks still apply. Provisional identities remain outside the member directory and group invitations. Account approval checks current authority and revision, promotes the linked active account to full membership, and completes the request without changing its password. Decline suspends the account and revokes sessions and reset links. Reactivation alone never grants full membership; role grants require prior approval. Public enrollment does not establish email ownership; admins must verify it before approval.
 
@@ -1362,6 +1366,8 @@ Files are stored in the environment's private RECEIPTS bucket under contact-emai
 GET /admin/contacts/emails/:id/attachments/:index requires authentication and Contacts read access, resolves only immutable saved metadata, verifies bytes, and returns a forced download with private no-store and nosniff headers. Contact histories and Emails sent show filename/size links, never R2 keys or public URLs. Test delivery payloads, immutable retries, access control, downloads, corrupt files, unsupported formats, and size/count limits with contact-email-attachments.test.ts. No real email is needed for validation.
 
 ## Revision history
+
+- November 5, 2026 — Version 5.14. Added account-wide list density, counted prayer hearts and resource thumbs with privacy and lifecycle checks. Local review only.
 
 - November 4, 2026 - Version 5.10: Added task Created dates, independent compact down/up controls, contact buttons and reversible Delete / Restore. Release authorized for test and production.
 

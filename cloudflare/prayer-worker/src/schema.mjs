@@ -47,5 +47,9 @@ export const schema=[
   {
     "name": "0012_provisional_global.sql",
     "sql": "-- Existing members and prayers retain their permissions.\r\nALTER TABLE users ADD COLUMN access_level TEXT NOT NULL DEFAULT 'full' CHECK(access_level IN ('full','provisional'));\r\nALTER TABLE posts ADD COLUMN is_global INTEGER NOT NULL DEFAULT 0 CHECK(is_global IN (0,1) AND (is_global=0 OR (group_id IS NULL AND audience='members')));\r\nCREATE INDEX posts_global_created ON posts(is_global,created_at);\r\n"
+  },
+  {
+    "name": "0013_list_views_reactions.sql",
+    "sql": "ALTER TABLE users ADD COLUMN list_view TEXT NOT NULL DEFAULT 'expanded' CHECK(list_view IN ('expanded','collapsed'));\r\nCREATE TABLE post_hearts (\r\n post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,\r\n user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,\r\n created_at INTEGER NOT NULL, PRIMARY KEY(post_id,user_id)\r\n);\r\nCREATE INDEX post_hearts_user ON post_hearts(user_id,post_id);\r\nCREATE TABLE resource_thumbs (\r\n resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,\r\n user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,\r\n created_at INTEGER NOT NULL, PRIMARY KEY(resource_id,user_id)\r\n);\r\nCREATE INDEX resource_thumbs_user ON resource_thumbs(user_id,resource_id);\r\n"
   }
 ];

@@ -1,3 +1,4 @@
+import {decorateReactions} from './reactions.mjs';
 export async function handleAdmin(request,db,auth,url,h) {
  const {json,body,text,requireValue,digest,token,username}=h;
  requireValue(auth.role==='admin','Portal admins only.',403);
@@ -30,7 +31,7 @@ export async function handleAdmin(request,db,auth,url,h) {
   const rows=(await db.prepare(`SELECT p.*,u.name AS author_name,g.name AS group_name FROM posts p JOIN users u ON u.id=p.author_id LEFT JOIN groups g ON g.id=p.group_id
    WHERE instr(lower(p.title||' '||p.body||' '||u.name||' '||coalesce(g.name,'')),lower(?))>0
    AND (p.created_at<? OR (p.created_at=? AND p.id<?)) ORDER BY p.created_at DESC,p.id DESC LIMIT 51`).bind(search,...page()).all()).results;
-  return json(paged(rows));
+  await decorateReactions(db,rows,'posts',auth.id);return json(paged(rows));
  }
  if(path==='/api/admin/groups' && method==='GET') {
   const search=(url.searchParams.get('search')||'').slice(0,200);
@@ -103,6 +104,8 @@ export async function handleAdmin(request,db,auth,url,h) {
     db.prepare(`DELETE FROM portal_requests WHERE (email=? OR user_id=?) AND ${guard}`).bind(target.email,id,op),
     db.prepare(`DELETE FROM invites WHERE email=? AND ${guard}`).bind(target.email,op),
     db.prepare(`DELETE FROM notifications WHERE user_id=? AND ${guard}`).bind(id,op),
+    db.prepare(`DELETE FROM post_hearts WHERE user_id=? AND ${guard}`).bind(id,op),
+    db.prepare(`DELETE FROM resource_thumbs WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM follows WHERE (follower_id=? OR followed_id=?) AND ${guard}`).bind(id,id,op),
     db.prepare(`DELETE FROM recipients WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM group_members WHERE user_id=? AND ${guard}`).bind(id,op),

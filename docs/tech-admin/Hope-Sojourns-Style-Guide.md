@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.103
+Version 4.104
 
 Last reviewed: November 5, 2026
 
@@ -22,6 +22,8 @@ More details holds type (Coffee by default), end, all-day dates, location, outco
 Default to compact Grid rows in Upcoming & recent: unfinished records plus finished meetings from the last 90 days. Offer Past meetings, All meetings and optional Month/Week calendar views with Sunday-first America/Chicago times. Row arrows independently expand/collapse with aria-expanded and aria-controls. Clamp summaries to two lines; expansion exposes full text. Use shared paper/forest tokens, Georgia headings, native controls and visible keyboard focus. Wrap task/footer controls on phones and contain table scrolling.
 
 ## Independent prayer portal
+
+A shared List view toolbar offers Expanded and Collapsed with pressed-state feedback. Expanded is the default, and the setting applies to all card lists for the signed-in account. Native details rows preserve keyboard expansion; collapsed summaries show the item title, a compact metadata line, an Expand label and reaction tally where applicable. Expanding a row reveals its existing content and controls. Use the same treatment for people, prayers, resources, groups, group members, notifications, invitations, admin cards and resource categories. Keep the audit grid as a compact table. Prayer hearts and resource thumbs are toggle buttons with visible counts, accessible action labels and aria-pressed state. Reaction controls also work in collapsed summaries without opening the row. Provisional users can see counts but the reaction control explains that approval is required. Use shared palette tokens, visible focus and wrapping toolbar controls.
 
 Request access now collects a new password and explains provisional read-only access while awaiting approval. The pending banner identifies Global prayers and eligible resources, with Refresh access after approval. Provisional navigation exposes only Prayer wall, Resources and My account; hide posting and recommendations. Label Global clearly as including provisional users, distinct from full portal membership. The composer offers Global in Share in, locks its audience to everyone signed in and explains that no group or demographic restriction applies. The wall offers a Global-only filter and explicit Global labels on cards. Make Global / Limit to members opens a native confirmation dialog with a reason, audience consequences and an explicit checkbox. Preserve existing audiences until a user deliberately changes them. Admin cards label provisional accounts and the review dialog explains promotion versus suspension; approval does not create another password or setup link. Reuse existing palette tokens and responsive form styles.
 
@@ -910,6 +912,8 @@ Inbox Show includes Emails sent, with readable cards for subject and accepted ti
 The contact email composer places a labeled Attachments (optional) file picker below Message. Show supported file types and the limits of five files, 5 MB per file, and 10 MB total. List each chosen filename and size with an accessible Remove button. Wrap long filenames and controls on phones. Disable file selection and removal after submission alongside the message fields. Saved contact history and Inbox > Emails sent show private attachment download links with filenames and sizes.
 
 ## Revision history
+
+- November 5, 2026 — Version 4.104. Added shared Expanded/Collapsed list controls, compact disclosure rows, counted hearts and thumbs. Local review only.
 
 - November 4, 2026 - Version 4.100: Added task Created dates, independent compact down/up controls, contact buttons and reversible Delete / Restore. Release authorized for test and production.
 

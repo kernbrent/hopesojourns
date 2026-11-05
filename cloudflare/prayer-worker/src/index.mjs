@@ -1,3 +1,4 @@
+import {handleReaction,decorateReactions} from './reactions.mjs';
 import {handlePublicRequests,handleRequestAdmin} from './portal-requests.mjs';
 import { handleGroups } from './groups.mjs';
 import {handleAdmin} from './admin.mjs';
@@ -24,7 +25,7 @@ class HttpError extends Error { constructor(status, message) { super(message); t
 function requireValue(condition, message, status = 400) { if (!condition) throw new HttpError(status, message); }
 const json = (value, status = 200, headers = {}) => Response.json(value, { status, headers });
 const now = () => Date.now();
-const publicUser = u => ({ id:u.id,name:u.name,role:u.role,access_level:u.access_level||'full',owner:!!u.is_owner,username:u.username||u.email,email:u.email,
+const publicUser = u => ({ id:u.id,name:u.name,role:u.role,list_view:u.list_view||'expanded',access_level:u.access_level||'full',owner:!!u.is_owner,username:u.username||u.email,email:u.email,
  phone:u.phone||'',timezone:u.timezone||'',bio:u.bio||'',gender:u.gender||'',birth_date:u.birth_date||'',notify_requests:u.notify_requests!==0,notify_updates:u.notify_updates!==0,notify_answered:u.notify_answered!==0 });
 // This predicate must be used for every read, including notification joins.
 function visibilityFor(id,role,access) {
@@ -74,8 +75,8 @@ async function api(request, env, url, ctx) {
   const config = siteConfig(env);
   if (path === '/api/site' && method === 'GET') return json(config);
   if (path === '/api/health' && method === 'GET') {
-    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests')").first();
-    requireValue(schema.count === 12, 'Portal database setup is incomplete.', 503);
+    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs')").first();
+    requireValue(schema.count === 14, 'Portal database setup is incomplete.', 503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
@@ -153,9 +154,18 @@ async function api(request, env, url, ctx) {
   // Provisional accounts may only read Global prayers, eligible resources, and their own account.
   if(auth.access_level==='provisional') {
     const allowed=(method==='GET' && (['/api/me','/api/posts','/api/resources','/api/resource-categories'].includes(path) || /^\/api\/resources\/[^/]+\/image$/.test(path))) ||
-      (method==='POST' && ['/api/profile','/api/logout'].includes(path));
+      (method==='POST' && ['/api/profile','/api/logout','/api/preferences'].includes(path));
     requireValue(allowed,'Admin approval is required for this feature.',403);
   }
+  if(path==='/api/preferences' && method==='POST') {
+    const data=await body(request);
+    requireValue(['expanded','collapsed'].includes(data.list_view),'Choose Expanded or Collapsed.');
+    const result=await db.prepare("UPDATE users SET list_view=? WHERE id=? AND status='active'").bind(data.list_view,auth.id).run();
+    requireValue(result.meta.changes===1,'Your account is no longer available.',401);
+    return json({list_view:data.list_view});
+  }
+  const reaction=await handleReaction(request,db,auth,url,{json,body,requireValue,rateLimit,visibility,visibleArgs});
+  if(reaction) return reaction;
   if(/^\/api\/(?:admin\/)?(?:resources|resource-categories|resource-review-count)(?:\/|$)/.test(path)) {
     const response=await handleResources(request,db,auth,url,{json,body,text,requireValue,rateLimit,assets:env.ASSETS});
     if(response) return response;
@@ -219,6 +229,7 @@ async function api(request, env, url, ctx) {
       AND (?='' OR p.group_id=?) AND (?=0 OR p.is_global=1)
       AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?)) ORDER BY p.created_at DESC,p.id DESC LIMIT 51`).bind(...visibleArgs(auth), kind || '', kind || '', +following, auth.id, groupId,groupId,+globalOnly,before, before, beforeId).all();
     const posts = rows.results.slice(0, 50), last = posts.at(-1);
+    await decorateReactions(db,posts,'posts',auth.id);
     return json({ posts, more: rows.results.length > 50, cursor: last ? `${last.created_at}:${last.id}` : null });
   }
   if (path === '/api/posts' && method === 'POST') {
@@ -269,9 +280,10 @@ async function api(request, env, url, ctx) {
     requireValue(result.meta.changes, 'Post unavailable.', 404); return json({ ok: true });
   }
   if (path === '/api/notifications' && method === 'GET') {
-    return json((await db.prepare(`SELECT n.id,n.read_at,n.created_at,p.id AS post_id,p.title,p.body,p.kind,p.audience,p.is_global,p.group_id,g.name AS group_name,u.name AS author_name
+    const rows=(await db.prepare(`SELECT n.id,n.read_at,n.created_at,p.id AS post_id,p.title,p.body,p.kind,p.audience,p.is_global,p.group_id,g.name AS group_name,u.name AS author_name
       FROM notifications n JOIN posts p ON p.id=n.post_id JOIN users u ON u.id=p.author_id LEFT JOIN groups g ON g.id=p.group_id WHERE n.user_id=? AND ${visibility}
-      ORDER BY n.created_at DESC LIMIT 100`).bind(auth.id, ...visibleArgs(auth)).all()).results);
+      ORDER BY n.created_at DESC LIMIT 100`).bind(auth.id, ...visibleArgs(auth)).all()).results;
+    await decorateReactions(db,rows,'posts',auth.id);return json(rows);
   }
   if (path === '/api/notifications/read' && method === 'POST') {
     await db.prepare('UPDATE notifications SET read_at=? WHERE user_id=? AND read_at IS NULL').bind(now(), auth.id).run(); return json({ ok: true });
