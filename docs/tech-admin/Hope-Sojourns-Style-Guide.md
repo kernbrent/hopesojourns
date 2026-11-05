@@ -1,14 +1,23 @@
 # Hope Sojourns website style guide
 
-Version 4.100
+Version 4.103
 
-Last reviewed: November 4, 2026
+Last reviewed: November 5, 2026
+
+## Phone number presentation
+
+Display US contact phone numbers as (###)###-#### in lists, complete records and edit forms using the shared phone-ui.js formatter. Preserve international numbers and extensions. The formatter must be present in each published artifact; verify its live response is JavaScript rather than the homepage fallback.
+
+## Guided story readings in Resources
+
+Guided readings use the established forest, cream, coral and gold palette with serif story headings, six numbered moments, responsive scene illustrations and explicit AI-created illustration captions. Keep standard site navigation and Resources links visible. Reflection choices are optional, keyboard accessible, announced through a live region and never saved or sent. Without JavaScript, all moments remain readable.
+
 
 ## Meeting and relationship workspace
 
 Show Meeting title, When, People, Meeting notes and Next steps. Task summaries show title, Created, owner and due date. Independent down/up arrows reveal Task, Who, Due, Done and Task details. Use buttons for Open contact and Delete, with Restore under Deleted tasks. Start saved tasks collapsed and new tasks expanded; preserve keyboard focus and allow multiple open rows. Use Add task for introductions and other follow-up. Hide separate introduction stages and My action / Waiting fields. New-person chips offer an unchecked contact-details reminder. Retain similar-contact matching and explicit new-person selection.
 
-More details holds type (Coffee by default), end, all-day dates, location, outcome, restoration and earlier introduction history. Hide calendar import. Save stores edits; Finish meeting marks Held and moves the record to Past meetings, retaining open tasks. Explain that beside the buttons; remove separate closure and retention controls.
+More details holds type (Coffee by default), end, all-day dates, location, outcome, restoration and earlier introduction history. Hide calendar import. Save stores edits; Finish meeting marks Held and moves the record to Past meetings, retaining open tasks. Explain that Finish also updates linked contacts’ Last Contacted date and meeting note; planned meetings do not record contact. Explain that beside the buttons; remove separate closure and retention controls.
 
 Default to compact Grid rows in Upcoming & recent: unfinished records plus finished meetings from the last 90 days. Offer Past meetings, All meetings and optional Month/Week calendar views with Sunday-first America/Chicago times. Row arrows independently expand/collapse with aria-expanded and aria-controls. Clamp summaries to two lines; expansion exposes full text. Use shared paper/forest tokens, Georgia headings, native controls and visible keyboard focus. Wrap task/footer controls on phones and contain table scrolling.
 
@@ -1083,6 +1092,9 @@ September 23, 2026 — Version 4.11: Released the contact giving card to both po
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-11-05 | 4.103 | Released Finish meeting contact-date and meeting-note updates, newer-date protection and contact-date display correction to test and production. |
+| 2026-11-04 | 4.102 | Restored phone formatter packaging, added release asset validation and released the guided readings with a refreshed public search catalog. |
+| 2026-11-04 | 4.101 | Published both original guided readings under Resources and connected the general handout. |
 | September 24, 2026 | 4.13 | Added the signed-in portal footer guide link and read-only responsive guide layout. |
 | September 22, 2026 | 4.8.3 | Automatic photo/video upload optimization, local processing, progress, cancellation, and storage savings. |
 | September 22, 2026 | 4.8.2 | Two-column dated photo/video tiles, video uploads and playback, and accessible full-image links. |

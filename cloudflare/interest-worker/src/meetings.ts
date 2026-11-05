@@ -1,6 +1,6 @@
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type AdminEnv} from './admin';
 import {can} from './mmt-permissions';
-import {previewCalendar} from './meeting-calendar';
+import {meetingTimezone,previewCalendar} from './meeting-calendar';
 type Row=Record<string,any>;
 type Entity={kind:'person'|'ministry';id:string;name?:string};
 function bad(message:string,code='INVALID_MEETING',status=422):never{throw new AdminError(status,code,message);}
@@ -12,6 +12,19 @@ const day=(v:unknown)=>{if(!v)return null;const s=text(v,10);if(!/^\d{4}-\d{2}-\
 const rows=async(env:AdminEnv,sql:string,...args:any[]) => (await env.DB.prepare(sql).bind(...args).all<Row>()).results;
 const hash=async(v:unknown)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(v)))),b=>b.toString(16).padStart(2,'0')).join('');
 const safeUrl=(v:unknown)=>{const s=text(v||'',2000);if(s&&!/^https?:\/\//i.test(s))bad('Source links must use HTTPS or HTTP.');return s;};
+function linkedContactIds(meeting:Row|null):string[]{
+ if(!meeting)return [];
+ return [...new Set<string>([
+  ...meeting.participants.filter((e:Entity)=>e.kind==='person').map((e:Entity)=>e.id),
+  ...meeting.introductions.filter((i:Row)=>!i.converted_task_id&&i.status!=='canceled').flatMap((i:Row)=>[...i.introducers,i.target].filter(e=>e?.kind==='person').map(e=>e.id)),
+  ...meeting.tasks.filter((t:Row)=>t.person_id&&t.status!=='canceled').map((t:Row)=>t.person_id)
+ ])];
+}
+function meetingContactDate(starts:string,allDay:boolean):string{
+ if(allDay)return starts;
+ const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:meetingTimezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(starts)).map(p=>[p.type,p.value]));
+ return `${parts.year}-${parts.month}-${parts.day}`;
+}
 export async function meetingData(env:AdminEnv,id?:string){
  const meetings=await rows(env,'SELECT * FROM meetings'+(id?' WHERE id=?':'')+' ORDER BY starts_at DESC',...(id?[id]:[]));
  const participants=await rows(env,`SELECT x.*,p.first_name||' '||p.last_name person_name,m.name ministry_name FROM meeting_participants x LEFT JOIN people p ON p.id=x.person_id LEFT JOIN ministries m ON m.id=x.ministry_id`);
@@ -105,6 +118,26 @@ async function save(request:Request,env:AdminEnv,userId:string){
   if(existing)statements.push(env.DB.prepare('DELETE FROM meeting_save_guard WHERE id=?').bind(taskId));
  }
  if((follow==='closed'&&prior?.follow_up!=='closed'||archived&&!prior?.archived)&&newKeys.size&&b.retainOpen!==true)bad('New contacts create open contact-detail reminders. Review and retain that independent work before closing.','OPEN_WORK',409);
+ if(occurrence==='held'&&archived){
+  // Only Finish (or its legacy equivalent) records contact. Later edits update
+  // newly linked people, without repeatedly replacing manual contact notes.
+  const priorContacts=prior?.occurrence_status==='held'&&prior.archived?linkedContactIds(oldData):[];
+  const contactDay=meetingContactDate(starts,allDay),contactAt=contactDay+'T00:00:00.000Z';
+  const fullNote=('Meeting: '+title).normalize('NFKC').replace(/\s+/g,' ').trim();
+  const contactNote=fullNote.length>50?fullNote.slice(0,49).replace(/[\uD800-\uDBFF]$/u,'')+'…':fullNote;
+  const eligible=`id IN (
+   SELECT person_id FROM meeting_participants WHERE meeting_id=?1 AND person_id IS NOT NULL
+   UNION SELECT e.person_id FROM meeting_introduction_entities e JOIN meeting_introductions i ON i.id=e.introduction_id WHERE i.meeting_id=?1 AND i.converted_task_id IS NULL AND i.status!='canceled' AND e.person_id IS NOT NULL
+   UNION SELECT person_id FROM ministry_tasks WHERE meeting_id=?1 AND deleted_at IS NULL AND status!='canceled' AND person_id IS NOT NULL
+  ) AND id NOT IN (SELECT value FROM json_each(?2))
+   AND (last_contacted_at IS NULL OR last_contacted_at='' OR substr(last_contacted_at,1,10)<=?3)`;
+  // Audit and contact fields share the meeting transaction and revision guard.
+  statements.push(env.DB.prepare(`INSERT INTO audit_events(id,entity_type,entity_id,event_type,metadata_json,created_at,actor_user_id)
+   SELECT lower(hex(randomblob(16))),'person',id,'meeting_contacted',json_object('meetingId',?1,'actorUserId',?7,'beforeDate',last_contacted_at,'beforeNote',last_contacted_note,'lastContactedAt',?4,'lastContactedNote',?5),?6,?7 FROM people WHERE ${eligible}`)
+   .bind(id,JSON.stringify(priorContacts),contactDay,contactAt,contactNote,now,userId));
+  statements.push(env.DB.prepare(`UPDATE people SET last_contacted_at=?4,last_contacted_note=?5,updated_at=?6 WHERE ${eligible}`)
+   .bind(id,JSON.stringify(priorContacts),contactDay,contactAt,contactNote,now));
+ }
  statements.push(env.DB.prepare('INSERT INTO meeting_operations VALUES(?,?,?)').bind(operation,id,fingerprint),env.DB.prepare('DELETE FROM meeting_save_guard WHERE id=?').bind(operation),auditStatement(env,'meeting',id,prior?'updated':'created',{actorUserId:userId,retainOpen:b.retainOpen===true,before:oldData,changes:b}));
  try{await env.DB.batch(statements);}catch(e){if(String(e).includes('CHECK constraint')||String(e).includes('UNIQUE constraint'))bad('A linked record or meeting changed during this save. Reload before retrying.','CONFLICT',409);throw e;}
  return adminJson({meeting:(await meetingData(env,id))[0]},prior?200:201);

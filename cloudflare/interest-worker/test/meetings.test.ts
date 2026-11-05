@@ -157,3 +157,67 @@ it('deletes a mistaken meeting task atomically on save and restores it without c
  const restored=await handlePlanning(f.request('/admin/planning/tasks/restore',{id:task.id,revision:2}),f.env,'/admin/planning/tasks/restore');expect(restored.status).toBe(200);expect((await get()).some((i:any)=>i.id==='meeting-task:'+task.id)).toBe(true);
  expect(f.sqlite.prepare('SELECT created_at,meeting_id,deleted_at FROM ministry_tasks WHERE id=?').get(task.id)).toMatchObject({created_at:original.created_at,meeting_id:m.id,deleted_at:null});
 });
+
+it('records attendees and introduction contacts only when the meeting is finished, using its Chicago date',async()=>{
+ const f=await fixture(),attendee={...person('Meeting Attendee'),createReminder:false},introducer={...person('Introducer Contact'),createReminder:false},target={...person('Introduced Contact'),createReminder:false},taskPerson={...person('Task Contact'),createReminder:false};
+ const r=await f.call(meeting({starts_at:'2026-11-04T01:00:00Z',ends_at:'2026-11-04T02:00:00Z',participants:[attendee],introductions:[{id:crypto.randomUUID(),introducers:[introducer],target,status:'made'}],tasks:[{id:crypto.randomUUID(),title:'Introduce Task Contact',related:taskPerson}]}));
+ expect(r.status).toBe(201);
+ const ids=[attendee.key,introducer.key,target.key,taskPerson.key];
+ for(const id of ids)expect(f.sqlite.prepare('SELECT last_contacted_at FROM people WHERE id=?').get(id)?.last_contacted_at).toBeNull();
+ const finished=await f.call({...r.data.meeting,tasks:r.data.meeting.tasks.map((t:any)=>({...t,related:{kind:'person',id:t.person_id}})),simplified:true,finish:true,operationId:crypto.randomUUID()});expect(finished.status).toBe(200);
+ for(const id of ids)expect(f.sqlite.prepare('SELECT last_contacted_at,last_contacted_note FROM people WHERE id=?').get(id)).toMatchObject({last_contacted_at:'2026-11-03T00:00:00.000Z',last_contacted_note:'Meeting: Coffee'});
+ expect(f.sqlite.prepare("SELECT count(*) n FROM audit_events WHERE event_type='meeting_contacted'").get()?.n).toBe(4);
+ const payload={...finished.data.meeting,operationId:crypto.randomUUID()};expect((await f.call(payload)).status).toBe(200);expect((await f.call(payload)).data.replayed).toBe(true);
+ expect(f.sqlite.prepare("SELECT count(*) n FROM audit_events WHERE event_type='meeting_contacted'").get()?.n).toBe(4);
+});
+
+it('preserves newer contact dates and manual notes while updating newly linked contacts on finished meetings',async()=>{
+ const f=await fixture(),p={...person('Newer Contact'),createReminder:false};
+ let r=await f.call(meeting({participants:[p]}));
+ f.sqlite.prepare('UPDATE people SET last_contacted_at=?,last_contacted_note=? WHERE id=?').run('2026-11-05T00:00:00.000Z','A newer phone call',p.key);
+ r=await f.call({...r.data.meeting,simplified:true,finish:true,operationId:crypto.randomUUID()});expect(r.status).toBe(200);
+ expect(f.sqlite.prepare('SELECT last_contacted_at,last_contacted_note FROM people WHERE id=?').get(p.key)).toMatchObject({last_contacted_at:'2026-11-05T00:00:00.000Z',last_contacted_note:'A newer phone call'});
+ const added={...person('Added Afterwards'),createReminder:false};
+ r=await f.call({...r.data.meeting,participants:[...r.data.meeting.participants,added],operationId:crypto.randomUUID()});expect(r.status).toBe(200);
+ expect(f.sqlite.prepare('SELECT last_contacted_note FROM people WHERE id=?').get(added.key)?.last_contacted_note).toBe('Meeting: Coffee');
+ f.sqlite.prepare('UPDATE people SET last_contacted_note=? WHERE id=?').run('My manual note',added.key);
+ expect((await f.call({...r.data.meeting,notes:'Unrelated meeting edit',operationId:crypto.randomUUID()})).status).toBe(200);
+ expect(f.sqlite.prepare('SELECT last_contacted_note FROM people WHERE id=?').get(added.key)?.last_contacted_note).toBe('My manual note');
+});
+
+it('supports all-day dates and bounded meeting notes without implying ministry attendance',async()=>{
+ const f=await fixture(),p={...person('All Day Contact'),createReminder:false},unrelated={...person('Ministry Member'),createReminder:false};
+ const other=await f.call(meeting({participants:[unrelated]}));expect(other.status).toBe(201);
+ const ministry=crypto.randomUUID();f.sqlite.prepare("INSERT INTO ministries(id,name,name_normalized,created_at,updated_at) VALUES(?,'Sample Ministry','sample ministry','now','now')").run(ministry);
+ f.sqlite.prepare("INSERT INTO ministry_contacts(ministry_id,person_id,created_at,updated_at) VALUES(?,?,'now','now')").run(ministry,unrelated.key);
+ const r=await f.call(meeting({title:'A very long meeting title '.repeat(5),all_day:true,starts_at:'2026-11-04',ends_at:'2026-11-05',simplified:true,finish:true,participants:[p,{kind:'ministry',id:ministry}]}));expect(r.status).toBe(201);
+ const contact=f.sqlite.prepare('SELECT last_contacted_at,last_contacted_note FROM people WHERE id=?').get(p.key);
+ expect(contact?.last_contacted_at).toBe('2026-11-04T00:00:00.000Z');expect(String(contact?.last_contacted_note)).toHaveLength(50);expect(String(contact?.last_contacted_note)).toMatch(/^Meeting: .*…$/);
+ expect(f.sqlite.prepare('SELECT last_contacted_at FROM people WHERE id=?').get(unrelated.key)?.last_contacted_at).toBeNull();
+});
+
+it('excludes canceled introductions, canceled tasks, deleted tasks and meetings that did not happen',async()=>{
+ const f=await fixture(),target={...person('Canceled Introduction'),createReminder:false},canceled={...person('Canceled Task'),createReminder:false},deleted={...person('Deleted Task'),createReminder:false};
+ let r=await f.call(meeting({introductions:[{id:crypto.randomUUID(),introducers:[],target,status:'canceled'}],tasks:[{id:crypto.randomUUID(),title:'Canceled',status:'canceled',related:canceled},{id:crypto.randomUUID(),title:'Delete me',related:deleted}]}));expect(r.status).toBe(201);
+ r=await f.call({...r.data.meeting,simplified:true,finish:true,tasks:r.data.meeting.tasks.map((t:any)=>({...t,related:{kind:'person',id:t.person_id},delete:t.title==='Delete me'})),operationId:crypto.randomUUID()});expect(r.status).toBe(200);
+ for(const id of [target.key,canceled.key,deleted.key])expect(f.sqlite.prepare('SELECT last_contacted_at FROM people WHERE id=?').get(id)?.last_contacted_at).toBeNull();
+ for(const outcome of ['canceled','not_held']){
+  const p={...person('Did Not Meet'),createReminder:false};expect((await f.call(meeting({participants:[p],occurrence_status:outcome,archived:true,retainOpen:true}))).status).toBe(201);
+  expect(f.sqlite.prepare('SELECT last_contacted_at FROM people WHERE id=?').get(p.key)?.last_contacted_at).toBeNull();
+ }
+});
+
+it('rolls contact fields and contact audits back if the meeting transaction loses a revision race',async()=>{
+ const f=await fixture(),p={...person('Atomic Contact'),createReminder:false};
+ const saved=await f.call(meeting({participants:[p]}));expect(saved.status).toBe(201);
+ const payload={...saved.data.meeting,simplified:true,finish:true,operationId:crypto.randomUUID()};
+ const batch=f.env.DB.batch.bind(f.env.DB);
+ f.env.DB.batch=((statements:D1PreparedStatement[])=>batch([...statements,f.env.DB.prepare("INSERT INTO meeting_save_guard(id,valid) VALUES('contact-rollback-test',0)")])) as typeof f.env.DB.batch;
+ expect((await f.call(payload)).status).toBe(409);
+ expect(f.sqlite.prepare('SELECT occurrence_status,archived FROM meetings WHERE id=?').get(payload.id)).toMatchObject({occurrence_status:'planned',archived:0});
+ expect(f.sqlite.prepare('SELECT last_contacted_at FROM people WHERE id=?').get(p.key)?.last_contacted_at).toBeNull();
+ expect(f.sqlite.prepare("SELECT count(*) n FROM audit_events WHERE event_type='meeting_contacted'").get()?.n).toBe(0);
+ f.env.DB.batch=batch;
+ expect((await f.call(payload)).status).toBe(200);
+ expect(f.sqlite.prepare("SELECT count(*) n FROM audit_events WHERE event_type='meeting_contacted'").get()?.n).toBe(1);
+});

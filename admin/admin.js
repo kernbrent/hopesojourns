@@ -3286,7 +3286,7 @@ function renderPersonDetail(person) {
     ["Languages", person.languages.join(", ")],
     ["Hope Sojourns areas", person.areas.map(titleCase).join(", ")],
     ["Background or experience", person.fieldOfStudy],
-    ["Last contacted", formatDate(person.lastContactedAt, false)],
+    ["Last contacted", formatDate(person.lastContactedAt?.slice(0, 10), false)],
     ["Last contacted notes", person.lastContactedNote],
     ["Added from", person.recordSource === "manual" ? "Admin portal" : "Website form"],
     ["First recorded", formatDate(person.createdAt)],

@@ -1,12 +1,21 @@
 # Hope Sojourns developer guide
 
-Version 5.10
+Version 5.13
 
-Last reviewed: November 4, 2026
+Last reviewed: November 5, 2026
+
+## Release asset verification
+
+The static build runs tools/verify-site-assets.mjs after copying the release directory. It verifies every local JavaScript and stylesheet reference in generated HTML, plus the phone-ui.js formatter. Missing assets must fail the build: Pages can otherwise return homepage HTML with HTTP 200 for a missing script. Run node --test tools/verify-site-assets.test.mjs for the regression check and node tools/verify-site-assets.mjs site-dist to inspect an existing artifact. After release, compare phone-ui.js bytes and JavaScript content type on test.hopesojourns.com, hopesojourns.com and www.hopesojourns.com. Rebuild tools/build_knowledge_site.py whenever public resource listings or pages change, then run node cloudflare/build-test-site.mjs. Deploy the same artifact to both Pages projects; release the regenerated public knowledge catalog through both isolated interest Workers. No database migration is required for the guided readings or asset repair.
+
+## Guided story readings in Resources
+
+The public routes /resources/red-juice-box/ and /resources/john-on-a-bench/ republish the original six-scene readings and reflection prompts from preview/preview.js. tools/build-guided-readings.mjs extracts those trusted source literals and generates static HTML; resources/guided-readings.js switches #moment-N scenes with native hash history and focus management. The shared resources/guided-readings.css uses styles.css tokens. resources/resources.json indexes both as Guided reading resources. No redesign homepage, backend, schema or private data changes are required. The two-page handout links directly to these routes. Rebuild with node tools/build-guided-readings.mjs; verify direct entry, six moments, Previous, browser Back, reflections, mobile overflow and no-JavaScript reading before deploying identical static assets to isolated test and production Pages projects.
+
 
 ## Meetings and relationship tracking
 
-The simplified tracker is approved for release to test and production. Earlier meeting records retain their relationships and history. `/admin/meetings/` uses the authenticated `/api/interest/admin/meetings` API, contacts read/edit permissions, CSRF, existing session cookies and shared navigation. `src/meetings.ts` handles validation, snapshots, relationships, atomic saves and revision guards; `src/meeting-calendar.ts` retains the earlier calendar parser for compatibility. Calendar-file import controls are hidden in the simplified UI; no external calendar service is connected or changed.
+The simplified tracker is approved for release to test and production. Earlier meeting records retain their relationships and history. Finishing a meeting (Held plus archived) atomically updates attendees, active task-linked contacts and unconverted, non-canceled introduction contacts. Last Contacted uses the America/Chicago meeting day, including all-day dates; Last Contacted Notes uses Meeting: plus the title, bounded to 50 characters. Exclude deleted/canceled tasks and indirect ministry members. Preserve newer contact dates. Re-saving a finished meeting updates only newly linked contacts so manual notes remain intact; restoring or canceling does not erase contact history. Contact audits and field updates share the meeting revision guard and transaction. No schema migration or automatic historical backfill is required. The complete contact profile displays Last Contacted as a calendar date without a UTC day shift. `/admin/meetings/` uses the authenticated `/api/interest/admin/meetings` API, contacts read/edit permissions, CSRF, existing session cookies and shared navigation. `src/meetings.ts` handles validation, snapshots, relationships, atomic saves and revision guards; `src/meeting-calendar.ts` retains the earlier calendar parser for compatibility. Calendar-file import controls are hidden in the simplified UI; no external calendar service is connected or changed.
 
 Migration `0064_meeting_relationships.sql` created meeting, participant, introduction, contact-key and operation records, extending shared ministry_tasks with meeting/contact/introduction references. Migration `0065_simplify_meeting_introductions.sql` adds converted_task_id to legacy introductions and creates one ordinary task per legacy introduction with a stable ID. Promised, Made and Outreach pending become open; Connected/Closed become completed; Canceled stays canceled. Target links, original rows, introducers, dates, notes and next action are preserved. Existing action tasks remain untouched. Converted introductions no longer create duplicate Inbox notices; their follow-up is managed through the shared task row. The earlier introduction snapshot remains read-only in More details. API attempts to edit a converted introduction receive a conflict.
 
@@ -1557,6 +1566,9 @@ September 23, 2026 — Version 4.11: Released contact giving history and plannin
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-11-05 | 5.13 | Released Finish meeting contact-date and meeting-note updates, newer-date protection and contact-date display correction to test and production. |
+| 2026-11-04 | 5.12 | Restored phone formatter packaging, added release asset validation and released the guided readings with a refreshed public search catalog. |
+| 2026-11-04 | 5.11 | Published both original guided readings under Resources and connected the general handout. |
 | September 22, 2026 | 4.8.3 | Automatic photo/video upload optimization, local processing, progress, cancellation, and storage savings. |
 | September 22, 2026 | 4.8.2 | Two-column dated photo/video tiles, video uploads and playback, and accessible full-image links. |
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |

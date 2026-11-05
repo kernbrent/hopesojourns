@@ -1,6 +1,6 @@
 {
-  "version": 8,
-  "updated": "2026-08-30",
+  "version": 9,
+  "updated": "2026-11-04",
   "items": [
     {
       "id": "hope-sojourns-brochure",
@@ -32,6 +32,48 @@
         "partners"
       ],
       "relatedIds": []
+    },
+    {
+      "id": "guided-red-juice-box",
+      "type": "Guided reading",
+      "title": "The red juice box",
+      "description": "Walk through six moments from Athens with Brent. Explore dignity, assumptions, and heart transformation, with an optional personal reflection.",
+      "author": "Brent Kern",
+      "date": "2026-11-04",
+      "url": "/resources/red-juice-box/",
+      "actionLabel": "Begin the guided reading",
+      "collection": "Seeing People",
+      "tags": [
+        "story",
+        "guided reading",
+        "Athens",
+        "reflection",
+        "heart transformation"
+      ],
+      "relatedIds": [
+        "do-you-see-me"
+      ]
+    },
+    {
+      "id": "guided-john-on-a-bench",
+      "type": "Guided reading",
+      "title": "John on a bench",
+      "description": "Sit beside John through six moments about conversation, returning, and loneliness. Read at your own pace and consider who you might give more time to.",
+      "author": "Brent Kern",
+      "date": "2026-11-04",
+      "url": "/resources/john-on-a-bench/",
+      "actionLabel": "Begin the guided reading",
+      "collection": "Seeing People",
+      "tags": [
+        "story",
+        "guided reading",
+        "Athens",
+        "reflection",
+        "heart transformation"
+      ],
+      "relatedIds": [
+        "do-you-see-me"
+      ]
     },
     {
       "id": "do-you-see-me",

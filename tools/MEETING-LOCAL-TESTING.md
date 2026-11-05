@@ -21,3 +21,5 @@ Try these workflows:
 No hosted environment is changed by this preview. It limits unrelated account, finance and outbound messaging operations. The private user guide’s section 20 describes the simplified workflow.
 
 Automated checks run in `cloudflare/interest-worker` with `npm run check`, `npm test`, and `npm run validate:environments`. Run `powershell -ExecutionPolicy Bypass -File .\Check-Color-Palette.ps1` from the repository root after page or CSS changes. Some Windows sandboxes require a workspace-local TEMP/TMP directory for Vitest and local-socket access for the two Worker-runtime suites.
+
+Finish meeting contact-date check: add a named attendee and a task with a related contact. Save the planned meeting and confirm Last Contacted has not changed. Choose Finish meeting, open both contact profiles, and confirm the America/Chicago meeting date and Meeting: [title] note. A newer contact date must remain untouched; editing unrelated meeting notes must preserve manually edited contact notes.

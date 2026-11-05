@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import { cp, mkdir, rm, stat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifySiteAssets } from '../tools/verify-site-assets.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = path.resolve(repositoryRoot, "site-dist");
@@ -84,4 +85,5 @@ await cp(
   path.join(outputDirectory, "downloads", "Hope-Sojourns-Trip-Bulk-Import-Template.xlsx"),
 );
 
-console.log(`Prepared ${publicEntries.length} public site entries.`);
+const assets = await verifySiteAssets(outputDirectory);
+console.log(`Prepared ${publicEntries.length} public site entries; verified ${assets.references} script/style references across ${assets.pages} pages.`);
