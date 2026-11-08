@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 5.14
+Version 5.17
 
-Last reviewed: November 5, 2026
+Last reviewed: November 7, 2026
 
 ## Release asset verification
 
@@ -44,6 +44,12 @@ Contact email attachments are included in the existing composer and backend work
 The contact-email sender remains fixed at `admin@hopesojourns.com`. Resend requires verified owned-domain senders. Future selectable senders need an authorized sender allowlist; personal Gmail sending needs a separately authorized Gmail delivery integration. Reply-To alone does not change From.
 
 ## Independent prayer portal
+
+How it Works is a signed-in SPA view in public/index.html and public/app.js. Full, provisional and admin accounts can open it; no API or schema change is required. renderHelp builds searchable plain-text topics with native details rows and the account’s Expanded/Collapsed preference. The first topic explains provisional review, email verification, follow-up, same-account approval and Refresh access. Published devotionals remain available to provisional users. Quick links follow current membership; admin guidance appears only for admins. Help rendering clears on sign-out and search does not send queries to the server. A topic list at the top lets readers jump to each matching section; choosing a topic opens its instructions and moves keyboard focus to its heading. The list follows search results and hides admin topics from non-admin accounts.
+
+Migration 0014 creates the independent devotionals and devotional_reads tables and three original, clearly labeled sample readings dated before installation. The migration runs once and never restores deleted samples. GET /api/devotionals/today selects the latest published reading due on the viewer’s calendar date, using profile time zone or America/Chicago. If today has no entry the UI labels the latest reading clearly. GET /api/devotionals provides bounded search, private read/unread filters and 20-row pagination; direct item reads enforce the same publication boundary. Provisional accounts may read and mark their own readings, but have no curation access. Draft, hidden and future readings stay server-restricted. Admins manage all states under /api/admin/devotionals, with optimistic revisions, mandatory audit reasons, typed permanent-deletion confirmation, and one published reading per date. Atomic guards recheck active admin authority; deletion cascades private reading markers and account deletion clears them before anonymization. Content is plain text with escaped DOM rendering; Scripture links open Bible Gateway. No MMT data or notification delivery is involved. The global Expanded/Collapsed preference also covers devotionals. Tests now run 69 per adapter, 138 total.
+
+Prayer Remember me stores only the successful username or email in localStorage. After an explicit successful login, supporting browsers receive a PasswordCredential through navigator.credentials.store; the browser controls saving and autofill. Unsupported or declined password saving falls back to standard username/current-password autocomplete and never blocks login. Passwords are never written to application storage. Startup fetches site settings only and never restores a signed-in view from /api/me; opening or reloading always requires the Sign in form. Browser-session cookies retain a seven-day server bound regardless of remembered details; there is no 30-day session option. Logout still revokes sessions. Eye controls reset on form reset or auth-mode changes. Inclusive Christian copy and the admin attention panel retain their reviewed behavior. Tests cover non-extension and logout revocation, 65 tests per adapter, 130 total.
 
 Migration 0013 adds users.list_view with expanded as the default, plus post_hearts and resource_thumbs keyed uniquely by item and user. POST /api/preferences changes only the authenticated account’s expanded/collapsed preference and supports provisional accounts. The UI applies that saved preference across card lists, pagination and future sign-ins; individual native details rows can still be opened independently. Mutation observers enhance only direct list children and do not replace existing form handlers. Audit reports retain their compact table.
 
@@ -1366,6 +1372,12 @@ Files are stored in the environment's private RECEIPTS bucket under contact-emai
 GET /admin/contacts/emails/:id/attachments/:index requires authentication and Contacts read access, resolves only immutable saved metadata, verifies bytes, and returns a forced download with private no-store and nosniff headers. Contact histories and Emails sent show filename/size links, never R2 keys or public URLs. Test delivery payloads, immutable retries, access control, downloads, corrupt files, unsupported formats, and size/count limits with contact-email-attachments.test.ts. No real email is needed for validation.
 
 ## Revision history
+
+- November 7, 2026 — Version 5.17. Added searchable How it Works and provisional full-access instructions; verified help and daily devotional navigation for provisional accounts. Local review only.
+
+- November 7, 2026 — Version 5.16. Added independent prayer daily devotionals, samples, scheduling, private read tracking and admin curation. Local review only.
+
+- November 7, 2026 — Version 5.15. Added optional remembered sign-in, password visibility, inclusive Christian wording and actionable admin review notices. Local review only.
 
 - November 5, 2026 — Version 5.14. Added account-wide list density, counted prayer hearts and resource thumbs with privacy and lifecycle checks. Local review only.
 

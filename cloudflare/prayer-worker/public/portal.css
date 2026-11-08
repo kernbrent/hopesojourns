@@ -163,3 +163,30 @@
 .prayer-portal .reaction-button[aria-pressed=true] { background:var(--forest-wash); border-color:var(--forest); color:var(--forest-dark); }
 .prayer-portal .reaction-button:disabled { cursor:default; }
 @media(max-width:560px) { .list-item>summary { gap:.5rem; padding:.7rem; }.list-disclosure { font-size:.65rem; }.list-view-toolbar .hint { flex-basis:100%; } }
+
+.password-control { display:flex; align-items:stretch; gap:.4rem; margin-top:.35rem; }
+.prayer-portal .password-control input { margin-top:0; min-width:0; flex:1; }
+.password-control button { display:flex; align-items:center; justify-content:center; flex-shrink:0; min-width:44px; }
+.remember-choice { display:flex; align-items:center; gap:.6rem; margin-top:1rem; }
+#admin-attention { margin-bottom:1rem; }
+#admin-attention h3 { margin-top:0; }
+.admin-attention-row + .admin-attention-row { margin-top:1rem; border-top:1px solid var(--line); padding-top:.6rem; }
+
+#devotional-today { margin:1.5rem 0; }
+.devotional-card h3 { font-family:Georgia,serif; font-size:1.7rem; line-height:1.2; margin:.5rem 0; }
+.devotional-meta { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:1rem; color:var(--muted); font-size:.8rem; }
+.devotional-reading { line-height:1.8; white-space:pre-line; }
+.devotional-card h4 { color:var(--forest); margin-bottom:.3rem; }
+#devotional-editor { width:min(760px,94vw); }
+
+#help-access { margin-bottom:1.25rem; }
+#help-results { color:var(--muted); font-size:.85rem; }
+.help-topic p,.help-topic li { line-height:1.75; }
+.help-topic li + li { margin-top:.65rem; }
+.help-topic h3 { margin-top:0; color:var(--forest-dark); }
+.help-topic summary { min-height:44px; }
+
+#help-topic-nav { margin-bottom:1.25rem; }
+#help-topic-links { padding-left:1.5rem; margin-bottom:0; }
+#help-topic-links a { display:inline-block; padding:.6rem 0; }
+.help-topic { scroll-margin-top:1rem; }

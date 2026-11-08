@@ -1,7 +1,9 @@
+let devotionalManaging=false,devotionalOffset=0,devotionalGeneration=0,editingDevotional=null,deletingDevotional=null,devotionalDay='';
 const $ = selector => document.querySelector(selector);
 let user, csrf, people = [], groups = [], activeGroup = null, currentView = 'feed', olderThan, pendingDelete;
 let site = {allowMemberGroups:true,organizationName:'Hope Sojourns'}, sessionGeneration = 0;
 let authMode='login',pendingRequestReview=null,pendingGlobal=null;
+let pendingResources=0,pendingRequests=0;
 let adminTab='users',adminCursor=null,pendingAdminAction=null,adminLoadGeneration=0;
 let resourceImageChange,resourceImageGeneration=0,pendingResourceReview=null;
 let resourceCategories=[],resourceOffset=0,resourceGeneration=0,editingResource=null,editingCategory=null,deletingResource=null;
@@ -47,6 +49,7 @@ async function api(path, data, method) {
 function action(fn) { return async event => { const button = event?.submitter || (event?.currentTarget?.tagName === 'BUTTON' ? event.currentTarget : null); if (button) button.disabled = true;
   try { await fn(event); } catch (error) { notice(error.message, true); } finally { if (button) button.disabled = false; } }; }
 function setupAuth() {
+  hidePasswords();restoreRememberedLogin();
   $('#welcome').classList.toggle('access-request-open',authMode==='access');
   $('#login-form').hidden = authMode!=='login' || !!inviteToken || !!resetToken;
   $('#access-form').hidden=authMode!=='access' || !!inviteToken || !!resetToken;
@@ -56,7 +59,7 @@ function setupAuth() {
   $('#auth-title').textContent = authMode==='access'?'Request access.':authMode==='recovery'?'Reset your password.':resetToken?'Choose a new password.':inviteToken ? 'You’re invited.' : 'Come on in.';
   $('#auth-description').textContent = authMode==='access'?'Only portal admins can review your request.':authMode==='recovery'?'We will email a private password-reset link to your account address.':resetToken?'Use this private reset link to restore access.':inviteToken ? 'Set up your own prayer portal account.' : 'Sign in with your prayer portal account.';
 }
-function signedOut() { sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
+function signedOut() { devotionalGeneration++;devotionalManaging=false;editingDevotional=null;deletingDevotional=null;$('#devotional-today').replaceChildren();$('#devotional-items').replaceChildren();$('#help-topics').replaceChildren();$('#help-topic-links').replaceChildren();$('#help-access').replaceChildren();$('#help-search').value='';$('#devotional-form').reset();$('#devotional-search').reset();pendingResources=0;pendingRequests=0;$("#admin-attention-items").replaceChildren();sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
   for (const id of ['posts','people','notifications','invites','recipients','groups','group-overview','group-members','group-actions','group-preferences','group-member-invite','admin-items']) $(`#${id}`).replaceChildren();
   clearResources();applyListView('expanded');
   $('#profile-form').reset();
@@ -70,7 +73,7 @@ async function signedIn(data) {
   $('#greeting').textContent = `Welcome, ${user.name}.${user.role==='admin'?user.owner?' You are the portal owner.':' You have portal admin access.':' There is room for your story here.'}`;
   const provisional=user.access_level==='provisional';
   $('#compose-button').hidden=provisional;$('#provisional-notice').hidden=!provisional;$('#refresh-access').hidden=!provisional;
-  document.querySelectorAll('[data-view]').forEach(button=>{button.hidden=provisional?!['feed','resources','profile'].includes(button.dataset.view):(['invites','admin'].includes(button.dataset.view)&&user.role!=='admin');});
+  document.querySelectorAll('[data-view]').forEach(button=>{button.hidden=provisional?!['feed','resources','devotionals','help','profile'].includes(button.dataset.view):(['invites','admin'].includes(button.dataset.view)&&user.role!=='admin');});
   if(provisional) {people=[];groups=[];} else [people,groups]=await Promise.all([api('people'),api('groups')]);
   await showView('feed'); if(!provisional) await refreshNotifications();
   $('#welcome').hidden = true; $('#community').hidden = false; $('#logout').hidden = false;
@@ -232,10 +235,10 @@ async function loadInvites() {
   }
 }
 async function showView(view) {
-  if(user.access_level==='provisional' && !['feed','resources','profile'].includes(view)) return;
+  if(user.access_level==='provisional' && !['feed','resources','devotionals','help','profile'].includes(view)) return;
   currentView = view; notice('');
   if(view!=='group') activeGroup=null;
-  for (const name of ['feed','people','notifications','invites','groups','group-detail','admin','profile','resources']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
+  for (const name of ['feed','people','notifications','invites','groups','group-detail','admin','profile','resources','devotionals','help']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
   document.querySelectorAll('[data-view]').forEach(button => { const selected = button.dataset.view === view || (view==='group' && button.dataset.view==='groups'); button.classList.toggle('active',selected); if (selected) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
   if (view === 'feed' || view === 'following') { $('#feed-title').textContent = view === 'feed' ? 'The prayer wall' : 'People I follow'; await loadPosts(); }
   if (view === 'people') { [people,groups]=await Promise.all([api('people'),api('groups')]); renderPeople(); }
@@ -246,12 +249,14 @@ async function showView(view) {
   }
   if (view === 'notifications') await refreshNotifications();
   if (view === 'invites' && user.role === 'admin') await loadInvites();
-  if(view==='admin' && user.role==='admin') await loadAdmin();
+  if(view==='admin' && user.role==='admin') { $('#admin-attention-items').textContent='Checking pending reviews…';await Promise.all([refreshResourceReviewCount(),refreshRequestCount(),loadAdmin()]); }
   if(view==='resources') await loadResources();
+  if(view==='devotionals') await loadDevotionals();
+  if(view==='help') renderHelp();
   if(view==='profile') {const current=await api('me');user=current.user;renderProfile();}
 }
 $('#login-form').addEventListener('submit',event => { event.preventDefault(); action(async () => {
-  const form = event.currentTarget; const data = Object.fromEntries(new FormData(form)); const result = await api('login',data); form.reset(); notice(''); await signedIn(result);
+  const form = event.currentTarget; const data = {identifier:form.elements.identifier.value,password:form.elements.password.value}; const result = await api('login',data); rememberLogin(form,data); form.reset(); notice(''); await signedIn(result);
 })(event); });
 $('#accept-form').addEventListener('submit',event => { event.preventDefault(); action(async () => {
   const form = event.currentTarget; const data = Object.fromEntries(new FormData(form)); const result = await api('accept',{ ...data, token: inviteToken }); form.reset(); notice(''); await signedIn(result);
@@ -428,7 +433,8 @@ $('#group-form').addEventListener('submit',event=>{event.preventDefault(); const
   $('#create-group').close(); groups=await api('groups'); await openGroup(result.id); notice('Your group is ready. Invite people or approve their requests to join.');
 })(event);});
 setupAuth();
-api('site').then(applySite).then(()=>resetToken || inviteToken ? null : api('me')).then(data=>data && signedIn(data)).catch(error => { if (error.message !== 'Please sign in to the prayer portal.') notice(error.message,true); });
+// Opening or reloading the portal always requires an explicit Sign in submission.
+api('site').then(applySite).catch(error=>notice(error.message,true));
 setInterval(() => { if (user && user.access_level!=='provisional' && !document.hidden) refreshNotifications().catch(error => notice(error.message,true)); },60000);
 function clearResources() {
  resourceImageGeneration++;resourceImageChange=undefined;pendingResourceReview=null;
@@ -559,6 +565,7 @@ $('#resource-delete-form').addEventListener('submit',event=>{event.preventDefaul
 async function refreshResourceReviewCount() {
  if(user?.role!=='admin') return;
  const {pending}=await api('admin/resource-review-count');
+ pendingResources=pending;renderAdminAttention();
  for(const id of ['resource-pending-count','admin-resource-count']) $(`#${id}`).textContent=pending?`(${pending} to review)`:'';
  $('#resource-review-banner').hidden=!pending;
  $('#resource-review-summary').textContent=`${pending} resource ${pending===1?'recommendation needs':'recommendations need'} your review. `;
@@ -597,11 +604,12 @@ function chooseAuth(mode) {authMode=mode;inviteToken=null;resetToken=null;notice
 $('#request-access').addEventListener('click',()=>chooseAuth('access'));
 $('#forgot-password').addEventListener('click',()=>chooseAuth('recovery'));
 $('#back-sign-in').addEventListener('click',()=>chooseAuth('login'));
-$('#access-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form));for(const key of ['notify_requests','notify_updates','notify_answered']) data[key]=form.elements[key].checked;action(async()=>{const result=await api('access-requests',data);form.reset();chooseAuth('login');if(result.user) {await signedIn(result);notice('Your request is pending. You have provisional access to Global prayers and eligible resources.');} else notice(result.message);})(event);});
+$('#access-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form));for(const key of ['notify_requests','notify_updates','notify_answered']) data[key]=form.elements[key].checked;action(async()=>{const result=await api('access-requests',data);form.reset();chooseAuth('login');if(result.user) {await signedIn(result);notice('Your request is pending. You have provisional access to Global prayers, daily devotionals, and eligible resources.');} else notice(result.message);})(event);});
 $('#password-help-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form));action(async()=>{const result=await api('password-help',data);form.reset();chooseAuth('login');notice(result.message);})(event);});
 if(inviteToken) api('invitation-details',{token:inviteToken}).then(result=>{if(result.profile) for(const key of ['name','username']) $('#accept-form').elements[key].value=result.profile[key];}).catch(error=>notice(error.message,true));
 async function refreshRequestCount() {
  const pending=user?.role==='admin'?(await api('admin/portal-requests/count')).pending:0;
+ pendingRequests=pending;renderAdminAttention();
  for(const id of ['admin-request-count','request-tab-count']) $(`#${id}`).textContent=pending?`${pending} pending ${pending===1?'request':'requests'}`:'';
 }
 function requestCard(item) {
@@ -691,6 +699,123 @@ function enhanceList(container) {
   container.insertBefore(item,card);item.append(summary,card);
  }
 }
-for(const id of ['posts','people','groups','notifications','invites','admin-items','group-members','resource-items','resource-category-items']) {
+for(const id of ['posts','people','groups','notifications','invites','admin-items','group-members','resource-items','resource-category-items','devotional-items','devotional-today']) {
  const container=$(`#${id}`);new MutationObserver(()=>enhanceList(container)).observe(container,{childList:true});enhanceList(container);
 }
+
+// Password visibility is local to the form; no password is saved in browser storage.
+function hidePasswords(form=document) {
+ for(const control of form.querySelectorAll('[data-password-toggle]')) {control.previousElementSibling.type='password';control.setAttribute('aria-pressed','false');control.setAttribute('aria-label','Show password');}
+}
+for(const input of document.querySelectorAll('input[type=password]')) {
+ const wrap=element('span',undefined,'password-control');input.before(wrap);wrap.append(input);
+ const control=element('button');control.type='button';control.dataset.passwordToggle='';control.setAttribute('aria-label','Show password');control.setAttribute('aria-pressed','false');
+ control.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+ control.addEventListener('click',()=>{const show=input.type==='password';input.type=show?'text':'password';control.setAttribute('aria-pressed',String(show));control.setAttribute('aria-label',show?'Hide password':'Show password');});wrap.append(control);
+ input.form.addEventListener('reset',()=>hidePasswords(input.form));
+}
+function renderAdminAttention() {
+ const target=$('#admin-attention-items');target.replaceChildren();if(user?.role!=='admin')return;
+ if(pendingResources) {
+  const row=element('div',undefined,'admin-attention-row');row.append(element('p',pendingResources+' resource '+(pendingResources===1?'recommendation needs':'recommendations need')+' approval before appearing in the library.'));
+  row.append(button('Review resource recommendations',async()=>{await showView('resources');$('#resource-search').reset();$('#resource-search').elements.review_status.value='pending';$('#resource-search').elements.visibility.value='all';await loadResources();}));target.append(row);
+ }
+ if(pendingRequests) {
+  const row=element('div',undefined,'admin-attention-row');row.append(element('p',pendingRequests+' access or password '+(pendingRequests===1?'request needs':'requests need')+' your review.'));
+  row.append(button('Review access & password requests',async()=>{adminTab='portal-requests';$('#request-status').value='pending';$('#admin-search').value='';await loadAdmin();}));target.append(row);
+ }
+ if(!pendingResources&&!pendingRequests)target.append(element('p','No pending resource recommendations or access and password requests. You’re all caught up.'));
+}
+
+function restoreRememberedLogin() {
+ const form=$('#login-form');
+ try {const identifier=localStorage.getItem('hs-prayer-remembered-id')||'';form.elements.remember.checked=!!identifier;if(identifier&&!form.elements.identifier.value)form.elements.identifier.value=identifier;} catch { /* Storage can be disabled; ordinary sign-in still works. */ }
+}
+function rememberLogin(form,data) {
+ const remember=form.elements.remember.checked;
+ try {if(remember)localStorage.setItem('hs-prayer-remembered-id',data.identifier);else localStorage.removeItem('hs-prayer-remembered-id');}catch{}
+ // The browser password manager owns the password; application storage receives only the ID.
+ if(remember&&typeof window.PasswordCredential==='function'&&navigator.credentials?.store) {
+  try {navigator.credentials.store(new PasswordCredential({id:data.identifier,password:data.password})).catch(()=>{});}catch{}
+ }
+}
+$('#login-form').elements.remember.addEventListener('change',event=>{
+ if(!event.target.checked)try{localStorage.removeItem('hs-prayer-remembered-id');}catch{}
+});
+
+function devotionalDate(date) {return new Date(date+'T12:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});}
+function devotionalCard(row,today=false) {
+ const card=element('article',undefined,'panel devotional-card');
+ card.append(element('span',today?(row.publish_date===devotionalDay?'TODAY’S DEVOTIONAL':'LATEST DEVOTIONAL'):devotionalDate(row.publish_date),'eyebrow'),element('h3',row.title));
+ card.dataset.listPreview=row.scripture+' · '+devotionalDate(row.publish_date)+(row.read_at?' · Read':' · Unread');
+ const meta=element('div',undefined,'devotional-meta');meta.append(element('span',devotionalDate(row.publish_date)));
+ if(row.is_sample)meta.append(element('span','Sample devotional · for testing','badge'));
+ if(user.role==='admin'&&devotionalManaging)meta.append(element('span',row.status==='published'&&row.publish_date>devotionalDay?'Scheduled':row.status,'badge'));
+ card.append(meta);
+ const scripture=element('a','Read '+row.scripture);scripture.href='https://www.biblegateway.com/passage/?search='+encodeURIComponent(row.scripture);scripture.target='_blank';scripture.rel='noopener noreferrer';card.append(scripture);
+ for(const paragraph of row.body.split(/\n\s*\n/))card.append(element('p',paragraph,'devotional-reading'));
+ if(row.reflection)card.append(element('h4','Reflect'),element('p',row.reflection));
+ if(row.prayer)card.append(element('h4','Pray'),element('p',row.prayer));
+ const actions=element('div',undefined,'actions');
+ const read=button(row.read_at?'Mark unread':'Mark as read',async()=>{await api('devotionals/'+encodeURIComponent(row.id)+'/read',{read:!row.read_at});await loadDevotionals();});read.setAttribute('aria-pressed',String(!!row.read_at));actions.append(read);
+ if(user.role==='admin') {actions.append(button('Edit devotional',()=>openDevotionalEditor(row)),button('Delete devotional',()=>{deletingDevotional=row;$('#devotional-delete-form').reset();$('#devotional-delete-title').textContent=row.title;$('#devotional-delete').showModal();}));}
+ card.append(actions);return card;
+}
+async function loadDevotionals(append=false) {
+ const generation=++devotionalGeneration,form=$('#devotional-search');if(!append)devotionalOffset=0;
+ const admin=user.role==='admin';if(!admin)devotionalManaging=false;
+ $('#devotional-add').hidden=!admin;$('#devotional-manage').hidden=!admin;$('#devotional-manage').textContent=devotionalManaging?'Back to daily reading':'Manage devotionals';
+ $('#devotional-status-label').hidden=!devotionalManaging;$('#devotional-list-heading').textContent=devotionalManaging?'Manage devotionals':'Browse devotionals';
+ const params=new URLSearchParams({q:form.elements.q.value,read:form.elements.read.value,offset:devotionalOffset});if(devotionalManaging)params.set('status',form.elements.status.value);
+ const [daily,result]=await Promise.all([api('devotionals/today'),api((devotionalManaging?'admin/':'')+'devotionals?'+params)]);
+ if(generation!==devotionalGeneration||currentView!=='devotionals')return;
+ devotionalDay=result.today;$('#devotional-today').hidden=devotionalManaging;
+ if(!devotionalManaging) {$('#devotional-today').replaceChildren();if(daily.item)$('#devotional-today').append(devotionalCard(daily.item,true));else empty($('#devotional-today'),'No daily devotional has been published yet. Please check back soon.');}
+ if(!append)$('#devotional-items').replaceChildren();for(const row of result.items)$('#devotional-items').append(devotionalCard(row));
+ devotionalOffset+=result.items.length;$('#devotional-more').hidden=!result.more;$('#devotional-results').textContent=result.total+' devotional'+(result.total===1?'':'s')+' found · '+devotionalOffset+' shown';
+ if(!result.items.length&&!append)empty($('#devotional-items'),'No devotionals match these filters.');
+}
+function openDevotionalEditor(row=null) {
+ editingDevotional=row;const form=$('#devotional-form');form.reset();$('#devotional-editor .dialog-message').hidden=true;
+ $('#devotional-editor-title').textContent=row?'Edit devotional':'Add devotional';
+ for(const key of ['title','scripture','body','reflection','prayer','publish_date','status'])if(row)form.elements[key].value=row[key];
+ if(!row)form.elements.publish_date.value=devotionalDay;form.elements.is_sample.checked=!!row?.is_sample;$('#devotional-editor').showModal();
+}
+$('#devotional-add').addEventListener('click',()=>openDevotionalEditor());
+$('#devotional-close').addEventListener('click',()=>$('#devotional-editor').close());
+$('#devotional-manage').addEventListener('click',action(async()=>{devotionalManaging=!devotionalManaging;$('#devotional-search').reset();await loadDevotionals();}));
+$('#devotional-search').addEventListener('submit',event=>{event.preventDefault();action(()=>loadDevotionals())(event);});
+$('#devotional-clear').addEventListener('click',action(async()=>{$('#devotional-search').reset();await loadDevotionals();}));
+$('#devotional-more').addEventListener('click',action(()=>loadDevotionals(true)));
+$('#devotional-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{const form=event.currentTarget,data=Object.fromEntries(new FormData(form));data.is_sample=form.elements.is_sample.checked;if(editingDevotional)data.revision=editingDevotional.revision;await api('admin/devotionals'+(editingDevotional?'/'+encodeURIComponent(editingDevotional.id):''),data);$('#devotional-editor').close();await loadDevotionals();notice('Devotional saved and recorded.');})(event);});
+$('#devotional-delete-cancel').addEventListener('click',()=>$('#devotional-delete').close());
+$('#devotional-delete-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{const data=Object.fromEntries(new FormData(event.currentTarget));data.revision=deletingDevotional.revision;await api('admin/devotionals/'+encodeURIComponent(deletingDevotional.id)+'/delete',data);$('#devotional-delete').close();await loadDevotionals();notice('Devotional deleted and recorded.');})(event);});
+
+function renderHelp() {
+ const provisional=user.access_level==='provisional',query=$('#help-search').value.trim().toLowerCase(),target=$('#help-topics'),links=$('#help-topic-links');target.replaceChildren();links.replaceChildren();
+ $('#help-access').replaceChildren(element('strong',provisional?'Your access request is awaiting admin review.':'Welcome to the prayer community.'),element('p',provisional?'You can read Global prayers and published devotionals, browse resources available to your profile, use this guide, and update My account. Read “From provisional to full access” below for your next steps.':'Start with the Prayer wall, spend time in Daily devotional, or find encouragement in Resources. Privacy choices apply to each prayer you share.'));
+ const topics=[
+  {title:'From provisional to full access',keywords:'pending request approval unlock membership invitation access refresh contact admin',paragraphs:['When you submit Request access and choose a password, the portal creates your provisional account and sends your request to the portal admins for review. You already have an account; you do not need to submit another request.','An admin reviews your information and verifies that the email address belongs to you before granting full membership. There is no automatic approval or guaranteed approval time. If you need to follow up, contact the portal admin or the person who invited you through your usual contact method.','While waiting, you can read Global prayers and published daily devotionals, mark devotionals read or unread, browse resources permitted by your profile, open How it Works, and update My account. Group participation, the people directory, following people, posting prayers, recommending resources, and giving hearts or thumbs up require full membership.'],steps:['Check My account for an accurate display name, username, and contact information. Your associated email remains private to you and admins.','Watch for contact from an admin and complete any identity or email verification they request. Approval is handled by an admin; an invitation from another member or following someone does not approve your account.','After an admin approves you, choose Refresh access in the provisional notice, or sign out and sign in again. Keep using the same username or email and password.','Full access unlocks member features. You still need approval to join a group, and each prayer keeps its chosen audience. Full membership does not grant admin access.'],view:'profile',button:'Check My account'},
+  {title:'Share a prayer and choose its audience',keywords:'prayer wall share in who can see privacy global request update answered selected heart',paragraphs:['Choose + Share a prayer on the Prayer wall. Select Prayer request, Update, or Answered prayer, and enter a title and your message.','Share in chooses where the post belongs: the prayer community, an approved group, or Global. Who can see this? chooses the audience within that setting: the author and admins, selected people and admins, or all eligible community or group members. A group post stays within the approved group even when its audience is all group members.','Global means every signed-in person, including provisional users, regardless of group or demographics. Global prayers have no narrower group or selected-person audience. Existing prayers do not become Global automatically; changing that audience requires confirmation.','Portal admins can see every prayer. A group leader does not automatically see restricted prayers. Following someone or giving a heart never expands a prayer’s audience. A heart expresses support and counts once per person; select it again to remove it. Hearts do not subscribe you to prayer updates.'],steps:['Choose the post type and enter the prayer.','Review Share in and Who can see this? carefully before posting.','Share only details appropriate for that audience, and respect the privacy of other people mentioned.'],view:'feed',button:'Open Prayer wall'},
+  {title:'Find people and follow their posts',keywords:'people directory follow following notifications updates answered',paragraphs:['Full members can browse People directory and choose whom to follow. Choose which post types you want to hear about: prayer requests, updates, or answered prayers. People I follow shows posts from followed people that you are permitted to see.','Following is separate from group membership. It does not let you see private prayers, restricted group posts, or someone’s private account fields.'],view:'people',button:'Open People directory'},
+  {title:'Join or create a group',keywords:'accountability circle prayer partners discover invitation leader approve join members',paragraphs:['Discover groups shows listed groups where full members can ask to join. Open a group, read its purpose, and request membership. The group leader or an admin reviews the request. Group members and group prayers stay private until membership is approved.','My groups & invitations shows your groups and group invitations. Accept an invitation before participating. A group invitation is separate from portal account approval.','If + Create a group is available, you can create a group for accountability, prayer, prayer partners, or another purpose. Choose whether it is listed or unlisted. As leader, you manage join requests and invite existing portal members. Group leaders do not become portal admins.'],view:'groups',button:'Open My groups & invitations'},
+  {title:'Use the resource library',keywords:'books music sermon articles search filters hashtag tags recommend pending image age gender thumbs',paragraphs:['Resources includes books, music, teaching, prayers, and practical tools. Search by title, creator, topic, or hashtag, and combine category, tag, featured, and sort filters. Resource links open the provider’s website.','A thumbs up shows that a resource was helpful. Each full member can give one thumbs up per resource and select it again to remove it.','Full members can choose Recommend a resource, add details and an optional image, and submit it for admin review. Pending recommendations are visible only to admins, including before the person who recommended them can see the published entry.','Some resources have age or gender audiences. A valid birth date is required for any age-restricted resource; a matching gender is required for gender-restricted resources. Add those optional private details in My account if you want resources matched to your profile. Admins can review every resource.'],view:'resources',button:'Browse Resources'},
+  {title:'Read the daily devotional',keywords:'devo scripture bible reflect pray daily reading read unread sample schedule archive',paragraphs:['Daily devotional is available to every signed-in user, including provisional accounts. It shows today’s published reading, or the latest published reading with its date when none is assigned today. Scripture links open the Bible passage; Reflect and Pray offer a question and closing prayer.','Mark as read saves progress privately for your account. Mark unread reverses it. Browse devotionals lets you search earlier readings and filter Read or Unread. Other members and admins do not see your personal reading progress.','Sample devotionals are clearly labeled for testing. Draft, hidden, and future readings are unavailable to members. Reading dates use your profile time zone, or America/Chicago if none is set.'],view:'devotionals',button:'Open Daily devotional'},
+  {title:'Understand notifications',keywords:'alerts phone push email preferences follow types group requests updates answered',paragraphs:['Notifications currently appear inside the portal. Phone push alerts and email alerts for prayer posts are not enabled. Following people and group notification preferences determine which eligible new posts create alerts. Hearts and resource thumbs up do not subscribe you to notifications.','My account has master notification choices for prayer requests, updates, and answered prayers. Turning a type off silences new notifications of that type across your subscriptions; existing notifications remain. Privacy checks still apply to every notification.'],view:'profile',button:'Review notification preferences'},
+  {title:'Manage your account and sign-in',keywords:'username email password reset remember me eye gender birth date phone timezone introduction sign out',paragraphs:['My account lets you update your display name, username, introduction, optional profile details, and notification preferences. You can sign in with your username or associated email. The associated email stays linked to the account and cannot be changed in this form.','Your introduction appears in the member directory. Email, phone, time zone, gender, and birth date remain private to you and portal admins. Members cannot change their own role or membership approval.','Remember me remembers your ID and lets your browser save and autofill your password when supported. Accept the browser’s save-password prompt if offered. You still click Sign in each time you open or reload the portal. The eye button shows or hides the password while you enter it. Unchecking Remember me clears the portal’s remembered ID; manage saved passwords in your browser.','To reset your password, choose Forgot password? on the sign-in page and enter your username or email. A reset link is sent to the active account’s associated email. The link expires in one hour and works once. Your prayer portal account is separate from your MMT account. Sign out when you finish on a shared device.'],view:'profile',button:'Open My account'},
+  {title:'Choose Expanded or Collapsed views',keywords:'list view compact tiles settings expand collapse',paragraphs:['Expanded is the default. Choose Collapsed in the List view toolbar for shorter rows across prayers, people, resources, groups, devotionals, and this guide. The preference is saved to your account.','Open an individual row to read its details without changing your overall preference. Hearts and thumbs up can be used directly from their collapsed rows. The audit log remains a compact table.']},
+  ...(user.role==='admin'?[{title:'Admin review and moderation',keywords:'admin approve accounts resource pending needs attention unlock delete hide devotional schedule',paragraphs:['Open Admin and check Needs your attention for pending resource recommendations and access or password requests. Use the direct review buttons to reach the matching queue. Verify a requester’s identity and email before approving full access.','Accounts provides the available account, role, and access controls. New invitees are regular members; admin status must be granted explicitly. All prayers and All groups let admins review content regardless of its audience.','Resources has admin curation and approval controls. In Daily devotional, Manage devotionals and Add devotional support editing, scheduling, publishing, hiding, and deletion. Only one devotional can be published for a date; future published entries become available on that date.','Admin changes require a reason and are recorded in the audit log. Read deletion confirmations carefully: permanent deletion cannot be undone.']}]:[])
+ ];
+ let count=0;for(const topic of topics) {
+  if(query&&![topic.title,topic.keywords,...topic.paragraphs,...(topic.steps||[])].join(' ').toLowerCase().includes(query))continue;
+  count++;const item=element('details',undefined,'list-item help-topic'),summary=element('summary'),copy=element('span',undefined,'list-summary-copy');copy.append(element('span',topic.title,'list-summary-title'));const disclosure=element('span','Expand','list-disclosure');summary.append(copy,disclosure);
+  item.id='help-topic-'+topics.indexOf(topic);summary.tabIndex=0;const link=element('a',topic.title);link.href='#'+item.id;link.addEventListener('click',event=>{event.preventDefault();item.open=true;item.scrollIntoView({block:'start'});summary.focus({preventScroll:true});});const entry=element('li');entry.append(link);links.append(entry);
+  const content=element('div',undefined,'panel');content.append(element('h3',topic.title));for(const paragraph of topic.paragraphs)content.append(element('p',paragraph));
+  if(topic.steps){const list=element('ol');for(const step of topic.steps)list.append(element('li',step));content.append(list);}
+  if(topic.view&&(!provisional||['feed','resources','devotionals','profile'].includes(topic.view)))content.append(button(topic.button,()=>showView(topic.view)));
+  item.open=(user.list_view||'expanded')==='expanded';const label=()=>{disclosure.textContent=item.open?'Collapse':'Expand';summary.setAttribute('aria-label',(item.open?'Collapse ':'Expand ')+topic.title);};item.addEventListener('toggle',label);label();item.append(summary,content);target.append(item);
+ }
+ $('#help-topic-nav').hidden=!count;
+ $('#help-results').textContent=count+' topic'+(count===1?'':'s')+(query?' matching your search':' in this guide');if(!count)empty(target,'No topics match. Try prayer, full access, resources, or password.');
+}
+$('#help-search').addEventListener('input',()=>{if(user&&currentView==='help')renderHelp();});

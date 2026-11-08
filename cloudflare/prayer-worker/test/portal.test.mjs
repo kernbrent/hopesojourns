@@ -763,3 +763,65 @@ test('reaction writes recheck current account state and resource audience after 
  f.env.DB.prepare=query=>{if(query.startsWith('INSERT OR IGNORE INTO resource_thumbs') && !changed) {changed=true;f.sql.exec("UPDATE users SET status='suspended' WHERE id='member'");}return prepare(query);};
  assert.equal((await f.request('resources/wild-at-heart/thumb','member',{active:true})).status,404);assert.equal(f.sql.prepare('SELECT count(*) n FROM resource_thumbs').get().n,0);
 });
+
+test('Remember me never extends a session; sign-in issues a browser-session cookie and logout revokes it',async()=>{
+ const f=fixture();await f.add('member');f.sql.prepare('UPDATE users SET password=? WHERE id=?').run(await passwordHash('test remember password'),'member');
+ for(const remember of [undefined,false,true]) {
+  const before=Date.now();const r=await f.request('login',null,{identifier:'member@example.com',password:'test remember password',...(remember===undefined?{}:{remember})});assert.equal(r.status,200);
+  const cookie=r.headers.get('set-cookie');assert.match(cookie,/HttpOnly; Secure; SameSite=Strict/);
+  assert.doesNotMatch(cookie,/Max-Age|Expires=/);
+  const raw=cookie.split(';')[0].split('=')[1];const row=f.sql.prepare('SELECT expires_at FROM sessions WHERE token_hash=?').get(await digest(raw));
+  const lifetime=7*86400000;assert.ok(row.expires_at>=before+lifetime&&row.expires_at<=Date.now()+lifetime);
+  const headers={Origin:'https://prayer.example.com',Cookie:cookie.split(';')[0],'X-CSRF-Token':(await r.json()).csrf,'Content-Type':'application/json'};
+  const logout=await worker.fetch(new Request('https://prayer.example.com/api/logout',{method:'POST',headers,body:'{}'}),f.env);assert.equal(logout.status,200);assert.match(logout.headers.get('set-cookie'),/Max-Age=0/);assert.equal(f.sql.prepare('SELECT count(*) n FROM sessions WHERE token_hash=?').get(await digest(raw)).n,0);
+ }
+ assert.equal((await f.request('login',null,{identifier:'member@example.com',password:'test remember password',remember:'true'})).status,200);
+});
+
+const devoData=(overrides={})=>({title:'A test devotional',scripture:'Psalm 23:1',body:'Trust God with the next step.',reflection:'Where can you practice trust?',prayer:'Lord, guide us today. Amen.',publish_date:'2020-01-01',status:'published',is_sample:false,reason:'Synthetic devotional check',...overrides});
+test('daily devotional seed, private read markers, search and membership boundaries',async()=>{
+ const f=fixture();await f.add('reader');await f.add('other');await f.add('pending');await f.add('admin','admin');f.sql.prepare("UPDATE users SET access_level='provisional' WHERE id='pending'").run();
+ for(const who of ['reader','pending','admin']){const r=await f.request('devotionals/today',who);assert.equal(r.status,200);const d=await r.json();assert.ok(d.item.is_sample);assert.ok(d.item.publish_date<=d.today);}
+ const list=await(await f.request('devotionals','reader')).json();assert.equal(list.total,3);assert.ok(list.items.every(d=>d.is_sample));const id=list.items[0].id;
+ assert.equal((await f.request('devotionals/'+id+'/read','reader',{read:true})).status,200);assert.equal((await f.request('devotionals/'+id+'/read','reader',{read:true})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM devotional_reads').get().n,1);
+ assert.ok((await(await f.request('devotionals/'+id,'reader')).json()).read_at);assert.equal((await(await f.request('devotionals/'+id,'other')).json()).read_at,null);
+ assert.equal((await(await f.request('devotionals?read=read','reader')).json()).total,1);assert.equal((await(await f.request('devotionals?read=unread','reader')).json()).total,2);
+ assert.equal((await(await f.request('devotionals?q=Galatians','reader')).json()).total,1);
+ assert.equal((await f.request('devotionals/'+id+'/read','pending',{read:true})).status,200);
+ assert.equal((await f.request('devotionals/'+id+'/read','reader',{read:false})).status,200);assert.equal((await(await f.request('devotionals?read=read','reader')).json()).total,0);
+ for(const path of ['devotionals','devotionals/today','devotionals/'+id])assert.equal((await f.request(path)).status,401);
+ assert.equal((await f.request('admin/devotionals','reader')).status,403);assert.equal((await f.request('admin/devotionals','pending',devoData())).status,403);
+});
+test('devotional drafts, hidden and future entries cannot be read or marked by members',async()=>{
+ const f=fixture();await f.add('reader');await f.add('admin','admin');
+ for(const [status,date] of [['draft','2020-01-02'],['hidden','2020-01-03'],['published','2099-01-01']]){
+  const r=await f.request('admin/devotionals','admin',devoData({status,publish_date:date}));assert.equal(r.status,201);const {id}=await r.json();
+  assert.equal((await f.request('devotionals/'+id,'reader')).status,404);assert.equal((await f.request('devotionals/'+id+'/read','reader',{read:true})).status,404);assert.equal((await f.request('devotionals/'+id,'admin')).status,200);
+ }
+ assert.equal((await(await f.request('devotionals','reader')).json()).total,3);assert.equal((await(await f.request('admin/devotionals','admin')).json()).total,6);
+ assert.equal((await(await f.request('admin/devotionals?status=draft','admin')).json()).total,1);
+ // The archive releases the scheduled entry at the viewer's local calendar day.
+ const {today}=await(await f.request('devotionals/today','reader')).json();const row=await(await f.request('admin/devotionals?status=published&q=A%20test','admin')).json();
+ f.sql.prepare("UPDATE devotionals SET status='hidden' WHERE publish_date=? AND id<>?").run(today,row.items[0].id);
+ assert.equal((await f.request('admin/devotionals/'+row.items[0].id,'admin',devoData({publish_date:today,revision:1}))).status,200);
+ assert.equal((await(await f.request('devotionals/today','reader')).json()).item.id,row.items[0].id);
+});
+test('devotional administration is audited, revision-checked, validates dates, and deletes reading markers',async()=>{
+ const f=fixture();await f.add('reader');await f.add('admin','admin');const r=await f.request('admin/devotionals','admin',devoData());assert.equal(r.status,201);const {id}=await r.json();
+ assert.equal((await f.request('admin/devotionals','admin',devoData())).status,409);
+ for(const data of [devoData({publish_date:'2026-02-30'}),devoData({status:'public'}),devoData({body:''}),devoData({reason:''}),devoData({is_sample:'yes'})])assert.equal((await f.request('admin/devotionals','admin',data)).status,400);
+ assert.equal((await f.request('admin/devotionals/'+id,'admin',devoData({title:'Updated reading',revision:1}))).status,200);
+ assert.equal((await f.request('admin/devotionals/'+id,'admin',devoData({revision:1}))).status,409);
+ await f.request('devotionals/'+id+'/read','reader',{read:true});
+ assert.equal((await f.request('admin/devotionals/'+id+'/delete','admin',{revision:2,reason:'Remove test',confirmation:'NO'})).status,400);
+ assert.equal((await f.request('admin/devotionals/'+id+'/delete','admin',{revision:2,reason:'Remove test',confirmation:'DELETE'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM devotional_reads WHERE devotional_id=?').get(id).n,0);assert.equal((await f.request('devotionals/'+id,'reader')).status,404);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE target_id=? AND target_type='devotional'").get(id).n,3);
+});
+test('devotional writes reject stale admins and cross-origin or missing CSRF submissions',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('reader');
+ for(const [origin,csrf] of [['https://evil.example','csrf-admin'],['https://prayer.example.com','wrong']])assert.equal((await worker.fetch(new Request('https://prayer.example.com/api/admin/devotionals',{method:'POST',headers:{Origin:origin,Cookie:'__Host-hs_prayer=admin','X-CSRF-Token':csrf,'Content-Type':'application/json'},body:JSON.stringify(devoData())}),f.env)).status,403);
+ const original=f.env.DB.prepare.bind(f.env.DB);let hit=false;f.env.DB.prepare=q=>{const s=original(q);if(q.includes('SELECT u.*,s.csrf')&&!hit){const first=s.first.bind(s);s.first=async()=>{const row=await first();hit=true;f.sql.prepare("UPDATE users SET role='member' WHERE id='admin'").run();return row;};}return s;};
+ assert.equal((await f.request('admin/devotionals','admin',devoData())).status,409);assert.equal(f.sql.prepare('SELECT count(*) n FROM devotionals').get().n,3);
+});

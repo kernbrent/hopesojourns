@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.104
+Version 4.107
 
-Last reviewed: November 5, 2026
+Last reviewed: November 7, 2026
 
 ## Phone number presentation
 
@@ -22,6 +22,12 @@ More details holds type (Coffee by default), end, all-day dates, location, outco
 Default to compact Grid rows in Upcoming & recent: unfinished records plus finished meetings from the last 90 days. Offer Past meetings, All meetings and optional Month/Week calendar views with Sunday-first America/Chicago times. Row arrows independently expand/collapse with aria-expanded and aria-controls. Clamp summaries to two lines; expansion exposes full text. Use shared paper/forest tokens, Georgia headings, native controls and visible keyboard focus. Wrap task/footer controls on phones and contain table scrolling.
 
 ## Independent prayer portal
+
+How it Works appears in the prayer navigation for every signed-in user, including provisional accounts. Use a clear access-status note, labeled search, live topic count and native disclosure rows that follow Expanded/Collapsed. Explain the path to full membership first, with numbered steps and the exact Refresh access label. Cover privacy, groups, resources, devotionals, notification limits and sign-in. Use existing palette and type tokens, comfortable paragraph spacing, and role-appropriate quick links. A topic list at the top lets readers jump to each matching section; choosing a topic opens its instructions and moves keyboard focus to its heading. The list follows search results and hides admin topics from non-admin accounts.
+
+Daily devotional appears in the prayer navigation for every signed-in user, including provisional accounts. The current reading leads with Today’s devotional or Latest devotional and its date. Clearly label sample content as for testing. Use the shared paper/forest palette, a serif reading title, generous paragraph line height, a Scripture link, Reflect and Pray prompts, and an accessible read/unread toggle. Browse devotionals offers search, reading-status filters, pagination and the account’s Expanded/Collapsed treatment. Admin-only Manage devotionals and Add devotional controls expose draft/published/hidden status, scheduling date and sample designation in a native dialog. Scheduled and hidden states are explicit in management. Require a reason when saving and typed DELETE before permanent deletion. Empty and result-count messages remain visible and accessible.
+
+Prayer sign-in offers a simple Remember me checkbox. Explain that the browser saves ID/password details and the user still clicks Sign in on each visit. Remembered IDs prefill the username field; password saving/autofill follows the browser password manager and its prompts. Do not describe this as staying signed in. Password fields retain eye buttons, Show password or Hide password accessible names, aria-pressed feedback and minimum 44-pixel targets. Form reset and switching auth modes hide passwords again. General copy invites anyone seeking Christian prayer and growth; group examples avoid demographic assumptions. Admin begins with Needs your attention, pending counts, direct review buttons and a caught-up message. Use shared palette tokens.
 
 A shared List view toolbar offers Expanded and Collapsed with pressed-state feedback. Expanded is the default, and the setting applies to all card lists for the signed-in account. Native details rows preserve keyboard expansion; collapsed summaries show the item title, a compact metadata line, an Expand label and reaction tally where applicable. Expanding a row reveals its existing content and controls. Use the same treatment for people, prayers, resources, groups, group members, notifications, invitations, admin cards and resource categories. Keep the audit grid as a compact table. Prayer hearts and resource thumbs are toggle buttons with visible counts, accessible action labels and aria-pressed state. Reaction controls also work in collapsed summaries without opening the row. Provisional users can see counts but the reaction control explains that approval is required. Use shared palette tokens, visible focus and wrapping toolbar controls.
 
@@ -912,6 +918,12 @@ Inbox Show includes Emails sent, with readable cards for subject and accepted ti
 The contact email composer places a labeled Attachments (optional) file picker below Message. Show supported file types and the limits of five files, 5 MB per file, and 10 MB total. List each chosen filename and size with an accessible Remove button. Wrap long filenames and controls on phones. Disable file selection and removal after submission alongside the message fields. Saved contact history and Inbox > Emails sent show private attachment download links with filenames and sizes.
 
 ## Revision history
+
+- November 7, 2026 — Version 4.107. Added searchable How it Works and provisional full-access instructions; verified help and daily devotional navigation for provisional accounts. Local review only.
+
+- November 7, 2026 — Version 4.106. Added independent prayer daily devotionals, samples, scheduling, private read tracking and admin curation. Local review only.
+
+- November 7, 2026 — Version 4.105. Added optional remembered sign-in, password visibility, inclusive Christian wording and actionable admin review notices. Local review only.
 
 - November 5, 2026 — Version 4.104. Added shared Expanded/Collapsed list controls, compact disclosure rows, counted hearts and thumbs. Local review only.
 

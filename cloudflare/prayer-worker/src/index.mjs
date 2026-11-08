@@ -1,3 +1,4 @@
+import {handleDevotionals} from './devotionals.mjs';
 import {handleReaction,decorateReactions} from './reactions.mjs';
 import {handlePublicRequests,handleRequestAdmin} from './portal-requests.mjs';
 import { handleGroups } from './groups.mjs';
@@ -35,12 +36,12 @@ function visibilityFor(id,role,access) {
 }
 export const visibility = visibilityFor('?','?','?');
 const visibleArgs = u => [u.role,u.access_level||'full',u.id,u.id,u.id];
-function cookie(value, age) { return `${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}`; }
+function cookie(value, age) { return `${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict${age === undefined ? "" : `; Max-Age=${age}`}`; }
 async function session(db, user) {
   const raw = token(), csrf = token();
   const created=await db.prepare("INSERT INTO sessions SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND status='active')").bind(await digest(raw), user.id, csrf, now() + 7 * 86400000,user.id).run();
   requireValue(created.meta.changes===1,'This account is not available for sign-in.',401);
-  return json({ user: publicUser(user), csrf }, 200, { 'Set-Cookie': cookie(raw, 604800) });
+  return json({ user: publicUser(user), csrf }, 200, { 'Set-Cookie': cookie(raw) });
 }
 async function body(request) {
   requireValue((request.headers.get('content-type') || '').includes('application/json'), 'Use JSON.', 415);
@@ -75,8 +76,8 @@ async function api(request, env, url, ctx) {
   const config = siteConfig(env);
   if (path === '/api/site' && method === 'GET') return json(config);
   if (path === '/api/health' && method === 'GET') {
-    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs')").first();
-    requireValue(schema.count === 14, 'Portal database setup is incomplete.', 503);
+    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs','devotionals','devotional_reads')").first();
+    requireValue(schema.count === 16, 'Portal database setup is incomplete.', 503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
@@ -153,8 +154,8 @@ async function api(request, env, url, ctx) {
   if (method !== 'GET') requireValue(request.headers.get('x-csrf-token') === auth.csrf, 'Your session changed. Refresh and try again.', 403);
   // Provisional accounts may only read Global prayers, eligible resources, and their own account.
   if(auth.access_level==='provisional') {
-    const allowed=(method==='GET' && (['/api/me','/api/posts','/api/resources','/api/resource-categories'].includes(path) || /^\/api\/resources\/[^/]+\/image$/.test(path))) ||
-      (method==='POST' && ['/api/profile','/api/logout','/api/preferences'].includes(path));
+    const allowed=(method==='GET' && (['/api/me','/api/posts','/api/resources','/api/resource-categories','/api/devotionals','/api/devotionals/today'].includes(path) || /^\/api\/devotionals\/[^/]+$/.test(path) || /^\/api\/resources\/[^/]+\/image$/.test(path))) ||
+      (method==='POST' && (['/api/profile','/api/logout','/api/preferences'].includes(path) || /^\/api\/devotionals\/[^/]+\/read$/.test(path)));
     requireValue(allowed,'Admin approval is required for this feature.',403);
   }
   if(path==='/api/preferences' && method==='POST') {
@@ -163,6 +164,9 @@ async function api(request, env, url, ctx) {
     const result=await db.prepare("UPDATE users SET list_view=? WHERE id=? AND status='active'").bind(data.list_view,auth.id).run();
     requireValue(result.meta.changes===1,'Your account is no longer available.',401);
     return json({list_view:data.list_view});
+  }
+  if(/^\/api\/(?:admin\/)?devotionals(?:\/|$)/.test(path)) {
+    const response=await handleDevotionals(request,db,auth,url,{json,body,text,requireValue,rateLimit});if(response)return response;
   }
   const reaction=await handleReaction(request,db,auth,url,{json,body,requireValue,rateLimit,visibility,visibleArgs});
   if(reaction) return reaction;
