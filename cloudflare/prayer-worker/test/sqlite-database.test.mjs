@@ -63,3 +63,17 @@ test('curated book upgrade preserves moderation and restrictions, never restores
  assert.equal(sql.prepare("SELECT description FROM resources WHERE id='wild-at-heart'").get().description,'Administrator revised paragraph');
  assert.equal(sql.prepare("SELECT count(*) n FROM resources WHERE id='connection-codes'").get().n,0);
 });
+
+
+test('production removes only original sample devotionals, while test keeps its samples',()=>{
+ const testDb=new DatabaseSync(':memory:');initializeDatabase(storageFor(testDb),{ENVIRONMENT:'test'});
+ assert.equal(testDb.prepare('SELECT count(*) n FROM devotionals WHERE is_sample=1').get().n,3);
+ const live=new DatabaseSync(':memory:'),storage=storageFor(live);initializeDatabase(storage,{ENVIRONMENT:'test'});
+ live.exec("INSERT INTO devotionals SELECT 'authored-reading','Real reading',scripture,body,reflection,prayer,publish_date,'draft',0,created_at,updated_at,1 FROM devotionals LIMIT 1");
+ initializeDatabase(storage,{ENVIRONMENT:'production'});initializeDatabase(storage,{ENVIRONMENT:'production'});
+ assert.equal(live.prepare('SELECT count(*) n FROM devotionals WHERE is_sample=1').get().n,0);
+ assert.equal(live.prepare("SELECT title FROM devotionals WHERE id='authored-reading'").get().title,'Real reading');
+ assert.equal(live.prepare("SELECT count(*) n FROM _prayer_migrations WHERE name='production-devotional-placeholders-v1'").get().n,1);
+ const fresh=new DatabaseSync(':memory:');initializeDatabase(storageFor(fresh),{ENVIRONMENT:'production'});
+ assert.equal(fresh.prepare('SELECT count(*) n FROM devotionals').get().n,0);
+});

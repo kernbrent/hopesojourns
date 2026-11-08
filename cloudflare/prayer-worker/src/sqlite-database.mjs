@@ -33,6 +33,15 @@ export function initializeDatabase(storage,env) {
       sql.exec('INSERT INTO _prayer_migrations VALUES (?,?)',migration.name,Date.now()).toArray();
     });
   }
+  // These original placeholders belong only in local/test installations.
+  // Remove them once on production upgrades, preserving all authored readings.
+  const cleanup='production-devotional-placeholders-v1';
+  if(env.ENVIRONMENT==='production' && !sql.exec('SELECT name FROM _prayer_migrations WHERE name=?',cleanup).toArray().length) {
+    storage.transactionSync(()=>{
+      sql.exec("DELETE FROM devotionals WHERE is_sample=1 AND id IN ('rest-for-the-journey','carry-one-another','mercies-for-today')").toArray();
+      sql.exec('INSERT INTO _prayer_migrations VALUES (?,?)',cleanup,Date.now()).toArray();
+    });
+  }
   if(env.INITIAL_ADMIN_SETUP) {
     const setup=JSON.parse(env.INITIAL_ADMIN_SETUP);
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(setup.email || '') || !/^[a-f0-9]{64}$/.test(setup.tokenHash || '') || !Number.isSafeInteger(setup.expiresAt)) throw new Error('Invalid initial admin setup configuration.');
