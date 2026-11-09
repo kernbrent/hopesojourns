@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.107
+Version 4.108
 
-Last reviewed: November 7, 2026
+Last reviewed: November 8, 2026
 
 ## Phone number presentation
 
@@ -22,6 +22,8 @@ More details holds type (Coffee by default), end, all-day dates, location, outco
 Default to compact Grid rows in Upcoming & recent: unfinished records plus finished meetings from the last 90 days. Offer Past meetings, All meetings and optional Month/Week calendar views with Sunday-first America/Chicago times. Row arrows independently expand/collapse with aria-expanded and aria-controls. Clamp summaries to two lines; expansion exposes full text. Use shared paper/forest tokens, Georgia headings, native controls and visible keyboard focus. Wrap task/footer controls on phones and contain table scrolling.
 
 ## Independent prayer portal
+
+The Prayer Portal uses its own approved horizontal logo: the original-style oval landscape with praying hands replacing the j in Sojourns, and PRAYER PORTAL beneath the wordmark. Use the transparent public/assets/prayer-portal-logo.png only in the independent prayer app, preserving its aspect ratio. Main website, MMT portal and document logos retain the original Hope Sojourns artwork.
 
 How it Works appears in the prayer navigation for every signed-in user, including provisional accounts. Use a clear access-status note, labeled search, live topic count and native disclosure rows that follow Expanded/Collapsed. Explain the path to full membership first, with numbered steps and the exact Refresh access label. Cover privacy, groups, resources, devotionals, notification limits and sign-in. Use existing palette and type tokens, comfortable paragraph spacing, and role-appropriate quick links. A topic list at the top lets readers jump to each matching section; choosing a topic opens its instructions and moves keyboard focus to its heading. The list follows search results and hides admin topics from non-admin accounts.
 
@@ -376,7 +378,8 @@ Hope Sojourns invites people to travel with humility, serve alongside trusted lo
 
 | Asset | Approved use |
 |---|---|
-| `/assets/hope-sojourns-logo.png` | Primary horizontal website and document logo |
+| `/assets/hope-sojourns-logo.png` | Primary horizontal website, MMT and document logo |
+| Prayer app `/assets/prayer-portal-logo.png` | Independent Prayer Portal only; praying-hands j and Prayer Portal subtitle |
 | `/assets/hope-sojourns-icon.png` | Favicon, compact identity, circular or square brand placement |
 | `/assets/hope-sojourns-oval-icon.png` | Alternate emblem where the oval silhouette is specifically useful |
 | `/assets/csm-logo.jpg` | Christian Steps Ministries partnership identification |
@@ -918,6 +921,8 @@ Inbox Show includes Emails sent, with readable cards for subject and accepted ti
 The contact email composer places a labeled Attachments (optional) file picker below Message. Show supported file types and the limits of five files, 5 MB per file, and 10 MB total. List each chosen filename and size with an accessible Remove button. Wrap long filenames and controls on phones. Disable file selection and removal after submission alongside the message fields. Saved contact history and Inbox > Emails sent show private attachment download links with filenames and sizes.
 
 ## Revision history
+
+- November 8, 2026 — Version 4.108. Added the approved Prayer Portal logo with praying-hands j and Prayer Portal subtitle. Original website/MMT logo preserved. Local review; pending release approval.
 
 - November 7, 2026 — Version 4.107. Added searchable How it Works and provisional full-access instructions; verified help and daily devotional navigation for provisional accounts. Local review only.
 

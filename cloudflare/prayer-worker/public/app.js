@@ -33,7 +33,7 @@ function applySite(config) {
   document.title = `Prayer Portal | ${config.organizationName}`;
   $('.prayer-brand').setAttribute('aria-label',`${config.organizationName} prayer portal home`);
   $('.prayer-brand img').src=config.logoPath;
-  $('.prayer-brand img').alt=`${config.organizationName} — ${config.organizationTagline}`;
+  $('.prayer-brand img').alt=`${config.organizationName} Prayer Portal`;
   $('#footer-organization').textContent=config.organizationName;
   $('#footer-tagline').textContent=config.organizationTagline;
   $('#invite-help').textContent = `Need an invitation or help signing in? Contact your ${config.organizationName} portal admin. This account is separate from MMT.`;

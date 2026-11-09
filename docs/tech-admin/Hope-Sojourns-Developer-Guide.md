@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 5.17
+Version 5.18
 
-Last reviewed: November 7, 2026
+Last reviewed: November 8, 2026
 
 ## Release asset verification
 
@@ -44,6 +44,8 @@ Contact email attachments are included in the existing composer and backend work
 The contact-email sender remains fixed at `admin@hopesojourns.com`. Resend requires verified owned-domain senders. Future selectable senders need an authorized sender allowlist; personal Gmail sending needs a separately authorized Gmail delivery integration. Reply-To alone does not change From.
 
 ## Independent prayer portal
+
+The prayer app default logo is /assets/prayer-portal-logo.png, packaged from cloudflare/prayer-worker/public/assets by prepare.mjs. Both the initial HTML and siteConfig fallback use it; the image alt text identifies the Prayer Portal. Custom PORTAL_LOGO_PATH remains supported. The prayer build no longer copies the shared website logo into its assets. Root assets/hope-sojourns-logo.png and main website/MMT references remain unchanged; no schema or permission changes are needed.
 
 How it Works is a signed-in SPA view in public/index.html and public/app.js. Full, provisional and admin accounts can open it; no API or schema change is required. renderHelp builds searchable plain-text topics with native details rows and the account’s Expanded/Collapsed preference. The first topic explains provisional review, email verification, follow-up, same-account approval and Refresh access. Published devotionals remain available to provisional users. Quick links follow current membership; admin guidance appears only for admins. Help rendering clears on sign-out and search does not send queries to the server. A topic list at the top lets readers jump to each matching section; choosing a topic opens its instructions and moves keyboard focus to its heading. The list follows search results and hides admin topics from non-admin accounts.
 
@@ -1372,6 +1374,8 @@ Files are stored in the environment's private RECEIPTS bucket under contact-emai
 GET /admin/contacts/emails/:id/attachments/:index requires authentication and Contacts read access, resolves only immutable saved metadata, verifies bytes, and returns a forced download with private no-store and nosniff headers. Contact histories and Emails sent show filename/size links, never R2 keys or public URLs. Test delivery payloads, immutable retries, access control, downloads, corrupt files, unsupported formats, and size/count limits with contact-email-attachments.test.ts. No real email is needed for validation.
 
 ## Revision history
+
+- November 8, 2026 — Version 5.18. Added the approved Prayer Portal logo with praying-hands j and Prayer Portal subtitle. Original website/MMT logo preserved. Local review; pending release approval.
 
 - November 7, 2026 — Version 5.17. Added searchable How it Works and provisional full-access instructions; verified help and daily devotional navigation for provisional accounts. Local review only.
 

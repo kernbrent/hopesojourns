@@ -6,6 +6,6 @@ mkdirSync(new URL('../dist/', import.meta.url), { recursive: true });
 cpSync(new URL('../public/', import.meta.url), new URL('../dist/', import.meta.url), { recursive: true });
 copyFileSync(new URL('../../../styles.css', import.meta.url), new URL('../dist/styles.css', import.meta.url));
 mkdirSync(new URL('../dist/assets/', import.meta.url), { recursive: true });
-copyFileSync(new URL('../../../assets/hope-sojourns-logo.png', import.meta.url), new URL('../dist/assets/hope-sojourns-logo.png', import.meta.url));
+// The prayer-specific logo is copied from public/assets; shared website/MMT art stays separate.
 if (process.env.PORTAL_BRAND_LOGO_FILE) copyFileSync(process.env.PORTAL_BRAND_LOGO_FILE, new URL('../dist/assets/organization-logo.png', import.meta.url));
 console.log('Copied the canonical Hope Sojourns palette for the prayer portal.');

@@ -159,3 +159,7 @@ A topic list at the top lets readers jump to each matching section; choosing a t
 The signed-in help view covers provisional approval, prayer audiences, following, groups, resource recommendations/audiences, devotionals, notifications, sign-in and list preferences. Both help and published devotionals are visible to provisional users. The first help topic explains verification and follow-up, then Refresh access or sign-out/sign-in after admin approval; the same account/password is retained. Help search runs locally, quick links honor membership, and admin instructions are shown only to admins. Native disclosure rows follow the shared list preference. No backend endpoint, permission grant or migration is added.
 
 Production excludes the three original sample devotionals. The hosted initializer removes those sample IDs once, atomically, using a production-only migration marker; test/local samples and administrator-authored readings are preserved. No environment data is copied.
+
+## Prayer-specific logo
+
+The default /assets/prayer-portal-logo.png is the approved transparent logo with praying hands replacing the j in Sojourns and PRAYER PORTAL beneath it. The file lives in public/assets and prepare copies it with prayer assets. Both initial HTML and siteConfig use it. Main website/MMT references and the shared assets/hope-sojourns-logo.png remain unchanged. Custom organization logos still use PORTAL_BRAND_LOGO_FILE and PORTAL_LOGO_PATH.
