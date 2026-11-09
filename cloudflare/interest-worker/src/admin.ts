@@ -272,16 +272,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export async function readAdminJson(request: Request): Promise<Record<string, unknown>> {
+export async function readAdminJson(request: Request, bodyLimit = ADMIN_BODY_LIMIT): Promise<Record<string, unknown>> {
   if (request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() !== "application/json") {
     throw new AdminError(415, "UNSUPPORTED_MEDIA_TYPE", "Send this request as JSON.");
   }
   const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > ADMIN_BODY_LIMIT) {
+  if (Number.isFinite(contentLength) && contentLength > bodyLimit) {
     throw new AdminError(413, "REQUEST_TOO_LARGE", "This request is too large.");
   }
   const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.byteLength > ADMIN_BODY_LIMIT) throw new AdminError(413, "REQUEST_TOO_LARGE", "This request is too large.");
+  if (bytes.byteLength > bodyLimit) throw new AdminError(413, "REQUEST_TOO_LARGE", "This request is too large.");
   try {
     const value = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
     if (!isRecord(value)) throw new Error("Expected an object");

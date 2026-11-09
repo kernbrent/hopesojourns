@@ -110,7 +110,7 @@ def add_cover(doc: Document, version: str, reviewed: str) -> None:
     footer.add_run().add_break(WD_BREAK.PAGE)
 
 
-def add_contents(doc: Document, headings: list[str]) -> None:
+def add_contents(doc: Document, headings: list[str], revision: str = "") -> None:
     title = doc.add_paragraph("Table of contents", style="Heading 1")
     title.paragraph_format.space_before = Pt(0)
     for heading in headings:
@@ -123,6 +123,10 @@ def add_contents(doc: Document, headings: list[str]) -> None:
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(10)
     add_inline_text(p, "In desktop Word, Ctrl+click a section name to jump there; on a phone, tap it. The alphabetical index is at the end of the guide.", base_size=9.5)
+    if revision:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(10)
+        add_inline_text(p, "Latest revision: " + revision, base_size=8.5)
     p.add_run().add_break(WD_BREAK.PAGE)
 
 
@@ -191,7 +195,8 @@ def build() -> None:
     numbering = {kind: create_numbering(doc, kind) for kind in ("bullet", "number", "checkbox")}
 
     add_cover(doc, version, reviewed)
-    add_contents(doc, headings + ["Index"])
+    revision = next((line[2:] for line in lines[revision_start + 1:] if line.startswith("- ")), "")
+    add_contents(doc, headings + ["Index"], revision)
     introduction = doc.add_paragraph()
     introduction.paragraph_format.space_after = Pt(10)
     add_inline_text(introduction, "This private operating guide is for authorized Hope Sojourns and Christian Steps Ministries staff. Available actions depend on your permissions. Live and test records are separate; confirm the environment before entering real information.", base_size=10)
@@ -202,12 +207,6 @@ def build() -> None:
             raise ValueError(f"Missing rendered heading: {heading}")
         add_bookmark(paragraph, slug(heading), n)
     add_index(doc, lines[index_start + 1:revision_start], heading_lookup)
-    revision = next((line[2:] for line in lines[revision_start + 1:] if line.startswith("- ")), "")
-    if revision:
-        note = doc.add_paragraph()
-        note.paragraph_format.space_before = Pt(8)
-        note.paragraph_format.space_after = Pt(0)
-        add_inline_text(note, "Revision history: " + revision, base_size=8.5)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     doc.save(OUTPUT)
     build_web_edition()

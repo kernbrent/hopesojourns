@@ -6,6 +6,7 @@ import {givingEmailFooter} from './gift-email-template';
 import {signatureKey} from './gift-thanks';
 import {emailColors as colors} from './gift-email-colors';
 import {savedMail,publicMail,contactEmails,type Mail} from './contact-email-records';
+import {newsletterHtml,withNewsletterFooter,newsletterPreviewResponse} from './contact-email-html';
 
 type Person={id:string;first_name:string;last_name:string;email:string};
 const sender='admin@hopesojourns.com';
@@ -77,6 +78,25 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
   const edit=request.method!=='GET',session=await authenticate(request,env,edit);
   if(!can(session.user,'contacts',edit))throw new AdminError(403,'ACCESS_DENIED','Contact edit access is required to send email.');
   const suffix=path.slice('/admin/contacts/emails'.length);
+  const draftPreview=suffix.match(/^\/render\/([a-f0-9-]{36})$/i);
+  if(request.method==='GET'&&draftPreview){
+   if(!can(session.user,'contacts',true))throw new AdminError(403,'ACCESS_DENIED','Contact edit access is required to preview a newsletter.');
+   const key='contact-email-previews/'+session.user.id+'.json',object=await env.RECEIPTS.get(key);
+   if(!object||object.size>1024*1024)throw new AdminError(404,'NOT_FOUND','Preview expired. Choose Preview newsletter again.');
+   const draft=JSON.parse(await new Response(object.body).text()) as {id:string;expiresAt:number;html:string};
+   if(draft.expiresAt<Date.now()){await env.RECEIPTS.delete(key);throw new AdminError(404,'NOT_FOUND','Preview expired. Choose Preview newsletter again.');}
+   if(draft.id!==draftPreview[1])throw new AdminError(404,'NOT_FOUND','This preview was replaced. Choose Preview newsletter again.');
+   return newsletterPreviewResponse(draft.html);
+  }
+  const savedPreview=suffix.match(/^\/([a-f0-9-]{36})\/preview$/i);
+  if(request.method==='GET'&&savedPreview){
+   const mail=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(savedPreview[1]).first<Mail>();
+   if(!mail)throw new AdminError(404,'NOT_FOUND','Email not found.');
+   const payload=savedMail(mail).payload;
+   const signature=payload.attachments?.find((a:{content_id?:string})=>a.content_id==='brent-signature')?.content;
+   const html=payload.html.replaceAll('cid:brent-signature',signature?'data:image/png;base64,'+signature:'');
+   return new URL(request.url).searchParams.get('document')==='1'?newsletterPreviewResponse(html):adminJson({html});
+  }
   const download=suffix.match(/^\/([a-f0-9-]{36})\/attachments\/(\d+)$/i);
   if(request.method==='GET'&&download){
    const mail=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(download[1]).first<Mail>();
@@ -93,7 +113,15 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
   if(request.method!=='POST')throw new AdminError(405,'METHOD_NOT_ALLOWED','Method not allowed.');
   const retry=suffix.match(/^\/([a-f0-9-]{36})\/retry$/i);
   if(retry)return adminJson({email:await deliver(env,retry[1])});
-  const {body,files}=suffix===''?await readEmailBody(request):{body:await readAdminJson(request),files:[]};
+  const {body,files}=suffix===''?await readEmailBody(request):{body:await readAdminJson(request,suffix==='/render'?128*1024:undefined),files:[]};
+  if(suffix==='/render'){
+   const clean=newsletterHtml(body.html),signature=await signatureContent(env);
+   const html=withNewsletterFooter(clean,givingEmailFooter('data:image/png;base64,'+signature)),id=crypto.randomUUID();
+   // One private snapshot per editor, replaced on preview and expired on access.
+   // No contact-email record or delivery is created by previewing.
+   await env.RECEIPTS.put('contact-email-previews/'+session.user.id+'.json',new TextEncoder().encode(JSON.stringify({id,expiresAt:Date.now()+15*60000,html})),{httpMetadata:{contentType:'application/json'}});
+   return adminJson({html,previewUrl:'/api/interest/admin/contacts/emails/render/'+id});
+  }
   if(suffix==='/preview'){
    const people=await selectedPeople(env,ids(body.personIds));
    const recipients=[...new Set(people.filter(p=>validEmail(p.email)).map(p=>p.email.toLowerCase()))];
@@ -108,7 +136,9 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
   if(typeof body.subject!=='string'||!body.subject.trim()||body.subject.length>160||/[\u0000-\u001f\u007f]/.test(body.subject))throw new AdminError(422,'SUBJECT_REQUIRED','Enter a subject of up to 160 characters on one line.');
   if(typeof body.message!=='string'||!body.message.trim()||body.message.length>10000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body.message))throw new AdminError(422,'MESSAGE_REQUIRED','Enter a message of up to 10,000 characters.');
   const subject=body.subject.trim(),message=body.message.trim();
-  const hash=await hashText(JSON.stringify({to,subject,message,...(files.length?{attachments:files.map(f=>({filename:f.metadata.filename,sha256:f.metadata.sha256}))}:{})}));
+  if(body.format!==undefined&&!['text','html'].includes(String(body.format)))throw new AdminError(422,'INVALID_FORMAT','Choose plain text or an HTML newsletter.');
+  const formatted=body.format==='html',clean=formatted?newsletterHtml(body.html):null;
+  const hash=await hashText(JSON.stringify({to,subject,message,...(formatted?{format:'html',html:(body.html as string).trim()}:{}),...(files.length?{attachments:files.map(f=>({filename:f.metadata.filename,sha256:f.metadata.sha256}))}:{})}));
   let existing=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(body.sendId).first<Mail>();
   if(existing&&existing.request_hash!==hash)throw new AdminError(409,'CHANGED_EMAIL','This send request belongs to a saved message. Open Email history to review or retry it.');
   if(!existing){
@@ -117,10 +147,10 @@ export async function handleContactEmail(request:Request,env:AdminEnv,path:strin
    // produce one delivery but retain the history on every matching contact.
    const linked=(await env.DB.prepare("SELECT id FROM people WHERE contact_status='active' AND lower(email) IN(SELECT value FROM json_each(?))").bind(JSON.stringify(to)).all<{id:string}>()).results;
    const signature=await signatureContent(env);
-   const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body style="margin:0;background:${colors.white};color:${colors.ink};font:15px/1.6 Arial,sans-serif"><div style="max-width:640px;margin:auto;padding:24px"><div>${escape(message).replace(/\r?\n/g,'<br>')}</div>${givingEmailFooter('cid:brent-signature')}</div></body></html>`;
+   const html=clean?withNewsletterFooter(clean,givingEmailFooter('cid:brent-signature')):`<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body style="margin:0;background:${colors.white};color:${colors.ink};font:15px/1.6 Arial,sans-serif"><div style="max-width:640px;margin:auto;padding:24px"><div>${escape(message).replace(/\r?\n/g,'<br>')}</div>${givingEmailFooter('cid:brent-signature')}</div></body></html>`;
    const bcc=to.filter(address=>address!==sender);
    for(const file of files)await env.RECEIPTS.put(file.metadata.key,file.bytes,{httpMetadata:{contentType:attachmentType(file.metadata.filename)}});
-   const payload=JSON.stringify({recipients:to,...(files.length?{attachments:files.map(f=>f.metadata)}:{}),delivery:{from:`Hope Sojourns <${sender}>`,to:[sender],...(bcc.length?{bcc}:{}),reply_to:sender,subject,text:message+'\n\n'+footerText,html,attachments:[{filename:'brent-kern-signature.png',content:signature,content_id:'brent-signature'}]}});
+   const payload=JSON.stringify({recipients:to,...(formatted?{format:'html'}:{}),...(files.length?{attachments:files.map(f=>f.metadata)}:{}),delivery:{from:`Hope Sojourns <${sender}>`,to:[sender],...(bcc.length?{bcc}:{}),reply_to:sender,subject,text:message+'\n\n'+footerText,html,attachments:[{filename:'brent-kern-signature.png',content:signature,content_id:'brent-signature'}]}});
    const now=new Date().toISOString();
    await env.DB.prepare("INSERT OR IGNORE INTO contact_emails(id,request_hash,payload_json,attempt_key,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(body.sendId,hash,payload,'contact-'+body.sendId,session.user.id,now,now).run();
    existing=await env.DB.prepare('SELECT * FROM contact_emails WHERE id=?').bind(body.sendId).first<Mail>();

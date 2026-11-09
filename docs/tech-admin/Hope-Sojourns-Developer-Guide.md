@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 5.18
+Version 5.20
 
-Last reviewed: November 8, 2026
+Last reviewed: November 9, 2026
 
 ## Release asset verification
 
@@ -44,6 +44,8 @@ Contact email attachments are included in the existing composer and backend work
 The contact-email sender remains fixed at `admin@hopesojourns.com`. Resend requires verified owned-domain senders. Future selectable senders need an authorized sender allowlist; personal Gmail sending needs a separately authorized Gmail delivery integration. Reply-To alone does not change From.
 
 ## Independent prayer portal
+
+Invite someone now calls the admin-only POST /api/invites and sends a seven-day member invitation through Resend in production. Migration 0015 adds invitation_deliveries with sending, sent, captured and failed states; no raw token is stored there. The invitation, replacement expiry and sending row share an atomic batch with a fresh admin guard. Sending happens only after commit, uses a 15-second timeout, no redirects and a per-invitation idempotency key; 20 attempts per admin per 15 minutes limits bursts. GET /api/invites returns admin-only send metadata. Sent means provider acceptance, not inbox delivery. Test/local never call the provider. A failed or uncertain send retains the one-time private backup link; another invitation replaces the earlier link. Legacy access-queue approval links remain manually delivered. The configured sender and reply-to for automatic invitations and password recovery is prayer@hopesojourns.com; the active Cloudflare Email Routing rule forwards incoming mail to christianstepsministries@gmail.com (a forwarding address, not a separate mailbox). On authorized deploys, explicitly set PRAYER_EMAIL_FROM in both prayer environments because --keep-vars retains dashboard settings. Preserve PRAYER_RESEND_API_KEY as a production secret. No MMT mail or data integration changes.
 
 The prayer app default logo is /assets/prayer-portal-logo.png, packaged from cloudflare/prayer-worker/public/assets by prepare.mjs. Both the initial HTML and siteConfig fallback use it; the image alt text identifies the Prayer Portal. Custom PORTAL_LOGO_PATH remains supported. The prayer build no longer copies the shared website logo into its assets. Root assets/hope-sojourns-logo.png and main website/MMT references remain unchanged; no schema or permission changes are needed.
 
@@ -1373,7 +1375,15 @@ Files are stored in the environment's private RECEIPTS bucket under contact-emai
 
 GET /admin/contacts/emails/:id/attachments/:index requires authentication and Contacts read access, resolves only immutable saved metadata, verifies bytes, and returns a forced download with private no-store and nosniff headers. Contact histories and Emails sent show filename/size links, never R2 keys or public URLs. Test delivery payloads, immutable retries, access control, downloads, corrupt files, unsupported formats, and size/count limits with contact-email-attachments.test.ts. No real email is needed for validation.
 
+Formatted contact newsletters use format: html plus html and the required message text alternative on the existing send route. The default text contract and hashes remain compatible. contact-email-html.ts uses sanitize-html with explicit email tag/attribute and HTTPS image/link rules; it removes scripts, events, forms, redirects, base elements, embedded documents, SVG and unsafe URLs while retaining responsive style blocks and inline email CSS. CSS is trusted presentation content from authorized Contacts editors and never joins the portal DOM. POST /admin/contacts/emails/render requires Contacts edit and CSRF, sanitizes and returns the complete footer-inclusive preview without saving or sending. GET /admin/contacts/emails/:id/preview requires Contacts read and returns the immutable saved HTML, resolving only its stored inline signature. publicMail exposes a format marker; HTML is fetched lazily from history. Preview iframes have an empty sandbox (opaque origin, no scripts/forms/popups) and no-referrer. They load separate authenticated HTML documents so the portal CSP remains unchanged; srcdoc would inherit its inline-style prohibition. Preview responses use no-store, nosniff, SAMEORIGIN, and a CSP sandbox with no scripts/forms and only inline CSS plus HTTPS/data images. POST render replaces one private RECEIPTS snapshot per editor under contact-email-previews/<user-id>.json. GET /admin/contacts/emails/render/:id requires the same editor with Contacts edit access and a matching random preview ID, expires after 15 minutes, and deletes expired snapshots on access. A new preview replaces the previous snapshot, bounding retained drafts to one per editor. Saved-copy ?document=1 uses the same isolated HTML response with Contacts read access. Previewing creates no contact-email record or delivery. The UI requires a fresh preview after source edits. HTML is limited to 80,000 characters; HTML file loading is limited to 80 KB. Contact-email JSON requests alone allow 128 KB; other admin JSON defaults remain 48 KB, and attachment bounds remain unchanged. Hashes include original HTML for formatted sends; retries reuse the exact saved sanitized HTML, footer, text, recipients and attachments. Existing BCC, CSRF, contact activity, idempotency and test capture rules apply. No schema change is required. Validate contact-email-html, contact-email, attachments, records and UI tests, TypeScript, environment isolation and both Worker dry builds. The public Giving page and generated knowledge catalog also include the Founding Partners invitation, open to all monthly amounts without a fixed deadline or member limit.
+
+The MMT Word builder places its latest revision on the contents page, avoiding a nearly empty page after the index. Keep all page references verified after regeneration.
+
 ## Revision history
+
+- November 9, 2026 — Version 5.20. Added sanitized HTML newsletter delivery, isolated previews, saved-copy retrieval and validation. No migration. Pending release approval.
+
+- November 9, 2026 — Version 5.19. Added automatic production invitation email, admin send status and manual fallback; test/local mail capture remains isolated. Sender prayer@hopesojourns.com forwards incoming replies to christianstepsministries@gmail.com. Local review; pending release approval.
 
 - November 8, 2026 — Version 5.18. Added the approved Prayer Portal logo with praying-hands j and Prayer Portal subtitle. Original website/MMT logo preserved. Local review; pending release approval.
 

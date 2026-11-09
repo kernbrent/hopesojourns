@@ -5,7 +5,7 @@ export type EmailAttachment={filename:string;size:number;sha256:string;key:strin
 const types:Record<string,string>={pdf:'application/pdf',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',ppt:'application/vnd.ms-powerpoint',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',txt:'text/plain',csv:'text/csv',rtf:'application/rtf',odt:'application/vnd.oasis.opendocument.text',ods:'application/vnd.oasis.opendocument.spreadsheet',odp:'application/vnd.oasis.opendocument.presentation',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'};
 export async function attachmentDigest(bytes:Uint8Array){return Buffer.from(await crypto.subtle.digest('SHA-256',new Uint8Array(bytes).buffer)).toString('hex');}
 export async function readEmailBody(request:Request){
- if(!request.headers.get('content-type')?.startsWith('multipart/form-data'))return {body:await readAdminJson(request),files:[] as {metadata:EmailAttachment;bytes:Uint8Array}[]};
+ if(!request.headers.get('content-type')?.startsWith('multipart/form-data'))return {body:await readAdminJson(request,128*1024),files:[] as {metadata:EmailAttachment;bytes:Uint8Array}[]};
  const limit=attachmentLimit+128*1024;
  if(Number(request.headers.get('content-length')||0)>limit)throw new AdminError(413,'ATTACHMENT_LIMIT','Attachments must total 10 MB or less.');
  const chunks:Uint8Array[]=[];let size=0;const reader=request.body?.getReader();

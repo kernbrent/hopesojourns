@@ -18,6 +18,46 @@ it('previews deduplicated current addresses, skipped contacts, fixed sender and 
  const f=await setup(),r=await f.call('/preview',{personIds:['one','two','blank','invalid']});expect(r.status).toBe(200);
  const p=await r.json() as any;expect(p.to).toEqual(['one@example.test']);expect(p.skipped).toEqual(['Test blank','Test invalid']);expect(p.from).toBe('admin@hopesojourns.com');expect(p.footerHtml).toContain('Hope Sojourns oval logo');expect(p.footerHtml).toContain('Brent Kern’s signature');expect(p.footerHtml).toContain('WitLooL™');expect(f.fetchMock).not.toHaveBeenCalled();
 });
+it('renders and delivers a sanitized responsive newsletter with a plain-text alternative and one standard footer',async()=>{
+ const f=await setup();
+ const html='<html><head><style>@media(max-width:640px){.email-shell{width:100%!important}}</style></head><body><table class="email-shell" width="640"><tr><td style="padding:24px"><h1>Hope Sojourns News</h1><img src="https://hopesojourns.com/assets/hope-sojourns-logo.png" alt="Hope Sojourns"><a href="https://hopesojourns.com/giving/#donate">Become a Founding Partner</a></td></tr></table><script>alert(1)</script><img src="javascript:alert(1)" onerror="alert(1)"><iframe src="https://example.test">bad frame</iframe><form action="https://example.test"><input name="password"></form></body></html>';
+ const preview=await (await f.call('/render',{html})).json() as any;
+ expect(preview.html).toContain('@media(max-width:640px)');expect(preview.html).toContain('style="padding:24px"');expect(preview.html).toContain('data:image/png;base64,AQID');
+ const draftPath=preview.previewUrl.replace('/api/interest/admin/contacts/emails','');
+ const draft=await f.call(draftPath,undefined,'GET');expect(draft.headers.get('content-type')).toContain('text/html');expect(draft.headers.get('content-security-policy')).toContain("style-src 'unsafe-inline'");expect(draft.headers.get('content-security-policy')).toContain("frame-ancestors 'self'; sandbox");expect(draft.headers.get('cache-control')).toBe('no-store, private');expect(await draft.text()).toBe(preview.html);
+ for(const unsafe of ['<script','onerror','javascript:','<iframe','<form','<input'])expect(preview.html).not.toContain(unsafe);
+ expect(f.fetchMock).not.toHaveBeenCalled();expect(f.sqlite.prepare('SELECT COUNT(*) n FROM contact_emails').get()!.n).toBe(0);
+ const body={...f.body,format:'html',html,message:'Hope Sojourns News\nBecome a Founding Partner: https://hopesojourns.com/giving/#donate'};
+ const result=await (await f.call('',body)).json() as any;expect(result.email.format).toBe('html');expect(result.email.status).toBe('sent');
+ const sent=JSON.parse((f.fetchMock.mock.calls[0] as any)[1].body);
+ expect(sent.html).toContain('<h1>Hope Sojourns News</h1>');expect(sent.html).not.toContain('&lt;h1');expect(sent.text).toContain(body.message);expect(sent.html.match(/WitLooL™/g)).toHaveLength(1);expect(sent.html).toContain('cid:brent-signature');expect(sent.bcc).toEqual(['manual@example.test','one@example.test']);
+ const copy=await (await f.call('/'+body.sendId+'/preview',undefined,'GET')).json() as any;expect(copy.html).toContain('data:image/png;base64,AQID');
+ const savedPath='/admin/contacts/emails/'+body.sendId+'/preview';const savedDocument=await handleContactEmail(f.request(savedPath+'?document=1',undefined,'GET'),f.env,savedPath);expect(savedDocument.headers.get('content-type')).toContain('text/html');expect(await savedDocument.text()).toBe(copy.html);
+ expect((await f.call('',{...body,html:html.replace('Hope Sojourns News','Changed newsletter')})).status).toBe(409);
+});
+it('replaces draft previews and expires them without exposing another editor’s draft',async()=>{
+ const f=await setup(),first=await (await f.call('/render',{html:'<p>First</p>'})).json() as any,second=await (await f.call('/render',{html:'<p>Second</p>'})).json() as any;
+ const suffix=(url:string)=>url.replace('/api/interest/admin/contacts/emails','');
+ expect((await f.call(suffix(first.previewUrl),undefined,'GET')).status).toBe(404);
+ const key='contact-email-previews/primary.json',bytes=f.files.get(key)!;const stored=JSON.parse(new TextDecoder().decode(bytes));stored.expiresAt=0;f.files.set(key,new TextEncoder().encode(JSON.stringify(stored)));
+ expect((await f.call(suffix(second.previewUrl),undefined,'GET')).status).toBe(404);expect(f.files.has(key)).toBe(false);
+ const next=await (await f.call('/render',{html:'<p>Private preview</p>'})).json() as any;
+ f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,must_change_password,permissions_json,registered_at,updated_at) VALUES('other','othereditor','Other','Editor','other@example.test',0,'{"contacts":"edit"}','2026','2026'); UPDATE admin_sessions SET user_id='other' WHERE id='test-session';`);
+ expect((await f.call(suffix(next.previewUrl),undefined,'GET')).status).toBe(404);expect(f.fetchMock).not.toHaveBeenCalled();
+});
+it('captures formatted newsletters without live delivery and preserves exact HTML on uncertain retries',async()=>{
+ const f=await setup(),body={...f.body,format:'html',html:'<p>January in Mexico</p>'};
+ f.fetchMock.mockImplementationOnce(async()=>{throw Error('timeout');});
+ expect((await (await f.call('',body)).json() as any).email.status).toBe('uncertain');
+ f.files.set(signatureKey,new Uint8Array([9]));await f.call('/'+body.sendId+'/retry',{});
+ expect((f.fetchMock.mock.calls[1] as any)[1].body).toBe((f.fetchMock.mock.calls[0] as any)[1].body);
+ f.env.ENVIRONMENT='test';expect((await (await f.call('',{...body,sendId:crypto.randomUUID(),subject:'Capture'})).json() as any).email.status).toBe('captured');expect(f.fetchMock).toHaveBeenCalledTimes(2);
+});
+it('rejects invalid HTML, invalid format and missing alternatives before saving or delivery',async()=>{
+ const f=await setup();
+ for(const changes of [{format:'other'},{format:'html'},{format:'html',html:'<script>only script</script>'},{format:'html',html:'x'.repeat(80001)},{format:'html',html:'<p>Hello</p>',message:''}])expect((await f.call('',{...f.body,...changes})).status).toBe(422);
+ expect(f.fetchMock).not.toHaveBeenCalled();expect(f.sqlite.prepare('SELECT COUNT(*) n FROM contact_emails').get()!.n).toBe(0);
+});
 it('keeps selected and manually added recipients in BCC with only the ministry address in To and preserves the signed footer',async()=>{
  const f=await setup();expect((await f.call('',f.body)).status).toBe(200);expect(f.fetchMock).toHaveBeenCalledTimes(1);
  const [url,init]=f.fetchMock.mock.calls[0] as any;expect(url).toBe('https://api.resend.com/emails');const payload=JSON.parse(init.body);
@@ -71,7 +111,9 @@ it('requires authentication, CSRF and contact edit permission for sending and re
  const noCsrf=f.request('/admin/contacts/emails',f.body);noCsrf.headers.delete('x-csrf-token');expect((await handleContactEmail(noCsrf,f.env,'/admin/contacts/emails')).status).toBe(403);
  f.sqlite.exec(`INSERT INTO mmt_users(id,username,first_name,last_name,email,must_change_password,permissions_json,registered_at,updated_at) VALUES('reader','emailreader','Test','Reader','reader@example.test',0,'{"contacts":"read"}','2026','2026'); UPDATE admin_sessions SET user_id='reader' WHERE id='test-session';`);
  expect((await f.call('',f.body)).status).toBe(403);expect((await f.call('/'+f.body.sendId+'/retry',{})).status).toBe(403);expect((await f.call('',undefined,'GET')).status).toBe(200);expect(f.fetchMock).not.toHaveBeenCalled();
+ expect((await f.call('/render',{html:'<p>Not allowed</p>'})).status).toBe(403);
  f.sqlite.exec(`UPDATE mmt_users SET permissions_json='{}' WHERE id='reader'`);expect((await f.call('',undefined,'GET')).status).toBe(403);
+ expect((await f.call('/'+f.body.sendId+'/preview',undefined,'GET')).status).toBe(403);
 });
 it('fails clearly when the standard signature is missing and reports provider rejections without claiming delivery',async()=>{
  const f=await setup();f.files.delete(signatureKey);expect((await f.call('',f.body)).status).toBe(503);expect(f.fetchMock).not.toHaveBeenCalled();

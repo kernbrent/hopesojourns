@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.108
+Version 4.110
 
-Last reviewed: November 8, 2026
+Last reviewed: November 9, 2026
 
 ## Phone number presentation
 
@@ -22,6 +22,8 @@ More details holds type (Coffee by default), end, all-day dates, location, outco
 Default to compact Grid rows in Upcoming & recent: unfinished records plus finished meetings from the last 90 days. Offer Past meetings, All meetings and optional Month/Week calendar views with Sunday-first America/Chicago times. Row arrows independently expand/collapse with aria-expanded and aria-controls. Clamp summaries to two lines; expansion exposes full text. Use shared paper/forest tokens, Georgia headings, native controls and visible keyboard focus. Wrap task/footer controls on phones and contain table scrolling.
 
 ## Independent prayer portal
+
+In Invite someone, use Send invitation and explain the private seven-day link. Display send confirmation, a clear test-only no-email message, or an email-not-confirmed warning with manual link/reinvite steps. Recent invitations shows status; describe sent as email-service acceptance, without promising inbox delivery. Keep the copyable private backup link and tell admins that reissuing replaces the earlier invitation. Reuse the existing status, hint, panel and button styles. No new palette tokens or layout components are required.
 
 The Prayer Portal uses its own approved horizontal logo: the original-style oval landscape with praying hands replacing the j in Sojourns, and PRAYER PORTAL beneath the wordmark. Use the transparent public/assets/prayer-portal-logo.png only in the independent prayer app, preserving its aspect ratio. Main website, MMT portal and document logos retain the original Hope Sojourns artwork.
 
@@ -920,7 +922,15 @@ Inbox Show includes Emails sent, with readable cards for subject and accepted ti
 
 The contact email composer places a labeled Attachments (optional) file picker below Message. Show supported file types and the limits of five files, 5 MB per file, and 10 MB total. List each chosen filename and size with an accessible Remove button. Wrap long filenames and controls on phones. Disable file selection and removal after submission alongside the message fields. Saved contact history and Inbox > Emails sent show private attachment download links with filenames and sizes.
 
+The contact email composer offers Email format with Plain text as the default and HTML newsletter as the alternative. HTML mode labels the message field Plain-text alternative and reveals Load newsletter HTML, Newsletter HTML, and Preview newsletter. Reuse full-width controls and existing paper/forest/line tokens. The preview fills the card width with its own bounded scroll area and a descriptive iframe title. Load a separate authenticated, sandboxed HTML document so newsletter CSS works without changing the portal security policy; isolate it from portal styling, scripts and forms. Require another preview after an HTML edit and explain validation and loading states in the existing live status region. Email history provides View newsletter for formatted messages. The public Giving invitation uses Founding Partners, welcomes every monthly amount, and treats 100 people at $100 monthly as an initial goal without a deadline or community cap.
+
+Place the MMT Word edition latest-revision note beneath the contents-page instructions so it uses available space and does not create a nearly empty page after the index.
+
 ## Revision history
+
+- November 9, 2026 — Version 4.110. Added the accessible HTML newsletter composer, isolated preview and saved-copy controls. Pending release approval.
+
+- November 9, 2026 — Version 4.109. Added automatic production invitation email, admin send status and manual fallback; test/local mail capture remains isolated. Sender prayer@hopesojourns.com has active forwarding to the ministry inbox. Local review; pending release approval.
 
 - November 8, 2026 — Version 4.108. Added the approved Prayer Portal logo with praying-hands j and Prayer Portal subtitle. Original website/MMT logo preserved. Local review; pending release approval.
 
