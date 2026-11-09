@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.20
+Version 5.21
 
 Last reviewed: November 9, 2026
 
@@ -1379,7 +1379,15 @@ Formatted contact newsletters use format: html plus html and the required messag
 
 The MMT Word builder places its latest revision on the contents page, avoiding a nearly empty page after the index. Keep all page references verified after regeneration.
 
+## Bulk contact type changes
+
+People and Contact spreadsheet share the contactTypeBulkControls component in admin/admin.js. Explicit selected IDs persist across pages and filters; Select all visible contacts adds the currently displayed filtered rows. A single chosen editable category can be added or removed for 1–500 selected contacts. Confirm the category, action and selected count; the spreadsheet confirmation also warns about unsaved row edits. Disable mutations without Contacts edit permission and while a type request is pending. Refresh the current list after success and report changed and unchanged totals in a live status region.
+
+POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
+
 ## Revision history
+
+- November 9, 2026 — Version 5.21. Added permission-checked atomic bulk contact type add/remove, selection controls, managed-category rules and tests. No migration. Pending release approval.
 
 - November 9, 2026 — Version 5.20. Added sanitized HTML newsletter delivery, isolated previews, saved-copy retrieval and validation. No migration. Pending release approval.
 

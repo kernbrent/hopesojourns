@@ -784,6 +784,81 @@ function contactEmailButtons() {
   return actions;
 }
 
+function confirmContactTypeChange(message, action) {
+  return new Promise(resolve => {
+    const dialog = element('dialog', 'admin-detail-dialog admin-password-dialog');
+    dialog.setAttribute('aria-label', 'Confirm contact type change');
+    const content = element('div', 'admin-detail-content');
+    const form = element('form', 'admin-reply-form');
+    form.method = 'dialog';
+    const cancel = element('button', 'admin-button admin-button-quiet', 'Cancel');
+    cancel.value = 'cancel'; cancel.autofocus = true;
+    const confirm = element('button', 'admin-button admin-button-primary', action === 'add' ? 'Confirm add' : 'Confirm removal');
+    confirm.value = 'confirm';
+    form.append(element('h2', '', 'Confirm contact type change'), element('p', '', message), cancel, confirm);
+    content.append(form); dialog.append(content); document.body.append(dialog);
+    dialog.addEventListener('close', () => { const confirmed = dialog.returnValue === 'confirm'; dialog.remove(); resolve(confirmed); }, {once: true});
+    dialog.showModal();
+  });
+}
+
+function contactTypeBulkControls() {
+  const group = element('div', 'admin-grid-bulk-group admin-contact-type-group');
+  group.append(element('strong', '', 'Change contact type for selected contacts'));
+  const label = element('label');
+  label.append(element('span', '', 'Contact type'));
+  const select = document.createElement('select');
+  const placeholder = document.createElement('option');
+  placeholder.value = ''; placeholder.textContent = 'Choose a contact type';
+  select.append(placeholder);
+  Object.entries(CONTACT_TYPE_LABELS).filter(([value]) => value !== 'portal_access')
+    .sort((a, b) => a[1].localeCompare(b[1])).forEach(([value, text]) => {
+      const option = document.createElement('option'); option.value = value; option.textContent = text;
+      select.append(option);
+    });
+  label.append(select);
+  const help = element('small', 'admin-grid-bulk-status', 'Other contact types are preserved. Portal Access is managed in Account settings. Up to 500 contacts per change.');
+  const status = element('p', 'admin-form-status admin-grid-bulk-status');
+  status.dataset.contactTypeStatus = '';
+  status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+  select.addEventListener('change', () => {
+    help.textContent = select.value === 'volunteer'
+      ? 'Adding or removing Volunteer also enables or disables Volunteer Portal access for linked accounts.'
+      : 'Other contact types are preserved. Portal Access is managed in Account settings. Up to 500 contacts per change.';
+  });
+  const buttons = ['add', 'remove'].map(action => {
+    const button = element('button', `admin-button ${action === 'add' ? 'admin-button-primary' : 'admin-button-outline'}`, `${action === 'add' ? 'Add' : 'Remove'} contact type`);
+    button.type = 'button'; button.dataset.requiresContactSelection = ''; button.dataset.contactTypeEdit = '';
+    button.addEventListener('click', async () => {
+      const personIds = selectedContactIds(), contactType = select.value;
+      if (!contactType) { status.textContent = 'Choose a contact type first.'; return; }
+      if (!personIds.length || personIds.length > 500) { status.textContent = 'Select between 1 and 500 contacts at a time.'; return; }
+      const verb = action === 'add' ? 'Add' : 'Remove', relation = action === 'add' ? 'to' : 'from';
+      const accessNote = contactType === 'volunteer' ? ` This also ${action === 'add' ? 'enables' : 'disables'} Volunteer Portal access for linked accounts.` : '';
+      const rowNote = state.view === 'grid' ? ' Unsaved spreadsheet row edits will be discarded when the list refreshes.' : '';
+      if (!await confirmContactTypeChange(`${verb} ${contactTypeLabel(contactType)} ${relation} ${plural(personIds.length, 'selected contact')}? Other contact types will be preserved.${accessNote}${rowNote}`, action)) return;
+      state.contactTypeBulkBusy = true;
+      updateGridSelectionState();
+      select.disabled = true; status.textContent = 'Updating contact types…';
+      try {
+        const { result } = await api('/contacts/bulk-types', {method: 'POST', body: {personIds, contactType, action}});
+        const message = `${contactTypeLabel(contactType)} ${action === 'add' ? 'added to' : 'removed from'} ${plural(result.updated, 'contact')}. ${plural(result.unchanged, 'contact')} already ${action === 'add' ? 'had' : 'did not have'} this type.`;
+        if (state.view === 'people') await loadPeople(); else await loadPeopleGrid();
+        const savedStatus = (state.view === 'people' ? peopleList : peopleGrid).querySelector('[data-contact-type-status]');
+        if (savedStatus) savedStatus.textContent = message;
+        else status.textContent = message;
+      } catch (error) { status.textContent = error.message; }
+      finally {
+        state.contactTypeBulkBusy = false;
+        select.disabled = false; updateGridSelectionState();
+      }
+    });
+    return button;
+  });
+  group.append(label, ...buttons, help, status);
+  return group;
+}
+
 function renderContactEmailToolbar() {
   const toolbar = element('section', 'admin-grid-bulk-tools');
   toolbar.setAttribute('aria-label', 'Selected contacts');
@@ -805,7 +880,7 @@ function renderContactEmailToolbar() {
   });
   allLabel.append(all,document.createTextNode('Select all visible contacts'));
   heading.append(element('strong', '', 'Selected contacts'), allLabel, count, clear);
-  toolbar.append(heading, contactEmailButtons());
+  toolbar.append(heading, contactTypeBulkControls(), contactEmailButtons());
   queueMicrotask(updateGridSelectionState);
   return toolbar;
 }
@@ -817,7 +892,8 @@ function updateGridSelectionState() {
   });
   document.querySelectorAll("[data-requires-contact-selection]").forEach(button => {
     button.disabled = count === 0;
-    if (button.hasAttribute('data-contact-email') && window.MmtUser && !window.MmtUser.is_admin && window.MmtUser.permissions?.contacts !== 'edit') button.disabled = true;
+    if ((button.hasAttribute('data-contact-email') || button.hasAttribute('data-contact-type-edit')) && window.MmtUser && !window.MmtUser.is_admin && window.MmtUser.permissions?.contacts !== 'edit') button.disabled = true;
+    if (button.hasAttribute('data-contact-type-edit') && state.contactTypeBulkBusy) button.disabled = true;
   });
   document.querySelectorAll('[data-select-visible-contacts]').forEach(selectAll=>{
     const list=selectAll.closest('#people-list')||peopleGrid;
@@ -853,7 +929,7 @@ function renderContactGridToolbar(people) {
   const toolbar = element("section", "admin-grid-bulk-tools");
   const heading = element("div", "admin-grid-bulk-heading");
   const copy = element("div");
-  copy.append(element("strong", "", "Selected contacts"), element("span", "", "Check contact rows to send an email, update Last Contacted, or create personalized letters."));
+  copy.append(element("strong", "", "Selected contacts"), element("span", "", "Check contact rows to change contact types, send an email, update Last Contacted, or create personalized letters."));
   const count = element("span", "admin-selection-count");
   count.dataset.selectedContactCount = "";
   const clear = element("button", "admin-button admin-button-quiet", "Clear selection");
@@ -955,7 +1031,7 @@ function renderContactGridToolbar(people) {
     }
   });
 
-  toolbar.append(heading, contactEmailButtons(), activity, documents, status);
+  toolbar.append(heading, contactTypeBulkControls(), contactEmailButtons(), activity, documents, status);
   return toolbar;
 }
 

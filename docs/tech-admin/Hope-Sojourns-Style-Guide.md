@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.110
+Version 4.111
 
 Last reviewed: November 9, 2026
 
@@ -926,7 +926,13 @@ The contact email composer offers Email format with Plain text as the default an
 
 Place the MMT Word edition latest-revision note beneath the contents-page instructions so it uses available space and does not create a nearly empty page after the index.
 
+## Bulk contact type controls
+
+Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
+
 ## Revision history
+
+- November 9, 2026 — Version 4.111. Added consistent responsive bulk contact type controls, selection confirmation and accessible result messages. Pending release approval.
 
 - November 9, 2026 — Version 4.110. Added the accessible HTML newsletter composer, isolated preview and saved-copy controls. Pending release approval.
 

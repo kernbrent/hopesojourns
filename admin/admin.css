@@ -1178,6 +1178,10 @@
   margin: 0;
 }
 
+.admin-contact-type-group > .admin-grid-bulk-status {
+  grid-column: 1 / -1;
+}
+
 .admin-grid-select-cell {
   width: 46px;
   min-width: 46px;

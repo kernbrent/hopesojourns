@@ -2770,7 +2770,53 @@ async function exportCsv(request: Request, env: AdminEnv): Promise<Response> {
   return new Response(`\uFEFF${csv}`, { status: 200, headers });
 }
 
+async function bulkContactTypes(request: Request, env: AdminEnv): Promise<Response> {
+  await authenticate(request, env, true);
+  const body = await readAdminJson(request);
+  if (!Array.isArray(body.personIds) || !body.personIds.length || body.personIds.length > 500 ||
+      body.personIds.some(id => typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id))) {
+    throw new AdminError(422, 'INVALID_CONTACTS', 'Select between 1 and 500 contacts at a time.');
+  }
+  const personIds = [...new Set(body.personIds as string[])];
+  const contactType = typeof body.contactType === 'string' ? body.contactType : '';
+  if (!ALLOWED_CONTACT_TYPES.has(contactType) || contactType === 'portal_access') {
+    throw new AdminError(422, 'INVALID_CONTACT_TYPE', 'Choose an editable contact type. Portal Access is managed through Account settings.');
+  }
+  if (body.action !== 'add' && body.action !== 'remove') {
+    throw new AdminError(422, 'INVALID_ACTION', 'Choose Add contact type or Remove contact type.');
+  }
+  const rows = await env.DB.prepare(`SELECT p.id, EXISTS(SELECT 1 FROM contact_types ct
+    WHERE ct.person_id=p.id AND ct.contact_type=?1) AS assigned
+    FROM people p WHERE p.id IN (SELECT value FROM json_each(?2))`)
+    .bind(contactType, JSON.stringify(personIds)).all<{id: string; assigned: number}>();
+  if (rows.results.length !== personIds.length) {
+    throw new AdminError(409, 'CONTACTS_CHANGED', 'One or more selected contacts no longer exist. Refresh the list and select the contacts again. No contact types were changed.');
+  }
+  const changed = rows.results.filter(row => Boolean(row.assigned) !== (body.action === 'add'));
+  const now = new Date().toISOString();
+  if (changed.length) {
+    // Set-based statements keep even a 500-contact group within D1 query/binding budgets.
+    const ids = JSON.stringify(changed.map(row => row.id));
+    const events = JSON.stringify(changed.map(row => ({id: crypto.randomUUID(), personId: row.id})));
+    await env.DB.batch([
+      body.action === 'add'
+        ? env.DB.prepare(`INSERT INTO contact_types(person_id,contact_type,created_at)
+            SELECT value,?1,?2 FROM json_each(?3) WHERE 1
+            ON CONFLICT(person_id,contact_type) DO NOTHING`).bind(contactType, now, ids)
+        : env.DB.prepare('DELETE FROM contact_types WHERE contact_type=?1 AND person_id IN (SELECT value FROM json_each(?2))').bind(contactType, ids),
+      env.DB.prepare('UPDATE people SET updated_at=?1 WHERE id IN (SELECT value FROM json_each(?2))').bind(now, ids),
+      env.DB.prepare(`INSERT INTO audit_events(id,entity_type,entity_id,event_type,metadata_json,created_at,actor_user_id)
+        SELECT json_extract(value,'$.id'),'person',json_extract(value,'$.personId'),
+          'bulk_contact_type_updated',?1,?2,?3 FROM json_each(?4)`)
+        .bind(JSON.stringify({action: body.action, contactType}), now, actorContext.getStore()?.userId ?? null, events),
+    ]);
+  }
+  return adminJson({success: true, requested: personIds.length, updated: changed.length,
+    unchanged: personIds.length - changed.length, contactType, action: body.action});
+}
+
 async function routeAdmin(request: Request, env: AdminEnv, path: string): Promise<Response> {
+  if (request.method === 'POST' && path === '/admin/contacts/bulk-types') return bulkContactTypes(request, env);
   if (request.method === "POST" && path === "/admin/login") return login(request, env);
   if (request.method === "GET" && path === "/admin/session") return sessionInfo(request, env);
   if (request.method === "GET" && ["/admin/user-guide", "/admin/developer-guide"].includes(path)) {
