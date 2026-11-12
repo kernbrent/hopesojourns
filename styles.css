@@ -497,6 +497,24 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 .nav-links a:hover, .nav-links a:focus-visible { color: var(--coral); }
 
+/* Native disclosure keeps Resources usable with keyboard, touch, and no hover. */
+.nav-resources { position: relative; }
+.nav-resources summary { display: flex; align-items: center; gap: 7px; color: var(--forest-dark); font-size: .82rem; font-weight: 700; cursor: pointer; list-style: none; }
+.nav-resources summary::-webkit-details-marker { display: none; }
+.nav-resources summary::after { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); }
+.nav-resources[open] summary::after { transform: rotate(225deg) translate(-2px, -1px); }
+.nav-resources summary:hover { color: var(--coral); }
+.nav-resources summary:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 5px; border-radius: 3px; }
+.nav-resources-menu { position: absolute; top: calc(100% + 12px); left: -16px; z-index: 1; min-width: 220px; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: var(--shadow); }
+.nav-resources-menu a { display: block; padding: 9px 12px; border-radius: 8px; }
+.nav-resources-menu a:hover, .nav-resources-menu a:focus-visible { background: var(--forest-wash); color: var(--forest-dark); }
+@media (max-width: 850px) {
+  .nav-links.open { max-height: calc(100dvh - 140px); overflow-y: auto; flex-wrap: nowrap; }
+  .nav-resources { width: 100%; }
+  .nav-resources summary { min-height: 36px; }
+  .nav-resources-menu { position: static; min-width: 0; margin-top: 8px; box-shadow: none; }
+}
+
 /* Three service pathways and the corporate leadership program. */
 .nav-links { gap: clamp(10px, 1.25vw, 20px); flex-wrap: wrap; justify-content: flex-end; }
 .service-path-grid { align-items: stretch; }

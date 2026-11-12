@@ -1,8 +1,16 @@
 # Hope Sojourns developer guide
 
-Version 5.21
+Version 5.23
 
-Last reviewed: November 9, 2026
+Last reviewed: November 11, 2026
+
+## Public newsletter archive and resource category links
+
+resources/newsletters/index.html lists editions; resources/newsletters/2026-11/index.html is the November 2026 public web edition. resources/newsletters/newsletters.css scopes the editorial layout and uses styles.css palette tokens. Both pages load /styles.css and /script.js. Source content was verified against the sent November 9 newsletter and General/HopeSojourns-Newsletter/newsletter-2026-11.json. Preserve all approved sections, journey dates, estimated pricing and conditions when converting future issues. Exclude email envelope details, private recipient lists and email-only unsubscribe controls. Preserve images without cropping.
+
+script.js renders a native details/summary Resources disclosure, closing on Escape, outside click, focus leaving the disclosure, mobile Menu closure or link selection. styles.css supplies desktop positioning and an inline, scrollable mobile treatment. Category links use /resources/?type= with an encoded known type; resources/resources.js validates the requested type against available categories before rendering the selected filter. resources/resources.json registers the issue as a featured Newsletter resource. Footer navigation keeps its direct Resources link. Shared CSS/JS already use must-revalidate caching; no blanket cache-version rewrite is needed.
+
+For an issue update, edit its public HTML, update the archive and resources.json, run Check-Color-Palette.ps1, check local links and image loading, and verify desktop/mobile dropdown behavior, keyboard dismissal and category filtering. Rebuild tools/build_knowledge_site.py and run node cloudflare/build-test-site.mjs plus the asset verifier regression tests. Public newsletter pages are included by the existing resources build allowlist. No schema, secret, email-delivery or DNS changes are required; publication remains subject to explicit release approval.
 
 ## Release asset verification
 
@@ -1386,6 +1394,8 @@ People and Contact spreadsheet share the contactTypeBulkControls component in ad
 POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
 
 ## Revision history
+
+- November 11, 2026 — Version 5.23. Documented newsletter routes, source provenance, shared Resources disclosure, category URL filters and release validation. No migration. Prepared for the authorized test and production release.
 
 - November 9, 2026 — Version 5.21. Added permission-checked atomic bulk contact type add/remove, selection controls, managed-category rules and tests. No migration. Pending release approval.
 

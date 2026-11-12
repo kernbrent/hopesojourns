@@ -7,7 +7,7 @@
   const empty = document.getElementById("resource-empty");
   const featured = document.getElementById("featured-resource");
   let items = [];
-  let activeType = "All";
+  let activeType = new URLSearchParams(window.location.search).get("type") || "All";
   const esc = value => String(value ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
   const date = value => value ? new Intl.DateTimeFormat("en-US", {year:"numeric",month:"short",day:"numeric"}).format(new Date(`${value}T12:00:00`)) : "";
   const isAudio = item => Boolean(item.url && /\.(mp3|m4a|aac|wav|ogg)(?:[?#].*)?$/i.test(item.url));
@@ -87,7 +87,8 @@
   fetch("/resources/resources.json", {cache:"no-store"}).then(r => { if (!r.ok) throw new Error("Resources unavailable"); return r.json(); }).then(data => {
     items = data.items || [];
     const types = ["All", ...new Set(items.flatMap(item => [item.type, ...(item.actions || []).map(action => action.type)]).filter(Boolean))];
-    filters.innerHTML = types.map(type => `<button class="resource-filter" type="button" aria-pressed="${type === "All"}" data-type="${esc(type)}">${esc(type)}</button>`).join("");
+    if (!types.includes(activeType)) activeType = "All";
+    filters.innerHTML = types.map(type => `<button class="resource-filter" type="button" aria-pressed="${type === activeType}" data-type="${esc(type)}">${esc(type)}</button>`).join("");
     filters.addEventListener("click", event => { const button = event.target.closest("button[data-type]"); if (!button) return; activeType = button.dataset.type; filters.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === button))); render(); });
     search.addEventListener("input", render);
     render();

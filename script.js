@@ -17,7 +17,21 @@ const header = `
         <a href="/past-trips/">Past trips</a>
         <a href="/internships/">Internships</a>
         <a href="/corporate-journeys/">Corporate journeys</a>
-        <a href="/resources/">Resources</a>
+        <details class="nav-resources">
+          <summary>Resources</summary>
+          <div class="nav-resources-menu">
+            <a href="/resources/">All resources</a>
+            <a href="/resources/newsletters/">Newsletters</a>
+            <a href="/resources/?type=Guided%20reading">Guided readings</a>
+            <a href="/resources/?type=Collection">Collections</a>
+            <a href="/resources/?type=Article">Articles</a>
+            <a href="/resources/?type=Sermon">Sermons</a>
+            <a href="/resources/?type=Devotional">Devotionals</a>
+            <a href="/resources/?type=Song">Songs</a>
+            <a href="/resources/?type=Video">Videos</a>
+            <a href="/resources/?type=Brochure">Brochures</a>
+          </div>
+        </details>
         <a href="/giving/">Giving</a>
         <a href="/about/">About us</a>
         <a href="/faq/" aria-label="Frequently asked questions">FAQ</a>
@@ -82,14 +96,32 @@ document.getElementById("year").textContent = new Date().getFullYear();
 
 const toggle = document.querySelector(".nav-toggle");
 const links = document.getElementById("nav-links");
+const resourceNavigation = document.querySelector(".nav-resources");
+const closeResourceNavigation = () => resourceNavigation?.removeAttribute("open");
+
+document.addEventListener("click", event => {
+  if (!resourceNavigation?.contains(event.target)) closeResourceNavigation();
+});
+resourceNavigation?.addEventListener("keydown", event => {
+  if (event.key !== "Escape" || !resourceNavigation.open) return;
+  closeResourceNavigation();
+  resourceNavigation.querySelector("summary").focus();
+  event.preventDefault();
+  event.stopPropagation();
+});
+resourceNavigation?.addEventListener("focusout", event => {
+  if (!resourceNavigation.contains(event.relatedTarget)) closeResourceNavigation();
+});
 toggle?.addEventListener("click", () => {
   const open = toggle.getAttribute("aria-expanded") === "true";
   toggle.setAttribute("aria-expanded", String(!open));
   links.classList.toggle("open", !open);
+  if (open) closeResourceNavigation();
 });
 links?.querySelectorAll("a").forEach(link => link.addEventListener("click", () => {
   toggle?.setAttribute("aria-expanded", "false");
   links.classList.remove("open");
+  closeResourceNavigation();
 }));
 
 // Each card group owns its disclosure, so pathways and approach work independently.

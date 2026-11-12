@@ -1,8 +1,14 @@
 # Hope Sojourns website style guide
 
-Version 4.111
+Version 4.113
 
-Last reviewed: November 9, 2026
+Last reviewed: November 11, 2026
+
+## Newsletter web editions and Resources navigation
+
+The shared header presents Resources as a native disclosure dropdown. Include All resources, Newsletters, Guided readings, Collections, Articles, Sermons, Devotionals, Songs, Videos and Brochures. Support click, touch, Enter/Space, Tab, Escape, outside click and focus leaving the dropdown; keep mobile links inline within the scrollable Menu panel. Preserve an ordinary Resources link in the footer.
+
+Public newsletters use semantic HTML inside the standard site shell rather than the email table layout. The archive lives at /resources/newsletters/ and the November edition at /resources/newsletters/2026-11/. Preserve the approved newsletter text and image in full, with a forest masthead, serif editorial headings, gold rules, comfortable reading width and a responsive journey list. Use shared palette variables exclusively. Include an issue date, in-page contents, archive breadcrumb and a note distinguishing the archived invitation from current journey availability. Do not display email-only unsubscribe instructions or photo credits.
 
 ## Phone number presentation
 
@@ -931,6 +937,8 @@ Place the MMT Word edition latest-revision note beneath the contents-page instru
 Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
 
 ## Revision history
+
+- November 11, 2026 — Version 4.113. Added the public November newsletter, archive, responsive editorial layout and accessible Resources dropdown. Prepared for the authorized test and production release.
 
 - November 9, 2026 — Version 4.111. Added consistent responsive bulk contact type controls, selection confirmation and accessible result messages. Pending release approval.
 
