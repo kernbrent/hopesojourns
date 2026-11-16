@@ -138,6 +138,7 @@ it('migrates every introduction stage into one shared task without losing histor
  f.sqlite.prepare('UPDATE meeting_introductions SET notes=? WHERE id=?').run('Keep my notes '+ 'x'.repeat(3986),ids[5]);
  f.sqlite.exec(readFileSync(new URL('../migrations/0065_simplify_meeting_introductions.sql',import.meta.url),'utf8'));
  f.sqlite.exec(readFileSync(new URL('../migrations/0066_task_deleted_at.sql',import.meta.url),'utf8'));
+ f.sqlite.exec(readFileSync(new URL('../migrations/0067_outreach.sql',import.meta.url),'utf8'));
  expect(f.sqlite.prepare('SELECT count(*) n FROM meeting_introductions WHERE converted_task_id IS NOT NULL').get()?.n).toBe(6);
  for(let n=0;n<stages.length;n++){const t=f.sqlite.prepare('SELECT * FROM ministry_tasks WHERE id=?').get(ids[n]);expect(t).toMatchObject({person_id:target,meeting_id:id,introduction_id:ids[n],status:n<3?'open':n===5?'canceled':'completed'});expect(t?.notes).toContain('Keep my notes');expect(t?.notes).toContain('George Sample');expect(t?.notes).toContain('2026-10-29');if(n<5)expect(t?.notes).toContain('Send the email');expect(String(t?.notes).length).toBeLessThanOrEqual(4000);}
  expect(f.sqlite.prepare('SELECT length(notes) n FROM meeting_introductions WHERE id=?').get(ids[5])?.n).toBe(4000);

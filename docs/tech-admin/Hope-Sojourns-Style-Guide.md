@@ -1,14 +1,29 @@
 # Hope Sojourns website style guide
 
-Version 4.113
+Version 4.114
 
-Last reviewed: November 11, 2026
+Last reviewed: November 16, 2026
+
+## Outreach workspace and sidebar counters
+
+The generated MMT user-guide index uses 9.5-point text, single line spacing and 2-point paragraph spacing in its two-column layout to keep navigation compact and prevent a few index lines spilling onto an otherwise empty page. Preserve readable body text and complete index entries.
+
+Outreach is a distinct People & ministry workspace. Use the existing portal shell, forest headings, paper surfaces and semantic line/error colors from styles.css; no new palette values are required. Four compact summaries precede labeled Search, Stage and Show filters. The organization/person table keeps stage, last contact, next action/date, owner and Open controls readable in a horizontal scroll region on narrow screens. Do not merge prospects into the main contact list visually or automatically.
+
+Use native labeled dialogs for detail, editing, activity logging, import review and positive-response promotion. Preserve full message text as wrapping plain text, with sender/recipient/date metadata and source links. Escape all imported text. Show Positive response separately from pipeline stage, and keep Add to Contacts an explicit action; a coffee invitation does not mean a meeting is scheduled or partnership confirmed. Show linked contacts after promotion while retaining Outreach history. Editing, Update follow-up and Log activity use descriptive controls; use a live status region for errors.
+
+Sidebar Tasks & follow-up displays an open-task numeric badge, and Inbox displays a personal unread-notice badge, including zero. Use shared paper/forest tokens, visible text and accessible count labels. Read/unread controls are independent of completed/action workflow notices. The login Remember me description distinguishes remembered username/session from browser-managed password autofill. Keep keyboard focus, native dialogs, responsive menu behavior and comfortable control sizes consistent with other MMT screens.
+
 
 ## Newsletter web editions and Resources navigation
 
 The shared header presents Resources as a native disclosure dropdown. Include All resources, Newsletters, Guided readings, Collections, Articles, Sermons, Devotionals, Songs, Videos and Brochures. Support click, touch, Enter/Space, Tab, Escape, outside click and focus leaving the dropdown; keep mobile links inline within the scrollable Menu panel. Preserve an ordinary Resources link in the footer.
 
 Public newsletters use semantic HTML inside the standard site shell rather than the email table layout. The archive lives at /resources/newsletters/ and the November edition at /resources/newsletters/2026-11/. Preserve the approved newsletter text and image in full, with a forest masthead, serif editorial headings, gold rules, comfortable reading width and a responsive journey list. Use shared palette variables exclusively. Include an issue date, in-page contents, archive breadcrumb and a note distinguishing the archived invitation from current journey availability. Do not display email-only unsubscribe instructions or photo credits.
+
+## Public photo credits
+
+Never display photo credits on Hope Sojourns web pages, including destination banners. Preserve source and license records in private administrative metadata or project documentation. Choose imagery whose permitted use fits this presentation. The shared destination renderer omits image_credit; accessibility descriptions remain in place.
 
 ## Phone number presentation
 
@@ -71,7 +86,7 @@ Every post shows its audience. The composer defaults to **Only me and admins**, 
 
 The home page introduces Mission Journeys, Internship Placements, and Corporate Humanitarian Journeys before the destination grid. Use equally sized clickable cards on a forest gradient, warm paper surfaces, colored top accents, and rounded rectangular number badges. Each card opens one shared detail panel below the row. Keep the group independent of Our approach. Minimize pathway details and Escape close the panel and return focus. Use aria-expanded, aria-controls, hidden, and inert to reflect its state. Stack cards and panel columns on mobile and respect reduced motion. Keep the photographic hero, Georgia headings, and shared palette.
 
-Place the journey collage in its own paper section beneath the service cards. The six-panel collage excludes Nice and Belize. Each panel has a small location label; the Halifax panel and local destination tile use the verified English town view from Beacon Hill. The user requested removal of the AI-content text inside the collage. Preserve proportions and Mexico/Halifax credits and licenses. Use `assets/journey-collage-labeled.png`; the tile uses `assets/halifax-england-beacon-hill.jpg`.
+Place the journey collage in its own paper section beneath the service cards. The six-panel collage excludes Nice and Belize. Each panel has a small location label; the Halifax panel and local destination tile use the verified English town view from Beacon Hill. The user requested removal of the AI-content text inside the collage. Preserve proportions and retain Mexico/Halifax source and license records privately. Use `assets/journey-collage-labeled.png`; the tile uses `assets/halifax-england-beacon-hill.jpg`.
 
 Corporate pages at `/corporate-journeys/` and `/corporate-journeys/curriculum/` use the existing paper, forest, gold, and coral tokens. The corporate introduction pairs a text lead with a forest panel; cards and stages stack on narrower screens. Shared navigation wraps on desktop and retains the Menu disclosure on mobile. The curriculum is titled Leadership Transformation, with eight readable sessions, anchor navigation, semantic lists, and a horizontally scrollable comparison table. Print rules affecting navigation are scoped to the curriculum body.
 
@@ -938,7 +953,11 @@ Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. 
 
 ## Revision history
 
+- November 16, 2026 — Version 4.114. Documented Outreach separation, history and promotion, task state repair, sidebar counts/read status and remembered sign-in. Local changes pending release approval.
+
 - November 11, 2026 — Version 4.113. Added the public November newsletter, archive, responsive editorial layout and accessible Resources dropdown. Prepared for the authorized test and production release.
+
+- November 11, 2026 — Version 4.112. Removed public destination photo credits at Brent’s request; source/license metadata retained privately. Local pending release.
 
 - November 9, 2026 — Version 4.111. Added consistent responsive bulk contact type controls, selection confirmation and accessible result messages. Pending release approval.
 

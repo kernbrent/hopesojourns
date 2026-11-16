@@ -1,0 +1,21 @@
+.outreach-summary,.outreach-tools { display:flex;flex-wrap:wrap;gap:16px;margin:20px 0;align-items:end; }
+.outreach-summary p { margin:0;padding:12px 18px;border-left:3px solid var(--forest);background:var(--paper); }
+.outreach-summary strong { display:block;font-size:1.5rem; }
+.outreach-tools label { display:grid;gap:6px; }
+.outreach-table { width:100%;border-collapse:collapse; }
+.outreach-table td,.outreach-table th { padding:14px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top; }
+.outreach-table th { color:var(--paper);background:var(--forest-deep); }
+.outreach-table small { display:block; }
+.outreach-scroll { overflow-x:auto; }
+body:has(#workspace) dialog { width:min(950px,94vw);max-height:90dvh;overflow:auto;box-sizing:border-box; }
+dialog header,dialog footer,.outreach-actions { display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap; }
+#editor-fields label { display:grid;gap:5px;margin:10px 0; }
+#editor-fields label.check { display:flex;align-items:center;gap:8px; }
+.outreach-grid,.outreach-people { display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px; }
+.outreach-person,.outreach-activity { border-bottom:1px solid var(--line);padding:14px 0; }
+.outreach-activity pre { white-space:pre-wrap;overflow-wrap:anywhere;font:inherit; }
+.outreach-person input { min-width:0;width:100%;box-sizing:border-box; }
+.outreach-meta { overflow-wrap:anywhere; }
+#editor-fields textarea { min-height:90px; }
+.outreach-due { font-weight:bold;color:var(--error); }
+@media(max-width:700px){.outreach-tools>* { width:100%; }.outreach-table td,.outreach-table th { padding:10px; }}

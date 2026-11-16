@@ -1,4 +1,5 @@
 /* One sidebar style, isolated from each workspace's content. */
+.mmt-count { float:right;min-width:1.7em;margin-left:8px;padding:0 5px;border-radius:12px;background:var(--paper);color:var(--forest-deep);text-align:center;font-variant-numeric:tabular-nums; }
 body.mmt-navigation-ready { --mmt-menu-width:260px; }
 body.mmt-navigation-ready .mmt-sidebar { position:fixed;inset:0 auto 0 0;z-index:40;display:flex;width:var(--mmt-menu-width);height:100dvh;box-sizing:border-box;flex-direction:column;gap:16px;padding:24px 16px;overflow-y:auto;background:var(--forest-deep);color:var(--paper);font:14px/1.45 "Segoe UI",Aptos,sans-serif;transform:none; }
 body.mmt-navigation-ready .mmt-sidebar[hidden] { display:none; }

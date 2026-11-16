@@ -415,6 +415,7 @@ function formatMoney(value) {
 function restoreRememberMePreference() {
   try {
     loginForm.elements.rememberMe.checked = localStorage.getItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY) === "true";
+    if (loginForm.elements.rememberMe.checked && !loginForm.elements.username.value) loginForm.elements.username.value = localStorage.getItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY + "-username") || "";
   } catch {
     /* Browser storage is optional; the checkbox still works for the current sign-in. */
   }
@@ -422,8 +423,13 @@ function restoreRememberMePreference() {
 
 function saveRememberMePreference(rememberMe) {
   try {
-    if (rememberMe) localStorage.setItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY, "true");
-    else localStorage.removeItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY);
+    if (rememberMe) {
+      localStorage.setItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY, "true");
+      localStorage.setItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY + "-username", loginForm.elements.username.value.trim());
+    } else {
+      localStorage.removeItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY);
+      localStorage.removeItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY + "-username");
+    }
   } catch {
     /* Browser storage is optional; the server session remains authoritative. */
   }
@@ -439,7 +445,6 @@ function showLogin(message = "") {
   dashboardPanel.hidden = true;
   loginPanel.hidden = false;
   loginStatus.textContent = message;
-  loginForm.reset();
   restoreRememberMePreference();
   if (submissionDialog.open) submissionDialog.close();
   if (contactImportDialog.open) contactImportDialog.close();
@@ -480,7 +485,7 @@ function consumeAdminNavigationIntent() {
 
 function showDashboard(session) {
   window.MmtUser=session.user;
-  if(!document.querySelector('script[data-mmt-session]')){const script=document.createElement('script');script.src='/admin/mmt-session.js?v=2026-09-22.1';script.dataset.mmtSession='true';document.head.append(script);}
+  if(!document.querySelector('script[data-mmt-session]')){const script=document.createElement('script');script.src='/admin/mmt-session.js?v=2026-11-16.outreach1';script.dataset.mmtSession='true';document.head.append(script);}
   if(session.user?.must_change_password){location.href="/admin/account/#password";return;}
   if(session.user?.volunteer_only){location.href="/admin/volunteer/";return;}
   if(session.user&&!session.user.is_admin&&session.user.permissions.contacts==='blocked'){location.href="/admin/account/";return;}
@@ -4485,7 +4490,9 @@ initializeAdminSidebar();
   } catch {
     /* The login remains usable if the version check is temporarily unavailable. */
   }
-  if (consumeAdminNavigationIntent()) {
+  let remembered = false;
+  try { remembered = localStorage.getItem(ADMIN_REMEMBER_ME_PREFERENCE_KEY) === "true"; } catch {}
+  if (consumeAdminNavigationIntent() || remembered) {
     try {
       const { result } = await api("/session");
       showDashboard(result);

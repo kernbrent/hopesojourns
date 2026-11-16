@@ -1,6 +1,7 @@
 import {travelerApplications} from './traveler-application-review';
 import {meetingInboxItems} from './meetings';
 import {contactEmails} from './contact-email-records';
+import {taskAccess} from './planning';
 import {can,type MmtIdentity} from './mmt-permissions';
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type AdminEnv} from './admin';
 import {perTravelerAmount,allocatePayment,cents,dollars,fundingStatusStatement} from './ministry-budget';
@@ -18,7 +19,8 @@ async function openCharges(env:AdminEnv,accountId:string,includeInactive=false) 
  FROM trip_charges c WHERE c.account_id=?1 ${includeInactive?'':"AND c.status NOT IN ('waived','canceled')"} ORDER BY c.created_at,c.id`).bind(accountId).all<{id:string;amount:number;applied:number;cost_item_id:string;title:string;budget_managed:number;status:string}>()).results;
 }
 
-async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
+const inboxFingerprint=(item:Row)=>JSON.stringify([item.created_at,item.title,item.source_status||item.status,item.detail||'',item.action_url||'',item.inbox_updated_at||'']);
+export async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  const [requests,payments,messages,events,budgets]=await Promise.all([
  env.DB.prepare(`SELECT s.id,p.first_name || ' ' || p.last_name AS title,s.created_at,
  CASE WHEN w.stage='closed' THEN 'completed' ELSE 'action' END AS status, w.due_date,w.owner_id,w.next_action
@@ -47,7 +49,9 @@ async function inboxItems(env:AdminEnv,user:MmtIdentity):Promise<Row[]> {
  ].sort((a,b)=>String((b as Row).created_at).localeCompare(String((a as Row).created_at)));
  const saved=(await env.DB.prepare('SELECT * FROM ministry_inbox_states').all<Row>()).results;
  const states=new Map(saved.map(row=>[row.item_id,row]));
- return items.map(item=>{const saved=states.get(item.id);return {...item,source_status:item.status,status:(String(item.id).startsWith('request:')||String(item.id).startsWith('application:'))?item.status:saved?.status||item.status,manually_completed:saved?.status==='completed',inbox_updated_at:saved?.updated_at||null};});
+ const reads=(await env.DB.prepare('SELECT item_id,fingerprint FROM ministry_inbox_reads WHERE user_id=?').bind(user.id).all<Row>()).results;
+ const readMap=new Map(reads.map(r=>[r.item_id,r.fingerprint]));
+ return items.map(item=>{const saved=states.get(item.id);const value={...item,source_status:item.status,status:(String(item.id).startsWith('request:')||String(item.id).startsWith('application:'))?item.status:saved?.status||item.status,manually_completed:saved?.status==='completed',inbox_updated_at:saved?.updated_at||null};return {...value,unread:readMap.get(item.id)!==inboxFingerprint(value)};});
 }
 
 async function updateInbox(request:Request,env:AdminEnv,user:MmtIdentity){
@@ -210,6 +214,18 @@ async function documents(request:Request,env:AdminEnv,documentId?:string,version
 export async function handleMinistryAdminRequest(request:Request,env:AdminEnv,path:string):Promise<Response>{
  try{
   const session=await authenticate(request,env,request.method!=='GET');
+  if(path==='/admin/ministry/counts'&&request.method==='GET'){
+   const tasks=(await env.DB.prepare("SELECT * FROM ministry_tasks WHERE status='open' AND deleted_at IS NULL").all<Row>()).results.filter(t=>{try{taskAccess(session.user,t);return true;}catch{return false;}});
+   return adminJson({openTasks:tasks.length,unreadInbox:can(session.user,'inbox')?(await inboxItems(env,session.user)).filter(i=>i.status!=='deleted'&&i.unread).length:null});
+  }
+  if(path==='/admin/ministry/inbox/read'&&request.method==='POST'){
+   if(!can(session.user,'inbox'))throw new AdminError(403,'ACCESS_DENIED','Inbox access is required.');
+   const b=await readAdminJson(request),item=(await inboxItems(env,session.user)).find(i=>i.id===b.itemId);
+   if(!item)throw new AdminError(404,'NOT_FOUND','Inbox item not found.');
+   if(b.unread===true)await env.DB.prepare('DELETE FROM ministry_inbox_reads WHERE user_id=? AND item_id=?').bind(session.user.id,item.id).run();
+   else await env.DB.prepare('INSERT INTO ministry_inbox_reads(user_id,item_id,fingerprint,read_at) VALUES(?,?,?,?) ON CONFLICT(user_id,item_id) DO UPDATE SET fingerprint=excluded.fingerprint,read_at=excluded.read_at').bind(session.user.id,item.id,inboxFingerprint(item),new Date().toISOString()).run();
+   return adminJson({ok:true});
+  }
   if(path==='/admin/ministry/inbox'&&request.method==='GET'&&new URL(request.url).searchParams.get('show')==='emails_sent'){
    if(!can(session.user,'contacts'))throw new AdminError(403,'ACCESS_DENIED','Contact access is required to view sent email copies.');
    const page=Number(new URL(request.url).searchParams.get('page')||1);

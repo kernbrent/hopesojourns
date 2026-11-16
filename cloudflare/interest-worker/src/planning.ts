@@ -6,7 +6,7 @@ const placeholder=/\b(TBD|TODO)\b|Add the high-level plan|Review before publishi
 function text(v:unknown,max=180,required=true){if(typeof v!=='string'||v.length>max||(required&&!v.trim()))throw new AdminError(422,'INVALID_FIELD','Complete the required fields.');return v.trim();}
 function date(v:unknown){if(v==null||v==='')return null;const s=text(v,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s))||new Date(s).toISOString().slice(0,10)!==s)throw new AdminError(422,'INVALID_DATE','Choose a valid date.');return s;}
 function requireAccess(user:MmtIdentity,section:'trips'|'contacts'|'inbox',edit=false){if(!can(user,section,edit))throw new AdminError(403,'ACCESS_DENIED','You do not have access to this record.');}
-function taskAccess(user:MmtIdentity,t:Row,edit=false){if(t.trip_id)requireAccess(user,'trips',edit);if(t.person_id||t.meeting_id||t.ministry_id)requireAccess(user,'contacts',edit);if(!t.trip_id&&!t.person_id&&!t.meeting_id&&!t.ministry_id)requireAccess(user,'inbox',edit);}
+export function taskAccess(user:MmtIdentity,t:Row,edit=false){if(t.trip_id)requireAccess(user,'trips',edit);if(t.person_id||t.meeting_id||t.ministry_id)requireAccess(user,'contacts',edit);if(!t.trip_id&&!t.person_id&&!t.meeting_id&&!t.ministry_id)requireAccess(user,'inbox',edit);}
 async function rows(env:AdminEnv,sql:string,...args:(string|number|null)[]){return (await env.DB.prepare(sql).bind(...args).all<Row>()).results;}
 async function trip(env:AdminEnv,id:string){const t=await env.DB.prepare('SELECT * FROM trips WHERE id=?').bind(id).first<Row>();if(!t)throw new AdminError(404,'NOT_FOUND','Trip not found.');return t;}
 async function digest(value:unknown){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value)))),b=>b.toString(16).padStart(2,'0')).join('');}
@@ -54,6 +54,21 @@ export async function handlePlanning(request:Request,env:AdminEnv,path:string):P
  const users=await rows(env,"SELECT id,first_name,last_name FROM mmt_users WHERE status='active' AND hs_access=1 ORDER BY first_name,last_name");
  const inquiries=can(user,'contacts')?await rows(env,"SELECT w.submission_id,w.due_date,w.next_action,w.owner_id,p.first_name||' '||p.last_name person_name,u.first_name||' '||u.last_name owner_name FROM inquiry_workflows w JOIN interest_submissions s ON s.id=w.submission_id JOIN people p ON p.id=s.person_id LEFT JOIN mmt_users u ON u.id=w.owner_id WHERE w.stage!='closed' ORDER BY w.due_date IS NULL,w.due_date,w.created_at"):[];
  return adminJson({inquiries,tasks:tasks.map(t=>({...t,canEdit:(()=>{try{taskAccess(user,t,true);return true;}catch{return false;}})()})),trips,owners:users,people:can(user,'contacts')?await rows(env,'SELECT id,first_name,last_name FROM people ORDER BY last_name_normalized'):[],canEdit:{trips:can(user,'trips',true),contacts:can(user,'contacts',true),inbox:can(user,'inbox',true)}});
+ }
+ if(suffix==='/tasks/state'&&request.method==='POST'){
+  const b=await readAdminJson(request),prior=await env.DB.prepare('SELECT * FROM ministry_tasks WHERE id=?').bind(String(b.id||'')).first<Row>();
+  if(!prior)throw new AdminError(404,'NOT_FOUND','Task not found.');taskAccess(user,prior,true);
+  if(prior.deleted_at)throw new AdminError(409,'TASK_DELETED','Restore this task before changing its status.');
+  if(!['open','completed','canceled'].includes(String(b.status)))throw new AdminError(422,'INVALID_STATUS','Choose a task status.');
+  if(Number(b.revision)!==prior.revision)throw new AdminError(409,'CONFLICT','This task changed. Refresh before trying again.');
+  const guard=crypto.randomUUID();
+  try{await env.DB.batch([
+   env.DB.prepare('INSERT INTO meeting_save_guard(id,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM ministry_tasks WHERE id=? AND revision=? AND deleted_at IS NULL) THEN 1 ELSE 0 END').bind(guard,prior.id,prior.revision),
+   env.DB.prepare('UPDATE ministry_tasks SET status=?,revision=revision+1,updated_at=? WHERE id=?').bind(b.status,now,prior.id),
+   auditStatement(env,'ministry_task',String(prior.id),'status_updated',{actorUserId:user.id,before:prior.status,status:b.status}),
+   env.DB.prepare('DELETE FROM meeting_save_guard WHERE id=?').bind(guard)
+  ]);}catch(e){if(String(e).includes('CHECK constraint'))throw new AdminError(409,'CONFLICT','This task changed. Refresh before trying again.');throw e;}
+  return adminJson({id:prior.id,status:b.status,revision:Number(prior.revision)+1});
  }
  if(['/tasks/delete','/tasks/restore'].includes(suffix)&&request.method==='POST'){
   const b=await readAdminJson(request),prior=await env.DB.prepare('SELECT * FROM ministry_tasks WHERE id=?').bind(String(b.id||'')).first<Row>();

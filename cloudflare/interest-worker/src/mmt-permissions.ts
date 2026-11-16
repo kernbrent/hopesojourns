@@ -23,12 +23,14 @@ export function routeSection(path:string):Section|'self'|'admin'{
  if(path==='/admin/inquiries'||path.startsWith('/admin/inquiries/'))return 'contacts';
  if(path.startsWith('/admin/interest-reviews/'))return 'contacts';
  if(path.startsWith('/admin/planning/'))return 'self'; // Each planning record enforces linked workspace permissions.
+ if(path==='/admin/outreach'||path.startsWith('/admin/outreach/'))return 'contacts';
  if(path==='/admin/meetings'||path.startsWith('/admin/meetings/'))return 'contacts';
  if(path.startsWith('/admin/knowledge'))return 'self'; // Knowledge actions check granular permissions.
  if(path.startsWith('/admin/account/'))return 'admin';
  if(path.startsWith('/admin/destinations'))return 'destinations';
  if(path.startsWith('/admin/ministry/documents'))return 'documents';
  if(path==='/admin/ministry/inbox')return 'inbox';
+ if(path==='/admin/ministry/counts'||path==='/admin/ministry/inbox/read')return 'self';
  if(path.startsWith('/admin/finance')||path.startsWith('/admin/ledger')||path.startsWith('/admin/csm-inbox')||path==='/admin/ministry/travel-reserve')return 'finances';
  if(path.startsWith('/admin/trip')||path.startsWith('/admin/ministry/accounts')||path.startsWith('/admin/ministry/trips'))return 'trips';
  if(/^\/admin\/(people|ministries|teams|submissions|registrations|replies|export\.csv|contact-imports|contacts)(\/|$)/.test(path))return 'contacts';
