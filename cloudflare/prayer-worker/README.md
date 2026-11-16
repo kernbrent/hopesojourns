@@ -5,7 +5,7 @@ The independent Hope Sojourns prayer and accountability portal serves `prayer.ho
 ## First version
 
 - Invitation-only individual password accounts. Every invitation creates a regular member; an existing admin must explicitly grant admin access after enrollment.
-- Seven-day, single-use invitations, with revocation and replacement. Invitation tokens and session tokens are stored only as SHA-256 hashes. Admins copy a private link and share it themselves; no email is sent automatically. Possession of the link authorizes enrollment for the invited email address, so deliver it privately to that email owner.
+- Seven-day, single-use invitations, with revocation and replacement. Invitation tokens and session tokens are stored only as SHA-256 hashes. The Invite someone button emails the link automatically in production and shows a private backup; test/local records capture without sending. Legacy access-review links are still shared manually. Possession of the link authorizes enrollment for the invited email address, so deliver it privately to that email owner.
 - Prayer requests, updates, and answered prayers. Every post independently selects all members, selected people, or only the author and admins. All admins see every post. The default is admins only. Following never grants visibility.
 - People directory with display names and roles only. Follow preferences independently select requests, updates, and answered prayers.
 - In-portal notifications for new posts from followed people, filtered by type and visibility. A notification does not contain a stored copy of private text; reads re-check the post's current permissions. Notification count refreshes each minute while the tab is visible. No email or device push notifications yet.
@@ -163,3 +163,13 @@ Production excludes the three original sample devotionals. The hosted initialize
 ## Prayer-specific logo
 
 The default /assets/prayer-portal-logo.png is the approved transparent logo with praying hands replacing the j in Sojourns and PRAYER PORTAL beneath it. The file lives in public/assets and prepare copies it with prayer assets. Both initial HTML and siteConfig use it. Main website/MMT references and the shared assets/hope-sojourns-logo.png remain unchanged. Custom organization logos still use PORTAL_BRAND_LOGO_FILE and PORTAL_LOGO_PATH.
+
+## Automatic invitation email
+
+POST /api/invites sends the newly committed invitation through Resend in production. Migration 0015 stores only delivery state/time in invitation_deliveries; raw links remain transient. Admin-only GET /api/invites exposes status; sent is provider acceptance, not inbox delivery. Sending uses a 15-second timeout, no redirects, per-invitation idempotency key, and a 20-per-15-minute admin limit. The transaction rechecks current admin status. Failure/uncertainty returns failed with a usable private link; inviting again revokes the previous link. Crashed in-progress sends remain labeled awaiting confirmation. No automatic background retry or raw-link queue is created.
+
+Sender/reply-to: prayer@hopesojourns.com for automatic invitations and recovery. Production requires PRAYER_RESEND_API_KEY and PRAYER_EMAIL_DELIVERY_MODE=live; test/local can never send, even with a live-mode key. Explicitly pass PRAYER_EMAIL_FROM:prayer@hopesojourns.com on both authorized deployments when using --keep-vars. Complete the receiving-address forwarding/mailbox setup separately; changing From does not create an inbox. Existing MMT email settings remain untouched. Legacy access-queue invitation generation and group-member invitations retain their existing behavior.
+
+Primary references: https://resend.com/docs/api-reference/emails/send-email and https://resend.com/docs/dashboard/emails/idempotency-keys .
+
+November 9, 2026: prayer@hopesojourns.com is an active Cloudflare Email Routing rule forwarding to the existing verified destination christianstepsministries@gmail.com. This is a forwarding alias without its own inbox/password; Resend handles app outbound mail after release.

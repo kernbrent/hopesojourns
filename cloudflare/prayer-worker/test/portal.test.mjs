@@ -29,6 +29,70 @@ function fixture() {
   return {sql,add,request,env};
 }
 const post = (audience, recipients = [], kind = 'request') => ({ title:'Please pray', body:'Private details', audience, recipients, kind });
+
+test('invite button emails only the invited address with a one-use hashed link and records provider acceptance',async()=>{
+ const f=fixture();await f.add('admin','admin');f.sql.prepare('UPDATE users SET name=? WHERE id=?').run('<Brent & friends>','admin');
+ Object.assign(f.env,{ENVIRONMENT:'production',PRAYER_EMAIL_DELIVERY_MODE:'live',PRAYER_RESEND_API_KEY:'synthetic-key',PRAYER_EMAIL_FROM:'prayer@hopesojourns.com'});
+ const original=globalThis.fetch,mail=[];globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.resend.com/emails');mail.push({options,data:JSON.parse(options.body)});return Response.json({id:'provider-id'});};
+ try {
+  const response=await f.request('invites','admin',{email:' INVITED@example.com '});assert.equal(response.status,201);const result=await response.json();
+  assert.equal(result.email_status,'sent');assert.deepEqual(mail[0].data.to,['invited@example.com']);assert.equal(mail[0].data.reply_to,'prayer@hopesojourns.com');assert.equal(mail[0].data.from,'Hope Sojourns Prayer Portal <prayer@hopesojourns.com>');
+  assert.ok(mail[0].data.text.includes(result.link));assert.ok(mail[0].data.html.includes('&lt;Brent &amp; friends&gt;'));assert.ok(!mail[0].data.html.includes('<Brent'));
+  assert.equal(mail[0].options.headers['Idempotency-Key'],'prayer-invite-'+result.id);assert.equal(mail[0].options.redirect,'manual');
+  const raw=result.link.split('#invite=')[1];assert.equal(f.sql.prepare('SELECT token_hash FROM invites WHERE id=?').get(result.id).token_hash,await digest(raw));
+  const rows=await(await f.request('invites','admin')).json();assert.equal(rows[0].email_status,'sent');assert.ok(!JSON.stringify(rows).includes(raw));
+  assert.equal(f.sql.prepare('SELECT email_status FROM invitation_deliveries').get().email_status,'sent');
+  assert.equal((await f.request('accept',null,{token:raw,name:'Invited',password:'invited-user-password'})).status,200);
+  assert.equal(f.sql.prepare("SELECT role FROM users WHERE email='invited@example.com'").get().role,'member');
+ } finally {globalThis.fetch=original;}
+});
+
+test('nonproduction invitations never send live mail, and reissuing invalidates the earlier link',async()=>{
+ const f=fixture();await f.add('admin','admin');Object.assign(f.env,{ENVIRONMENT:'test',PRAYER_EMAIL_DELIVERY_MODE:'live',PRAYER_RESEND_API_KEY:'synthetic-key'});
+ const original=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;throw new Error('Must never send');};
+ try {
+  const first=await(await f.request('invites','admin',{email:'preview@example.com'})).json();const next=await(await f.request('invites','admin',{email:'preview@example.com'})).json();
+  assert.equal(first.email_status,'captured');assert.equal(next.email_status,'captured');assert.equal(calls,0);
+  assert.equal((await f.request('accept',null,{token:first.link.split('#invite=')[1],name:'Old',password:'old-preview-password'})).status,400);
+  assert.equal((await f.request('accept',null,{token:next.link.split('#invite=')[1],name:'New',password:'new-preview-password'})).status,200);
+ } finally {globalThis.fetch=original;}
+});
+
+test('invitation transport failures retain an explicit private fallback without claiming email success',async()=>{
+ for(const transport of ['rejection','timeout','malformed','missing-id','no-key','disabled']) {
+  const f=fixture();await f.add('admin','admin');Object.assign(f.env,{ENVIRONMENT:'production',PRAYER_EMAIL_DELIVERY_MODE:'live',PRAYER_RESEND_API_KEY:'synthetic-key'});
+  if(transport==='no-key')delete f.env.PRAYER_RESEND_API_KEY;if(transport==='disabled')f.env.PRAYER_EMAIL_DELIVERY_MODE='capture';
+  const original=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;if(transport==='timeout')throw new Error('Timeout');return transport==='rejection'?new Response('secret-provider-details',{status:500}):transport==='malformed'?new Response('not json'):Response.json({});};
+  try {
+   const response=await f.request('invites','admin',{email:'fallback@example.com'});assert.equal(response.status,201);const result=await response.json();assert.equal(result.email_status,'failed');assert.ok(!JSON.stringify(result).includes('secret-provider-details'));
+   assert.equal(calls,['no-key','disabled'].includes(transport)?0:1);assert.equal(f.sql.prepare('SELECT email_status FROM invitation_deliveries').get().email_status,'failed');
+   assert.equal((await f.request('accept',null,{token:result.link.split('#invite=')[1],name:'Fallback',password:'fallback-user-password'})).status,200);
+  } finally {globalThis.fetch=original;}
+ }
+});
+
+test('failed invitation transaction never sends email or invalidates the previous invitation',async()=>{
+ const f=fixture();await f.add('admin','admin');const before=await(await f.request('invites','admin',{email:'unchanged@example.com'})).json();
+ Object.assign(f.env,{ENVIRONMENT:'production',PRAYER_EMAIL_DELIVERY_MODE:'live',PRAYER_RESEND_API_KEY:'synthetic-key'});
+ f.sql.exec("CREATE TRIGGER reject_delivery BEFORE INSERT ON invitation_deliveries BEGIN SELECT RAISE(ABORT,'synthetic failure'); END;");
+ const original=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;return Response.json({id:'wrong'});};
+ try {
+  assert.equal((await f.request('invites','admin',{email:'unchanged@example.com'})).status,500);assert.equal(calls,0);
+  assert.equal(f.sql.prepare('SELECT count(*) n FROM invites').get().n,1);
+  assert.equal((await f.request('accept',null,{token:before.link.split('#invite=')[1],name:'Preserved',password:'preserved-user-password'})).status,200);
+ } finally {globalThis.fetch=original;}
+});
+
+test('invitation email requires admin, same-origin and CSRF; invitation burst is limited',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');
+ assert.equal((await f.request('invites','member',{email:'blocked@example.com'})).status,403);
+ for(const [origin,csrf] of [['https://other.example','csrf-admin'],['https://prayer.example.com','bad']]) {
+  assert.equal((await worker.fetch(new Request('https://prayer.example.com/api/invites',{method:'POST',headers:{Origin:origin,Cookie:'__Host-hs_prayer=admin','X-CSRF-Token':csrf,'Content-Type':'application/json'},body:JSON.stringify({email:'blocked@example.com'})}),f.env)).status,403);
+ }
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM invites').get().n,0);
+ for(let i=0;i<20;i++)assert.equal((await f.request('invites','admin',{email:`limit${i}@example.com`})).status,201);
+ assert.equal((await f.request('invites','admin',{email:'overflow@example.com'})).status,429);
+});
 test('all visibility modes: owner/admin access, selected membership and outsiders; following grants no access', async () => {
   const f = fixture(); for (const id of ['author','friend','outsider']) await f.add(id); await f.add('admin','admin');
   for (const who of ['friend','outsider','admin']) assert.equal((await f.request('follow',who,{userId:'author',following:true,requests:true,updates:false,answered:true})).status,200);

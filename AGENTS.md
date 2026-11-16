@@ -1,5 +1,9 @@
 # Hope Sojourns project instructions
 
+## Local preview handoff
+
+- After every website or portal change, include a clickable localhost URL for the affected page in the final response. Keep the local preview running for Brent to review when possible, and verify the URL responds before sharing it. If the preview cannot run, explain the blocker instead of presenting an unavailable URL as working.
+
 ## Deployment destinations
 
 - Until Brent says otherwise, an authorized Hope Sojourns release must deploy the same application version to both test.hopesojourns.com and production (hopesojourns.com and www.hopesojourns.com).
@@ -34,3 +38,7 @@
 - Regenerate `docs/user/Hope-Sojourns-MMT-User-Guide.docx` with the bundled Python runtime and `tools/build_mmt_user_guide.py`. Render and visually inspect every page before delivery.
 - Run `powershell -ExecutionPolicy Bypass -File .\Sync-MMT-User-Guide.ps1` after the canonical files are final. The daily document-library sync also includes this guide. Do not hand-edit the generated Word copy.
 - The GitHub repository is public. Never commit the private guide Markdown, Word edition, or generated HTML. For an explicitly authorized release, upload the same HTML to the isolated private test and production guide R2 buckets; serve it only through the authenticated Worker route.
+
+## Public photo presentation
+
+- Never display photo credits on Hope Sojourns web pages. Keep source and license records in private administrative metadata or project documentation. Choose images whose permitted use fits this presentation.

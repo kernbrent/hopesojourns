@@ -3,7 +3,7 @@
 export async function deliverResetEmail(env,address,link,id) {
  if(env.ENVIRONMENT!=='production') return 'captured';
  if(env.PRAYER_EMAIL_DELIVERY_MODE!=='live' || !env.PRAYER_RESEND_API_KEY) return 'failed';
- const sender=env.PRAYER_EMAIL_FROM || 'admin@hopesojourns.com';
+ const sender=env.PRAYER_EMAIL_FROM || 'prayer@hopesojourns.com';
  if(!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(sender)) return 'failed';
  const escape=value=>value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
  const title='Reset your Hope Sojourns prayer portal password';

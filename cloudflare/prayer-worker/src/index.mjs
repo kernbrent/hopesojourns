@@ -1,3 +1,4 @@
+import {deliverInvitationEmail} from './invitation-email.mjs';
 import {handleDevotionals} from './devotionals.mjs';
 import {handleReaction,decorateReactions} from './reactions.mjs';
 import {handlePublicRequests,handleRequestAdmin} from './portal-requests.mjs';
@@ -76,8 +77,8 @@ async function api(request, env, url, ctx) {
   const config = siteConfig(env);
   if (path === '/api/site' && method === 'GET') return json(config);
   if (path === '/api/health' && method === 'GET') {
-    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs','devotionals','devotional_reads')").first();
-    requireValue(schema.count === 16, 'Portal database setup is incomplete.', 503);
+    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs','devotionals','devotional_reads','invitation_deliveries')").first();
+    requireValue(schema.count === 17, 'Portal database setup is incomplete.', 503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
@@ -294,16 +295,23 @@ async function api(request, env, url, ctx) {
   }
   if (path.startsWith('/api/invites')) {
     requireValue(auth.role === 'admin', 'Admins only.', 403);
-    if (path === '/api/invites' && method === 'GET') return json((await db.prepare('SELECT id,email,role,expires_at,used_at FROM invites ORDER BY expires_at DESC LIMIT 100').all()).results);
+    if (path === '/api/invites' && method === 'GET') return json((await db.prepare('SELECT i.id,i.email,i.role,i.expires_at,i.used_at,d.email_status FROM invites i LEFT JOIN invitation_deliveries d ON d.invite_id=i.id ORDER BY i.expires_at DESC LIMIT 100').all()).results);
     if (path === '/api/invites' && method === 'POST') {
       const data = await body(request), address = email(data.email), rawToken = token(), id = crypto.randomUUID();
       requireValue(data.role===undefined || data.role==='member', 'Invitations create regular members. Grant admin access after the person joins.');
       requireValue(!await db.prepare('SELECT id FROM users WHERE email=?').bind(address).first(), 'This person already has an account.');
-      await db.batch([
-        db.prepare('UPDATE invites SET expires_at=? WHERE email=? AND used_at IS NULL').bind(now(), address),
-        db.prepare('INSERT INTO invites VALUES (?,?,?,?,?,NULL,?)').bind(id, address, 'member', await digest(rawToken), now() + 7 * 86400000, auth.id)
+      await rateLimit(db,`invite-email:${auth.id}`,20);
+      const time=now(),hash=await digest(rawToken),guard="EXISTS(SELECT 1 FROM users WHERE id=? AND role='admin' AND status='active')";
+      const created=await db.batch([
+        db.prepare(`UPDATE invites SET expires_at=? WHERE email=? AND used_at IS NULL AND ${guard}`).bind(time,address,auth.id),
+        db.prepare(`INSERT INTO invites SELECT ?,?,'member',?,?,NULL,? WHERE ${guard}`).bind(id,address,hash,time+7*86400000,auth.id,auth.id),
+        db.prepare("INSERT INTO invitation_deliveries SELECT ?,'sending',? WHERE EXISTS(SELECT 1 FROM invites WHERE id=?)").bind(id,time,id)
       ]);
-      return json({ id, link: `${url.origin}/#invite=${rawToken}` }, 201);
+      requireValue(created[1].meta.changes===1,'Admin access ended. Sign in again.',403);
+      const link=`${url.origin}/#invite=${rawToken}`;
+      const email_status=await deliverInvitationEmail(env,address,link,id,auth.name);
+      await db.prepare('UPDATE invitation_deliveries SET email_status=?,updated_at=? WHERE invite_id=?').bind(email_status,now(),id).run();
+      return json({id,link,email_status},201);
     }
     if (/^\/api\/invites\/[^/]+$/.test(path) && method === 'DELETE') {
       await db.prepare('UPDATE invites SET expires_at=? WHERE id=? AND used_at IS NULL').bind(now(), path.split('/').pop()).run(); return json({ ok: true });
