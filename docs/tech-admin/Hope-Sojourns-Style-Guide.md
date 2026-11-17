@@ -1,12 +1,18 @@
 # Hope Sojourns website style guide
 
-Version 4.117
+Version 4.118
 
 Last reviewed: November 16, 2026
 
 Admin File storage uses a horizontally scrollable data table with file links, prayer/location, uploader, date, original bytes, actual stored bytes and a permanent-delete action. Largest first is the default; labeled location/type and date/size sort filters sit beside search. A summary distinguishes storage savings from original download sizes. The standard moderation dialog requires a reason and typed DELETE confirmation. Keep the universal footer disclaimer below the organization/tagline, in readable muted text: Portal administrators may remove any item for any reason. The disclaimer appears on sign-in and authenticated pages alike.
 
-Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 40 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 44 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+
+## Prayer Portal buttons and mobile navigation
+
+Use a shared 44 px minimum button height, consistent rounded borders, centered labels and comfortable gaps throughout Prayer Portal cards, forms, reactions, admin actions, upload controls and dialogs. Keep words intact and allow complete buttons or whole words to wrap naturally; preserve primary, active, disabled, hover and keyboard-focus states using existing palette tokens. Scope desktop navigation styles to #portal-navigation so administration tabs retain their own wrapping layout.
+
+At 900 px and below, replace the sidebar with a Menu button containing a decorative hamburger icon and a visible label. It opens a left-side native dialog with a vertical navigation list, current-page highlight, existing permission-controlled entries, Close control and a dismissible backdrop. Use full-height scrolling inside the drawer. At 700 px and below, the header places the logo and Sign out on the first row, Menu and Refresh content on the second. Forms, headings and action rows wrap within the viewport; wide data tables scroll inside their own labeled regions. Desktop keeps its sidebar.
 
 ## Prayer Portal collaboration and written prayers
 
@@ -962,6 +968,8 @@ Place the MMT Word edition latest-revision note beneath the contents-page instru
 Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
 
 ## Revision history
+
+- November 16, 2026 — Version 4.118. Standardized Prayer Portal action controls and documented the accessible phone navigation drawer, responsive header and page layouts. Local review pending release.
 
 - November 16, 2026 — Version 4.117. Refined Prayer Portal card action buttons with full-width audience metadata, consistent touch targets and whole-label wrapping. Local review pending release.
 

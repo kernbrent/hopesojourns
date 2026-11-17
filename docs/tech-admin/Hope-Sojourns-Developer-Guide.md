@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.27
+Version 5.28
 
 Last reviewed: November 16, 2026
 
@@ -8,7 +8,13 @@ Migration 0019 adds stored_size and storage_encoding to attachment metadata, bac
 
 The browser loads public/api-client.js before app.js. It retries transient GET failures once and replaces malformed or non-JSON responses with a readable recovery message. Writes and uploads are never retried automatically, preventing duplicate changes when an acknowledgement is lost. A failed transport alone does not clear the session; expired authentication retains its normal handling. Run the browser API regression tests for malformed responses, transport loss, GET retry and write non-replay.
 
-Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 40 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 44 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+
+## Prayer Portal responsive navigation
+
+setupMobileNavigation in public/app.js uses matchMedia at 900 px to move the single #portal-navigation node between #portal-sidebar and the native #portal-menu dialog. Moving the existing node preserves current-page state, pending counts and role/provisional filtering without duplicate navigation controls. The header Menu button has aria-controls, aria-haspopup and synchronized aria-expanded. Native showModal supplies focus containment, background inertness and Escape dismissal; Close and backdrop click dismiss it too. showView closes the drawer and focuses the destination heading after loading. Breakpoint changes close the dialog and move navigation back on desktop; sign-out closes it and hides the trigger. No database or API changes are needed.
+
+The common button rule and component overrides provide 44 px minimum targets, intact words, wrapping action rows and consistent palette-based states. Mobile header/grid, input sizing and dialog padding avoid document overflow; admin tables intentionally scroll within their regions. Verify menu open/close, keyboard dismissal and focus, destination changes, resize transitions, provisional visibility, and page/button geometry on narrow phone, larger phone, landscape and desktop sizes.
 
 ## Prayer Portal sessions collaboration and file storage
 
@@ -1435,6 +1441,8 @@ People and Contact spreadsheet share the contactTypeBulkControls component in ad
 POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
 
 ## Revision history
+
+- November 16, 2026 — Version 5.28. Standardized Prayer Portal action controls and documented the accessible phone navigation drawer, responsive header and page layouts. Local review pending release.
 
 - November 16, 2026 — Version 5.27. Added safe browser API error handling and refined Prayer Portal card action buttons with full-width audience metadata, consistent touch targets and whole-label wrapping. Local review pending release.
 

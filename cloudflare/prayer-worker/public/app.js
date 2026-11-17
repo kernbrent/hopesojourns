@@ -59,7 +59,7 @@ function setupAuth() {
   $('#auth-title').textContent = authMode==='access'?'Request access.':authMode==='recovery'?'Reset your password.':resetToken?'Choose a new password.':inviteToken ? 'You’re invited.' : 'Come on in.';
   $('#auth-description').textContent = authMode==='access'?'Only portal admins can review your request.':authMode==='recovery'?'We will email a private password-reset link to your account address.':resetToken?'Use this private reset link to restore access.':inviteToken ? 'Set up your own prayer portal account.' : 'Sign in with your prayer portal account.';
 }
-function signedOut() { devotionalGeneration++;devotionalManaging=false;editingDevotional=null;deletingDevotional=null;$('#devotional-today').replaceChildren();$('#devotional-items').replaceChildren();$('#help-topics').replaceChildren();$('#help-topic-links').replaceChildren();$('#help-access').replaceChildren();$('#help-search').value='';$('#devotional-form').reset();$('#devotional-search').reset();pendingResources=0;pendingRequests=0;$("#admin-attention-items").replaceChildren();sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
+function signedOut() { $('#portal-menu-toggle').hidden=true;closePortalMenu(); devotionalGeneration++;devotionalManaging=false;editingDevotional=null;deletingDevotional=null;$('#devotional-today').replaceChildren();$('#devotional-items').replaceChildren();$('#help-topics').replaceChildren();$('#help-topic-links').replaceChildren();$('#help-access').replaceChildren();$('#help-search').value='';$('#devotional-form').reset();$('#devotional-search').reset();pendingResources=0;pendingRequests=0;$("#admin-attention-items").replaceChildren();sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
   for (const id of ['posts','people','notifications','invites','recipients','groups','group-overview','group-members','group-actions','group-preferences','group-member-invite','admin-items']) $(`#${id}`).replaceChildren();
   clearResources();applyListView('expanded');commentGeneration++;writtenGeneration++;fileGeneration++;commentPost=null;editingPost=null;editingWritten=null;fileContext=null;
   for(const id of ['written-items','comment-items','prayer-history','written-history','file-items'])$('#'+id).replaceChildren();
@@ -69,7 +69,7 @@ function signedOut() { devotionalGeneration++;devotionalManaging=false;editingDe
   $('#invite-link').value = ''; $('#invite-result').hidden = true; document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close()); setupAuth(); }
 async function signedIn(data) {
   sessionGeneration++;
-  user = data.user; csrf = data.csrf; inviteToken = null; applyListView(user.list_view||'expanded');
+  user = data.user; csrf = data.csrf;$('#portal-menu-toggle').hidden=false; inviteToken = null; applyListView(user.list_view||'expanded');
   $('#invites-nav').hidden = user.role !== 'admin';
   $('#admin-nav').hidden = user.role !== 'admin';
   $('#greeting').textContent = `Welcome, ${user.name}.${user.role==='admin'?user.owner?' You are the portal owner.':' You have portal admin access.':' There is room for your story here.'}`;
@@ -243,6 +243,7 @@ async function loadInvites() {
 }
 async function showView(view) {
   if(user.access_level==='provisional' && !['feed','resources','devotionals','written-prayers','help','profile'].includes(view)) return;
+  const fromMenu=$('#portal-menu').open;closePortalMenu();
   currentView = view; notice('');
   if(view!=='group') activeGroup=null;
   for (const name of ['feed','people','notifications','invites','groups','group-detail','admin','profile','resources','devotionals','written-prayers','help']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
@@ -263,6 +264,7 @@ async function showView(view) {
   if(view==='written-prayers')await loadWrittenPrayers();
   if(view==='help') renderHelp();
   if(view==='profile') {const current=await api('me');user=current.user;renderProfile();}
+  if(fromMenu){const heading=document.querySelector('.portal-layout section:not([hidden]) h2');if(heading){heading.tabIndex=-1;heading.focus();}}
 }
 $('#login-form').addEventListener('submit',event => { event.preventDefault(); action(async () => {
   const form = event.currentTarget; const data = {identifier:form.elements.identifier.value,password:form.elements.password.value}; const result = await api('login',data); rememberLogin(form,data); form.reset(); notice(''); await signedIn(result);
@@ -455,9 +457,10 @@ $('#group-form').addEventListener('submit',event=>{event.preventDefault(); const
   const result=await api('groups',{name:data.name,description:data.description,category:data.category,discoverable:data.discovery==='listed'});
   $('#create-group').close(); groups=await api('groups'); await openGroup(result.id); notice('Your group is ready. Invite people or approve their requests to join.');
 })(event);});
-setupSharedUI();setupAuth();
+setupSharedUI();setupMobileNavigation();setupAuth();
 // Restore the HttpOnly session on reload; passwords and session tokens stay out of app storage.
-restorePortalSession();
+$('#portal-menu-toggle').disabled=true;
+restorePortalSession().finally(()=>{$('#portal-menu-toggle').disabled=false;});
 // Public branding loads independently of session changes during restoration.
 window.prayerApi('/api/site',{credentials:'same-origin'}).then(({response,result})=>{if(!response.ok)throw Error('Could not load portal branding.');applySite(result);}).catch(error=>notice(error.message,true));
 checkRelease();setInterval(()=>{if(!document.hidden)checkRelease();},60000);
@@ -926,4 +929,15 @@ function storageTable(items){
  for(const value of [item.prayer_title+' · '+(item.post_id?'Prayer wall':'Written prayers')+(item.archived?' · Archived':''),item.uploader||'Former member',displayTime(item.created_at),fileSize(item.size),fileSize(item.stored_size)+(item.storage_encoding?' · Compressed':'')])tr.append(element('td',value));
  const actions=element('td');actions.append(button('Permanently delete',()=>openAdminAction('files',item.id,'delete',item.filename)));tr.append(actions);body.append(tr);}
  table.append(body);region.append(table);return region;
+}
+
+function closePortalMenu(){const menu=$('#portal-menu');if(menu?.open)menu.close();$('#portal-menu-toggle')?.setAttribute('aria-expanded','false');}
+function setupMobileNavigation(){
+ const menu=$('#portal-menu'),toggle=$('#portal-menu-toggle'),navigation=$('#portal-navigation'),sidebar=$('#portal-sidebar'),mobile=window.matchMedia('(max-width:900px)');
+ function arrange(){closePortalMenu();if(mobile.matches)$('#mobile-navigation-slot').append(navigation);else sidebar.prepend(navigation);}
+ toggle.addEventListener('click',()=>{if(menu.open)closePortalMenu();else{menu.showModal();toggle.setAttribute('aria-expanded','true');}});
+ $('#close-portal-menu').addEventListener('click',closePortalMenu);
+ menu.addEventListener('close',()=>toggle.setAttribute('aria-expanded','false'));
+ menu.addEventListener('click',event=>{if(event.target!==menu)return;const r=menu.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closePortalMenu();});
+ mobile.addEventListener('change',arrange);arrange();
 }
