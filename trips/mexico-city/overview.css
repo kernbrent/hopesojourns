@@ -1,10 +1,63 @@
-.mexico-overview h2 { margin-top: 2.5rem; }
-.mexico-overview h3 { margin-top: 1.6rem; }
-.mexico-outreach-photo { margin: 2rem 0; }
-.mexico-outreach-photo img { display: block; width: 100%; height: auto; border-radius: var(--radius); }
-.mexico-outreach-photo figcaption { margin-top: .7rem; font-size: .85rem; line-height: 1.6; color: var(--muted); }
-.mexico-itinerary { padding-left: 1.4rem; }
-.mexico-itinerary li { padding-left: .3rem; margin-bottom: 1rem; }
+.mexico-overview h2 { margin-top: 2.7rem; }
+/* This long gallery can exceed the shared reveal observer's visible-area threshold. */
+.motion-enabled .mexico-destination .content-grid.reveal-item,
+.motion-enabled.mexico-destination .content-grid.reveal-item { opacity: 1; transform: none; }
+.mexico-overview h3 { margin-top: 1.1rem; }
 .mexico-price { display: block; color: var(--forest); font-size: 2.25rem; line-height: 1.2; }
 .mexico-price-label { display: block; margin-top: .35rem; }
 .info-card .mexico-price-note { font-size: .9rem; font-weight: 400; margin: .8rem 0 0; }
+.mexico-destination .page-hero { grid-template-columns: 1fr 1.05fr; height: auto; min-height: 0; max-height: none; align-items: center; place-items: center; }
+.mexico-destination .page-hero::after { display: none; }
+.mexico-destination .page-hero > img { position: static; order: 2; display: block; width: 100%; height: auto; object-fit: contain; }
+.mexico-destination .page-hero .hero-content { padding: clamp(1.5rem, 4vw, 3.2rem); }
+.mexico-destination .content-grid { grid-template-columns: minmax(0, 1fr) minmax(260px, 330px); gap: 36px; }
+.mexico-destination .content-grid > * { min-width: 0; }
+.mexico-host-callout { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 1.3rem; align-items: center; margin: 2rem 0; padding: 1.4rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--forest-wash); }
+.mexico-host-callout img { display: block; width: 100%; height: auto; }
+.mexico-host-callout h3, .mexico-host-callout p { margin: .2rem 0 .6rem; }
+.mexico-experience-points { display: grid; gap: 1rem; margin: 2rem 0; }
+.mexico-experience-points article { border-top: 1px solid var(--line); padding: 1.2rem 0; }
+.mexico-experience-points article > span { color: var(--coral-dark); font-weight: 900; font-size: .8rem; letter-spacing: .12em; }
+.mexico-experience-points h3 { margin: .3rem 0; }
+.mexico-experience-points p { margin: 0; }
+.mexico-host-schedule { list-style: none; padding: 0; margin: 1.4rem 0; }
+.mexico-host-schedule > li { margin-bottom: .7rem; }
+.mexico-host-schedule details, .mexico-gallery-group { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--color-card); }
+.mexico-host-schedule summary { display: flex; gap: 1rem; align-items: center; padding: 1.1rem; cursor: pointer; color: var(--forest-dark); }
+.mexico-host-schedule summary::after, .mexico-gallery-group summary::after { content: '+'; margin-left: auto; font-weight: 700; font-size: 1.4rem; }
+.mexico-host-schedule details[open] > summary::after, .mexico-gallery-group[open] > summary::after { content: '−'; }
+.mexico-day-number { display: grid; place-items: center; flex: 0 0 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--forest-soft); font-weight: 900; }
+.mexico-host-schedule summary small { display: block; color: var(--muted); font-size: .76rem; }
+.mexico-host-schedule summary strong { display: block; line-height: 1.4; }
+.mexico-day-body { padding: 0 1.2rem 1.1rem; }
+.mexico-day-body dl > div { display: grid; grid-template-columns: minmax(100px, .75fr) 2fr; gap: 1rem; border-top: 1px solid var(--line); padding: .65rem 0; }
+.mexico-day-body dt { font-size: .86rem; font-weight: 800; color: var(--forest); }
+.mexico-day-body dd { margin: 0; }
+.mexico-planning-note { border-left: 3px solid var(--gold); padding: .8rem 1rem; font-size: .9rem; background: var(--gold-wash); color: var(--ink); }
+.mexico-gallery-group { margin: 1rem 0; }
+.mexico-gallery-group > summary { display: flex; align-items: center; gap: .7rem; padding: 1rem 1.2rem; cursor: pointer; font-weight: 850; color: var(--forest-dark); }
+.mexico-gallery-group summary span { font-size: .8rem; font-weight: 400; color: var(--muted); }
+.mexico-photo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.1rem; align-items: start; }
+.mexico-gallery-group .mexico-photo-grid { padding: 0 1rem 1rem; }
+.mexico-host-photo { margin: 0; min-width: 0; }
+.mexico-host-photo a { display: block; border-radius: 12px; overflow: hidden; }
+.mexico-host-photo img { display: block; width: 100%; height: auto; }
+.mexico-host-photo figcaption { margin-top: .55rem; color: var(--muted); font-size: .82rem; line-height: 1.6; }
+.mexico-experience { min-width: 0; }
+.mexico-experience .mexico-photo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 1.5rem 0; }
+.mexico-host-actions { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; align-items: center; margin: 1.3rem 0; }
+.mexico-experience h2 { max-width: none; }
+#host-photos, #host-itinerary { scroll-margin-top: 110px; }
+@media (max-width: 800px) {
+ .mexico-destination .page-hero { grid-template-columns: 1fr; }
+ .mexico-destination .content-grid { grid-template-columns: 1fr; }
+ .mexico-destination .content-grid > aside { grid-row: 1; }
+ .mexico-experience .mexico-photo-grid { grid-template-columns: 1fr; }
+ .mexico-host-actions { align-items: stretch; }
+}
+@media (max-width: 520px) {
+ .mexico-photo-grid { grid-template-columns: 1fr; }
+ .mexico-host-callout { grid-template-columns: 60px minmax(0, 1fr); gap: .8rem; padding: 1rem; }
+ .mexico-day-body dl > div { grid-template-columns: 1fr; gap: .2rem; }
+ .mexico-host-schedule summary { padding: .85rem; gap: .65rem; }
+}

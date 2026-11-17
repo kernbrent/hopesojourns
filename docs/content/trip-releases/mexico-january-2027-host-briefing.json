@@ -1,0 +1,174 @@
+{
+  "version": "2026-11-16.mexico1",
+  "destination": "mexico-city",
+  "startDate": "2027-01-09",
+  "endDate": "2027-01-14",
+  "sourceDocuments": [
+    "MEXICO CITY MISSIONARY TRIP.pdf",
+    "GOD'S KITCHEN.pdf"
+  ],
+  "sourceReceived": "2026-11-16",
+  "status": "Proposed itinerary; activities and times may change before and during the journey.",
+  "timeZone": "America/Mexico_City",
+  "optionalSpending": "Allow an additional US $100–$200 for optional sightseeing and tourist activities, following the host’s suggestion. This is separate from the trip planning estimate.",
+  "confirmationNotes": [
+    "Monday’s source lists the rehabilitation-center visit and dinner in the same 18:00–19:00 slot; no replacement time is invented.",
+    "Tuesday’s duplicate 10:00–12:00 ranch-work entry is represented once; no extra afternoon work slot is invented.",
+    "Flight bookings determine final airport-transfer timing.",
+    "Lodging room and bed assignments, bedding, accessibility needs, and van capacity must be confirmed with the hosts."
+  ],
+  "days": [
+    {
+      "day": 1,
+      "date": "2027-01-09",
+      "title": "Arrive in Mexico City",
+      "summary": "An evening arrival, a welcome from our hosts, and settling in at Rancho Alfa y Omega.",
+      "items": [
+        [
+          "21:00",
+          "Planned arrival at Mexico City Airport."
+        ],
+        [
+          "23:00",
+          "Arrive at Rancho Alfa y Omega, drop off luggage, and settle into the lodging."
+        ]
+      ],
+      "note": "Arrival times are the host’s working plan and must agree with the final flight booking."
+    },
+    {
+      "day": 2,
+      "date": "2027-01-10",
+      "title": "Outreach and the city",
+      "summary": "Prepare together, join the local outreach team, and begin to know Mexico City.",
+      "items": [
+        [
+          "07:00–08:00",
+          "Breakfast."
+        ],
+        [
+          "08:00–09:00",
+          "Prepare outreach supplies."
+        ],
+        [
+          "09:00–13:00",
+          "Outreach activity in Mexico City."
+        ],
+        [
+          "13:00–14:00",
+          "Lunch at Toño’s place."
+        ],
+        [
+          "14:00–18:00",
+          "Mexico City tour."
+        ],
+        [
+          "18:00",
+          "Return to the ranch."
+        ]
+      ]
+    },
+    {
+      "day": 3,
+      "date": "2027-01-11",
+      "title": "Ranch service and a ministry visit",
+      "summary": "Work alongside the ranch team and learn from a partner rehabilitation center.",
+      "items": [
+        [
+          "08:00–10:00",
+          "Breakfast."
+        ],
+        [
+          "10:00–12:00",
+          "Host-directed work at the ranch."
+        ],
+        [
+          "13:00–15:00",
+          "Lunch at the ranch."
+        ],
+        [
+          "Evening · time to confirm",
+          "Visit to the rehabilitation center and dinner at Rancho Alfa y Omega."
+        ]
+      ],
+      "note": "The order and times of the rehabilitation-center visit and dinner are awaiting host confirmation."
+    },
+    {
+      "day": 4,
+      "date": "2027-01-12",
+      "title": "Ranch service and a campfire",
+      "summary": "A second day of practical work, followed by dinner and a late campfire together.",
+      "items": [
+        [
+          "08:00–10:00",
+          "Breakfast."
+        ],
+        [
+          "10:00–12:00",
+          "Host-directed work at the ranch."
+        ],
+        [
+          "13:00–15:00",
+          "Lunch at the ranch."
+        ],
+        [
+          "20:00–22:00",
+          "Dinner at the ranch."
+        ],
+        [
+          "22:00–23:00",
+          "Campfire at Rancho Alfa y Omega."
+        ]
+      ],
+      "note": "Further work and rest periods will be arranged with the hosts. Only one morning work block is currently scheduled."
+    },
+    {
+      "day": 5,
+      "date": "2027-01-13",
+      "title": "Return to the outreach",
+      "summary": "A second day alongside the local ministry, with time for conversation, practical care, and shared meals.",
+      "items": [
+        [
+          "07:00–08:00",
+          "Breakfast."
+        ],
+        [
+          "08:00–09:00",
+          "Prepare outreach supplies."
+        ],
+        [
+          "09:00–13:00",
+          "Outreach activity in Mexico City."
+        ],
+        [
+          "14:00–15:00",
+          "Lunch at Toño’s place."
+        ],
+        [
+          "16:00",
+          "Return to Rancho Alfa y Omega."
+        ]
+      ]
+    },
+    {
+      "day": 6,
+      "date": "2027-01-14",
+      "title": "A final look and the journey home",
+      "summary": "Optional cultural time before the airport transfer, shaped around the confirmed departure flight.",
+      "items": [
+        [
+          "08:00–10:00",
+          "Breakfast."
+        ],
+        [
+          "10:00–12:00",
+          "Optional free time for a Mexico City or pyramids visit."
+        ],
+        [
+          "18:00–19:00 · provisional",
+          "Ground transfer to the airport."
+        ]
+      ],
+      "note": "The airport transfer must be confirmed against the booked departure flight. Cultural activities depend on time, local arrangements, and personal budget."
+    }
+  ]
+}

@@ -23,6 +23,8 @@ async function loadTrip() {
     document.querySelector("#actual-trip-description").textContent = trip.public_description || trip.public_summary || "Details are being prepared with our ministry partners.";
     const interestUrl = trip.interest_enabled ? `/interest/?type=trip&opportunity=${encodeURIComponent(trip.opportunity_id || "")}&trip=${encodeURIComponent(trip.id)}` : "/schedule/";
     document.querySelectorAll("#actual-trip-interest, #actual-trip-interest-final").forEach(link => { link.href = interestUrl; link.textContent = trip.interest_enabled ? (trip.public_call_to_action || "I'm interested in this trip") : "Talk with Hope Sojourns"; });
+    const priorExperience=document.querySelector("#mexico-experience");priorExperience?.remove();
+    if(window.HSMexicoExperience?.matches(trip))document.querySelector("#actual-trip-calendar").before(window.HSMexicoExperience.create());
     const content = document.querySelector("#actual-trip-content");
     content.replaceChildren();
     if(data.ministries?.length){const partners=node('article');partners.append(node('h2','','Ministry partners'),node('p','',data.ministries.map(m=>m.name).join(' · ')));content.append(partners);}

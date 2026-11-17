@@ -1,12 +1,22 @@
 # Hope Sojourns website style guide
 
-Version 4.118
+Version 4.119
 
 Last reviewed: November 16, 2026
 
 Admin File storage uses a horizontally scrollable data table with file links, prayer/location, uploader, date, original bytes, actual stored bytes and a permanent-delete action. Largest first is the default; labeled location/type and date/size sort filters sit beside search. A summary distinguishes storage savings from original download sizes. The standard moderation dialog requires a reason and typed DELETE confirmation. Keep the universal footer disclaimer below the organization/tagline, in readable muted text: Portal administrators may remove any item for any reason. The disclaimer appears on sign-in and authenticated pages alike.
 
 Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 44 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+
+## Mexico City host photography and God’s Kitchen briefing
+
+Use real host photography for Mexico City destination tiles, the destination gallery and the shared public/traveler portal introduction. Captions explain the scene and practical limitations without showing credits. Preserve each full image’s proportions; gallery images open the complete photo. Lodging and transport photos illustrate spaces rather than guaranteeing assignments. Native disclosure groups keep the complete 17-photo gallery manageable on mobile.
+
+The evergreen destination and God’s Kitchen briefing must suit repeated departures. Keep departure dates and daily times on each journey’s public page and Traveler Portal. Label every itinerary proposed and explain that activities and times can change before and during the journey. Show estimates and optional sightseeing allowances as provisional, specific to the traveler’s journey.
+
+The God’s Kitchen page retains the source’s bold condensed headings, navy/teal palette, large foundation mark, alternating panels, numbered process and scriptural emphasis inside standard Hope Sojourns navigation and footer. Define the source identity colors only in styles.css :root: --gods-kitchen-blue (#24497b; RGB 36,73,123) and --gods-kitchen-teal (#2aa7b9; RGB 42,167,185), with matching RGB channel tokens. Existing forest and functional-information colors do not match the ministry identity. COLOR-PALETTE.md records their roles. Page CSS uses these tokens and existing shared paper/ink colors.
+
+Keep headings readable on small screens, photos proportional, captions and caveats adjacent to their content, and native link/focus behavior intact. Public and traveler portal ministry links share the same destination briefing. Local changes pending release.
 
 ## Prayer Portal buttons and mobile navigation
 
@@ -968,6 +978,8 @@ Place the MMT Word edition latest-revision note beneath the contents-page instru
 Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
 
 ## Revision history
+
+- November 16, 2026 — Version 4.119. Added reusable Mexico City host photography and ministry briefing, journey-specific proposed schedules, and clear notice of changes before and during travel. Pending release.
 
 - November 16, 2026 — Version 4.118. Standardized Prayer Portal action controls and documented the accessible phone navigation drawer, responsive header and page layouts. Local review pending release.
 

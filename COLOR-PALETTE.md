@@ -95,3 +95,12 @@ Do not place normal-size white text on `--coral`; use `--coral-dark` for that pa
   color: #19322b;
 }
 ```
+
+## God’s Kitchen partner identity
+
+| Token | HEX | RGB | Role |
+| --- | --- | --- | --- |
+| `--gods-kitchen-blue` | `#24497b` | 36, 73, 123 | Navy sampled from the supplied God’s Kitchen ministry presentation; scoped to its briefing page. |
+| `--gods-kitchen-teal` | `#2aa7b9` | 42, 167, 185 | Teal sampled from the presentation’s cover waves. |
+
+Added November 16, 2026 to preserve the requested partner identity. Existing forest brand tokens and the functional info blue do not reproduce this supplied navy/teal pairing. Matching RGB-channel tokens support transparent decoration. Hope Sojourns navigation and page framing retain the site palette.

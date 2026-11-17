@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.28
+Version 5.29
 
 Last reviewed: November 16, 2026
 
@@ -9,6 +9,18 @@ Migration 0019 adds stored_size and storage_encoding to attachment metadata, bac
 The browser loads public/api-client.js before app.js. It retries transient GET failures once and replaces malformed or non-JSON responses with a readable recovery message. Writes and uploads are never retried automatically, preventing duplicate changes when an acknowledgement is lost. A failed transport alone does not clear the session; expired authentication retains its normal handling. Run the browser API regression tests for malformed responses, transport loss, GET retry and write non-replay.
 
 Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 44 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+
+## Mexico City host content and reusable journeys
+
+The evergreen destination at /trips/mexico-city/ and ministry briefing at /trips/mexico-city/gods-kitchen/ describe the partnership for every Mexico City departure. They must not hard-code one departure’s dates, weekdays, or activity counts. destinations-public.js loads overview.js, overview.css and the generated experience.js for Mexico. The overview links to the destination’s actual departures; each retains its own public page and Traveler Portal. God’s Kitchen uses the normal Hope Sojourns navigation and footer with its own source-inspired presentation inside the page.
+
+tools/build_mexico_host_content.py generates experience.js from the reviewed public host briefing and trips/mexico-city/photos.json. Shared destination/portal material uses only the reusable gallery, ministry introduction and proposed-itinerary notice. Never insert the dated briefing’s schedule or optional spending amount into every Mexico City journey. trip/trip.js and journey/journey.js identify Mexico by opportunity_id or Mexico City location; the shared section links to the ministry briefing and captioned destination gallery. Daily schedules remain individual trip_content records.
+
+Migration 0069_mexico_host_briefing.sql updates evergreen destination wording and its real outreach photo, plus the January 9–14, 2027 trip’s six existing daily entries and two ministry/preparation links. It is content-only, scoped by exact trip slug, dates and location, and idempotent. Apply independently to isolated test and production only after release authorization. Preserve each environment’s visibility settings, traveler credentials, finances, packing, devotionals and other trips. All six daily records explicitly label the itinerary proposed and subject to change before and during the journey. Monday’s overlapping evening times and the flight-dependent transfer remain unconfirmed.
+
+assets/mexico-host-2026 contains optimized, proportionally scaled host photography and the foundation logo. No public photo credits or original email attachments are published. Private source, extraction and provenance material stays in ignored outputs/mexico-moises-2026-11-16. The primary Mexico tile uses outreach-meal-service.webp. Keep photos.json alt text, contextual captions and dimensions aligned with the assets. Native gallery disclosures expose 17 photos; full-image links preserve the complete image. Do not imply a reserved room, bed or vehicle seat.
+
+Validate with the Mexico host-briefing and destination Worker tests, Worker type check, public build and palette check. tools/start-mexico-host-preview.cjs launches a loopback-only, read-only synthetic-data review on port 4208; it never authenticates to hosted portals or copies real traveler records. This change remains local pending release authorization.
 
 ## Prayer Portal responsive navigation
 
@@ -1441,6 +1453,8 @@ People and Contact spreadsheet share the contactTypeBulkControls component in ad
 POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
 
 ## Revision history
+
+- November 16, 2026 — Version 5.29. Added reusable Mexico City host photography and ministry briefing, journey-specific proposed schedules, and clear notice of changes before and during travel. Pending release.
 
 - November 16, 2026 — Version 5.28. Standardized Prayer Portal action controls and documented the accessible phone navigation drawer, responsive header and page layouts. Local review pending release.
 

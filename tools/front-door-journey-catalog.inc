@@ -20,7 +20,7 @@
           <div class="trip-card-content"><p class="kicker">United States</p><h3>Shepherd of the Ozarks</h3><p>Support camp ministry and community needs near Marshall, Arkansas.</p><ul class="trip-schedule" aria-label="Upcoming Shepherd of the Ozarks trips"><li><span class="trip-date">November 2027</span><span class="trip-status trip-status-planning">Planning</span></li></ul><a class="text-link" href="/trips/arkansas/">Explore Arkansas &rarr;</a></div>
         </article>
         <article class="trip-card has-schedule">
-          <img src="/assets/mexico-city.jpg" alt="Palacio de Bellas Artes and the Mexico City skyline" loading="lazy">
+          <img src="/assets/mexico-host-2026/outreach-meal-service.webp" alt="Volunteers prepare a meal-service station in a Mexico City public square" loading="lazy">
           <div class="trip-card-content"><p class="kicker">Mexico</p><h3>Mexico City</h3><p>Join Metro Relief of Dallas in supporting a sister ministry serving neighbors experiencing homelessness.</p><ul class="trip-schedule" aria-label="Upcoming Mexico City trip"><li><span class="trip-date">January 9–14, 2027</span><span class="trip-status trip-status-scheduled">Scheduled</span><span class="trip-detail">Interest conversations open</span></li></ul><a class="text-link" href="/trips/mexico-city/">Explore Mexico City &rarr;</a></div>
         </article>
         <article class="trip-card trip-card-future">

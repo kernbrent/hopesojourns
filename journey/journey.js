@@ -191,6 +191,7 @@ function render(data) {
   navigation.replaceChildren();
   const packetButton=node('button','journey-packet-download','Download traveler packet');packetButton.type='button';packetButton.onclick=()=>window.HSTravelerPacket.download(data.trip,data.content,data.members);navigation.append(packetButton);
   content.replaceChildren();
+  if(window.HSMexicoExperience?.matches(data.trip)){const experience=window.HSMexicoExperience.create({traveler:true});content.append(experience);const link=node("a","","Mexico experience");link.href="#mexico-experience";navigation.append(link);}
   if(data.memories?.length){const section=node('section','journey-section');section.id='trip-memories';const link=node('a','', 'Photos & memories');link.href='#trip-memories';navigation.append(link);window.HSTripMemoriesView.collection(section,data.memories);content.append(section);}
   const I=window.HSItinerary;
   const sorted=data.content.slice().sort((a,b)=>(a.event_date||'9999').localeCompare(b.event_date||'9999')||(a.event_time||'').localeCompare(b.event_time||'')||(a.sort_order||0)-(b.sort_order||0));

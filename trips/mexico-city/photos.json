@@ -1,0 +1,155 @@
+[
+  {
+    "src": "/assets/mexico-host-2026/outreach-meal-service.webp",
+    "width": 640,
+    "height": 480,
+    "alt": "Volunteers prepare a meal-service station in a Mexico City public square.",
+    "caption": "Volunteers prepare a meal-service station in a Mexico City public square.",
+    "group": "Street outreach",
+    "key": "outreach-meal-service"
+  },
+  {
+    "src": "/assets/mexico-host-2026/outreach-neighbors.webp",
+    "width": 512,
+    "height": 384,
+    "alt": "Neighbors gather around the local outreach team for food and conversation.",
+    "caption": "Neighbors gather around the local outreach team for food and conversation.",
+    "group": "Street outreach",
+    "key": "outreach-neighbors"
+  },
+  {
+    "src": "/assets/mexico-host-2026/outreach-conversation.webp",
+    "width": 512,
+    "height": 384,
+    "alt": "Personal conversation is part of the team’s presence in the city.",
+    "caption": "Personal conversation is part of the team’s presence in the city.",
+    "group": "Street outreach",
+    "key": "outreach-conversation"
+  },
+  {
+    "src": "/assets/mexico-host-2026/street-setting.webp",
+    "width": 384,
+    "height": 512,
+    "alt": "One of the urban settings shown for the team’s street ministry.",
+    "caption": "One of the urban settings shown for the team’s street ministry.",
+    "group": "Street outreach",
+    "key": "street-setting"
+  },
+  {
+    "src": "/assets/mexico-host-2026/street-shelter.webp",
+    "width": 640,
+    "height": 360,
+    "alt": "A makeshift shelter illustrates the housing insecurity the ministry encounters.",
+    "caption": "A makeshift shelter illustrates the housing insecurity the ministry encounters.",
+    "group": "Street outreach",
+    "key": "street-shelter"
+  },
+  {
+    "src": "/assets/mexico-host-2026/ranch-overview.webp",
+    "width": 512,
+    "height": 384,
+    "alt": "Rancho Alfa y Omega and its open grounds, the team’s planned home base.",
+    "caption": "Rancho Alfa y Omega and its open grounds, the team’s planned home base.",
+    "group": "Rancho Alfa y Omega",
+    "key": "ranch-overview"
+  },
+  {
+    "src": "/assets/mexico-host-2026/ranch-grounds.webp",
+    "width": 480,
+    "height": 640,
+    "alt": "Open grounds and buildings at Rancho Alfa y Omega.",
+    "caption": "Open grounds and buildings at Rancho Alfa y Omega.",
+    "group": "Rancho Alfa y Omega",
+    "key": "ranch-grounds"
+  },
+  {
+    "src": "/assets/mexico-host-2026/ranch-buildings.webp",
+    "width": 384,
+    "height": 512,
+    "alt": "A view across the ranch grounds toward the ministry buildings.",
+    "caption": "A view across the ranch grounds toward the ministry buildings.",
+    "group": "Rancho Alfa y Omega",
+    "key": "ranch-buildings"
+  },
+  {
+    "src": "/assets/mexico-host-2026/ranch-team-preparation.webp",
+    "width": 640,
+    "height": 480,
+    "alt": "A team works together inside a ranch building.",
+    "caption": "A team works together inside a ranch building.",
+    "group": "Rancho Alfa y Omega",
+    "key": "ranch-team-preparation"
+  },
+  {
+    "src": "/assets/mexico-host-2026/ranch-dormitory.webp",
+    "width": 512,
+    "height": 288,
+    "alt": "An additional dormitory space at the ranch. Bed assignments and bedding are still to be confirmed.",
+    "caption": "An additional dormitory space at the ranch. Bed assignments and bedding are still to be confirmed.",
+    "group": "Rancho Alfa y Omega",
+    "key": "ranch-dormitory"
+  },
+  {
+    "src": "/assets/mexico-host-2026/lodging-twin-room.webp",
+    "width": 576,
+    "height": 432,
+    "alt": "A twin-bed room among the lodging spaces at Rancho Alfa y Omega.",
+    "caption": "A twin-bed room among the lodging spaces at Rancho Alfa y Omega.",
+    "group": "Lodging",
+    "key": "lodging-twin-room"
+  },
+  {
+    "src": "/assets/mexico-host-2026/lodging-double-room.webp",
+    "width": 360,
+    "height": 640,
+    "alt": "A double-bed room shown among the ranch’s lodging spaces.",
+    "caption": "A double-bed room shown among the ranch’s lodging spaces.",
+    "group": "Lodging",
+    "key": "lodging-double-room"
+  },
+  {
+    "src": "/assets/mexico-host-2026/lodging-bathroom.webp",
+    "width": 576,
+    "height": 432,
+    "alt": "A bathroom and shower in the ranch lodging.",
+    "caption": "A bathroom and shower in the ranch lodging.",
+    "group": "Lodging",
+    "key": "lodging-bathroom"
+  },
+  {
+    "src": "/assets/mexico-host-2026/lodging-lounge.webp",
+    "width": 640,
+    "height": 360,
+    "alt": "A shared sitting area in the ranch lodging.",
+    "caption": "A shared sitting area in the ranch lodging.",
+    "group": "Lodging",
+    "key": "lodging-lounge"
+  },
+  {
+    "src": "/assets/mexico-host-2026/lodging-kitchen.webp",
+    "width": 640,
+    "height": 360,
+    "alt": "A kitchen and dining corner in the ranch lodging.",
+    "caption": "A kitchen and dining corner in the ranch lodging.",
+    "group": "Lodging",
+    "key": "lodging-kitchen"
+  },
+  {
+    "src": "/assets/mexico-host-2026/transport-van.webp",
+    "width": 768,
+    "height": 576,
+    "alt": "A passenger van shown for local ground transportation.",
+    "caption": "A passenger van shown for local ground transportation.",
+    "group": "Ground transportation",
+    "key": "transport-van"
+  },
+  {
+    "src": "/assets/mexico-host-2026/transport-outreach.webp",
+    "width": 768,
+    "height": 1024,
+    "alt": "A ministry vehicle at a city outreach stop.",
+    "caption": "A ministry vehicle at a city outreach stop.",
+    "group": "Ground transportation",
+    "key": "transport-outreach"
+  }
+]

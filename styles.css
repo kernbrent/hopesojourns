@@ -54,6 +54,12 @@
   --error: #8f3030;           /* rgb(143, 48, 48) */
   --error-rgb: 143, 48, 48;
 
+  /* God’s Kitchen partner identity, sampled from its ministry briefing */
+  --gods-kitchen-blue: #24497b; /* rgb(36, 73, 123): partner navy */
+  --gods-kitchen-blue-rgb: 36, 73, 123;
+  --gods-kitchen-teal: #2aa7b9; /* rgb(42, 167, 185): partner wave accent */
+  --gods-kitchen-teal-rgb: 42, 167, 185;
+
   /* Semantic aliases for all current and future pages */
   --color-page: var(--cream);
   --color-surface: var(--paper);
