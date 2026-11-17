@@ -18,19 +18,22 @@ export async function handleAdmin(request,db,auth,url,h) {
  }
  if(path==='/api/admin/users' && method==='GET') {
   const search=(url.searchParams.get('search')||'').slice(0,200);
-  const rows=(await db.prepare(`SELECT id,email,name,username,phone,timezone,bio,gender,birth_date,role,status,access_level,is_owner,created_at FROM users WHERE instr(lower(name||' '||email||' '||coalesce(username,'')),lower(?))>0 AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 51`).bind(search,...page()).all()).results;
+  const rows=(await db.prepare(`SELECT id,email,name,username,phone,timezone,bio,gender,birth_date,notify_requests,notify_updates,notify_answered,role,status,access_level,is_owner,created_at FROM users WHERE instr(lower(name||' '||email||' '||coalesce(username,'')),lower(?))>0 AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 51`).bind(search,...page()).all()).results;
   const result=paged(rows);
   for(const person of result.items) {
    const limit=await db.prepare('SELECT attempts,expires_at FROM login_limits WHERE key=?').bind(`email:${await digest(person.email)}`).first();
    person.locked_until=limit && limit.attempts>10 && limit.expires_at>Date.now()?limit.expires_at:null;
+   person.groups=(await db.prepare(`SELECT g.id,g.name,g.discoverable,g.owner_id,m.status,m.requested_at,m.decided_at FROM groups g JOIN group_members m ON m.group_id=g.id WHERE m.user_id=? ORDER BY g.name,g.id`).bind(person.id).all()).results;
   }
   return json(result);
  }
  if(path==='/api/admin/posts' && method==='GET') {
   const search=(url.searchParams.get('search')||'').slice(0,200);
+  const archived=url.searchParams.get('archived')||'all';requireValue(['all','0','1'].includes(archived),'Choose an archive filter.');
   const rows=(await db.prepare(`SELECT p.*,u.name AS author_name,g.name AS group_name FROM posts p JOIN users u ON u.id=p.author_id LEFT JOIN groups g ON g.id=p.group_id
    WHERE instr(lower(p.title||' '||p.body||' '||u.name||' '||coalesce(g.name,'')),lower(?))>0
-   AND (p.created_at<? OR (p.created_at=? AND p.id<?)) ORDER BY p.created_at DESC,p.id DESC LIMIT 51`).bind(search,...page()).all()).results;
+   AND (?='all' OR p.archived=?)
+   AND (p.created_at<? OR (p.created_at=? AND p.id<?)) ORDER BY p.created_at DESC,p.id DESC LIMIT 51`).bind(search,archived,+(archived==='1'),...page()).all()).results;
   await decorateReactions(db,rows,'posts',auth.id);return json(paged(rows));
  }
  if(path==='/api/admin/groups' && method==='GET') {
@@ -41,6 +44,13 @@ export async function handleAdmin(request,db,auth,url,h) {
   return json(paged(rows));
  }
  if(path==='/api/admin/audit' && method==='GET') return json((await db.prepare(`SELECT a.*,u.name AS actor_name FROM admin_audit a JOIN users u ON u.id=a.actor_id ORDER BY a.created_at DESC,a.id DESC LIMIT 100`).all()).results);
+ const archive=/^\/api\/admin\/posts\/([^/]+)\/archive$/.exec(path);
+ if(archive&&method==='POST') {
+  const data=await body(request),reason=text(data.reason,500,'Reason');requireValue(typeof data.archived==='boolean','Choose Archive or Restore.');
+  return change(data.archived?'archive':'restore','post',archive[1],reason,'EXISTS(SELECT 1 FROM posts WHERE id=?)',[archive[1]],(guard,op)=>[
+   db.prepare(`UPDATE posts SET archived=?,archived_at=?,archived_by=? WHERE id=? AND ${guard}`).bind(+data.archived,data.archived?Date.now():null,data.archived?auth.id:null,archive[1],op)
+  ]);
+ }
  const match=/^\/api\/admin\/(users|posts|groups)\/([^/]+)\/(suspend|reactivate|unlock|password-reset|role|username|clear-bio|delete)$/.exec(path);
  if(!match || method!=='POST') return null;
  const [,type,id,action]=match,data=await body(request),reason=text(data.reason,500,'Reason');
@@ -99,12 +109,15 @@ export async function handleAdmin(request,db,auth,url,h) {
       ON CONFLICT(group_id,user_id) DO UPDATE SET status='approved',decided_at=excluded.decided_at,decided_by=excluded.decided_by`).bind(auth.id,Date.now(),Date.now(),auth.id,id,op),
     db.prepare(`UPDATE groups SET owner_id=? WHERE owner_id=? AND ${guard}`).bind(auth.id,id,op),
     db.prepare(`DELETE FROM posts WHERE author_id=? AND ${guard}`).bind(id,op),
+    db.prepare(`DELETE FROM written_prayers WHERE author_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM sessions WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM password_resets WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM portal_requests WHERE (email=? OR user_id=?) AND ${guard}`).bind(target.email,id,op),
     db.prepare(`DELETE FROM invites WHERE email=? AND ${guard}`).bind(target.email,op),
     db.prepare(`DELETE FROM notifications WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM post_hearts WHERE user_id=? AND ${guard}`).bind(id,op),
+    db.prepare(`DELETE FROM comment_hearts WHERE user_id=? AND ${guard}`).bind(id,op),
+    db.prepare(`DELETE FROM prayer_comments WHERE author_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM devotional_reads WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM resource_thumbs WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM follows WHERE (follower_id=? OR followed_id=?) AND ${guard}`).bind(id,id,op),

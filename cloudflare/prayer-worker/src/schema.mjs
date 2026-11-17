@@ -59,5 +59,21 @@ export const schema=[
   {
     "name": "0015_invitation_delivery.sql",
     "sql": "CREATE TABLE invitation_deliveries (\n invite_id TEXT PRIMARY KEY REFERENCES invites(id) ON DELETE CASCADE,\n email_status TEXT NOT NULL CHECK(email_status IN ('sending','sent','captured','failed')),\n updated_at INTEGER NOT NULL\n);\n"
+  },
+  {
+    "name": "0016_shared_prayers.sql",
+    "sql": "ALTER TABLE posts ADD COLUMN author_only INTEGER NOT NULL DEFAULT 0 CHECK(author_only IN (0,1));\nALTER TABLE posts ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;\nALTER TABLE posts ADD COLUMN updated_at INTEGER;\nALTER TABLE posts ADD COLUMN updated_by TEXT REFERENCES users(id);\nCREATE TABLE post_revisions (\n post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, revision INTEGER NOT NULL,\n title TEXT NOT NULL, body TEXT NOT NULL, kind TEXT NOT NULL, author_only INTEGER NOT NULL,\n editor_id TEXT NOT NULL REFERENCES users(id), created_at INTEGER NOT NULL,\n PRIMARY KEY(post_id,revision)\n);\nCREATE TABLE prayer_comments (\n id TEXT PRIMARY KEY, post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,\n author_id TEXT NOT NULL REFERENCES users(id), body TEXT NOT NULL, created_at INTEGER NOT NULL\n);\nCREATE INDEX prayer_comments_post ON prayer_comments(post_id,created_at,id);\nCREATE TABLE comment_hearts (\n comment_id TEXT NOT NULL REFERENCES prayer_comments(id) ON DELETE CASCADE,\n user_id TEXT NOT NULL REFERENCES users(id), created_at INTEGER NOT NULL,\n PRIMARY KEY(comment_id,user_id)\n);\nCREATE TABLE written_prayers (\n id TEXT PRIMARY KEY, author_id TEXT NOT NULL REFERENCES users(id), title TEXT NOT NULL,\n body TEXT NOT NULL, tags TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL CHECK(status IN ('published','hidden')),\n revision INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL\n);\nCREATE TABLE written_prayer_versions (\n prayer_id TEXT NOT NULL REFERENCES written_prayers(id) ON DELETE CASCADE, revision INTEGER NOT NULL,\n title TEXT NOT NULL, body TEXT NOT NULL, tags TEXT NOT NULL, status TEXT NOT NULL,\n editor_id TEXT NOT NULL REFERENCES users(id), created_at INTEGER NOT NULL,\n PRIMARY KEY(prayer_id,revision)\n);\n"
+  },
+  {
+    "name": "0017_prayer_attachments.sql",
+    "sql": "CREATE TABLE prayer_attachments (\n id TEXT PRIMARY KEY, post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,\n written_id TEXT REFERENCES written_prayers(id) ON DELETE CASCADE,\n object_key TEXT NOT NULL UNIQUE, filename TEXT NOT NULL, content_type TEXT NOT NULL,\n size INTEGER NOT NULL, is_audio INTEGER NOT NULL DEFAULT 0,\n created_by TEXT NOT NULL REFERENCES users(id), created_at INTEGER NOT NULL,\n CHECK((post_id IS NULL) <> (written_id IS NULL))\n);\nCREATE INDEX attachment_post ON prayer_attachments(post_id);\nCREATE INDEX attachment_written ON prayer_attachments(written_id);\n"
+  },
+  {
+    "name": "0018_prayer_archive.sql",
+    "sql": "ALTER TABLE posts ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1));\nALTER TABLE posts ADD COLUMN archived_at INTEGER;\nALTER TABLE posts ADD COLUMN archived_by TEXT REFERENCES users(id);\nCREATE INDEX posts_archived_created ON posts(archived,created_at);\n"
+  },
+  {
+    "name": "0019_attachment_storage.sql",
+    "sql": "ALTER TABLE prayer_attachments ADD COLUMN stored_size INTEGER;\nALTER TABLE prayer_attachments ADD COLUMN storage_encoding TEXT;\nUPDATE prayer_attachments SET stored_size=size;\nCREATE INDEX attachment_size ON prayer_attachments(stored_size DESC,id);\n"
   }
 ];

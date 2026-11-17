@@ -46,6 +46,16 @@ Hope Sojourns keeps its original logo, tagline, and shared root stylesheet. A fu
 
 This is a reusable single-organization application, not a completed commercial SaaS service. Each church/nonprofit must have its own Worker, Durable Object namespace, secrets, accounts, and hostname; no customer is selected by a client-supplied tenant ID. Never share a namespace across customer deployments. Self-service onboarding, billing, subscriptions, customer lifecycle management, and a shared multi-tenant hosting model have not been built. Groups are not customer data-isolation boundaries.
 
+## Collaboration, written prayers, files and archives
+
+Browser reload restores an existing HttpOnly session using /api/me; Remember me does not extend it. Refresh content reloads the current workspace. /api/health is polled every minute for RELEASE_VERSION changes; a banner offers an explicit code reload, preserving unsaved forms. Set a new RELEASE_VERSION when deploying an authorized build.
+
+Approved group members who can see a prayer can update its text unless the author opts out. Only the author/admin can change that lock. Revisions reject concurrent stale edits and retain history. Comments and their hearts inherit the exact parent audience. Admin Accounts shows profile fields and all group membership states. Written prayers is a separate tagged/searchable library with immutable text versions and published/hidden visibility. Provisional users may read its published entries; full members write their own and admins moderate all.
+
+Migrations 0016–0018 add collaboration, written-prayer versions, private attachment metadata and archive state. Each prayer accepts 10 files / 25 MB total, with 8 MB per file. Supported downloads: PDF, TXT, DOCX, JPEG, PNG, WebP. Written prayers also accept MP3, WAV, OGG, M4A and WebM recordings with native playback and authenticated range requests. Files share the current parent audience. Admin archive/restore is audited, keeps all child records and hides the prayer from non-admins; All prayers has archive filters. Archiving saves wall space rather than storage bytes.
+
+Before an authorized hosted release, provision two private R2 buckets: hope-sojourns-prayer-files-test and hope-sojourns-prayer-files-production. Keep both private and bind PRAYER_FILES separately in the matching environment. Local uses hope-sojourns-prayer-files-local. Never share business records, file buckets or namespaces. Explicit deletion cleans up associated objects; if storage deletion fails after metadata commits, reconcile unreachable objects against prayer_attachments privately. No public bucket URLs or bearer file links are generated.
+
 ## Local operation
 
 Use the existing `cloudflare/interest-worker/node_modules/wrangler` installation. From this directory:
@@ -173,3 +183,7 @@ Sender/reply-to: prayer@hopesojourns.com for automatic invitations and recovery.
 Primary references: https://resend.com/docs/api-reference/emails/send-email and https://resend.com/docs/dashboard/emails/idempotency-keys .
 
 November 9, 2026: prayer@hopesojourns.com is an active Cloudflare Email Routing rule forwarding to the existing verified destination christianstepsministries@gmail.com. This is a forwarding alias without its own inbox/password; Resend handles app outbound mail after release.
+
+### Attachment storage management
+
+Migration 0019 tracks original and stored bytes. New non-audio uploads use private gzip encoding only for files >=1 KB with >5% savings; audio and existing uploads stay unchanged. Authenticated downloads restore exact original bytes (including range requests). Admin File storage lists prayer attachments across visible, restricted and archived prayers, largest stored size first, with search and filters. Permanent deletion requires a reason and typed DELETE, records an audit request before deleting R2, then removes metadata. Failed R2 deletions remain listed for retry. If metadata finalization fails, retry the same deletion. Text history cannot recover removed attachments. The global footer reserves admin removal authority.

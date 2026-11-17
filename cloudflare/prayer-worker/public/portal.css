@@ -54,8 +54,10 @@
 .avatar { display:inline-grid; place-items:center; width:38px; height:38px; border-radius:50%; background:var(--forest-soft); color:var(--forest-dark); font-weight:700; }
 .post h3 { font:400 1.5rem Georgia,serif; margin:1rem 0 .6rem; }
 .post-body { white-space:pre-wrap; font-size:.95rem; }
-.post-bottom { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-top:1.3rem; padding-top:.8rem; border-top:1px solid var(--line); font-size:.7rem; color:var(--muted); }
-.post-bottom button { font-size:.7rem; padding:.2rem .6rem; }
+.post-bottom { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-start; gap:.5rem; margin-top:1.3rem; padding-top:1rem; border-top:1px solid var(--line); font-size:.75rem; line-height:1.5; color:var(--muted); }
+.post-bottom > span { flex-basis:100%; }
+.post-bottom > span:first-child { margin-bottom:.35rem; }
+.prayer-portal .post-bottom button { flex:0 0 auto; min-height:40px; padding:.55rem .8rem; border-radius:8px; font-size:.8125rem; line-height:1.2; white-space:nowrap; overflow-wrap:normal; }
 .badge { border-radius:5px; padding:.15rem .5rem; font-size:.65rem; background:var(--gold-wash); color:var(--gold-ink); }
 .badge.answered { background:var(--success-wash); color:var(--success); }
 .badge.update { background:var(--info-wash); color:var(--info); }
@@ -190,3 +192,16 @@
 #help-topic-links { padding-left:1.5rem; margin-bottom:0; }
 #help-topic-links a { display:inline-block; padding:.6rem 0; }
 .help-topic { scroll-margin-top:1rem; }
+.prayer-reading { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.75; }
+#prayer-edit,#prayer-comments,#written-editor,#prayer-files { width:min(760px,94vw); }
+#comment-items article,#file-items article { margin:1rem 0; }
+.prayer-portal audio { display:block; width:100%; max-width:34rem; margin:.75rem 0; }
+.account-card details { margin:1rem 0; }
+
+.portal-footer small { display:block; clear:both; padding-top:.65rem; letter-spacing:normal; font-size:.75rem; }
+
+.storage-grid table { min-width:1200px; }
+.storage-grid th { white-space:nowrap; }
+.storage-grid td { min-width:110px; overflow-wrap:normal; }
+.storage-grid td:first-child { min-width:190px; overflow-wrap:anywhere; }
+.storage-grid td:nth-child(2) { min-width:230px; }

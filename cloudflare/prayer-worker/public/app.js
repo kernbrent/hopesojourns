@@ -7,6 +7,7 @@ let pendingResources=0,pendingRequests=0;
 let adminTab='users',adminCursor=null,pendingAdminAction=null,adminLoadGeneration=0;
 let resourceImageChange,resourceImageGeneration=0,pendingResourceReview=null;
 let resourceCategories=[],resourceOffset=0,resourceGeneration=0,editingResource=null,editingCategory=null,deletingResource=null;
+let editingPost=null,commentPost=null,commentGeneration=0,writtenGeneration=0,writtenOffset=0,editingWritten=null,releaseVersion=null;
 let inviteToken = new URLSearchParams(location.hash.slice(1)).get('invite');
 let resetToken = new URLSearchParams(location.hash.slice(1)).get('reset');
 // A fragment keeps the bearer invitation out of HTTP logs and Referer headers.
@@ -40,9 +41,8 @@ function applySite(config) {
 }
 async function api(path, data, method) {
   const generation = sessionGeneration;
-  const response = await fetch(`/api/${path}`, { method: method || (data ? 'POST' : 'GET'), credentials: 'same-origin',
+  const {response,result} = await window.prayerApi(`/api/${path}`, { method: method || (data ? 'POST' : 'GET'), credentials: 'same-origin',
     headers: data || method ? { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf || '' } : {}, body: data ? JSON.stringify(data) : undefined });
-  const result = await response.json();
   if (generation !== sessionGeneration) throw new Error('Your session changed. Please try again.');
   if (!response.ok) { if (response.status === 401 && user) signedOut(); throw new Error(result.error || 'Please try again.'); } return result;
 }
@@ -61,7 +61,9 @@ function setupAuth() {
 }
 function signedOut() { devotionalGeneration++;devotionalManaging=false;editingDevotional=null;deletingDevotional=null;$('#devotional-today').replaceChildren();$('#devotional-items').replaceChildren();$('#help-topics').replaceChildren();$('#help-topic-links').replaceChildren();$('#help-access').replaceChildren();$('#help-search').value='';$('#devotional-form').reset();$('#devotional-search').reset();pendingResources=0;pendingRequests=0;$("#admin-attention-items").replaceChildren();sessionGeneration++; user = null; csrf = null; people = []; groups = []; activeGroup = null; $('#community').hidden = true; $('#welcome').hidden = false; $('#logout').hidden = true;
   for (const id of ['posts','people','notifications','invites','recipients','groups','group-overview','group-members','group-actions','group-preferences','group-member-invite','admin-items']) $(`#${id}`).replaceChildren();
-  clearResources();applyListView('expanded');
+  clearResources();applyListView('expanded');commentGeneration++;writtenGeneration++;fileGeneration++;commentPost=null;editingPost=null;editingWritten=null;fileContext=null;
+  for(const id of ['written-items','comment-items','prayer-history','written-history','file-items'])$('#'+id).replaceChildren();
+  for(const id of ['prayer-edit-form','written-form','comment-form','file-form'])$('#'+id).reset();$('#refresh-content').hidden=true;
   $('#profile-form').reset();
   adminLoadGeneration++;$('#admin-private-link').value='';$('#admin-link-result').hidden=true;pendingAdminAction=null;
   $('#invite-link').value = ''; $('#invite-result').hidden = true; document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close()); setupAuth(); }
@@ -73,10 +75,10 @@ async function signedIn(data) {
   $('#greeting').textContent = `Welcome, ${user.name}.${user.role==='admin'?user.owner?' You are the portal owner.':' You have portal admin access.':' There is room for your story here.'}`;
   const provisional=user.access_level==='provisional';
   $('#compose-button').hidden=provisional;$('#provisional-notice').hidden=!provisional;$('#refresh-access').hidden=!provisional;
-  document.querySelectorAll('[data-view]').forEach(button=>{button.hidden=provisional?!['feed','resources','devotionals','help','profile'].includes(button.dataset.view):(['invites','admin'].includes(button.dataset.view)&&user.role!=='admin');});
+  document.querySelectorAll('[data-view]').forEach(button=>{button.hidden=provisional?!['feed','resources','devotionals','written-prayers','help','profile'].includes(button.dataset.view):(['invites','admin'].includes(button.dataset.view)&&user.role!=='admin');});
   if(provisional) {people=[];groups=[];} else [people,groups]=await Promise.all([api('people'),api('groups')]);
   await showView('feed'); if(!provisional) await refreshNotifications();
-  $('#welcome').hidden = true; $('#community').hidden = false; $('#logout').hidden = false;
+  $('#welcome').hidden = true; $('#community').hidden = false; $('#logout').hidden = false;$('#refresh-content').hidden=false;
 }
 function empty(container, message) { container.replaceChildren(element('div', message, 'empty')); }
 function postCard(post, notification = false) {
@@ -86,6 +88,10 @@ function postCard(post, notification = false) {
   if (notification && !post.read_at) meta.append(element('span', 'New', 'badge'));
   const audience = post.is_global ? 'Global · everyone signed in, including provisional users' : post.group_id ? {members:'Group members + portal admins',selected:'Selected group members + portal admins',admins:'Only the author + portal admins'}[post.audience] : audiences[post.audience];
   const footer = element('div', undefined, 'post-bottom'); footer.append(element('span', `${post.group_name ? `${post.group_name} · ` : ''}${audience}`));
+  const target={...post,id:post.post_id||post.id};footer.append(button('Attachments',()=>openFiles('posts',target,!!post.can_edit||user.role==='admin')));
+  if(!notification&&(post.can_edit||user.role==='admin'))footer.append(button('Update prayer',()=>openPrayerEdit(post)));
+  if(user.access_level!=='provisional')footer.append(button(`Comments${post.comment_count===undefined?'':` (${post.comment_count})`}`,()=>openComments(target)));
+  if(post.updated_at)footer.append(element('span',`Updated ${displayTime(post.updated_at)}`,'hint'));
   if (!notification && (post.author_id === user.id || user.role === 'admin')) {
     const button = element('button', 'Remove'); button.addEventListener('click', () => {
       if(user.role==='admin' && post.author_id!==user.id) openAdminAction('posts',post.id,'delete',post.title);
@@ -236,10 +242,11 @@ async function loadInvites() {
   }
 }
 async function showView(view) {
-  if(user.access_level==='provisional' && !['feed','resources','devotionals','help','profile'].includes(view)) return;
+  if(user.access_level==='provisional' && !['feed','resources','devotionals','written-prayers','help','profile'].includes(view)) return;
   currentView = view; notice('');
   if(view!=='group') activeGroup=null;
-  for (const name of ['feed','people','notifications','invites','groups','group-detail','admin','profile','resources','devotionals','help']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
+  for (const name of ['feed','people','notifications','invites','groups','group-detail','admin','profile','resources','devotionals','written-prayers','help']) $(`#${name}-view`).hidden = !(name === view || (name === 'feed' && view === 'following') || (name==='groups' && view==='discover') || (name==='group-detail' && view==='group') || (name==='feed' && view==='group' && (activeGroup?.membership==='approved' || user.role==='admin')));
+  try{sessionStorage.setItem('hs-prayer-view',JSON.stringify({view,groupId:activeGroup?.id}));}catch{}
   document.querySelectorAll('[data-view]').forEach(button => { const selected = button.dataset.view === view || (view==='group' && button.dataset.view==='groups'); button.classList.toggle('active',selected); if (selected) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
   if (view === 'feed' || view === 'following') { $('#feed-title').textContent = view === 'feed' ? 'The prayer wall' : 'People I follow'; await loadPosts(); }
   if (view === 'people') { [people,groups]=await Promise.all([api('people'),api('groups')]); renderPeople(); }
@@ -253,6 +260,7 @@ async function showView(view) {
   if(view==='admin' && user.role==='admin') { $('#admin-attention-items').textContent='Checking pending reviews…';await Promise.all([refreshResourceReviewCount(),refreshRequestCount(),loadAdmin()]); }
   if(view==='resources') await loadResources();
   if(view==='devotionals') await loadDevotionals();
+  if(view==='written-prayers')await loadWrittenPrayers();
   if(view==='help') renderHelp();
   if(view==='profile') {const current=await api('me');user=current.user;renderProfile();}
 }
@@ -300,6 +308,7 @@ $('#close-compose').addEventListener('click',() => $('#compose').close());
 $('#audience').addEventListener('change',() => { $('#recipient-options').hidden = $('#audience').value !== 'selected'; });
 $('#post-form').addEventListener('submit',event => { event.preventDefault(); action(async () => {
   const data = Object.fromEntries(new FormData(event.currentTarget)); data.recipients = [...document.querySelectorAll('[name=recipient]:checked')].map(input => input.value);
+  data.author_only=event.currentTarget.elements.author_only.checked;
   data.global=data.groupId==='__global';if(data.global) {data.groupId='';data.audience='members';data.recipients=[];}
   await api('posts',data); $('#compose').close();
   if(data.groupId) await openGroup(data.groupId); else await showView('feed');
@@ -315,15 +324,21 @@ $('#copy-invite').addEventListener('click',action(async () => { await navigator.
 async function loadAdmin(append=false) {
   const generation=++adminLoadGeneration,mode=adminTab;
   const params=new URLSearchParams({search:$('#admin-search').value});
+  if(mode==='files'){params.set('kind',$('#storage-kind').value);params.set('sort',$('#storage-sort').value);if(append&&adminCursor)params.set('offset',adminCursor);}
+  if(mode==='posts')params.set('archived',$('#admin-archive').value);
   if(mode==='portal-requests') params.set('status',$('#request-status').value);
-  if(append && adminCursor) params.set('before',adminCursor);
+  if(append && adminCursor && mode!=='files') params.set('before',adminCursor);
   const result=await api(`admin/${mode}?${params}`);
   if(generation!==adminLoadGeneration || currentView!=='admin' || !user || user.role!=='admin') return;
   document.querySelectorAll('[data-admin-tab]').forEach(node=>node.setAttribute('aria-pressed',String(node.dataset.adminTab===mode)));
   $('#admin-search-form').hidden=mode==='audit';
   $('#request-status-label').hidden=mode!=='portal-requests';
+  $('#admin-archive-label').hidden=mode!=='posts';
+  $('#storage-filters').hidden=mode!=='files';$('#storage-summary').hidden=mode!=='files';
+  if(mode==='files')$('#storage-summary').textContent=`${result.summary.count} attachments · ${fileSize(result.summary.stored_bytes)} stored · ${fileSize(result.summary.original_bytes-result.summary.stored_bytes)} saved by compression. Totals include all prayer attachments; filters apply to the list below.`;
   if(!append) $('#admin-items').replaceChildren();
   const items=mode==='audit'?result:result.items;
+  if(mode==='files' && items.length)$('#admin-items').append(storageTable(items));
   if(mode==='audit' && items.length) $('#admin-items').append(auditTable(items));
   if(!items.length && !append) empty($('#admin-items'),mode==='audit'?'No administrative actions have been recorded. The most recent 100 actions will appear here.':'No matching accounts or content.');
   for(const item of items) {
@@ -331,6 +346,8 @@ async function loadAdmin(append=false) {
     if(mode==='users') $('#admin-items').append(adminAccount(item));
     if(mode==='posts') {
       const card=postCard(item,true),actions=element('div',undefined,'actions');
+      if(item.archived)card.append(element('span','Archived · only admins can view','badge'));
+      actions.append(button(item.archived?'Restore to prayer wall':'Archive prayer',()=>openAdminAction('posts',item.id,'archive',item.title,item.archived?'restore':'archive')));
       actions.append(button('Delete prayer',()=>openAdminAction('posts',item.id,'delete',item.title)));card.append(actions);$('#admin-items').append(card);
     }
     if(mode==='groups') {
@@ -339,7 +356,7 @@ async function loadAdmin(append=false) {
       const actions=element('div',undefined,'actions');actions.append(button('View group',()=>openGroup(item.id)),button('Delete group',()=>openAdminAction('groups',item.id,'delete',item.name)));card.append(actions);$('#admin-items').append(card);
     }
   }
-  adminCursor=result.cursor;$('#admin-more').hidden=mode==='audit' || !result.more;
+  adminCursor=mode==='files'?result.offset:result.cursor;$('#admin-more').hidden=mode==='audit' || !result.more;
 }
 function auditTable(items) {
   const region=element('div',undefined,'audit-grid');
@@ -362,6 +379,10 @@ function adminAccount(person) {
   if(person.gender || person.birth_date) card.append(element('p',`Gender: ${person.gender||'Not provided'} · Birth date: ${person.birth_date||'Not provided'}`,'hint'));
   if(person.phone || person.timezone) card.append(element('p',`${person.phone||'No phone'} · ${person.timezone||'No time zone'}`,'hint'));
   if(person.bio) card.append(element('p',person.bio));
+  card.append(element('p',`Notification preferences: requests ${person.notify_requests?'on':'off'}, updates ${person.notify_updates?'on':'off'}, answered prayers ${person.notify_answered?'on':'off'}`,'hint'));
+  const memberships=element('details'),summary=element('summary',`Groups and membership history (${person.groups?.length||0})`);memberships.append(summary);
+  for(const group of person.groups||[]) {const row=element('p');row.append(element('strong',group.name),document.createTextNode(` · ${group.status}${group.owner_id===person.id?' · Leader':''}${group.discoverable?'':' · Unlisted'}`));row.append(button('View group',()=>openGroup(group.id)));memberships.append(row);}
+  if(!person.groups?.length)memberships.append(element('p','No group memberships or requests.'));card.append(memberships);
   const state=element('div',undefined,'account-state');
   state.append(element('span',person.is_owner?'Primary owner':person.role==='admin'?'Portal admin':person.access_level==='provisional'?'Provisional access':'Regular member','badge'),element('span',person.status,'badge'));
   if(person.locked_until) state.append(element('span',`Sign-in locked until ${new Date(person.locked_until).toLocaleTimeString()}`,'badge'));
@@ -384,8 +405,9 @@ function adminAccount(person) {
 }
 function openAdminAction(type,id,action,name,role) {
   pendingAdminAction={type,id,action,role};$('#admin-action-form').reset();$('#admin-action .dialog-message').hidden=true;
-  const titles={'clear-bio':'Clear introduction',username:'Change username',suspend:'Suspend account',reactivate:'Reactivate account',unlock:'Unlock sign-in','password-reset':'Create password-reset link',role:role==='admin'?'Grant admin access':'Make regular member',delete:type==='users'?'Delete account':type==='groups'?'Delete group':'Delete prayer'};
+  const titles={archive:role==='restore'?'Restore to prayer wall':'Archive prayer','clear-bio':'Clear introduction',username:'Change username',suspend:'Suspend account',reactivate:'Reactivate account',unlock:'Unlock sign-in','password-reset':'Create password-reset link',role:role==='admin'?'Grant admin access':'Make regular member',delete:type==='files'?'Permanently delete attachment':type==='users'?'Delete account':type==='groups'?'Delete group':'Delete prayer'};
   const descriptions={
+    archive:role==='restore'?'Restore this prayer to its original audience, with its comments, reactions, earlier versions and files.':'Hide this prayer from the active wall and all non-admin access. Keep its text, comments, reactions, earlier versions and files. This can be restored; it does not reduce stored bytes.',
     'clear-bio':'This removes the person’s public introduction from the directory while keeping the account and its prayers. The introduction text is not retained in the audit log.',
     username:'This changes the sign-in username and signs the person out. Their email stays attached to the same account and can still be used to sign in.',
     suspend:'This signs the person out immediately and blocks sign-in. Existing prayers and groups remain until separately moderated.',
@@ -393,7 +415,7 @@ function openAdminAction(type,id,action,name,role) {
     unlock:'This clears the temporary email sign-in lock. It does not reactivate a suspended account. Shared network rate limits remain in effect.',
     'password-reset':'This signs the person out and creates a private, single-use link valid for one hour. Share it directly with the account owner; they choose their own password. No email is sent automatically.',
     role:role==='admin'?'This explicitly grants access to every prayer, including restricted prayers, and to account and content moderation. The person is signed out so their next login uses the new role. Invitations still create regular members.':'This removes admin permissions and signs the person out. They retain regular member access.',
-    delete:type==='users'?'This permanently removes their prayers, signs them out, anonymizes their account, and transfers their groups to you. Other members’ prayers remain. The minimal audit record is retained. The account cannot be restored.':type==='groups'?'This permanently removes the group, all its prayers, membership records, and related notifications. This cannot be undone.':'This permanently removes the prayer and its notifications. This cannot be undone.'
+    delete:type==='files'?'This permanently removes the uploaded file and frees its stored bytes. The prayer and its text history remain. Other attachments remain. This cannot be undone; text versions do not restore the file.':type==='users'?'This permanently removes their prayers, signs them out, anonymizes their account, and transfers their groups to you. Other members’ prayers remain. The minimal audit record is retained. The account cannot be restored.':type==='groups'?'This permanently removes the group, all its prayers, membership records, and related notifications. This cannot be undone.':'This permanently removes the prayer and its notifications. This cannot be undone.'
   };
   $('#admin-action-title').textContent=`${titles[action]}: ${name}`;$('#admin-action-help').textContent=descriptions[action];
   $('#admin-delete-confirm').hidden=action!=='delete';$('#admin-action-form').elements.confirmation.required=action==='delete';
@@ -405,7 +427,7 @@ $('#admin-search-form').addEventListener('submit',event=>{event.preventDefault()
 $('#admin-more').addEventListener('click',action(()=>loadAdmin(true)));
 $('#close-admin-action').addEventListener('click',()=>$('#admin-action').close());
 $('#admin-action-form').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget)),target=pendingAdminAction;action(async()=>{
-  const result=await api(`admin/${target.type}/${encodeURIComponent(target.id)}/${target.action}`,{reason:values.reason,confirmation:values.confirmation,username:values.username,role:target.role});
+  const result=await api(`admin/${target.type}/${encodeURIComponent(target.id)}/${target.action}`,{reason:values.reason,confirmation:values.confirmation,username:values.username,role:target.role,archived:target.action==='archive'?target.role==='archive':undefined});
   $('#admin-action').close();if(currentView==='admin') await loadAdmin();else {await loadPosts();await refreshNotifications();}
   if(result.link) {$('#admin-link-label').textContent='Private password-reset link';$('#admin-link-help').textContent='Share privately with the account owner. Expires after one hour; works once. It is not emailed automatically.';$('#admin-private-link').value=result.link;$('#admin-link-result').hidden=false;notice('Private password-reset link created. Share it only with that account owner.');}
   else notice('Admin action completed and recorded.');
@@ -433,9 +455,12 @@ $('#group-form').addEventListener('submit',event=>{event.preventDefault(); const
   const result=await api('groups',{name:data.name,description:data.description,category:data.category,discoverable:data.discovery==='listed'});
   $('#create-group').close(); groups=await api('groups'); await openGroup(result.id); notice('Your group is ready. Invite people or approve their requests to join.');
 })(event);});
-setupAuth();
-// Opening or reloading the portal always requires an explicit Sign in submission.
-api('site').then(applySite).catch(error=>notice(error.message,true));
+setupSharedUI();setupAuth();
+// Restore the HttpOnly session on reload; passwords and session tokens stay out of app storage.
+restorePortalSession();
+// Public branding loads independently of session changes during restoration.
+window.prayerApi('/api/site',{credentials:'same-origin'}).then(({response,result})=>{if(!response.ok)throw Error('Could not load portal branding.');applySite(result);}).catch(error=>notice(error.message,true));
+checkRelease();setInterval(()=>{if(!document.hidden)checkRelease();},60000);
 setInterval(() => { if (user && user.access_level!=='provisional' && !document.hidden) refreshNotifications().catch(error => notice(error.message,true)); },60000);
 function clearResources() {
  resourceImageGeneration++;resourceImageChange=undefined;pendingResourceReview=null;
@@ -732,6 +757,75 @@ function restoreRememberedLogin() {
  const form=$('#login-form');
  try {const identifier=localStorage.getItem('hs-prayer-remembered-id')||'';form.elements.remember.checked=!!identifier;if(identifier&&!form.elements.identifier.value)form.elements.identifier.value=identifier;} catch { /* Storage can be disabled; ordinary sign-in still works. */ }
 }
+
+async function restorePortalSession() {
+ if(inviteToken||resetToken)return;
+ let last;try{last=JSON.parse(sessionStorage.getItem('hs-prayer-view')||'null');}catch{}
+ $('#welcome').hidden=true;
+ try {
+  const {response,result}=await window.prayerApi('/api/me',{credentials:'same-origin',cache:'no-store'});
+  if(response.status===401){$('#welcome').hidden=false;return;}
+  if(!response.ok)throw Error('Could not restore your session. Please try refreshing again.');
+  await signedIn(result);
+  if(last?.view==='group'&&last.groupId&&user.access_level!=='provisional')await openGroup(last.groupId);
+  else if(['feed','following','people','groups','discover','notifications','invites','admin','profile','resources','devotionals','written-prayers','help'].includes(last?.view)&&(!['admin','invites'].includes(last.view)||user.role==='admin'))await showView(last.view);
+ }catch(error){$('#welcome').hidden=false;notice(error.message,true);}
+}
+async function checkRelease() {
+ try{const response=await fetch('/api/health',{cache:'no-store'});if(!response.ok)return;const result=await response.json();if(releaseVersion&&releaseVersion!==result.version)$('#release-notice').hidden=false;else releaseVersion=result.version;}catch{}
+}
+function setupSharedUI() {
+ $('#admin-items').insertAdjacentHTML('beforebegin','<p id="storage-summary" class="hint" hidden></p>');
+ $('#admin-search-form').insertAdjacentHTML('beforeend','<div id="storage-filters" class="actions" hidden><label>File type<select id="storage-kind"><option value="all">All attachments</option><option value="posts">Prayer wall</option><option value="written">Written prayers</option><option value="audio">Audio recordings</option><option value="archived">Archived wall prayers</option></select></label><label>Sort files<select id="storage-sort"><option value="largest">Largest first</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label></div>');
+ for(const id of ['storage-kind','storage-sort'])$('#'+id).addEventListener('change',action(()=>loadAdmin()));
+ $('#admin-search-form').insertAdjacentHTML('beforeend','<label id="admin-archive-label" hidden>Prayer status<select id="admin-archive"><option value="all">Active and archived</option><option value="0">Active only</option><option value="1">Archived only</option></select></label>');$('#admin-archive').addEventListener('change',action(()=>loadAdmin()));
+ const refresh=button('Refresh content',async()=>{if(!user)return;[people,groups]=user.access_level==='provisional'?[[],[]]:await Promise.all([api('people'),api('groups')]);if(currentView==='group'&&activeGroup)await openGroup(activeGroup.id);else await showView(currentView);await checkRelease();notice('Content refreshed.');});refresh.id='refresh-content';refresh.hidden=true;$('.portal-header').insertBefore(refresh,$('#logout'));
+ $('#load-release').addEventListener('click',()=>location.reload());
+ const nav=button('Written prayers',()=>showView('written-prayers'),'nav-item');nav.dataset.view='written-prayers';$('nav[aria-label="Prayer portal"]').insertBefore(nav,$('[data-view="resources"]'));
+ $('#feed-view').parentElement.insertAdjacentHTML('beforeend',`<section id="written-prayers-view" hidden><div class="section-heading"><div><span class="eyebrow">WORDS TO PRAY</span><h2>Written prayers</h2></div><button id="written-add" class="primary">+ Write a prayer</button></div><p>A lasting library of prayers to read, listen to, and return to. Use custom tags for seasons, occasions, and needs. Edits preserve earlier versions.</p><form id="written-search" class="resource-filters"><label>Search prayers<input name="q" type="search" maxlength="200" placeholder="Title, words, or purpose"></label><label>Tag<select name="tag"><option value="">All tags</option></select></label><button type="submit">Search</button></form><div id="written-items" class="stack"></div><button id="written-more" hidden>Load more prayers</button></section>`);
+ document.body.insertAdjacentHTML('beforeend',`<dialog id="prayer-edit"><form id="prayer-edit-form"><div class="section-heading"><h2>Update prayer</h2><button type="button" data-close-shared="prayer-edit">Close</button></div><div class="dialog-message" role="alert" hidden></div><p>Updates keep the original author and audience. Earlier versions are retained.</p><label>Title<input name="title" required maxlength="140"></label><label>Prayer or update<textarea name="body" required rows="7" maxlength="6000"></textarea></label><label>Post type<select name="kind"><option value="request">Prayer request</option><option value="update">Update</option><option value="answered">Answered prayer</option></select></label><label><input name="author_only" type="checkbox"> Only the original author can update (admins can moderate)</label><p class="hint">Only the original author and admins can change this permission. Group members must also be able to see the prayer.</p><button class="primary">Save update</button></form><h3>Earlier versions</h3><div id="prayer-history"></div></dialog>
+ <dialog id="prayer-comments"><div class="section-heading"><h2 id="comment-title">Prayer conversation</h2><button type="button" data-close-shared="prayer-comments">Close</button></div><div class="dialog-message" role="alert" hidden></div><p>Comments have the same audience as this prayer. A heart counts once per person.</p><div id="comment-items" class="stack"></div><button id="comment-more" hidden>Earlier comments</button><form id="comment-form"><label>Add a comment<textarea name="body" required rows="3" maxlength="2000"></textarea></label><button class="primary">Post comment</button></form></dialog>
+ <dialog id="written-editor"><form id="written-form"><div class="section-heading"><h2>Write a prayer</h2><button type="button" data-close-shared="written-editor">Close</button></div><div class="dialog-message" role="alert" hidden></div><label>Title<input name="title" required maxlength="180"></label><label>Prayer<textarea name="body" required maxlength="12000" rows="10"></textarea></label><label>Custom tags<input name="tags" maxlength="1240" placeholder="comfort, grief, morning, thanksgiving"></label><p class="hint">Separate up to 20 tags with commas. Hashtags work too. Each tag may contain up to 60 characters.</p><label>Visibility<select name="status"><option value="published">Published — everyone signed in</option><option value="hidden">Hidden — author and admins only</option></select></label><label id="written-reason-label" hidden>Moderation reason<textarea name="reason" maxlength="500"></textarea></label><p>Save the prayer, then use Attachments &amp; recording to upload files or a reading. Every saved edit preserves a version.</p><button class="primary">Save written prayer</button></form><div id="written-history"></div></dialog>
+ <dialog id="prayer-files"><div class="section-heading"><h2 id="file-title">Prayer attachments</h2><button type="button" data-close-shared="prayer-files">Close</button></div><div class="dialog-message" role="alert" hidden></div><div id="file-items" class="stack"></div><form id="file-form"><label>Choose an attachment or recording<input name="file" type="file" required accept=".pdf,.txt,.docx,.jpg,.jpeg,.png,.webp,.mp3,.wav,.ogg,.m4a,.webm"></label><p class="hint">Up to 8 MB each, 10 files and 25 MB total per prayer. Recordings (MP3, WAV, OGG, M4A, WebM) are available for written prayers. Files share the prayer’s audience. Uploads are losslessly compressed when this saves space; downloads stay unchanged. Audio remains in its original format for playback.</p><button class="primary">Upload file</button></form></dialog>`);
+ document.querySelectorAll('[data-close-shared]').forEach(b=>b.addEventListener('click',()=>$('#'+b.dataset.closeShared).close()));
+ $('#prayer-files').addEventListener('close',()=>{fileGeneration++;if(user&&currentView==='written-prayers')loadWrittenPrayers().catch(error=>notice(error.message,true));});
+ $('#prayer-edit-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{const f=event.target,data={title:f.elements.title.value,body:f.elements.body.value,kind:f.elements.kind.value,revision:editingPost.revision};if(!f.elements.author_only.disabled)data.author_only=f.elements.author_only.checked;await api(`posts/${editingPost.id}/edit`,data);$('#prayer-edit').close();await loadPosts();notice('Prayer updated.');})(event);});
+ $('#comment-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{const id=commentPost.id;await api(`posts/${id}/comments`,{body:event.target.elements.body.value});event.target.reset();await loadComments();if(['feed','following','group'].includes(currentView))await loadPosts();})(event);});
+ $('#comment-more').addEventListener('click',action(()=>loadComments(true)));
+ $('#written-add').addEventListener('click',()=>openWrittenEditor());
+ $('#written-search').addEventListener('submit',event=>{event.preventDefault();action(()=>loadWrittenPrayers())(event);});
+ $('#written-more').addEventListener('click',action(()=>loadWrittenPrayers(true)));
+ $('#written-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{const f=event.target,data=Object.fromEntries(new FormData(f));data.tags=data.tags.split(',').map(t=>t.trim()).filter(Boolean);if(editingWritten)data.revision=editingWritten.revision;await api('written-prayers'+(editingWritten?'/'+editingWritten.id:''),data);$('#written-editor').close();await loadWrittenPrayers();notice('Written prayer saved with its version history.');})(event);});
+ $('#file-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{const data=new FormData(event.target),file=data.get('file');if(!file?.size||file.size>8*1024*1024)throw Error('Choose a nonempty file up to 8 MB.');const generation=sessionGeneration,{response,result}=await window.prayerApi('/api/'+fileContext.path,{method:'POST',headers:{'X-CSRF-Token':csrf},body:data,credentials:'same-origin'});if(generation!==sessionGeneration)return;if(!response.ok){if(response.status===401)signedOut();throw Error(result.error||'Upload failed.');}event.target.reset();await loadFiles();notice('Attachment uploaded.');})(event);});
+}
+async function openPrayerEdit(post) {
+ editingPost=post;const f=$('#prayer-edit-form');f.reset();for(const key of ['title','body','kind'])f.elements[key].value=post[key];f.elements.author_only.checked=!!post.author_only;f.elements.author_only.disabled=post.author_id!==user.id&&user.role!=='admin';$('#prayer-history').replaceChildren();$('#prayer-edit').showModal();
+ const rows=await api(`posts/${post.id}/history`);if(editingPost!==post)return;renderVersions($('#prayer-history'),rows);
+}
+function renderVersions(target,rows) {target.replaceChildren();if(!rows.length)target.append(element('p','No earlier versions yet.'));for(const row of rows){const detail=element('details'),summary=element('summary',`Version ${row.revision} · ${displayTime(row.created_at)} · ${row.editor_name||'Author'}`);detail.append(summary,element('h3',row.title),element('p',row.body,'prayer-reading'));target.append(detail);}}
+async function openComments(post){commentPost=post;$('#comment-title').textContent=post.title;$('#comment-form').reset();$('#comment-items').replaceChildren();$('#prayer-comments').showModal();await loadComments();}
+let commentCursor;
+async function loadComments(append=false) {
+ const post=commentPost,generation=++commentGeneration;const result=await api(`posts/${post.id}/comments${append&&commentCursor?'?before='+encodeURIComponent(commentCursor):''}`);if(generation!==commentGeneration||commentPost!==post)return;
+ if(!append)$('#comment-items').replaceChildren();if(!result.items.length&&!append)empty($('#comment-items'),'Be the first to comment.');
+ for(const row of result.items){const card=element('article',undefined,'panel');card.append(element('strong',row.author_name),element('p',displayTime(row.created_at),'hint'),element('p',row.body,'prayer-reading'));const like=button('',async()=>{const result=await api(`posts/${post.id}/comments/${row.id}/heart`,{active:!row.hearted});row.hearted=!!result.active;row.heart_count=result.count;paint();});const paint=()=>{like.textContent=`${row.hearted?'♥':'♡'} ${row.heart_count}`;like.setAttribute('aria-label',`${row.hearted?'Remove heart from':'Heart'} comment by ${row.author_name}: ${row.heart_count}`);like.setAttribute('aria-pressed',String(!!row.hearted));};paint();card.append(like);
+  if(row.author_id===user.id||user.role==='admin')card.append(button('Remove comment',async()=>{let reason;if(row.author_id!==user.id){reason=prompt('Reason for moderating this comment:');if(!reason?.trim())return;}if(!confirm('Permanently remove this comment?'))return;await api(`posts/${post.id}/comments/${row.id}`,{reason},'DELETE');await loadComments();}));$('#comment-items').append(card);}
+ commentCursor=result.cursor;$('#comment-more').hidden=!result.more;
+}
+async function loadWrittenPrayers(append=false) {
+ const generation=++writtenGeneration;if(!append)writtenOffset=0;const params=new URLSearchParams(new FormData($('#written-search')));params.set('offset',writtenOffset);const result=await api('written-prayers?'+params);if(generation!==writtenGeneration||currentView!=='written-prayers')return;
+ $('#written-add').hidden=user.access_level==='provisional';const select=$('#written-search').elements.tag,old=select.value;select.replaceChildren(new Option('All tags',''),...result.tags.map(t=>new Option('#'+t,t)));select.value=old;
+ if(!append)$('#written-items').replaceChildren();if(!result.items.length&&!append)empty($('#written-items'),'No written prayers match. Try another search or tag.');
+ for(const row of result.items){const card=element('article',undefined,'panel');card.dataset.listPreview=`${row.author_name} · ${row.tags.map(t=>'#'+t).join(' ')} · ${row.status}`;card.append(element('h3',row.title),element('p',`By ${row.author_name} · ${displayTime(row.created_at)} · Version ${row.revision} · ${row.status}`,'hint'),element('p',row.body,'prayer-reading'));const tags=element('div',undefined,'actions');for(const tag of row.tags)tags.append(button('#'+tag,async()=>{$('#written-search').elements.tag.value=tag;await loadWrittenPrayers();}));card.append(tags);
+  const actions=element('div',undefined,'actions');actions.append(button('Version history',async()=>{const history=await api(`written-prayers/${row.id}/history`);const target=element('div');renderVersions(target,history);actions.after(target);}));const editable=user.access_level!=='provisional'&&(row.author_id===user.id||user.role==='admin');actions.append(button('Attachments & recording',()=>openFiles('written-prayers',row,editable)));if(editable)actions.append(button('Edit written prayer',()=>openWrittenEditor(row)));card.append(actions);$('#written-items').append(card);
+  const audio=element('div');card.append(audio);loadAudio(row,audio,generation).catch(error=>{if(audio.isConnected)audio.textContent=error.message;});}
+ writtenOffset+=result.items.length;$('#written-more').hidden=!result.more;enhanceList($('#written-items'));
+}
+async function openWrittenEditor(row=null){editingWritten=row;const f=$('#written-form');f.reset();if(row)for(const key of ['title','body','status'])f.elements[key].value=row[key];f.elements.tags.value=row?.tags.join(', ')||'';const moderation=row&&row.author_id!==user.id;$('#written-reason-label').hidden=!moderation;f.elements.reason.required=!!moderation;$('#written-history').replaceChildren();$('#written-editor').showModal();}
+let fileContext=null,fileGeneration=0;
+async function openFiles(type,row,editable){fileContext={path:`${type}/${row.id}/attachments`,editable};$('#file-title').textContent=type==='written-prayers'?'Attachments & recording: '+row.title:'Attachments: '+row.title;$('#file-form').hidden=!editable;$('#file-form').reset();$('#file-items').replaceChildren();$('#prayer-files').showModal();await loadFiles();}
+async function loadFiles(){const context=fileContext,generation=++fileGeneration,rows=await api(context.path);if(fileContext!==context||generation!==fileGeneration)return;$('#file-items').replaceChildren();if(!rows.length)empty($('#file-items'),'No attachments yet.');for(const row of rows){const card=element('article',undefined,'panel'),link=element('a',`${row.filename} (${(row.size/1024).toFixed(0)} KB)`);link.href='/api/'+context.path+'/'+row.id;card.append(link);if(row.is_audio){const player=element('audio');player.controls=true;player.preload='none';player.src=link.href;player.setAttribute('aria-label','Listen to '+row.filename);card.append(player);}if(context.editable)card.append(button('Remove file',async()=>{if(!confirm('Permanently remove '+row.filename+'?'))return;await api(context.path+'/'+row.id,{},'DELETE');await loadFiles();if(currentView==='written-prayers')await loadWrittenPrayers();}));$('#file-items').append(card);}}
+async function loadAudio(row,target,generation){const rows=await api(`written-prayers/${row.id}/attachments`);if(generation!==writtenGeneration)return;for(const file of rows.filter(f=>f.is_audio)){const label=element('p','Listen: '+file.filename),audio=element('audio');audio.controls=true;audio.preload='none';audio.src=`/api/written-prayers/${row.id}/attachments/${file.id}`;audio.setAttribute('aria-label','Listen to '+row.title);target.append(label,audio);}}
 function rememberLogin(form,data) {
  const remember=form.elements.remember.checked;
  try {if(remember)localStorage.setItem('hs-prayer-remembered-id',data.identifier);else localStorage.removeItem('hs-prayer-remembered-id');}catch{}
@@ -803,9 +897,11 @@ function renderHelp() {
   {title:'Use the resource library',keywords:'books music sermon articles search filters hashtag tags recommend pending image age gender thumbs',paragraphs:['Resources includes books, music, teaching, prayers, and practical tools. Search by title, creator, topic, or hashtag, and combine category, tag, featured, and sort filters. Resource links open the provider’s website.','A thumbs up shows that a resource was helpful. Each full member can give one thumbs up per resource and select it again to remove it.','Full members can choose Recommend a resource, add details and an optional image, and submit it for admin review. Pending recommendations are visible only to admins, including before the person who recommended them can see the published entry.','Some resources have age or gender audiences. A valid birth date is required for any age-restricted resource; a matching gender is required for gender-restricted resources. Add those optional private details in My account if you want resources matched to your profile. Admins can review every resource.'],view:'resources',button:'Browse Resources'},
   {title:'Read the daily devotional',keywords:'devo scripture bible reflect pray daily reading read unread sample schedule archive',paragraphs:['Daily devotional is available to every signed-in user, including provisional accounts. It shows today’s published reading, or the latest published reading with its date when none is assigned today. Scripture links open the Bible passage; Reflect and Pray offer a question and closing prayer.','Mark as read saves progress privately for your account. Mark unread reverses it. Browse devotionals lets you search earlier readings and filter Read or Unread. Other members and admins do not see your personal reading progress.','Sample devotionals are clearly labeled for testing. Draft, hidden, and future readings are unavailable to members. Reading dates use your profile time zone, or America/Chicago if none is set.'],view:'devotionals',button:'Open Daily devotional'},
   {title:'Understand notifications',keywords:'alerts phone push email preferences follow types group requests updates answered',paragraphs:['Notifications currently appear inside the portal. Phone push alerts and email alerts for prayer posts are not enabled. Following people and group notification preferences determine which eligible new posts create alerts. Hearts and resource thumbs up do not subscribe you to notifications.','My account has master notification choices for prayer requests, updates, and answered prayers. Turning a type off silences new notifications of that type across your subscriptions; existing notifications remain. Privacy checks still apply to every notification.'],view:'profile',button:'Review notification preferences'},
-  {title:'Manage your account and sign-in',keywords:'username email password reset remember me eye gender birth date phone timezone introduction sign out',paragraphs:['My account lets you update your display name, username, introduction, optional profile details, and notification preferences. You can sign in with your username or associated email. The associated email stays linked to the account and cannot be changed in this form.','Your introduction appears in the member directory. Email, phone, time zone, gender, and birth date remain private to you and portal admins. Members cannot change their own role or membership approval.','Remember me remembers your ID and lets your browser save and autofill your password when supported. Accept the browser’s save-password prompt if offered. You still click Sign in each time you open or reload the portal. The eye button shows or hides the password while you enter it. Unchecking Remember me clears the portal’s remembered ID; manage saved passwords in your browser.','To reset your password, choose Forgot password? on the sign-in page and enter your username or email. A reset link is sent to the active account’s associated email. The link expires in one hour and works once. Your prayer portal account is separate from your MMT account. Sign out when you finish on a shared device.'],view:'profile',button:'Open My account'},
+  {title:'Manage your account and sign-in',keywords:'username email password reset remember me eye gender birth date phone timezone introduction sign out refresh session',paragraphs:['My account lets you update your display name, username, introduction, optional profile details, and notification preferences. You can sign in with your username or associated email. The associated email stays linked to the account and cannot be changed in this form.','Your introduction appears in the member directory. Email, phone, time zone, gender, and birth date remain private to you and portal admins. Admin Accounts also shows each person’s groups and membership history. Members cannot change their own role or membership approval.','Browser refresh restores your valid session. Refresh content at the top reloads the current page’s information. An update notice appears when a new app version is available; save your unfinished work before choosing Load the update. Signing out, an expired session, or revoked account access requires sign-in again.','Remember me remembers your ID and lets your browser save and autofill your password when supported. It does not extend your session or store your password in the portal. The eye button shows or hides the password while you enter it. Unchecking Remember me clears the portal’s remembered ID; manage saved passwords in your browser.','To reset your password, choose Forgot password? on the sign-in page and enter your username or email. A reset link is sent to the active account’s associated email. The link expires in one hour and works once. Your prayer portal account is separate from your MMT account. Sign out when you finish on a shared device.'],view:'profile',button:'Open My account'},
+  {title:'Update prayers and join the conversation',keywords:'group edit update author lock comment heart attachment file history',paragraphs:['Approved group members who can see a prayer can update its title, text, and post type. Check Only I can update this prayer to reserve editing to its original author and portal admins. Only the author and admins can change that permission. Updating text never changes the prayer’s audience. Earlier versions show who edited them.','Comments and their heart tallies share the parent prayer’s audience. Restricted prayers do not become visible to the entire group through a comment, reaction, or file. Removing a member revokes access to other people’s group prayers and their conversations.','Use Attachments on a prayer to download files. Eligible editors can upload or remove attachments. The limits are 8 MB per file, 10 files and 25 MB per prayer. Removing a file or comment is permanent; admins give a reason when removing another person’s comment.'],view:'feed',button:'Open Prayer wall'},
+  {title:'Keep and listen to written prayers',keywords:'written standard library historical versions archive custom tags hashtag recording sound audio attachments search',paragraphs:['Written prayers is a separate searchable library of reusable prayers. Search words in the title or prayer, or choose a custom tag for a season, purpose, or occasion. Every signed-in person, including provisional users, can read published written prayers. Hidden prayers are visible only to their author and admins.','Full members can write prayers, add up to 20 comma-separated custom tags, and edit their own prayers. Admins can moderate any written prayer. Version history preserves earlier text when a prayer changes. Attachments belong to the prayer, rather than an individual text version.','Choose Attachments & recording to upload a document or an MP3, WAV, OGG, M4A, or WebM recording. Readers can use the Listen player directly on the library entry. Recordings are limited to 8 MB each and share the written prayer’s visibility. Upload only files appropriate for that audience.'],view:'written-prayers',button:'Open Written prayers'},
   {title:'Choose Expanded or Collapsed views',keywords:'list view compact tiles settings expand collapse',paragraphs:['Expanded is the default. Choose Collapsed in the List view toolbar for shorter rows across prayers, people, resources, groups, devotionals, and this guide. The preference is saved to your account.','Open an individual row to read its details without changing your overall preference. Hearts and thumbs up can be used directly from their collapsed rows. The audit log remains a compact table.']},
-  ...(user.role==='admin'?[{title:'Admin review and moderation',keywords:'admin approve accounts resource pending needs attention unlock delete hide devotional schedule',paragraphs:['Use Invite someone and Send invitation to email a seven-day, single-use setup link. Production sends automatically; test/local records the invitation without sending mail. Check the result and Recent invitations for send status. Email sent means accepted by the email service, not guaranteed inbox delivery. If sending is not confirmed, share the private backup link with that email owner or invite again; the new link replaces the old one. Invited people choose their own username and password and join as regular members.','Open Admin and check Needs your attention for pending resource recommendations and access or password requests. Use the direct review buttons to reach the matching queue. Verify a requester’s identity and email before approving full access.','Accounts provides the available account, role, and access controls. New invitees are regular members; admin status must be granted explicitly. All prayers and All groups let admins review content regardless of its audience.','Resources has admin curation and approval controls. In Daily devotional, Manage devotionals and Add devotional support editing, scheduling, publishing, hiding, and deletion. Only one devotional can be published for a date; future published entries become available on that date.','Admin changes require a reason and are recorded in the audit log. Read deletion confirmations carefully: permanent deletion cannot be undone.']}]:[])
+  ...(user.role==='admin'?[{title:'Admin review and moderation',keywords:'admin approve accounts resource pending needs attention unlock delete hide devotional schedule',paragraphs:['Use Invite someone and Send invitation to email a seven-day, single-use setup link. Production sends automatically; test/local records the invitation without sending mail. Check the result and Recent invitations for send status. Email sent means accepted by the email service, not guaranteed inbox delivery. If sending is not confirmed, share the private backup link with that email owner or invite again; the new link replaces the old one. Invited people choose their own username and password and join as regular members.','Open Admin and check Needs your attention for pending resource recommendations and access or password requests. Use the direct review buttons to reach the matching queue. Verify a requester’s identity and email before approving full access.','Accounts provides the available account, role, and access controls. New invitees are regular members; admin status must be granted explicitly. All prayers and All groups let admins review content regardless of its audience.','Resources has admin curation and approval controls. In Daily devotional, Manage devotionals and Add devotional support editing, scheduling, publishing, hiding, and deletion. Only one devotional can be published for a date; future published entries become available on that date.','In All prayers, use the Prayer status filter to find active or archived prayers. Archive prayer requires a reason and preserves text, comments, reactions, history and files while hiding the prayer from non-admins. Restore to prayer wall reinstates its original audience. Archiving reduces wall clutter, not storage bytes. Permanent deletion remains separate and cannot be undone.','Use Admin → File storage to find prayer attachments by filename, prayer title, uploader, location, or size. Largest first uses actual stored bytes. Choose Permanently delete, give a reason and type DELETE to remove the file from storage; this leaves the prayer text intact. Failed storage deletions remain listed for retry. New non-audio uploads are losslessly compressed when at least 5% smaller; downloaded bytes stay original. Existing files keep their format. Audio stays unchanged for seeking.','Admin changes require a reason and are recorded in the audit log. Read deletion confirmations carefully: permanent deletion cannot be undone.']}]:[])
  ];
  let count=0;for(const topic of topics) {
   if(query&&![topic.title,topic.keywords,...topic.paragraphs,...(topic.steps||[])].join(' ').toLowerCase().includes(query))continue;
@@ -820,3 +916,14 @@ function renderHelp() {
  $('#help-results').textContent=count+' topic'+(count===1?'':'s')+(query?' matching your search':' in this guide');if(!count)empty(target,'No topics match. Try prayer, full access, resources, or password.');
 }
 $('#help-search').addEventListener('input',()=>{if(user&&currentView==='help')renderHelp();});
+
+function fileSize(bytes){return bytes>=1048576?(bytes/1048576).toFixed(2)+' MB':bytes>=1024?(bytes/1024).toFixed(1)+' KB':bytes+' bytes';}
+function storageTable(items){
+ const region=element('div',undefined,'audit-grid storage-grid');region.tabIndex=0;region.setAttribute('role','region');region.setAttribute('aria-label','Prayer attachment storage. Scroll to view all columns.');
+ const table=element('table'),head=element('thead'),row=element('tr');
+ for(const title of ['File','Prayer / location','Uploaded by','Uploaded','Original size','Stored size','Action']){const th=element('th',title);th.scope='col';row.append(th);}head.append(row);table.append(head);const body=element('tbody');
+ for(const item of items){const tr=element('tr'),file=element('td'),link=element('a',item.filename);link.href=`/api/${item.post_id?'posts':'written-prayers'}/${item.post_id||item.written_id}/attachments/${item.id}`;file.append(link);tr.append(file);
+ for(const value of [item.prayer_title+' · '+(item.post_id?'Prayer wall':'Written prayers')+(item.archived?' · Archived':''),item.uploader||'Former member',displayTime(item.created_at),fileSize(item.size),fileSize(item.stored_size)+(item.storage_encoding?' · Compressed':'')])tr.append(element('td',value));
+ const actions=element('td');actions.append(button('Permanently delete',()=>openAdminAction('files',item.id,'delete',item.filename)));tr.append(actions);body.append(tr);}
+ table.append(body);region.append(table);return region;
+}

@@ -7,6 +7,10 @@ import {handleAdmin} from './admin.mjs';
 import {handleResources} from './resources.mjs';
 import {profileGenders,validBirthDate} from './resource-access.mjs';
 import { siteConfig } from './site-config.mjs';
+import {handleSharedPrayers,decorateSharedPosts} from './shared-prayers.mjs';
+import {handleWrittenPrayers} from './written-prayers.mjs';
+import {handleAttachments} from './attachments.mjs';
+import {handleFileStorage} from './file-storage.mjs';
 const COOKIE = '__Host-hs_prayer';
 const kinds = ['request', 'update', 'answered'];
 const encoder = new TextEncoder();
@@ -31,9 +35,9 @@ const publicUser = u => ({ id:u.id,name:u.name,role:u.role,list_view:u.list_view
  phone:u.phone||'',timezone:u.timezone||'',bio:u.bio||'',gender:u.gender||'',birth_date:u.birth_date||'',notify_requests:u.notify_requests!==0,notify_updates:u.notify_updates!==0,notify_answered:u.notify_answered!==0 });
 // This predicate must be used for every read, including notification joins.
 function visibilityFor(id,role,access) {
-  return `(${role}='admin' OR p.is_global=1 OR (${access}='full' AND
+  return `(${role}='admin' OR (p.archived=0 AND (p.is_global=1 OR (${access}='full' AND
     (p.author_id=${id} OR ((p.group_id IS NULL OR EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id=p.group_id AND gm.user_id=${id} AND gm.status='approved'))
-    AND (p.audience='members' OR (p.audience='selected' AND EXISTS (SELECT 1 FROM recipients r WHERE r.post_id=p.id AND r.user_id=${id})))))))`;
+    AND (p.audience='members' OR (p.audience='selected' AND EXISTS (SELECT 1 FROM recipients r WHERE r.post_id=p.id AND r.user_id=${id})))))))))`;
 }
 export const visibility = visibilityFor('?','?','?');
 const visibleArgs = u => [u.role,u.access_level||'full',u.id,u.id,u.id];
@@ -77,8 +81,8 @@ async function api(request, env, url, ctx) {
   const config = siteConfig(env);
   if (path === '/api/site' && method === 'GET') return json(config);
   if (path === '/api/health' && method === 'GET') {
-    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs','devotionals','devotional_reads','invitation_deliveries')").first();
-    requireValue(schema.count === 17, 'Portal database setup is incomplete.', 503);
+    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs','devotionals','devotional_reads','invitation_deliveries','post_revisions','prayer_comments','comment_hearts','written_prayers','written_prayer_versions','prayer_attachments')").first();
+    requireValue(schema.count === 23, 'Portal database setup is incomplete.', 503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
@@ -155,7 +159,7 @@ async function api(request, env, url, ctx) {
   if (method !== 'GET') requireValue(request.headers.get('x-csrf-token') === auth.csrf, 'Your session changed. Refresh and try again.', 403);
   // Provisional accounts may only read Global prayers, eligible resources, and their own account.
   if(auth.access_level==='provisional') {
-    const allowed=(method==='GET' && (['/api/me','/api/posts','/api/resources','/api/resource-categories','/api/devotionals','/api/devotionals/today'].includes(path) || /^\/api\/devotionals\/[^/]+$/.test(path) || /^\/api\/resources\/[^/]+\/image$/.test(path))) ||
+    const allowed=(method==='GET' && (['/api/me','/api/posts','/api/resources','/api/resource-categories','/api/devotionals','/api/devotionals/today'].includes(path) || /^\/api\/written-prayers(?:\/[^/]+(?:\/history|\/attachments(?:\/[^/]+)?)?)?$/.test(path) || /^\/api\/posts\/[^/]+\/attachments(?:\/[^/]+)?$/.test(path) || /^\/api\/devotionals\/[^/]+$/.test(path) || /^\/api\/resources\/[^/]+\/image$/.test(path))) ||
       (method==='POST' && (['/api/profile','/api/logout','/api/preferences'].includes(path) || /^\/api\/devotionals\/[^/]+\/read$/.test(path)));
     requireValue(allowed,'Admin approval is required for this feature.',403);
   }
@@ -166,6 +170,9 @@ async function api(request, env, url, ctx) {
     requireValue(result.meta.changes===1,'Your account is no longer available.',401);
     return json({list_view:data.list_view});
   }
+  const attachment=await handleAttachments(request,db,auth,url,{json,requireValue,rateLimit,visibility,visibleArgs},env.PRAYER_FILES);if(attachment)return attachment;
+  const shared=await handleSharedPrayers(request,db,auth,url,{json,body,text,requireValue,rateLimit,visibility,visibleArgs});if(shared)return shared;
+  const written=await handleWrittenPrayers(request,db,auth,url,{json,body,text,requireValue,rateLimit});if(written)return written;
   if(/^\/api\/(?:admin\/)?devotionals(?:\/|$)/.test(path)) {
     const response=await handleDevotionals(request,db,auth,url,{json,body,text,requireValue,rateLimit});if(response)return response;
   }
@@ -176,10 +183,13 @@ async function api(request, env, url, ctx) {
     if(response) return response;
   }
   if(path.startsWith('/api/admin/')) {
+    const storage=await handleFileStorage(request,db,auth,url,{json,body,text,requireValue},env.PRAYER_FILES);if(storage)return storage;
     const requestAdmin=await handleRequestAdmin(request,db,auth,url,{json,body,text,requireValue,digest,token,username});
     if(requestAdmin) return requestAdmin;
+    const removal=/^\/api\/admin\/(posts|groups|users)\/([^/]+)\/delete$/.exec(path);
+    const files=auth.role==='admin'&&removal&&env.PRAYER_FILES?(await db.prepare(`SELECT id,object_key FROM prayer_attachments WHERE ${removal[1]==='posts'?'post_id=?':removal[1]==='groups'?'post_id IN (SELECT id FROM posts WHERE group_id=?)':'post_id IN (SELECT id FROM posts WHERE author_id=?) OR written_id IN (SELECT id FROM written_prayers WHERE author_id=?)'}`).bind(...(removal[1]==='users'?[removal[2],removal[2]]:[removal[2]])).all()).results:[];
     const response=await handleAdmin(request,db,auth,url,{json,body,text,requireValue,digest,token,username});
-    if(response) return response;
+    if(response) {if(response.ok)for(const file of files)if(!await db.prepare('SELECT 1 FROM prayer_attachments WHERE id=?').bind(file.id).first())await env.PRAYER_FILES.delete(file.object_key);return response;}
   }
   if (path === '/api/groups' || path.startsWith('/api/groups/')) {
     const response = await handleGroups(request,db,auth,url,{json,body,text,requireValue,rateLimit},config);
@@ -230,11 +240,12 @@ async function api(request, env, url, ctx) {
     const before = Number(stamp);
     requireValue(Number.isSafeInteger(before) && before > 0 && beforeId.length <= 36, 'Invalid page.');
     const rows = await db.prepare(`SELECT p.*,u.name AS author_name,g.name AS group_name FROM posts p JOIN users u ON u.id=p.author_id LEFT JOIN groups g ON g.id=p.group_id WHERE ${visibility}
-      AND (?='' OR p.kind=?) AND (?=0 OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.followed_id=p.author_id))
+      AND p.archived=0 AND (?='' OR p.kind=?) AND (?=0 OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.followed_id=p.author_id))
       AND (?='' OR p.group_id=?) AND (?=0 OR p.is_global=1)
       AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?)) ORDER BY p.created_at DESC,p.id DESC LIMIT 51`).bind(...visibleArgs(auth), kind || '', kind || '', +following, auth.id, groupId,groupId,+globalOnly,before, before, beforeId).all();
     const posts = rows.results.slice(0, 50), last = posts.at(-1);
     await decorateReactions(db,posts,'posts',auth.id);
+    await decorateSharedPosts(db,posts,auth);
     return json({ posts, more: rows.results.length > 50, cursor: last ? `${last.created_at}:${last.id}` : null });
   }
   if (path === '/api/posts' && method === 'POST') {
@@ -242,6 +253,7 @@ async function api(request, env, url, ctx) {
     const title = text(data.title, 140, 'Title'), content = text(data.body, 6000, 'Prayer text');
     requireValue(kinds.includes(data.kind), 'Choose a post type.');
     requireValue(['members','selected','admins'].includes(data.audience), 'Choose who can see this post.');
+    requireValue(data.author_only===undefined||typeof data.author_only==='boolean','Choose editing permissions.');
     const groupId = data.groupId ? text(data.groupId,80,'Group') : null;
     requireValue(data.global===undefined || typeof data.global==='boolean','Choose Global visibility.');
     const globalPost=data.global===true;
@@ -251,8 +263,8 @@ async function api(request, env, url, ctx) {
     requireValue(data.audience !== 'selected' || (recipients.length > 0 && recipients.length <= 50), 'Select 1â€“50 people.');
     for (const person of recipients) requireValue(typeof person === 'string' && person !== auth.id && await db.prepare("SELECT id FROM users WHERE id=? AND status='active'").bind(person).first(), 'One of the selected people is unavailable.');
     if (groupId) for (const person of recipients) requireValue(await db.prepare("SELECT 1 FROM group_members WHERE group_id=? AND user_id=? AND status='approved'").bind(groupId,person).first(),'Selected people must belong to this group.');
-    const statements = [db.prepare(`INSERT INTO posts (id,author_id,title,body,kind,audience,created_at,group_id,is_global)
-      SELECT ?,?,?,?,?,?,?,?,? WHERE ? IS NULL OR EXISTS (SELECT 1 FROM group_members WHERE group_id=? AND user_id=? AND status='approved')`).bind(id,auth.id,title,content,data.kind,data.audience,time,groupId,+globalPost,groupId,groupId,auth.id)];
+    const statements = [db.prepare(`INSERT INTO posts (id,author_id,title,body,kind,audience,created_at,group_id,is_global,author_only)
+      SELECT ?,?,?,?,?,?,?,?,?,? WHERE ? IS NULL OR EXISTS (SELECT 1 FROM group_members WHERE group_id=? AND user_id=? AND status='approved')`).bind(id,auth.id,title,content,data.kind,data.audience,time,groupId,+globalPost,+(data.author_only===true),groupId,groupId,auth.id)];
     for (const person of recipients) statements.push(db.prepare('INSERT INTO recipients VALUES (?,?)').bind(id, person));
     const preference = { request: 'requests', update: 'updates', answered: 'answered' }[data.kind];
     statements.push(db.prepare(`INSERT INTO notifications (id,user_id,post_id,created_at)
@@ -281,7 +293,9 @@ async function api(request, env, url, ctx) {
     const id = path.split('/').pop();
     const target=await db.prepare('SELECT author_id FROM posts WHERE id=?').bind(id).first();
     if(auth.role==='admin' && target && target.author_id!==auth.id) throw new HttpError(400,'Use Admin â†’ All prayers to remove another personâ€™s prayer with an audit reason.');
+    const files=env.PRAYER_FILES?(await db.prepare('SELECT object_key FROM prayer_attachments WHERE post_id=?').bind(id).all()).results:[];
     const result = await db.prepare('DELETE FROM posts WHERE id=? AND (author_id=? OR ?=\'admin\')').bind(id, auth.id, auth.role).run();
+    if(result.meta.changes)for(const file of files)await env.PRAYER_FILES.delete(file.object_key);
     requireValue(result.meta.changes, 'Post unavailable.', 404); return json({ ok: true });
   }
   if (path === '/api/notifications' && method === 'GET') {
@@ -325,7 +339,7 @@ export default {
     try {
       const url = new URL(request.url);
       if (url.pathname.startsWith('/api/')) response = await api(request, env, url, ctx);
-      else if (['/','/index.html','/app.js','/portal.css','/styles.css',siteConfig(env).logoPath,'/favicon.ico'].includes(url.pathname)) response = await env.ASSETS.fetch(request);
+      else if (['/','/index.html','/app.js','/api-client.js','/portal.css','/styles.css',siteConfig(env).logoPath,'/favicon.ico'].includes(url.pathname)) response = await env.ASSETS.fetch(request);
       else response = json({ error: 'Page unavailable.' }, 404);
     } catch (error) {
       response = json({ error: error.status ? error.message : 'We could not complete that request. Please try again.' }, error.status || 500);

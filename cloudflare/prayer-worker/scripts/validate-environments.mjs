@@ -4,6 +4,7 @@ import {schema} from '../src/schema.mjs';
 const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
 const test=config.env.test,production=config.env.production;
 assert.notEqual(test.name,production.name,'Workers must be isolated');
+assert.notEqual(test.r2_buckets[0].bucket_name,production.r2_buckets[0].bucket_name,'Private attachments must be isolated');
 for(const [name,env] of Object.entries({test,production})) {
   assert.equal(env.vars.ENVIRONMENT,name);
   assert.equal(env.workers_dev,false);

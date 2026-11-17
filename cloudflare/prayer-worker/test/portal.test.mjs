@@ -30,6 +30,100 @@ function fixture() {
 }
 const post = (audience, recipients = [], kind = 'request') => ({ title:'Please pray', body:'Private details', audience, recipients, kind });
 
+test('admin archive hides wall content and conversations without destroying them and restores original audience',async()=>{
+ const f=fixture();await f.add('a');await f.add('b');await f.add('admin','admin');
+ const id=(await(await f.request('posts','a',post('selected',['b']))).json()).id;
+ const cid=(await(await f.request(`posts/${id}/comments`,'b',{body:'Still praying'})).json()).id;
+ await f.request(`posts/${id}/heart`,'b',{active:true});
+ assert.equal((await f.request(`admin/posts/${id}/archive`,'a',{archived:true,reason:'Finished'})).status,403);
+ assert.equal((await f.request(`admin/posts/${id}/archive`,'admin',{archived:true,reason:'Move an older request out of the active wall'})).status,200);
+ assert.equal((await(await f.request('posts','a')).json()).posts.length,0);assert.equal((await(await f.request('posts','admin')).json()).posts.length,0);
+ assert.equal((await f.request(`posts/${id}/comments`,'a')).status,404);assert.equal((await f.request(`posts/${id}/attachments`,'b')).status,404);
+ assert.equal((await(await f.request(`posts/${id}/comments`,'admin')).json()).items[0].id,cid);
+ assert.equal((await(await f.request('admin/posts?archived=1','admin')).json()).items[0].id,id);assert.equal((await(await f.request('admin/posts?archived=0','admin')).json()).items.length,0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM post_hearts WHERE post_id=?').get(id).n,1);
+ await f.request(`admin/posts/${id}/archive`,'admin',{archived:false,reason:'An update is needed'});
+ assert.equal((await(await f.request('posts','b')).json()).posts[0].audience,'selected');assert.equal((await(await f.request(`posts/${id}/comments`,'b')).json()).items.length,1);
+});
+
+test('refresh can restore a login session and logout revokes it',async()=>{
+ const f=fixture();await f.add('a');f.sql.prepare('UPDATE users SET password=? WHERE id=?').run(await passwordHash('long-local-test-password'),'a');
+ const login=await f.request('login',null,{identifier:'a@example.com',password:'long-local-test-password'}),result=await login.json();const cookie=login.headers.get('Set-Cookie').split(';')[0];
+ const restored=await worker.fetch(new Request('https://prayer.example.com/api/me',{headers:{Cookie:cookie}}),f.env);assert.equal(restored.status,200);assert.equal((await restored.json()).csrf,result.csrf);
+ await worker.fetch(new Request('https://prayer.example.com/api/logout',{method:'POST',headers:{Cookie:cookie,Origin:'https://prayer.example.com','X-CSRF-Token':result.csrf}}),f.env);
+ assert.equal((await worker.fetch(new Request('https://prayer.example.com/api/me',{headers:{Cookie:cookie}}),f.env)).status,401);
+});
+
+test('group edits respect audience, author lock, optimistic revisions and current membership',async()=>{
+ const f=fixture();for(const id of ['a','b','outside'])await f.add(id);await f.add('admin','admin');
+ f.sql.prepare('INSERT INTO groups VALUES (?,?,?,?,?,?,?)').run('g','Group','','prayer',0,'a',1);
+ for(const id of ['a','b'])f.sql.prepare("INSERT INTO group_members(group_id,user_id,status,requested_at) VALUES (?,?,'approved',1)").run('g',id);
+ const id=(await(await f.request('posts','a',{...post('members'),groupId:'g'})).json()).id;
+ const edit={title:'Updated together',body:'A new update',kind:'update',revision:1};
+ assert.equal((await f.request(`posts/${id}/edit`,'outside',edit)).status,404);
+ assert.equal((await f.request(`posts/${id}/edit`,'b',{...edit,author_only:false})).status,403);
+ assert.equal((await f.request(`posts/${id}/edit`,'b',edit)).status,200);
+ assert.equal((await f.request(`posts/${id}/edit`,'b',edit)).status,409);
+ const history=await(await f.request(`posts/${id}/history`,'a')).json();assert.equal(history.length,2);assert.equal(history[0].editor_id,'b');assert.equal(history[1].body,'Private details');
+ assert.equal((await f.request(`posts/${id}/edit`,'a',{...edit,revision:2,author_only:true})).status,200);
+ assert.equal((await f.request(`posts/${id}/edit`,'b',{...edit,revision:3})).status,403);
+ assert.equal((await f.request(`posts/${id}/edit`,'admin',{...edit,revision:3})).status,200);
+ const privateId=(await(await f.request('posts','a',{...post('admins'),groupId:'g'})).json()).id;
+ assert.equal((await f.request(`posts/${privateId}/edit`,'b',edit)).status,404);
+ f.sql.prepare("UPDATE group_members SET status='removed' WHERE user_id='b'").run();assert.equal((await f.request(`posts/${id}/history`,'b')).status,404);
+ const rows=(await(await f.request('posts','a')).json()).posts;assert.equal(rows.find(p=>p.id===id).revision,4);
+});
+
+test('comments and their idempotent hearts inherit restricted audiences and revoke on leaving',async()=>{
+ const f=fixture();for(const id of ['a','b','other'])await f.add(id);await f.add('admin','admin');
+ f.sql.prepare('INSERT INTO groups VALUES (?,?,?,?,?,?,?)').run('g','Group','','prayer',0,'a',1);for(const id of ['a','b','other'])f.sql.prepare("INSERT INTO group_members(group_id,user_id,status,requested_at) VALUES (?,?,'approved',1)").run('g',id);
+ const id=(await(await f.request('posts','a',{...post('selected',['b']),groupId:'g'})).json()).id;
+ const cid=(await(await f.request(`posts/${id}/comments`,'b',{body:'We are praying.'})).json()).id;assert.ok(cid);
+ assert.equal((await f.request(`posts/${id}/comments`,'other')).status,404);
+ for(let i=0;i<2;i++)assert.equal((await f.request(`posts/${id}/comments/${cid}/heart`,'a',{active:true})).status,200);
+ assert.equal((await(await f.request(`posts/${id}/comments`,'a')).json()).items[0].heart_count,1);
+ assert.equal((await f.request(`posts/${id}/comments/${cid}`,'a',{},'DELETE')).status,403);
+ assert.equal((await f.request(`posts/${id}/comments/${cid}`,'admin',{reason:'Inappropriate content'},'DELETE')).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM comment_hearts').get().n,0);
+ f.sql.prepare("UPDATE group_members SET status='left' WHERE user_id='b'").run();assert.equal((await f.request(`posts/${id}/comments`,'b',{body:'No longer allowed'})).status,404);
+});
+
+test('written prayer search, exact custom tag filtering and historical versions preserve privacy',async()=>{
+ const f=fixture();await f.add('a');await f.add('b');await f.add('admin','admin');await f.add('provisional');f.sql.prepare("UPDATE users SET access_level='provisional' WHERE id='provisional'").run();
+ const original={title:'Prayer for peace',body:'Lord, help our neighbors.',tags:['#Peace','peace','grief'],status:'published'};
+ const created=await f.request('written-prayers','a',original);assert.equal(created.status,201);const {id}=await created.json();
+ const row=(await(await f.request('written-prayers?q=neighbors&tag=peace','provisional')).json()).items[0];assert.equal(row.id,id);assert.deepEqual(row.tags,['peace','grief']);
+ assert.equal((await f.request(`written-prayers/${id}`,'b',{...original,revision:1})).status,403);
+ assert.equal((await f.request(`written-prayers/${id}`,'a',{...original,body:'A revised prayer',revision:1})).status,200);
+ assert.equal((await f.request(`written-prayers/${id}`,'a',{...original,revision:1})).status,409);
+ assert.equal((await(await f.request(`written-prayers/${id}/history`,'b')).json()).length,2);
+ assert.equal((await f.request(`written-prayers/${id}`,'admin',{...original,status:'hidden',revision:2,reason:'Needs review'})).status,200);
+ assert.equal((await f.request(`written-prayers/${id}/history`,'b')).status,404);
+ assert.equal((await(await f.request('written-prayers','b')).json()).tags.length,0);
+ assert.equal((await f.request('written-prayers','provisional',original)).status,403);
+});
+
+test('admin account list includes unlisted groups and all membership states only for admins',async()=>{
+ const f=fixture();await f.add('a');await f.add('admin','admin');f.sql.prepare('INSERT INTO groups VALUES (?,?,?,?,?,?,?)').run('secret','Private circle','','prayer',0,'admin',1);f.sql.prepare("INSERT INTO group_members(group_id,user_id,status,requested_at) VALUES ('secret','a','pending',1)").run();
+ const people=(await(await f.request('admin/users','admin')).json()).items;assert.equal(people.find(u=>u.id==='a').groups[0].status,'pending');assert.equal(people.find(u=>u.id==='a').groups[0].discoverable,0);
+ assert.equal((await f.request('admin/users','a')).status,403);assert.ok(!JSON.stringify(await(await f.request('people','a')).json()).includes('Private circle'));
+});
+
+test('private attachments and audio ranges require parent access and write authority',async()=>{
+ const f=fixture();await f.add('a');await f.add('b');await f.add('admin','admin');const objects=new Map();f.env.PRAYER_FILES={async put(key,bytes){objects.set(key,new Uint8Array(bytes));},async delete(key){objects.delete(key);},async get(key,options){const bytes=objects.get(key);return bytes?{body:bytes.slice(options.range.offset,options.range.offset+options.range.length)}:null;}};
+ const upload=async(type,id,who,name,bytes)=>{const data=new FormData();data.set('file',new File([bytes],name));return worker.fetch(new Request(`https://prayer.example.com/api/${type}/${id}/attachments`,{method:'POST',headers:{Origin:'https://prayer.example.com',Cookie:`__Host-hs_prayer=${who}`,'X-CSRF-Token':`csrf-${who}`},body:data}),f.env);};
+ const privateId=(await(await f.request('posts','a',post('admins'))).json()).id;
+ const file=await upload('posts',privateId,'a','notes.txt','Private notes');assert.equal(file.status,201);const fileId=(await file.json()).id;
+ assert.equal((await f.request(`posts/${privateId}/attachments/${fileId}`,'b')).status,404);
+ assert.equal(await(await f.request(`posts/${privateId}/attachments/${fileId}`,'admin')).text(),'Private notes');
+ const written=(await(await f.request('written-prayers','a',{title:'Spoken prayer',body:'A prayer.',tags:['spoken'],status:'published'})).json()).id;
+ const audio=await upload('written-prayers',written,'a','reading.mp3',new Uint8Array([73,68,51,1,2,3,4,5]));assert.equal(audio.status,201);const aid=(await audio.json()).id;
+ const range=await worker.fetch(new Request(`https://prayer.example.com/api/written-prayers/${written}/attachments/${aid}`,{headers:{Cookie:'__Host-hs_prayer=b',Range:'bytes=3-5'}}),f.env);assert.equal(range.status,206);assert.equal(range.headers.get('Content-Range'),'bytes 3-5/8');assert.deepEqual([...new Uint8Array(await range.arrayBuffer())],[1,2,3]);
+ assert.equal((await upload('written-prayers',written,'b','reading.mp3','ID3other')).status,403);
+ assert.equal((await upload('written-prayers',written,'a','fake.mp3','not audio')).status,400);
+ await f.request(`written-prayers/${written}`,'a',{title:'Spoken prayer',body:'Hidden now.',tags:[],status:'hidden',revision:1});assert.equal((await f.request(`written-prayers/${written}/attachments/${aid}`,'b')).status,404);
+});
+
 test('invite button emails only the invited address with a one-use hashed link and records provider acceptance',async()=>{
  const f=fixture();await f.add('admin','admin');f.sql.prepare('UPDATE users SET name=? WHERE id=?').run('<Brent & friends>','admin');
  Object.assign(f.env,{ENVIRONMENT:'production',PRAYER_EMAIL_DELIVERY_MODE:'live',PRAYER_RESEND_API_KEY:'synthetic-key',PRAYER_EMAIL_FROM:'prayer@hopesojourns.com'});
@@ -888,4 +982,37 @@ test('devotional writes reject stale admins and cross-origin or missing CSRF sub
  for(const [origin,csrf] of [['https://evil.example','csrf-admin'],['https://prayer.example.com','wrong']])assert.equal((await worker.fetch(new Request('https://prayer.example.com/api/admin/devotionals',{method:'POST',headers:{Origin:origin,Cookie:'__Host-hs_prayer=admin','X-CSRF-Token':csrf,'Content-Type':'application/json'},body:JSON.stringify(devoData())}),f.env)).status,403);
  const original=f.env.DB.prepare.bind(f.env.DB);let hit=false;f.env.DB.prepare=q=>{const s=original(q);if(q.includes('SELECT u.*,s.csrf')&&!hit){const first=s.first.bind(s);s.first=async()=>{const row=await first();hit=true;f.sql.prepare("UPDATE users SET role='member' WHERE id='admin'").run();return row;};}return s;};
  assert.equal((await f.request('admin/devotionals','admin',devoData())).status,409);assert.equal(f.sql.prepare('SELECT count(*) n FROM devotionals').get().n,3);
+});
+
+
+test('lossless storage compression preserves downloads and ranges; admin storage is private and deletion frees R2',async()=>{
+ const f=fixture();await f.add('a');await f.add('b');await f.add('admin','admin');const objects=new Map();let failDelete=false;
+ f.env.PRAYER_FILES={async put(key,bytes){objects.set(key,new Uint8Array(bytes));},async get(key,{range}){const bytes=objects.get(key);return bytes?{body:bytes.slice(range.offset,range.offset+range.length)}:null;},async delete(key){if(failDelete)throw Error('storage down');objects.delete(key);}};
+ const id=(await(await f.request('posts','a',post('admins'))).json()).id,original='A prayer for peace and hope. '.repeat(400),data=new FormData();data.set('file',new File([original],'large-prayer.txt'));
+ const upload=await worker.fetch(new Request(`https://prayer.example.com/api/posts/${id}/attachments`,{method:'POST',headers:{Origin:'https://prayer.example.com',Cookie:'__Host-hs_prayer=a','X-CSRF-Token':'csrf-a'},body:data}),f.env);assert.equal(upload.status,201);const fileId=(await upload.json()).id;
+ const record=f.sql.prepare('SELECT * FROM prayer_attachments WHERE id=?').get(fileId);assert.equal(record.storage_encoding,'gzip');assert.ok(record.stored_size<record.size/2);assert.equal(objects.get(record.object_key).byteLength,record.stored_size);
+ assert.equal(await(await f.request(`posts/${id}/attachments/${fileId}`,'a')).text(),original);
+ const partial=await worker.fetch(new Request(`https://prayer.example.com/api/posts/${id}/attachments/${fileId}`,{headers:{Cookie:'__Host-hs_prayer=a',Range:'bytes=5-17'}}),f.env);assert.equal(partial.status,206);assert.equal(await partial.text(),original.slice(5,18));
+ assert.equal((await f.request('admin/files','a')).status,403);assert.equal((await f.request(`admin/files/${fileId}/delete`,'b',{reason:'Unallowed',confirmation:'DELETE'})).status,403);
+ const storage=await(await f.request('admin/files','admin')).json();assert.equal(storage.items[0].id,fileId);assert.equal(storage.summary.stored_bytes,record.stored_size);assert.equal(storage.summary.original_bytes,record.size);assert.equal((await(await f.request('admin/files?kind=audio','admin')).json()).items.length,0);assert.equal((await f.request('admin/files?sort=invalid','admin')).status,400);
+ assert.equal((await f.request(`admin/files/${fileId}/delete`,'admin',{reason:'Save space',confirmation:'NO'})).status,400);assert.equal(objects.size,1);
+ failDelete=true;assert.equal((await f.request(`admin/files/${fileId}/delete`,'admin',{reason:'Save space',confirmation:'DELETE'})).status,503);assert.ok(f.sql.prepare('SELECT 1 FROM prayer_attachments WHERE id=?').get(fileId));
+ failDelete=false;const removed=await f.request(`admin/files/${fileId}/delete`,'admin',{reason:'Save space',confirmation:'DELETE'});assert.equal(removed.status,200);assert.equal((await removed.json()).freed_bytes,record.stored_size);assert.equal(objects.size,0);assert.equal((await f.request(`posts/${id}/attachments/${fileId}`,'a')).status,404);assert.ok(f.sql.prepare('SELECT 1 FROM posts WHERE id=?').get(id));assert.equal(f.sql.prepare("SELECT count(*) AS n FROM admin_audit WHERE action='delete' AND target_type='attachment'").get().n,1);
+});
+
+test('storage compression keeps small and incompressible files and audio unchanged',async()=>{
+ const {compressFile}=await import('../src/file-storage.mjs');
+ for(const [bytes,audio] of [[new TextEncoder().encode('small').buffer,false],[crypto.getRandomValues(new Uint8Array(4096)).buffer,false],[new Uint8Array(4096).buffer,true]]){const result=await compressFile(bytes,audio);assert.equal(result.encoding,null);assert.deepEqual(new Uint8Array(result.bytes),new Uint8Array(bytes));}
+});
+
+
+test('browser API retries transient reads without replaying writes or exposing malformed response text',async()=>{
+ const {runInNewContext}=await import('node:vm');const source=readFileSync(new URL('../public/api-client.js',import.meta.url),'utf8');let calls=0;const ctx={window:{},fetch:async()=>{calls++;return calls===1?new Response('Error: Network connection lost',{status:503}):Response.json({ok:true});}};runInNewContext(source,ctx);
+ assert.equal((await ctx.window.prayerApi('/api/posts')).result.ok,true);assert.equal(calls,2);
+ calls=0;ctx.fetch=async()=>{calls++;return new Response('<html>temporarily offline</html>',{status:502});};await assert.rejects(ctx.window.prayerApi('/api/posts'),/temporarily unavailable/);assert.equal(calls,2);
+ calls=0;await assert.rejects(ctx.window.prayerApi('/api/posts',{method:'POST',body:'{}'}),/check whether it was saved/i);assert.equal(calls,1);
+ calls=0;ctx.fetch=async()=>{calls++;throw new TypeError('Failed to fetch');};await assert.rejects(ctx.window.prayerApi('/api/posts',{method:'POST'}),/Check whether your change was saved/);assert.equal(calls,1);
+ ctx.fetch=async()=>Response.json({error:'Sign in required.'},{status:401});assert.equal((await ctx.window.prayerApi('/api/me')).response.status,401);
+ ctx.fetch=async()=>Response.json([]);assert.equal(Array.isArray((await ctx.window.prayerApi('/api/posts')).result),true);
+ const f=fixture();f.env.ASSETS.fetch=async()=>new Response(source,{headers:{'Content-Type':'application/javascript'}});const asset=await worker.fetch(new Request('https://prayer.example.com/api-client.js'),f.env);assert.equal(asset.status,200);assert.equal(asset.headers.get('Content-Type'),'application/javascript');assert.equal(await asset.text(),source);
 });
