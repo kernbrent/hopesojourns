@@ -3,7 +3,7 @@
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const follow=t=>`<span class="trip-follow-link"><strong>Traveling</strong> · <a href="/trip/?trip=${encodeURIComponent(t.slug)}">Follow ${esc(t.title)} →</a>${t.portal_available?` · <a href="/journey/?publicTrip=${encodeURIComponent(t.slug)}">Traveler Portal sign-in</a>`:''}</span>`;
  const paragraphs=value=>String(value||'').split('\n').filter(Boolean).map(s=>`<p>${esc(s)}</p>`).join('');
- const url=d=>['athens','kenya','belize','nice','arkansas','mexico-city','others'].includes(d.slug)?`/trips/${d.slug}/`:`/destination/?destination=${encodeURIComponent(d.slug)}`;
+ const url=d=>['athens','kenya','belize','nice','arkansas','mexico-city','camino-de-santiago','kilimanjaro','others'].includes(d.slug)?`/trips/${d.slug}/`:`/destination/?destination=${encodeURIComponent(d.slug)}`;
  const mexicoCooperation='<div class="destination-partner"><a href="https://www.metrorelief.org/" aria-label="Visit Metro Relief’s official website"><img src="/assets/metro-relief-circle.png" alt="Metro Relief" width="112" height="112" loading="lazy"></a><p>Hope Sojourns is working in cooperation with Metro Relief to support local ministry and serve people experiencing homelessness in Mexico City.</p></div>';
  const grid=document.querySelector('#trips .trip-grid');
  if(grid){

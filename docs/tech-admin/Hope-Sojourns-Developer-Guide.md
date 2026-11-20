@@ -1,14 +1,20 @@
 # Hope Sojourns developer guide
 
-Version 5.29
+Version 5.30
 
-Last reviewed: November 16, 2026
+Last reviewed: November 20, 2026
 
 Migration 0019 adds stored_size and storage_encoding to attachment metadata, backfilling existing files without rewriting objects. New non-audio uploads of at least 1 KB are gzip-compressed only when at least 5% smaller; audio remains unchanged for native seeking. size remains original bytes for upload/quota validation; stored_size is actual R2 bytes. Downloads transparently decompress and serve original MIME, filename, bytes and ranges. R2 keys remain private. Existing uploads are not recompressed. Admin GET /api/admin/files supplies global original/stored totals and paged metadata, searchable by filename, prayer title and uploader, with wall/written/audio/archived filters and largest/newest/oldest ordering. POST /api/admin/files/:id/delete requires an active full admin, a reason and DELETE confirmation; it records delete-requested before R2 removal, keeps failed removals listed for retry, and removes metadata plus marks the audit delete after success. If metadata finalization fails after R2 succeeds, retry to finish the operation. Deletion leaves prayer text/history intact and cannot be reversed by restoring a text version. The global Prayer Portal footer states that administrators may remove any item for any reason.
 
 The browser loads public/api-client.js before app.js. It retries transient GET failures once and replaces malformed or non-JSON responses with a readable recovery message. Writes and uploads are never retried automatically, preventing duplicate changes when an acknowledgement is lost. A failed transport alone does not clear the session; expired authentication retains its normal handling. Run the browser API regression tests for malformed responses, transport loss, GET retry and write non-replay.
 
 Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 44 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+
+## Metro Relief developing journeys
+
+Migration 0070_metro_relief_journeys.sql adds published Camino de Santiago and Kilimanjaro destination records and active trip-camino-de-santiago / trip-kilimanjaro opportunities. It creates no dated departure or traveler/financial records. Apply independently to isolated test and production after release authorization. The seed is idempotent and preserves later staff edits. Public routes /trips/camino-de-santiago/ and /trips/kilimanjaro/ use trip.js and destinations-public.js; the destination catalog links to them. Metro Relief’s journeys hub and both detail pages link to /interest/?type=trip&opportunity=trip-<slug> on Hope Sojourns. The existing opportunity loader preselects the journey; submission uses the existing contact review, inquiry, acknowledgment, and follow-up flow. Dates and costs remain pending. Destination images are reused from Metro Relief’s existing journey pages in assets/metro-journeys/.
+
+Local QA: node tools/start-metro-journeys-preview.cjs serves public pages and the real interest route at http://localhost:8787 using in-memory SQLite and no hosted credentials or mail integration. Requests disappear when stopped. Run the metro-journeys, trip-destinations, interest-review, and index Worker tests plus TypeScript and environment isolation checks. Metro Relief uses its normal build and link check; generated WebInOne transfer fragments must accompany an authorized release to metrorelief.org, as well as the metro.careersteps.net source site.
 
 ## Mexico City host content and reusable journeys
 
@@ -1453,6 +1459,8 @@ People and Contact spreadsheet share the contactTypeBulkControls component in ad
 POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
 
 ## Revision history
+
+- November 20, 2026 — Version 5.30. Added Camino de Santiago and Kilimanjaro destination intake, public routes, migration, and isolated local preview. Pending release.
 
 - November 16, 2026 — Version 5.29. Added reusable Mexico City host photography and ministry briefing, journey-specific proposed schedules, and clear notice of changes before and during travel. Pending release.
 
