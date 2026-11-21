@@ -1,4 +1,5 @@
 import {ageRanges} from './interest-profile';
+import {handleDiscovery} from './discovery';
 import {handleMeetings} from './meetings';
 import {handleTravelerVetting} from './traveler-vetting';
 import {handleVolunteer} from './volunteer';
@@ -466,6 +467,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return json(request, env, { status: "ok", service: "hope-sojourns-interest", environment: env.ENVIRONMENT });
   }
   if (path === "/internal/donation-splits") return internalDonationSplits(request, env);
+  if(path==='/public/discovery'||path==='/admin/discovery-self'||path==='/admin/discovery'||path.startsWith('/admin/discovery/'))return handleDiscovery(request,env,path);
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);
   if(path.startsWith('/admin/switch/'))return sharedSwitch(request,env,path);
   if(path==='/public/traveler-application'||path.startsWith('/admin/traveler-profiles/'))return handleTravelerVetting(request,env,path);

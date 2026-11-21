@@ -1,12 +1,20 @@
 # Hope Sojourns website style guide
 
-Version 4.119
+Version 4.121
 
-Last reviewed: November 16, 2026
+Last reviewed: November 20, 2026
 
 Admin File storage uses a horizontally scrollable data table with file links, prayer/location, uploader, date, original bytes, actual stored bytes and a permanent-delete action. Largest first is the default; labeled location/type and date/size sort filters sit beside search. A summary distinguishes storage savings from original download sizes. The standard moderation dialog requires a reason and typed DELETE confirmation. Keep the universal footer disclaimer below the organization/tagline, in readable muted text: Portal administrators may remove any item for any reason. The disclaimer appears on sign-in and authenticated pages alike.
 
 Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 44 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+
+## Guided visitor discovery
+
+The homepage button **Need help finding your way?** opens a native modal dialog. Show one question at a time, progress through six questions, Back and Continue controls, and a reviewable result. Use the existing forest, paper, line, and gold focus tokens; never introduce independent colors. Radio choices use spacious full-width labels and visible selection states. Keep all controls at least 44 pixels high. Support Escape, dialog focus containment, keyboard selection, and return focus to the opening button.
+
+The homepage hero grows with its content. Place the help action on its own row, with the two browsing actions below it; stack all three on phones with 12-pixel gaps. Show the service principles as plain text below the actions, without pill borders or backgrounds.
+
+The conversation introduces locally led mission journeys, internships, corporate humanitarian journeys, and support from home. Ask about purpose, gifts, companions, timing, and concerns in warm, concrete language. Offer uncertainty as a valid answer. Results suggest a path and practical resources without promising a placement or departure. Sharing is optional, unchecked, and separate from using the results. Explain anonymous storage and verified account association beside the consent control. Do not request sensitive health details. The private Visitor insights workspace uses the same palette and readable cards.
 
 ## Mexico City host photography and God’s Kitchen briefing
 
@@ -978,6 +986,10 @@ Place the MMT Word edition latest-revision note beneath the contents-page instru
 Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
 
 ## Revision history
+
+- November 20, 2026 — Version 4.121. Corrected homepage action spacing and replaced noninteractive principle pills with plain text.
+
+- November 20, 2026 — Version 4.120. Added guided visitor interview, optional sharing, and Visitor insights presentation. Pending release.
 
 - November 16, 2026 — Version 4.119. Added reusable Mexico City host photography and ministry briefing, journey-specific proposed schedules, and clear notice of changes before and during travel. Pending release.
 

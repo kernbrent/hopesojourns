@@ -1,0 +1,12 @@
+.insights-patterns { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 20px; }
+.insights-patterns article,.insights-record { padding: 20px; margin: 16px 0; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); overflow-wrap: anywhere; }
+.insights-patterns h3 { margin-top: 0; }
+.insights-record dt { font-weight: 700; }
+.insights-record dd { margin: 0 0 12px; }
+.insights-pagination { display: flex; flex-wrap: wrap; gap: 16px; }
+#counts { font-size: 1.25rem; font-weight: 700; margin: 24px 0; }
+#link-dialog { width: min(620px,calc(100% - 24px)); max-height: 90dvh; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 20px; padding: 24px; }
+#link-dialog::backdrop { background: rgba(var(--forest-deep-rgb),.7); }
+#candidates button { display: block; width: 100%; margin: 12px 0; text-align: left; }
+#workspace button,#link-dialog button { min-height: 44px; cursor: pointer; }
+#workspace :focus-visible,#link-dialog :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }

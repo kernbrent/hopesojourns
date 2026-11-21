@@ -14,6 +14,8 @@ const publicEntries = [
   "_headers",
   "index.html",
   "script.js",
+  "discovery.js",
+  "discovery.css",
   "styles.css",
   "experience.css",
   "experience.js",

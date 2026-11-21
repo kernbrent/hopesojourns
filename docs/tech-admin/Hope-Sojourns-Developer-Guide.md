@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.30
+Version 5.32
 
 Last reviewed: November 20, 2026
 
@@ -9,6 +9,18 @@ Migration 0019 adds stored_size and storage_encoding to attachment metadata, bac
 The browser loads public/api-client.js before app.js. It retries transient GET failures once and replaces malformed or non-JSON responses with a readable recovery message. Writes and uploads are never retried automatically, preventing duplicate changes when an acknowledgement is lost. A failed transport alone does not clear the session; expired authentication retains its normal handling. Run the browser API regression tests for malformed responses, transport loss, GET retry and write non-replay.
 
 Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 44 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+
+## Visitor discovery interviews and insights
+
+The homepage hero uses content-driven height and a responsive action grid so its controls cannot be clipped by a fixed height. Service principles are noninteractive list text. The homepage loads discovery.js and discovery.css; both are explicit public build entries. The browser keeps six enumerated answers in memory until the visitor explicitly consents to share the completed interview. No cookies, persistent visitor IDs, free text, marketing subscriptions, or passive page tracking are introduced. Reloading discards an unsaved interview. Reopening the dialog preserves its in-memory progress. Editing an already shared interview starts a new record if shared again; counts are interviews, not unique visitors.
+
+Migration 0071_discovery_interviews.sql creates discovery_interviews and an hourly rate-limit table. Apply independently to test and production only with release authorization. POST /api/interest/public/discovery stores consented anonymous answers. Reject invalid enumerations, missing consent, and bodies above 8 KB. UUID insertion is idempotent. The database stores the six answers, consent version, timestamp, and optional contact association; raw IP addresses are not saved. An hourly hash of the Cloudflare client IP limits saves to 30 per hour and expires at the next hour.
+
+GET /api/interest/admin/discovery-self uses the existing restricted-path MMT session cookie to check a signed-in account. POST on the same route requires CSRF and uses only mmt_users.hs_person_id for identity. No email, name, or visitor-supplied contact ID can authenticate a visitor. The browser rechecks sign-in before sharing. Shared trip passwords and private trip-account links do not identify visitors for this feature. Without a linked signed-in MMT account the interview remains anonymous. No automatic retrospective matching is performed.
+
+GET /api/interest/admin/discovery returns aggregate answer counts and 50 paged interviews, joining current age range, occupation, and church from traveler_profiles for linked contacts. /admin/discovery/contacts?q= searches existing contacts for authorized staff. POST /admin/discovery/:id/link requires Contacts edit access, CSRF, an existing contact ID or null, and writes an audit event atomically. Staff must verify identity before association; linking does not overwrite contact demographics. Contacts read access permits insights but not association changes. No interview or contact lookup is public.
+
+The private workspace is /admin/discovery/, labeled Visitor insights under People & ministry. Local review: node tools/start-discovery-preview.cjs serves http://localhost:8798/ and its staff workspace using an isolated .tmp/discovery-preview.sqlite fixture, without hosted credentials or outgoing messages. Do not use sample portal access on a hosted server. Run npm run check and npm test in cloudflare/interest-worker, the palette check, the public knowledge catalog rebuild, and the static build. The discovery regression tests exercise consent, validation, duplicate saves, permissions, CSRF, verified association, demographics, audit history, and rate limits.
 
 ## Metro Relief developing journeys
 
@@ -1459,6 +1471,10 @@ People and Contact spreadsheet share the contactTypeBulkControls component in ad
 POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
 
 ## Revision history
+
+- November 20, 2026 — Version 5.32. Documented content-driven homepage hero and responsive action layout.
+
+- November 20, 2026 — Version 5.31. Added optional visitor interviews, isolated storage migration, verified contact association, insights permissions, and local review. Pending release.
 
 - November 20, 2026 — Version 5.30. Added Camino de Santiago and Kilimanjaro destination intake, public routes, migration, and isolated local preview. Pending release.
 

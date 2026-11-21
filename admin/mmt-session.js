@@ -1,6 +1,6 @@
 /* Navigation reflects server-enforced permissions. API checks remain authoritative. */
 (()=>{
- const map=[['/admin/outreach/','contacts'],['/admin/volunteer/','volunteer'],['/admin/knowledge/','knowledge'],['/admin/shared-signin/','self'],['/admin/account/','self'],['/admin/destinations/','destinations'],['/admin/finance/','finances'],['/admin/trips/','trips']];
+ const map=[['/admin/discovery/','contacts'],['/admin/outreach/','contacts'],['/admin/volunteer/','volunteer'],['/admin/knowledge/','knowledge'],['/admin/shared-signin/','self'],['/admin/account/','self'],['/admin/destinations/','destinations'],['/admin/finance/','finances'],['/admin/trips/','trips']];
  function section(path,hash){if(path==='/admin/ministry/'&&hash.startsWith('#tasks'))return 'self';if(path==='/admin/ministry/')return hash==='#documents'?'documents':hash.startsWith('#trip')||hash.startsWith('#account')?'trips':hash==='#finances'?'finances':'inbox';if(path==='/admin/'||path==='/admin/index.html')return ['#ledger','#income','#expenses','#csm-inbox'].includes(hash)?'finances':'contacts';return map.find(([p])=>path.startsWith(p))?.[1];}
  fetch('/api/interest/admin/session',{cache:'no-store'}).then(async r=>{if(!r.ok)return;const data=await r.json(),u=data.user;if(!u)return;window.MmtUser=u;
   const allowed=s=>s==='volunteer'?!!(u.is_admin||u.volunteer_access):s==='self'||u.is_admin||['read','edit'].includes(u.permissions[s]);

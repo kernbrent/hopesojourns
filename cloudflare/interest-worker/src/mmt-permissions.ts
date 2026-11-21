@@ -16,6 +16,8 @@ export function can(user:MmtIdentity,section:Section,edit=false){const p=permiss
 // Contacts covers people, requests, ministries and teams. Trip operations includes
 // budgets and participant details; bulk import/export also requires contact access.
 export function routeSection(path:string):Section|'self'|'admin'{
+ if(path==='/admin/discovery-self')return 'self';
+ if(path==='/admin/discovery'||path.startsWith('/admin/discovery/'))return 'contacts';
  if(path==='/admin/volunteer'||path.startsWith('/admin/volunteer/'))return 'self'; // Volunteer actions enforce entitlement, ownership, and review rights.
  if(path==='/admin/developer-guide')return 'admin';
  if(['/admin/session','/admin/logout','/admin/password','/admin/account/profile','/admin/account/email-change','/admin/switch/issue','/admin/user-guide'].includes(path))return 'self';

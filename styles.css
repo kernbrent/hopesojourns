@@ -677,9 +677,9 @@ main > .section.service-pathways { background: linear-gradient(125deg, var(--for
   position: relative;
   display: grid;
   width: min(calc(100% - 32px), 1180px);
-  height: 33vh;
+  height: auto;
   min-height: 340px;
-  max-height: 420px;
+  max-height: none;
   margin: 12px auto;
   overflow: hidden;
   border-radius: 22px;
@@ -752,6 +752,10 @@ h1 {
   line-height: 1.7;
 }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero .hero-content { width: calc(100% - 48px); padding: 56px 0 20px; }
+.hero .hero-actions { display: grid; grid-template-columns: repeat(2, max-content); gap: 12px; }
+.hero .hero-actions > :first-child { grid-column: 1 / -1; justify-self: start; }
+.hero .hero-actions .button { min-height: 48px; text-align: center; }
 
 .intro-replay-button {
   position: absolute;
@@ -805,26 +809,21 @@ h1 {
   stroke-width: 2;
 }
 .hero-proof {
-  position: absolute;
+  position: relative;
   z-index: 3;
-  right: 24px;
-  bottom: 18px;
   display: flex;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  width: calc(100% - 48px);
+  margin: 0 auto;
+  padding: 0 0 28px;
   list-style: none;
 }
 .hero-proof li {
-  padding: 7px 11px;
-  border: 1px solid rgba(var(--white-rgb), .42);
-  border-radius: 999px;
-  background: rgba(var(--forest-deep-rgb), .58);
-  color: var(--white);
-  font-size: .7rem;
-  font-weight: 850;
+  color: rgba(var(--white-rgb), .86);
+  font-size: .85rem;
+  font-weight: 600;
   letter-spacing: .025em;
-  backdrop-filter: blur(7px);
 }
 
 .section {
@@ -2326,7 +2325,7 @@ main > .section.internship-cost-section {
   }
   .nav-links.open { display: flex; }
   .nav-links .button { width: 100%; }
-  .hero { width: min(calc(100% - 18px),1180px); height: auto; min-height: 620px; max-height: none; }
+  .hero { width: min(calc(100% - 18px),1180px); height: auto; min-height: 340px; max-height: none; }
   .section { padding-block: 72px; }
   main > .section { padding: 44px 22px; border-radius: 18px; }
   main > .section.compact { padding-block: 40px; }
@@ -2401,6 +2400,9 @@ main > .section.internship-cost-section {
   .hero-content { padding-block: 96px 56px; }
   .intro-replay-button { top: 14px; right: 14px; }
   .hero-actions .button { width: 100%; }
+  .hero .hero-content { padding-top: 76px; }
+  .hero .hero-actions { grid-template-columns: minmax(0, 1fr); }
+  .hero .hero-actions > :first-child { justify-self: stretch; }
   .trip-card-content { right: 20px; bottom: 20px; left: 20px; }
   .trip-schedule { width: min(100%, 240px); }
   .trip-schedule li { padding: 7px 9px; }

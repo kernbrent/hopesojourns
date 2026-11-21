@@ -43,5 +43,7 @@ it('requires authentication and CSRF, and hiding preserves the destination and o
  expect((await f.call('/admin/destinations/athens',{...f.row('athens'),status:'archived'},'PUT')).status).toBe(200);
  expect((await f.call('/public/destinations/athens')).status).toBe(404);
  expect(f.sqlite.prepare('SELECT active FROM opportunities WHERE id=?').get('trip-athens')).toMatchObject({active:0});
- const data=await (await f.call('/public/destinations')).json() as any;expect(data.destinations).toHaveLength(6);expect(data.destinations[0]).not.toHaveProperty('image_key');
+ const data=await (await f.call('/public/destinations')).json() as any;
+ const published=f.sqlite.prepare("SELECT COUNT(*) n FROM destinations WHERE status='published'").get() as {n:number};
+ expect(data.destinations).toHaveLength(published.n);expect(data.destinations.some((d:any)=>d.slug==='athens')).toBe(false);expect(data.destinations[0]).not.toHaveProperty('image_key');
 });
