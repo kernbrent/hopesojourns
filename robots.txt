@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /api/
+Disallow: /application/
+Disallow: /journey/
+Disallow: /trip-account/
+
+Sitemap: https://hopesojourns.com/sitemap.xml

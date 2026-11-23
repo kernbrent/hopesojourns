@@ -2,7 +2,7 @@
 
 Version 5.32
 
-Last reviewed: November 20, 2026
+Last reviewed: November 23, 2026
 
 Migration 0019 adds stored_size and storage_encoding to attachment metadata, backfilling existing files without rewriting objects. New non-audio uploads of at least 1 KB are gzip-compressed only when at least 5% smaller; audio remains unchanged for native seeking. size remains original bytes for upload/quota validation; stored_size is actual R2 bytes. Downloads transparently decompress and serve original MIME, filename, bytes and ranges. R2 keys remain private. Existing uploads are not recompressed. Admin GET /api/admin/files supplies global original/stored totals and paged metadata, searchable by filename, prayer title and uploader, with wall/written/audio/archived filters and largest/newest/oldest ordering. POST /api/admin/files/:id/delete requires an active full admin, a reason and DELETE confirmation; it records delete-requested before R2 removal, keeps failed removals listed for retry, and removes metadata plus marks the audit delete after success. If metadata finalization fails after R2 succeeds, retry to finish the operation. Deletion leaves prayer text/history intact and cannot be reversed by restoring a text version. The global Prayer Portal footer states that administrators may remove any item for any reason.
 
@@ -1237,6 +1237,8 @@ node .\cloudflare\build-test-site.mjs
 npx wrangler pages deploy .\site-dist --project-name hopesojourns-test --branch codex/test-admin-portal
 ```
 
+Public destination pages include a concise HTML overview and existing discovery links before the public destination API loads. The live API remains the source for dates, departures, and availability; keep these out of the fallback. Halifax uses the /trips/halifax/ public path and keeps the existing England destination slug. The legacy query link still works. Dedicated public pages and sitemap entries use the HTTPS apex canonical. The Pages build copies robots.txt and sitemap.xml; the allowlisted sitemap excludes portal, API, and private routes. Do not change redirects or security settings to publish these files. Run tools/build_knowledge_site.py after changes to public HTML, then build site-dist. Review sitemap and robots responses on the test and production hosts after an authorized release. There are no database migrations or portal workflow changes in this update.
+
 ## 15. Documentation maintenance
 
 The canonical living guides are:
@@ -1471,6 +1473,8 @@ People and Contact spreadsheet share the contactTypeBulkControls component in ad
 POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
 
 ## Revision history
+
+- November 23, 2026 — Version 5.33. Documented public destination fallbacks, the Halifax path, custom journey guidance, canonical URLs, and the public sitemap and robots files. Pending release.
 
 - November 20, 2026 — Version 5.32. Documented content-driven homepage hero and responsive action layout.
 

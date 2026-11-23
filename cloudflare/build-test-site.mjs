@@ -12,6 +12,8 @@ if (path.dirname(outputDirectory) !== repositoryRoot || path.basename(outputDire
 
 const publicEntries = [
   "_headers",
+  "robots.txt",
+  "sitemap.xml",
   "index.html",
   "script.js",
   "discovery.js",

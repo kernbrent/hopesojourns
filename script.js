@@ -550,8 +550,8 @@ if (photoViewerEnabled) {
 
 // Managed public destination tiles, independent of the public page layout.
 if (document.querySelector("#trips .trip-grid")) {
-  import("/destinations-public.js?v=2026-10-09.2").catch(() => {
+  import("/destinations-public.js?v=2026-11-23.seo1").catch(() => {
     const grid = document.querySelector("#trips .trip-grid");
-    if (grid) grid.textContent = "Destinations are temporarily unavailable. Please refresh.";
+    if (grid && !grid.querySelector("a[href]")) grid.textContent = "Destinations are temporarily unavailable. Please refresh.";
   });
 }
