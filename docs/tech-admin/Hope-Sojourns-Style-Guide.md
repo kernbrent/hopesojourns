@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.129
+Version 4.130
 
 Last reviewed: November 25, 2026
 
@@ -1011,15 +1011,19 @@ Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. 
 
 ## Biblillion Mission Journey Passport (test only)
 
-Keep the Hope Sojourns forest, paper and gold palette through shared /styles.css tokens. The destination chooser uses nine existing Hope Sojourns photos, generous card targets and a clear optional anonymous-sharing checkbox. Destination choice introduces the game as an invitation to explore a Mission Journey. Do not imply that game completion qualifies someone for travel.
+Biblillion remains a test-only experience. Preserve the Hope Sojourns forest, paper and gold palette through shared /styles.css tokens. Destination cards use existing Hope Sojourns photos, generous targets, pace controls and optional anonymous sharing. The game invites exploration without assessing spiritual maturity or readiness to travel.
 
-The passport shows seven labeled stages, correct-answer stamps and an accessible progress indicator. Phones stack the destination postcard and compact trail above the question. A complete seven-stamp round adds 150 points to the answer score, for a maximum of 850. Celebrate with the destination photo in a keyboard-accessible dialog and a relevant trip or interest link. Respect reduced motion and open the automatic celebration only once per saved round. Badges and points have no cash value or trip credit.
+The passport is a paper-colored page with seven destination ink stamps. Stamps use a double customs-style border, country plus entry number (GREECE 1 for Athens), the round date, slight rotation and distressed ink. A brief rubber-stamp press leaves the new mark on the passport and a matching reveal stamp. Animate only a newly earned mark; refreshing or reopening a saved round must not replay the press. Empty, skipped and timed-out spaces retain clear text labels. On phones the full passport is collapsible and the earned stamp appears in the answer reveal.
 
-Show the canonical spelling when a clear typo is accepted, with the same points. When several answers are plausible, offer explicit confirmation buttons. Keep question scope, editorial rarity labels, accepted answers and Scripture references readable. There is no timer or spiritual-maturity ranking. Sharing remains optional and initially off; privacy controls explain exactly which anonymous results are sent.
+Show question difficulty as text, separately from answer rarity. New rounds have three or four broad prompts, at least four easy questions and at most one hard question, placed late in the round. The countdown starts at 25 seconds and uses text and color for its final ten seconds. Do not flash or use a ticking sound. Provide an equally scored untimed option before and during play, pause for hidden tabs and open help/privacy dialogs, and preserve remaining time on return. Timeouts reveal a discovery rather than shaming the player.
 
-MMT Biblillion insights uses existing portal navigation, shared palette and responsive metric cards. Tables retain captions and readable horizontal scrolling on narrow screens. Label counts as shared rounds and answers, never unique people. Distinguish editorial points from observed choice percentages. Devotional starters open in a private editable dialog, with an explicit review-before-use reminder and separate save/download actions.
+Every finished round receives one travel moment: Unexpected layover (0–174 answer points), Connection made (175–299), Right on schedule (300–449), Priority boarding (450–574), or First-class upgrade (575–700). Rewards add 0/25/50/100/150 points respectively. The separate seven-stamp bonus stays 150, for a new maximum of 1,000. Timed and untimed play have identical scores. All tiers use a destination-photo dialog with a relevant trip/interest link. High tiers use a short finite confetti burst; other tiers use a clock, connection arrows or a passing plane. Honor reduced motion by showing a static emblem without moving confetti or stamping effects. Celebrations open automatically once per round and have an explicit replay button.
+
+MMT insights uses existing shared components. Label difficulty and broad/focused question type, provide a difficulty filter and distinguish a timeout from a voluntary skip. Counts are opted-in rounds, not people. Observed choice percentages do not change editorial rarity scores. Devotional starters remain private drafts with review-before-use reminders. Church-family questions link to a clearly identified historical directory; they are not presented as Scripture quotations.
 
 ## Revision history
+
+- November 25, 2026 — Version 4.130. Added customs-style ink stamps and press animation, five travel moments, confetti/reduced-motion behavior, accessible 25-second pace controls and question difficulty presentation. Authorized commit, push and test-only deployment after validation.
 
 - November 25, 2026 — Version 4.129. Added destination photo cards, seven-stamp passport, 150-point celebration, spelling confirmation, optional sharing and responsive MMT insights/draft presentation.
 

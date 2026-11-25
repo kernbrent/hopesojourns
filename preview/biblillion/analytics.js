@@ -2,10 +2,10 @@ import {QUESTIONS} from './content.js';
 export const CONSENT_VERSION='2026-11-25';
 // Deliberately excludes names, emails, reflections, arbitrary guesses and browser IDs.
 export function resultEvent(round,result){
- return {id:crypto.randomUUID(),roundId:round.analyticsRoundId,bankVersion:round.version,roundDay:round.key,mode:round.mode,destinationId:round.destinationId,slot:round.index,questionId:round.ids[round.index],answer:result.answer,skipped:result.skipped,corrected:result.corrected===true,consent:true,consentVersion:CONSENT_VERSION};
+ return {id:crypto.randomUUID(),roundId:round.analyticsRoundId,bankVersion:round.version,roundDay:round.key,mode:round.mode,destinationId:round.destinationId,slot:round.index,questionId:round.ids[round.index],answer:result.answer,skipped:result.skipped,corrected:result.corrected===true,timedOut:result.timedOut===true,consent:true,consentVersion:CONSENT_VERSION};
 }
 export function reporter(store,save,onStatus=()=>{}){
- const keys=['id','roundId','bankVersion','roundDay','mode','destinationId','slot','questionId','answer','skipped','corrected','consent','consentVersion'];
+ const keys=['id','roundId','bankVersion','roundDay','mode','destinationId','slot','questionId','answer','skipped','corrected','timedOut','consent','consentVersion'];
  let sending=false;store.pendingEvents=Array.isArray(store.pendingEvents)?store.pendingEvents.filter(e=>e&&Object.keys(e).every(k=>keys.includes(k))&&e.consent===true&&e.consentVersion===CONSENT_VERSION&&QUESTIONS.some(q=>q.id===e.questionId&&(e.skipped?e.answer===null:q.answers.some(a=>a.name===e.answer)))).slice(0,100):[];
  async function flush(){
   if(sending||!store.shareResults||!store.pendingEvents.length)return;sending=true;

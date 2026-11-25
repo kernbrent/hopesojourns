@@ -1,11 +1,15 @@
 // Each score is an editorial familiarity estimate within this prompt, not a play statistic.
 // References establish eligibility. Explanations are original paraphrases, not Bible quotations.
 import {EXPANDED_QUESTIONS} from './expanded-bank.js';
-export const BANK_VERSION = '2026-11-25.1';
+import {makeGeneralQuestions} from './general-bank.js';
+import {withDifficulty} from './question-settings.js';
+export const BANK_VERSION = '2026-11-25.2';
+export const PREVIOUS_BANK_VERSION = '2026-11-25.1';
 export const LEGACY_BANK_VERSION = '2026-11-24.1';
+export const SUPPORTED_BANKS=[BANK_VERSION,PREVIOUS_BANK_VERSION,LEGACY_BANK_VERSION];
 const a = (name, points, ref, note, aliases = []) => ({name, points, ref, note, aliases});
 const q = (id, category, prompt, scope, hint, answers) => ({id, category, prompt, scope, hint, answers});
-export const QUESTIONS = [
+const ORIGINAL_QUESTIONS = [
  q('churches','Places & prophecy','Name one of the seven churches addressed in Revelation.','Use the city name from Revelation 2–3.','These churches were in the Roman province of Asia, in what is now western Türkiye.',[
   a('Ephesus',35,'Revelation 2:1','The first of the seven messages addresses the church in Ephesus.'),
   a('Smyrna',65,'Revelation 2:8','Smyrna receives encouragement to remain faithful in suffering.'),
@@ -65,6 +69,7 @@ export const QUESTIONS = [
   a('Cyrus',35,'Ezra 1:1','Cyrus’s proclamation opens the book.',['Cyrus the Great','King Cyrus']),a('Darius',65,'Ezra 4:5; 6:1','Darius orders a search for the earlier decree.',['Darius I','Darius the Great']),a('Ahasuerus',100,'Ezra 4:6','Ezra records an accusation at the beginning of Ahasuerus’s reign.',['Xerxes','Xerxes I']),a('Artaxerxes',85,'Ezra 4:7; 7:1','Artaxerxes is named in correspondence and in the account of Ezra.',['Artaxerxes I'])])
  ,...EXPANDED_QUESTIONS
 ];
+export const QUESTIONS=[...ORIGINAL_QUESTIONS,...makeGeneralQuestions(ORIGINAL_QUESTIONS)].map(withDifficulty);
 export const TIERS = [
  {min:100,name:'Hidden treasure',mark:'✦',description:'Our most unexpected pick in this set.'},
  {min:85,name:'Deep discovery',mark:'◆',description:'A less familiar answer worth digging for.'},
@@ -73,4 +78,4 @@ export const TIERS = [
  {min:0,name:'Familiar favorite',mark:'•',description:'A well-known answer, and still a good find.'}
 ];
 export const tierFor = points => TIERS.find(t=>points>=t.min);
-export const scriptureURL = ref => 'https://www.biblegateway.com/passage/?search='+encodeURIComponent(ref)+'&version=WEB';
+export const scriptureURL = ref => ref==='https://www.oikoumene.org/church-families'?ref:'https://www.biblegateway.com/passage/?search='+encodeURIComponent(ref)+'&version=WEB';
