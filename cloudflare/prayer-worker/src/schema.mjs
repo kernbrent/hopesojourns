@@ -75,5 +75,9 @@ export const schema=[
   {
     "name": "0019_attachment_storage.sql",
     "sql": "ALTER TABLE prayer_attachments ADD COLUMN stored_size INTEGER;\nALTER TABLE prayer_attachments ADD COLUMN storage_encoding TEXT;\nUPDATE prayer_attachments SET stored_size=size;\nCREATE INDEX attachment_size ON prayer_attachments(stored_size DESC,id);\n"
+  },
+  {
+    "name": "0020_prayer_trivia.sql",
+    "sql": "CREATE TABLE trivia_attempts (\n id TEXT PRIMARY KEY,\n user_id TEXT NOT NULL REFERENCES users(id),\n edition TEXT NOT NULL,\n round INTEGER NOT NULL CHECK(round IN (1,2)),\n display_name TEXT NOT NULL,\n state TEXT NOT NULL,\n revision INTEGER NOT NULL DEFAULT 0,\n completed_at INTEGER,\n expires_at INTEGER NOT NULL\n);\nCREATE INDEX trivia_attempt_owner ON trivia_attempts(user_id,expires_at);\nCREATE TABLE trivia_results (\n attempt_id TEXT PRIMARY KEY,\n user_id TEXT NOT NULL REFERENCES users(id),\n edition TEXT NOT NULL,\n round INTEGER NOT NULL CHECK(round IN (1,2)),\n display_name TEXT NOT NULL,\n score INTEGER NOT NULL CHECK(score BETWEEN 0 AND 100),\n completed_at INTEGER NOT NULL,\n UNIQUE(user_id,edition,round)\n);\nCREATE INDEX trivia_ranking ON trivia_results(edition,round,score DESC);\n"
   }
 ];

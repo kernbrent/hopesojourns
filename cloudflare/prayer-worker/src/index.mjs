@@ -11,6 +11,7 @@ import {handleSharedPrayers,decorateSharedPosts} from './shared-prayers.mjs';
 import {handleWrittenPrayers} from './written-prayers.mjs';
 import {handleAttachments} from './attachments.mjs';
 import {handleFileStorage} from './file-storage.mjs';
+import {handleTrivia} from './trivia.mjs';
 const COOKIE = '__Host-hs_prayer';
 const kinds = ['request', 'update', 'answered'];
 const encoder = new TextEncoder();
@@ -81,8 +82,8 @@ async function api(request, env, url, ctx) {
   const config = siteConfig(env);
   if (path === '/api/site' && method === 'GET') return json(config);
   if (path === '/api/health' && method === 'GET') {
-    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs','devotionals','devotional_reads','invitation_deliveries','post_revisions','prayer_comments','comment_hearts','written_prayers','written_prayer_versions','prayer_attachments')").first();
-    requireValue(schema.count === 23, 'Portal database setup is incomplete.', 503);
+    const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs','devotionals','devotional_reads','invitation_deliveries','post_revisions','prayer_comments','comment_hearts','written_prayers','written_prayer_versions','prayer_attachments','trivia_attempts','trivia_results')").first();
+    requireValue(schema.count === 25, 'Portal database setup is incomplete.', 503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);
@@ -170,6 +171,7 @@ async function api(request, env, url, ctx) {
     requireValue(result.meta.changes===1,'Your account is no longer available.',401);
     return json({list_view:data.list_view});
   }
+  const trivia=await handleTrivia(request,db,auth,url,{json,body,text,requireValue,rateLimit});if(trivia)return trivia;
   const attachment=await handleAttachments(request,db,auth,url,{json,requireValue,rateLimit,visibility,visibleArgs},env.PRAYER_FILES);if(attachment)return attachment;
   const shared=await handleSharedPrayers(request,db,auth,url,{json,body,text,requireValue,rateLimit,visibility,visibleArgs});if(shared)return shared;
   const written=await handleWrittenPrayers(request,db,auth,url,{json,body,text,requireValue,rateLimit});if(written)return written;
@@ -339,7 +341,7 @@ export default {
     try {
       const url = new URL(request.url);
       if (url.pathname.startsWith('/api/')) response = await api(request, env, url, ctx);
-      else if (['/','/index.html','/app.js','/api-client.js','/portal.css','/styles.css',siteConfig(env).logoPath,'/favicon.ico'].includes(url.pathname)) response = await env.ASSETS.fetch(request);
+      else if (['/','/index.html','/app.js','/api-client.js','/trivia.js','/portal.css','/styles.css',siteConfig(env).logoPath,'/favicon.ico'].includes(url.pathname)) response = await env.ASSETS.fetch(request);
       else response = json({ error: 'Page unavailable.' }, 404);
     } catch (error) {
       response = json({ error: error.status ? error.message : 'We could not complete that request. Please try again.' }, error.status || 500);

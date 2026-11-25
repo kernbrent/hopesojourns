@@ -125,8 +125,10 @@ export async function handleResources(request,db,auth,url,h) {
   const tags=[...new Set(data.tags.map(normalizeTag))],order=integer(data.sort_order,'resource order'),time=Date.now();
   const existing=creating?null:await db.prepare('SELECT genders,min_age,max_age,review_status FROM resources WHERE id=?').bind(id).first();
   const image=imageValue(data),genders=data.genders??(existing?.genders?existing.genders.split(','):[]);
-  requireValue(Array.isArray(genders)&&genders.length<=3&&genders.every(value=>['male','female','another'].includes(value)),'Choose valid resource gender audiences.');
-  const audience=[...new Set(genders)].sort().join(','),minAge=data.min_age===undefined?(existing?.min_age??null):data.min_age,maxAge=data.max_age===undefined?(existing?.max_age??null):data.max_age;
+  const legacyAudience=existing?.genders?.split(',').includes('another');
+  requireValue(Array.isArray(genders)&&genders.length<=(legacyAudience?4:3)&&genders.every(value=>['male','female','undisclosed'].includes(value)||(value==='another'&&legacyAudience)),'Choose valid resource gender audiences.');
+  // Removing a retired control must never silently widen an existing audience.
+  const audience=[...new Set([...genders,...(legacyAudience?['another']:[])])].sort().join(','),minAge=data.min_age===undefined?(existing?.min_age??null):data.min_age,maxAge=data.max_age===undefined?(existing?.max_age??null):data.max_age;
   if(minAge!==null) integer(minAge,'minimum age',0,120);if(maxAge!==null) integer(maxAge,'maximum age',0,120);
   requireValue(minAge===null||maxAge===null||minAge<=maxAge,'Minimum age cannot exceed maximum age.');
   if(recommending) {
