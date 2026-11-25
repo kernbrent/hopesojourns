@@ -40,6 +40,8 @@ const publicEntries = [
   "knowledge",
   "faq",
   "interest",
+  "mission-journey",
+  "mission-journey",
   "internships",
   "journey",
   "letters",

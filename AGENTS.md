@@ -1,5 +1,9 @@
 # Hope Sojourns project instructions
 
+## Website content preference
+
+- On Brent-owned websites, gender choices must be Male, Female, or Prefer not to say. Do not add alternative gender options or advocacy content. Websites built or maintained for other people may follow the client's requirements as an exception.
+
 ## Local preview handoff
 
 - After every website or portal change, include a clickable localhost URL for the affected page in the final response. Keep the local preview running for Brent to review when possible, and verify the URL responds before sharing it. If the preview cannot run, explain the blocker instead of presenting an unavailable URL as working.
@@ -43,6 +47,7 @@
 
 - Never display photo credits on Hope Sojourns web pages. Keep source and license records in private administrative metadata or project documentation. Choose images whose permitted use fits this presentation.
 
-## Website content preference
+## Mission Journey walkthrough
 
-- On Brent-owned websites, gender choices must be Male, Female, or Prefer not to say. Do not add alternative gender options or advocacy content. Websites built or maintained for other people may follow the client's requirements as an exception.
+- Include a clearly labeled Mission Journey walkthrough invitation on every new public trip or destination page. Use /mission-journey/ and preserve the page’s primary trip information and interest actions.
+- Shared destination and dated-trip templates must retain this invitation so destinations and departures created through MMT inherit it automatically.

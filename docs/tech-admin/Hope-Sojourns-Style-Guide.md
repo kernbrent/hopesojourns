@@ -6,6 +6,26 @@ Last reviewed: November 24, 2026
 
 Prayer Portal gender selectors offer exactly Male, Female and Prefer not to say. Prefer not to say is the default for access requests and for profiles with no current selection. Resource gender-audience controls use the same three labels. Keep this profile information private.
 
+## Public Mission Journey walkthrough invitations
+
+One Step Beyond is the public /mission-journey/ experience. Keep its five story chapters, five discovery stamps and seven preparation days in the shared forest, paper, sage and gold palette. The live outline form keeps email delivery and optional profile sharing separate and unchecked. Show actual delivery state: accepted for delivery, test capture, or saved with delivery unconfirmed. Never present a capture as sent or a self-reported email as verified identity.
+
+Use the label Try the Mission Journey walkthrough on the homepage, Interest and About Us invitations, and on public trip and destination pages. Put Mission Journey walkthrough near the top of the Resources menu. Describe it explicitly as a five-minute walkthrough to consider service, concerns and a next step. Invitations use a contained forest-wash section with the existing heading and button hierarchy, preserving each page’s primary content. The shared destination renderer and dated-trip template retain this invitation for future pages. Avoid a second invitation when dynamic destination content reloads.
+
+MMT Visitor insights includes Mission preparation requests. Display supplied details, consent version, contact permission and outline-delivery state. Clearly label unverified identity, avoid scores or private reflection content, and offer Mark reviewed and guarded retry controls to authorized Contacts editors.
+
+## Interest referral source and homepage walkthrough preview
+
+The I’m Interested form asks How did you hear about us? as an optional seven-choice dropdown. Reveal one optional follow-up whose label matches the selected source: Who may we thank?, Which church or ministry?, Which platform or account?, What did you search for?, Which event or presentation?, or Tell us a little more. Clear the follow-up when the source changes and disable it when the source is blank. Use the existing form input typography, 49-pixel height, forest borders and gold focus styling for selects; inset the chevron and retain a visible label and associated errors. Limit follow-up text to 240 characters.
+
+MMT presents the supplied source and detail as readable text in inquiry details and duplicate review. Contact profiles show dated How they heard about us entries, earliest first, with Open source inquiry controls. Use existing contact cards and text rendering; later inquiries must preserve earlier attribution.
+
+The local homepage concept adds one contained forest-wash invitation just above Upcoming journeys. Lead with A five-minute walkthrough and Could a Mission Journey be your next step?, followed by a concrete explanation and Try the Mission Journey walkthrough. The hero, main navigation and broader service offerings retain their existing roles. The homepage invitation is injected only by the local preview server; it is not a change to the canonical homepage or public build.
+
+## Mission Journey local prototype
+
+The isolated /preview/one-step-beyond/ experience pairs five story chapters with seven preparation days. Use the shared forest, paper, gold and sage tokens, Georgia display headings, generous choice rows and a responsive passport rail. Passport stamps recognize exploration and reflection; do not score spiritual maturity or claim to determine calling. Keep the fictional encounter explicitly labeled. Each preparation day presents a Scripture reference and external reading link, an original devotional, a prayer, a small practice and an optional browser-private reflection. All days remain available without streak penalties. Use native progress bars, pressed choice states, visible focus, text feedback and 44-pixel controls. Email and optional MMT profile sharing are separate unchecked choices; label local previews clearly and never imply delivery. No public navigation or shared styles changed.
+
 The Prayer Challenge is a full-member Prayer Portal workspace using the shared forest, paper, gold and success tokens. Present one question at a time with a labeled progress bar, generous radio-choice rows, visible focus and readable explanations. Keep the Peter/Rhoda parts together and reveal neither answer until both are submitted. Use text alongside feedback colors. Do not display a running or unfinished score. The completed-round screen shows a score out of 100 and offers Continue to Round 2 or Skip for now. Two responsive leaderboard tables use chosen names, shared ranks for ties, and a clear first-completed-attempt rule. Phone layouts wrap controls without horizontal page overflow.
 
 Admin File storage uses a horizontally scrollable data table with file links, prayer/location, uploader, date, original bytes, actual stored bytes and a permanent-delete action. Largest first is the default; labeled location/type and date/size sort filters sit beside search. A summary distinguishes storage savings from original download sizes. The standard moderation dialog requires a reason and typed DELETE confirmation. Keep the universal footer disclaimer below the organization/tagline, in readable muted text: Portal administrators may remove any item for any reason. The disclaimer appears on sign-in and authenticated pages alike.
@@ -991,9 +1011,15 @@ Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. 
 
 ## Revision history
 
-- November 24, 2026 — Version 4.126. Restricted Prayer Portal gender choices to Male, Female and Prefer not to say. Authorized prayer portal release.
+- November 24, 2026 — Version 4.126. Restricted Prayer Portal gender choices to Male, Female and Prefer not to say. Local changes pending release approval.
 
-- November 24, 2026 — Version 4.122. Added The Prayer Challenge question, feedback, completion and leaderboard presentation. Authorized prayer portal release.
+- November 24, 2026 — Version 4.125. Promoted One Step Beyond to the public route, added the contained homepage/Interest/About/trip invitations and Resources entry, and documented real email status and private preparation-request review. Authorized release after validation.
+
+- November 24, 2026 — Version 4.124. Added optional referral-source controls, dated MMT attribution and the contained local homepage walkthrough invitation. Local review only.
+
+- November 24, 2026 — Version 4.123. Added the local Mission Journey story, preparation passport, reflection and consent-preview standards. Local prototype only.
+
+- November 24, 2026 — Version 4.122. Added The Prayer Challenge question, feedback, completion and leaderboard presentation. Local review; pending release approval.
 
 - November 20, 2026 — Version 4.121. Corrected homepage action spacing and replaced noninteractive principle pills with plain text.
 

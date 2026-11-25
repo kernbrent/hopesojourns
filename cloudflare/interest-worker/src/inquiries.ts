@@ -1,5 +1,6 @@
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type AdminEnv} from './admin';
 import {can,effectiveUser} from './mmt-permissions';
+import {referralSourceLabel} from './referral-sources';
 import {deliverInquiryEmail} from './inquiry-email';
 type Row=Record<string,any>;
 const rows=async(env:AdminEnv,sql:string,...args:any[])=>(await env.DB.prepare(sql).bind(...args).all<Row>()).results;
@@ -14,14 +15,14 @@ export async function handleInquiries(request:Request,env:AdminEnv,path:string):
  return adminJson(await deliverInquiryEmail(env,parts[2]));
  }
  if(request.method==='GET'){
- const inquiries=await rows(env,`SELECT w.*,s.person_id,p.first_name,p.last_name,p.email,s.message,s.selected_opportunities_json,t.title trip_title,u.first_name||' '||u.last_name owner_name FROM inquiry_workflows w JOIN interest_submissions s ON s.id=w.submission_id JOIN people p ON p.id=s.person_id LEFT JOIN trips t ON t.id=w.trip_id LEFT JOIN mmt_users u ON u.id=w.owner_id ${id?'WHERE w.submission_id=?':''} ORDER BY w.stage='closed',w.due_date IS NULL,w.due_date,w.created_at DESC`,...(id?[id]:[]));
+ const inquiries=await rows(env,`SELECT w.*,s.person_id,p.first_name,p.last_name,p.email,s.message,s.referral_source,s.referral_detail,s.selected_opportunities_json,t.title trip_title,u.first_name||' '||u.last_name owner_name FROM inquiry_workflows w JOIN interest_submissions s ON s.id=w.submission_id JOIN people p ON p.id=s.person_id LEFT JOIN trips t ON t.id=w.trip_id LEFT JOIN mmt_users u ON u.id=w.owner_id ${id?'WHERE w.submission_id=?':''} ORDER BY w.stage='closed',w.due_date IS NULL,w.due_date,w.created_at DESC`,...(id?[id]:[]));
  if(id&&!inquiries.length)throw new AdminError(404,'NOT_FOUND','Inquiry not found.');
  const owners=(await rows(env,"SELECT * FROM mmt_users WHERE status='active' AND hs_access=1 AND deleted_at IS NULL ORDER BY first_name,last_name")).filter(u=>can(effectiveUser(u as any,'hs'),'contacts',true)).map(u=>({id:u.id,name:u.first_name+' '+u.last_name}));
  const trips=can(session.user,'trips')?await rows(env,"SELECT id,title,start_date,status FROM trips WHERE status NOT IN ('archived','canceled','completed') ORDER BY start_date,title"):[];
  const lists=await rows(env,"SELECT DISTINCT future_list FROM inquiry_workflows WHERE future_list!='' ORDER BY future_list COLLATE NOCASE");
  const emails=id?await rows(env,'SELECT id,kind,status,error,sent_at,updated_at,payload_json FROM inquiry_emails WHERE inquiry_id=? ORDER BY updated_at DESC',id):[];
  const history=id?await rows(env,"SELECT created_at,metadata_json FROM audit_events WHERE entity_type='inquiry' AND entity_id=? ORDER BY created_at DESC",id):[];
- return adminJson({history,inquiries,owners,trips,lists:lists.map(l=>l.future_list),emails:emails.map(e=>({...e,payload_json:undefined,recipient:JSON.parse(e.payload_json).to[0],subject:JSON.parse(e.payload_json).subject})),canEdit:can(session.user,'contacts',true),canEditTrips:can(session.user,'trips',true)});
+ return adminJson({history,inquiries:inquiries.map(w=>({...w,referral_source_label:referralSourceLabel(w.referral_source)})),owners,trips,lists:lists.map(l=>l.future_list),emails:emails.map(e=>({...e,payload_json:undefined,recipient:JSON.parse(e.payload_json).to[0],subject:JSON.parse(e.payload_json).subject})),canEdit:can(session.user,'contacts',true),canEditTrips:can(session.user,'trips',true)});
  }
  if(request.method!=='POST'||!id)throw new AdminError(405,'METHOD','Method not allowed.');
  const before=await env.DB.prepare('SELECT w.*,s.person_id FROM inquiry_workflows w JOIN interest_submissions s ON s.id=w.submission_id WHERE w.submission_id=?').bind(id).first<Row>();

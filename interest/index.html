@@ -7,9 +7,9 @@
   <title>Share Your Interest | Hope Sojourns</title>
   <link rel="icon" type="image/png" href="/assets/hope-sojourns-icon.png">
   <link rel="apple-touch-icon" href="/assets/hope-sojourns-icon.png">
-  <link rel="stylesheet" href="/styles.css?v=26">
-  <script src="/script.js?v=2026-10-18.3" defer></script>
-  <script src="/interest/interest.js?v=2026-10-26.1" defer></script>
+  <link rel="stylesheet" href="/styles.css?v=2026-11-24.referral1">
+  <script src="/script.js?v=2026-11-24.mission1" defer></script>
+  <script src="/interest/interest.js?v=2026-11-24.referral1" defer></script>
 <script src="/phone-ui.js?v=2026-10-07.1" defer></script><script src="/knowledge/widget.js?v=2026-10-18.2" defer></script></head>
 <body data-interest-api-base="/api/interest">
   <main id="main">
@@ -22,6 +22,13 @@
       </div>
     </section>
 
+    <section class="section compact mission-walkthrough-invitation" aria-labelledby="walkthrough-invitation-title">
+      <p class="eyebrow">A five-minute walkthrough</p>
+      <h2 id="walkthrough-invitation-title">Could a Mission Journey be your next step?</h2>
+      <p>Explore what serving could look like, what’s holding you back, and one step you could take. Continue with seven days of Scripture and prayer whenever you’re ready.</p>
+      <a class="button" href="/mission-journey/">Try the Mission Journey walkthrough</a>
+      <p><small>No account needed. Your place is saved in this browser.</small></p>
+    </section>
     <section class="section interest-intro-section">
       <div class="section-head">
         <div>
@@ -126,6 +133,26 @@
                 <label for="preferred-timing">When are you hoping to go? <span class="field-optional">Optional</span></label>
                 <input id="preferred-timing" name="preferredTiming" type="text" maxlength="140" placeholder="For example: summer 2027 or flexible" aria-describedby="preferred-timing-error">
                 <p class="form-field-error" data-error-for="preferredTiming" id="preferred-timing-error" hidden></p>
+              </div>
+              <div class="form-field form-field-wide">
+                <label for="referral-source">How did you hear about us? <span class="field-optional">Optional</span></label>
+                <select id="referral-source" name="referralSource" aria-describedby="referral-source-error" aria-controls="referral-detail-field">
+                  <option value="">Choose an option (optional)</option>
+                  <option value="friend-family">Friend or family</option>
+                  <option value="church-ministry">Church or ministry</option>
+                  <option value="previous-participant">Previous Hope Sojourns participant</option>
+                  <option value="social-media">Social media</option>
+                  <option value="online-search">Online search</option>
+                  <option value="event-presentation">Event or presentation</option>
+                  <option value="other">Other</option>
+                </select>
+                <p class="form-field-error" data-error-for="referralSource" id="referral-source-error" hidden></p>
+              </div>
+              <div class="form-field form-field-wide" id="referral-detail-field" hidden>
+                <label for="referral-detail"><span id="referral-detail-label">Tell us a little more.</span> <span class="field-optional">Optional</span></label>
+                <input id="referral-detail" name="referralDetail" type="text" maxlength="240" disabled aria-describedby="referral-detail-help referral-detail-error">
+                <small id="referral-detail-help">Share only the name or brief detail you are comfortable providing.</small>
+                <p class="form-field-error" data-error-for="referralDetail" id="referral-detail-error" hidden></p>
               </div>
               <div class="form-field form-field-wide">
                 <label for="interest-message">What would you like us to know? <span class="field-optional">Optional</span></label>

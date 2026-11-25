@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A five-minute journey of discovery and seven days to prepare your heart for mission work.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; connect-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <title>One Step Beyond | Hope Sojourns</title>
+  <link rel="icon" href="/assets/hope-sojourns-icon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="./game.css">
+  <script type="module" src="./game.js"></script>
+</head>
+<body class="mission-game">
+  <a class="skip-link" href="#experience">Skip to your journey</a>
+  <header class="game-header">
+    <a class="brand" href="/" aria-label="Hope Sojourns home"><img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns" width="150" height="84"></a>
+    <nav aria-label="Experience"><button type="button" data-view="game">The journey</button><button type="button" data-view="prepare">Seven-day preparation</button></nav>
+    <button class="text-button" id="privacy-button" type="button">Your saved progress</button>
+  </header>
+  <main class="game-layout">
+    <aside class="journey-atlas" aria-label="Your journey passport">
+      <p class="eyebrow">Hope Sojourns presents</p>
+      <h1>One Step<br><em>Beyond.</em></h1>
+      <p class="atlas-intro">A little curiosity.<br>A willingness to listen.<br>A next step that’s yours.</p>
+      <div class="route-art" aria-hidden="true"><svg viewBox="0 0 280 150"><path d="M15 132 C5 60 122 140 110 67 S220 5 255 40"/><circle cx="15" cy="132" r="6"/><circle cx="110" cy="67" r="6"/><circle cx="255" cy="40" r="9"/><path class="sun-rays" d="M255 15v-9 M255 74v-9 M230 40h-9 M289 40h-9 M237 22l-7-7 M273 58l7 7 M273 22l7-7 M237 58l-7 7"/></svg></div>
+      <p class="passport-label" id="passport-label">Your discovery passport</p>
+      <ol id="passport" class="passport"></ol>
+      <div class="save-note"><span aria-hidden="true">◇</span><p id="save-status" role="status">Your place is saved in this browser.</p></div>
+    </aside>
+    <section id="experience" class="experience" aria-label="Mission Journey experience" tabindex="-1"></section>
+  </main>
+  <footer class="game-footer"><span>Go with Hope. Serve with Faith.</span><span>No account needed · Go at your own pace</span></footer>
+  <dialog id="privacy-dialog" aria-labelledby="privacy-title"><div class="dialog-inner"><h2 id="privacy-title">Your place, remembered.</h2><p>We save your chapter, choices, preparation checkmarks, and private reflections in this browser for up to 180 days after your last change. A first-party cookie holds a small progress checkpoint; browser storage holds your full progress. No account or tracking ID is created.</p><p>On a shared device, someone using the same browser can see your reflections. Clearing browser data, switching browsers, or changing devices may lose your place. Your reflections never join an email or MMT profile request.</p><p id="storage-details"></p><div class="actions"><button type="button" id="close-privacy" class="primary">Keep exploring</button><button type="button" id="forget-button" class="quiet">Forget my progress</button></div><div id="forget-confirm" hidden><p>This removes this walkthrough’s saved progress and reflections from this browser. Start fresh?</p><div class="actions"><button type="button" id="confirm-forget" class="danger">Yes, forget my progress</button><button type="button" id="cancel-forget" class="quiet">Keep my progress</button></div></div></div></dialog>
+  <noscript><p class="no-script">Please enable JavaScript to play and save your place. No account is required.</p></noscript>
+</body>
+</html>

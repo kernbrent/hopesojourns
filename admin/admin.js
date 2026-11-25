@@ -2922,6 +2922,8 @@ function renderSubmissionDetail(submission) {
     ["Preferred contact", titleCase(submission.contactPreference)],
     ["Background or experience", submission.fieldOfStudy],
     ["Preferred timing", submission.preferredTiming],
+    ["How did you hear about us?", submission.referralSourceLabel],
+    ["Referral details", submission.referralDetail],
     ["Consent recorded", formatDate(submission.consentAt)],
     ["Source page", submission.sourcePage],
   ]));
@@ -2994,6 +2996,8 @@ function renderSubmissionHistory(person) {
     const meta = element("div", "admin-record-meta");
     meta.append(
       element("span", "", `Preferred timing: ${submission.preferredTiming || "Not provided"}`),
+      element("span", "", `How they heard about us: ${submission.referralSourceLabel || "Not provided"}`),
+      element("span", "", `Referral details: ${submission.referralDetail || "Not provided"}`),
       element("span", "", `Consent: ${formatDate(submission.consentAt)}`),
       element("span", "", `Source: ${submission.sourcePage || "Not recorded"}`),
     );
@@ -3382,6 +3386,20 @@ function renderPersonDetail(person) {
   }
   profile.append(window.HSTravelerProfile.additionalData(person.id,person.firstName+" "+person.lastName,!!window.MmtUser?.is_admin||window.MmtUser?.permissions?.contacts==="edit"));
   if (person.notes) profile.append(element("p", "admin-record-notes", person.notes));
+  if (person.referrals?.length) {
+    const referrals = element('section', '');
+    referrals.append(element('h3', '', 'How they heard about us'), element('p', 'admin-reply-help', 'Visitor-supplied answers from accepted inquiries, earliest first. Later requests preserve earlier referral history.'));
+    for (const referral of person.referrals) {
+      const entry = element('article', 'admin-linked-record'), copy = element('div');
+      copy.append(element('strong', '', referral.referralSourceLabel), element('span', '', formatDate(referral.createdAt)));
+      if (referral.referralDetail) copy.append(element('p', 'admin-record-notes', referral.referralDetail));
+      const open = element('button', 'admin-button admin-button-outline', 'Open source inquiry');
+      open.type = 'button';
+      open.addEventListener('click', () => openSubmission(referral.submissionId));
+      entry.append(copy, open); referrals.append(entry);
+    }
+    profile.append(referrals);
+  }
   if(person.rejectionNotes?.length){
     const reviews=element('section','');reviews.append(element('h3','','Traveler review notes'));
     reviews.append(element('p','admin-reply-help','Past rejection decisions remain here for review before future trips. A full trip uses Waitlisted, not Rejected.'));

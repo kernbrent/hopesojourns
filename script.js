@@ -21,6 +21,7 @@ const header = `
           <summary>Resources</summary>
           <div class="nav-resources-menu">
             <a href="/resources/">All resources</a>
+            <a href="/mission-journey/">Mission Journey walkthrough</a>
             <a href="/resources/newsletters/">Newsletters</a>
             <a href="/resources/?type=Guided%20reading">Guided readings</a>
             <a href="/resources/?type=Collection">Collections</a>
@@ -92,6 +93,21 @@ const footer = `
 document.body.insertAdjacentHTML("afterbegin", header);
 document.body.insertAdjacentHTML("beforeend", `<a class="floating-donate" href="${donateUrl}" aria-label="View secure Hope Sojourns donation options">Donate now</a>`);
 document.body.insertAdjacentHTML("beforeend", footer);
+
+function ensureMissionWalkthroughInvitation() {
+  if (!/^\/(?:trips\/|destination(?:\/|$))/.test(location.pathname)) return;
+  const main = document.querySelector('main');
+  if (!main || main.querySelector('[data-mission-walkthrough]')) return;
+  const section = document.createElement('section');
+  section.className = 'section compact mission-walkthrough-invitation';
+  section.dataset.missionWalkthrough = 'true';
+  section.innerHTML = '<p class="eyebrow">A five-minute walkthrough</p><h2>Could a Mission Journey be your next step?</h2><p>Explore what serving could look like, what’s holding you back, and one step you could take.</p><a class="button" href="/mission-journey/">Try the Mission Journey walkthrough</a><p><small>No account needed. Your place is saved in this browser.</small></p>';
+  main.append(section);
+}
+ensureMissionWalkthroughInvitation();
+const missionPageMain = document.querySelector('main');
+if (missionPageMain && /^\/(?:trips\/|destination(?:\/|$))/.test(location.pathname)) new MutationObserver(ensureMissionWalkthroughInvitation).observe(missionPageMain, {childList:true});
+
 document.getElementById("year").textContent = new Date().getFullYear();
 
 const toggle = document.querySelector(".nav-toggle");

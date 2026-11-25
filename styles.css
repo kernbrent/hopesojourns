@@ -2828,6 +2828,7 @@ main > .section.internship-cost-section {
 .form-field input[type="text"],
 .form-field input[type="email"],
 .form-field input[type="tel"],
+.form-field select,
 .form-field textarea {
   width: 100%;
   min-height: 49px;
@@ -2840,9 +2841,15 @@ main > .section.internship-cost-section {
   line-height: 1.45;
 }
 .form-field textarea { min-height: 124px; resize: vertical; }
+.form-field select { appearance: none; padding-right: 2.6rem; background-image: linear-gradient(45deg, transparent 50%, var(--forest) 50%), linear-gradient(135deg, var(--forest) 50%, transparent 50%); background-position: calc(100% - 21px) 50%, calc(100% - 16px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+.form-field[hidden] { display: none; }
+.section.mission-walkthrough-invitation { background: var(--forest-wash); border-color: var(--forest-soft); }
+.mission-walkthrough-invitation > p { max-width: 70ch; }
 .form-field input:focus,
+.form-field select:focus,
 .form-field textarea:focus { outline: 3px solid rgba(var(--gold-rgb), .28); border-color: var(--gold); }
 .form-field input[aria-invalid="true"],
+.form-field select[aria-invalid="true"],
 .form-field textarea[aria-invalid="true"] { border-color: var(--error); background: var(--coral-wash); }
 .inline-choice-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .inline-choice-row label {

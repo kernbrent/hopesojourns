@@ -1,4 +1,5 @@
 import {inquiryPayload,deliverInquiryEmail} from './inquiry-email';
+import {referralFields} from './referral-sources';
 import {contactRelationships} from './contact-relationships';
 import {contactNameScore} from './contact-name-search';
 import {contactEmailActivity,contactEmails} from './contact-email-records';
@@ -110,6 +111,8 @@ type SubmissionListRow = {
   contact_preference: string;
   field_of_study: string | null;
   preferred_timing: string | null;
+  referral_source: string | null;
+  referral_detail: string | null;
   message: string | null;
   created_at: string;
   interests_json: string;
@@ -176,6 +179,8 @@ type MinistryListRow = {
 type PersonSubmissionRow = {
   id: string;
   preferred_timing: string | null;
+  referral_source: string | null;
+  referral_detail: string | null;
   message: string | null;
   source_page: string | null;
   consent_at: string;
@@ -1043,7 +1048,7 @@ async function listSubmissions(request: Request, env: AdminEnv): Promise<Respons
   const result = await env.DB.prepare(
     `SELECT
        s.id, p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study,
-       s.preferred_timing, s.message, s.created_at,
+       s.preferred_timing, s.referral_source, s.referral_detail, s.message, s.created_at,
        COALESCE((
          SELECT json_group_array(json_object(
            'id', selected.interest_id,
@@ -1077,6 +1082,7 @@ async function listSubmissions(request: Request, env: AdminEnv): Promise<Respons
   return adminJson({
     submissions: result.results.map(row => ({
       id: row.id,
+      ...referralFields(row),
       firstName: row.first_name,
       lastName: row.last_name,
       email: row.email,
@@ -1371,7 +1377,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
        WHERE i.person_id = ?1 ORDER BY o.kind, o.sort_order`,
     ).bind(personId).all<Record<string, string | null>>(),
     env.DB.prepare(
-      `SELECT s.id, s.preferred_timing, s.message, s.source_page, s.consent_at, s.created_at,
+      `SELECT s.id, s.preferred_timing, s.referral_source, s.referral_detail, s.message, s.source_page, s.consent_at, s.created_at,
               COALESCE((
                 SELECT json_group_array(json_object(
                   'id', selected.interest_id,
@@ -1445,6 +1451,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
   ]);
   const submissionHistory = submissions.results.map(row => ({
     id: row.id,
+    ...referralFields(row),
     preferredTiming: row.preferred_timing,
     message: row.message,
     sourcePage: row.source_page,
@@ -1456,6 +1463,7 @@ async function personDetail(request: Request, env: AdminEnv, personId: string): 
   return adminJson({
     person: {
       id: person.id,
+      referrals: (await env.DB.prepare('SELECT submission_id,referral_source,referral_detail,created_at FROM contact_referrals WHERE person_id=? ORDER BY created_at,submission_id').bind(personId).all<{submission_id:string;referral_source:string;referral_detail:string|null;created_at:string}>()).results.map(row=>({submissionId:row.submission_id,createdAt:row.created_at,...referralFields(row)})),
       ...emailActivity.get(personId),
       contactEmails:emails.emails,
       contactEmailPagination:emails.pagination,
@@ -2146,7 +2154,7 @@ async function deletePerson(request: Request, env: AdminEnv, personId: string): 
 async function submissionDetail(request: Request, env: AdminEnv, submissionId: string): Promise<Response> {
   await authenticate(request, env);
   const submission = await env.DB.prepare(
-    `SELECT s.id, s.person_id, s.preferred_timing, s.message, s.source_page, s.consent_at, s.created_at,
+    `SELECT s.id, s.person_id, s.preferred_timing, s.referral_source, s.referral_detail, s.message, s.source_page, s.consent_at, s.created_at,
             p.first_name, p.last_name, p.email, p.phone, p.contact_preference, p.field_of_study
      FROM interest_submissions s JOIN people p ON p.id = s.person_id WHERE s.id = ?1`,
   ).bind(submissionId).first<Record<string, string | null>>();
@@ -2165,6 +2173,7 @@ async function submissionDetail(request: Request, env: AdminEnv, submissionId: s
   return adminJson({
     submission: {
       id: submission.id,
+      ...referralFields(submission),
       personId: submission.person_id,
       firstName: submission.first_name,
       lastName: submission.last_name,

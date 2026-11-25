@@ -1,4 +1,6 @@
+import {handleMissionPreparation} from './mission-preparation';
 import {ageRanges} from './interest-profile';
+import {referralSourceLabel} from './referral-sources';
 import {handleDiscovery} from './discovery';
 import {handleMeetings} from './meetings';
 import {handleTravelerVetting} from './traveler-vetting';
@@ -45,6 +47,8 @@ export type InterestSubmission = {
   ageRange?: string | null;
   occupation?: string | null;
   church?: string | null;
+  referralSource?: string | null;
+  referralDetail?: string | null;
   preferredTiming: string | null;
   message: string | null;
   opportunities: string[];
@@ -191,6 +195,11 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
   if (value.occupation && !occupation) errors.occupation = "Use 140 characters or fewer.";
   const church = cleanOptionalSingleLine(value.church, 200);
   if (value.church && !church) errors.church = "Use 200 characters or fewer.";
+  const referralSource = cleanOptionalSingleLine(value.referralSource, 40);
+  if (value.referralSource !== undefined && value.referralSource !== null && value.referralSource !== '' && !referralSourceLabel(referralSource)) errors.referralSource = 'Choose one of the listed referral sources.';
+  const referralDetail = cleanOptionalSingleLine(value.referralDetail, 240);
+  if (value.referralDetail !== undefined && value.referralDetail !== null && value.referralDetail !== '' && !referralDetail) errors.referralDetail = 'Use 240 characters or fewer.';
+  if (referralDetail && !referralSource) errors.referralSource = 'Choose how you heard about us before adding details.';
   const preferredTiming = cleanOptionalSingleLine(value.preferredTiming, 140);
   if (value.preferredTiming && !preferredTiming) errors.preferredTiming = "Use 140 characters or fewer.";
   const message = cleanOptionalMessage(value.message);
@@ -225,6 +234,8 @@ export function validateSubmissionPayload(value: unknown): InterestSubmission {
     ageRange,
     occupation,
     church,
+    referralSource,
+    referralDetail,
     preferredTiming,
     message,
     opportunities,
@@ -284,6 +295,7 @@ async function requestFingerprint(input: InterestSubmission): Promise<string> {
     ...(input.ageRange ? {ageRange:input.ageRange} : {}),
     ...(input.occupation ? {occupation:input.occupation.toLocaleLowerCase("en-US")} : {}),
     ...(input.church ? {church:input.church.toLocaleLowerCase("en-US")} : {}),
+    ...(input.referralSource ? {referralSource:input.referralSource,referralDetail:input.referralDetail ?? null} : {}),
     preferredTiming: input.preferredTiming?.toLocaleLowerCase("en-US") ?? null,
     message: input.message,
     opportunities: input.opportunities,
@@ -466,6 +478,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     await env.DB.prepare("SELECT 1").first();
     return json(request, env, { status: "ok", service: "hope-sojourns-interest", environment: env.ENVIRONMENT });
   }
+  if(path==='/public/mission-preparation'||path==='/admin/mission-preparation'||path.startsWith('/admin/mission-preparation/'))return handleMissionPreparation(request,env,path);
   if (path === "/internal/donation-splits") return internalDonationSplits(request, env);
   if(path==='/public/discovery'||path==='/admin/discovery-self'||path==='/admin/discovery'||path.startsWith('/admin/discovery/'))return handleDiscovery(request,env,path);
   if (path === "/internal/csm-distribution") return handleCsmDelivery(request, env);

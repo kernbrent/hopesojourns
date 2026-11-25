@@ -9,7 +9,7 @@
  async function panel(host,id,api,reply){
  host.textContent='Loading inquiry…';
  try{
- const {result:d}=await api('/inquiries/'+id),w=d.inquiries[0];host.replaceChildren(node('h3','Inquiry and next steps'));
+ const {result:d}=await api('/inquiries/'+id),w=d.inquiries[0];host.replaceChildren(node('h3','Inquiry and next steps'));host.append(node('p','How did you hear about us? '+(w.referral_source_label||'Not supplied')),node('p','Referral details: '+(w.referral_detail||'Not supplied')));
  const form=node('form',null,'admin-reply-form inquiry-form'),status=node('p');status.setAttribute('role','status');
  const route=field(form,'Where should this interest go?','path',w.path,Object.entries(labels));
  const future=field(form,'Future-interest list (destination or ministry)','futureList',w.future_list);future.maxLength=180;

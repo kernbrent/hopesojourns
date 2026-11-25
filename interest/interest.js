@@ -1,6 +1,28 @@
 const interestForm = document.getElementById("interest-form");
 
 if (interestForm) {
+  const referralPrompts = {
+    'friend-family': 'Who may we thank?',
+    'church-ministry': 'Which church or ministry?',
+    'previous-participant': 'Who may we thank?',
+    'social-media': 'Which platform or account?',
+    'online-search': 'What did you search for?',
+    'event-presentation': 'Which event or presentation?',
+    other: 'Tell us a little more.',
+  };
+  const referralSource = interestForm.elements.referralSource;
+  const referralDetail = interestForm.elements.referralDetail;
+  function updateReferralField(clear = false) {
+    const prompt = referralPrompts[referralSource.value];
+    if (clear) referralDetail.value = '';
+    document.getElementById('referral-detail-field').hidden = !prompt;
+    referralDetail.disabled = !prompt;
+    document.getElementById('referral-detail-label').textContent = prompt || 'Tell us a little more.';
+  }
+  referralSource.addEventListener('change', () => updateReferralField(true));
+  interestForm.addEventListener('reset', () => setTimeout(() => updateReferralField(true), 0));
+  window.addEventListener('pageshow', () => updateReferralField());
+  updateReferralField();
   // Carry a question privately in same-tab session storage, never in a URL.
   try {
     const raw=sessionStorage.getItem('hs-knowledge-follow-up');
@@ -32,7 +54,7 @@ if (interestForm) {
   const successMessage = document.querySelector("[data-interest-success-message]");
   const localPreview = ["localhost", "127.0.0.1"].includes(window.location.hostname);
   const configuredApiBase = document.body.dataset.interestApiBase || "/api/interest";
-  const apiBase = localPreview ? "http://127.0.0.1:8787" : configuredApiBase;
+  const apiBase = localPreview ? (document.body.dataset.localInterestApiBase || "http://127.0.0.1:8787") : configuredApiBase;
   let idempotencyKey = createIdempotencyKey();
   let lastPayloadSignature = "";
 
@@ -56,6 +78,8 @@ if (interestForm) {
       ageRange: interestForm.querySelector("[name=ageRange]"),
       occupation: interestForm.elements.occupation,
       church: interestForm.elements.church,
+      referralSource,
+      referralDetail,
       fieldOfStudy: interestForm.elements.fieldOfStudy,
       preferredTiming: interestForm.elements.preferredTiming,
       message: interestForm.elements.message,
@@ -107,6 +131,8 @@ if (interestForm) {
       ageRange: String(data.get("ageRange") || ""),
       occupation: String(data.get("occupation") || ""),
       church: String(data.get("church") || ""),
+      referralSource: String(data.get("referralSource") || ""),
+      referralDetail: String(data.get("referralDetail") || ""),
       fieldOfStudy: String(data.get("fieldOfStudy") || ""),
       preferredTiming: String(data.get("preferredTiming") || ""),
       message: String(data.get("message") || ""),
