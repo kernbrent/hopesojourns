@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+ <title>Biblillion | Hope Sojourns local preview</title>
+ <meta name="description" content="A biblical treasure hunt. Find a correct answer. Dig a little deeper. Discover something unexpected.">
+ <link rel="icon" href="/assets/hope-sojourns-icon.png"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="./game.css">
+ <script type="module" src="./game.js"></script>
+</head>
+<body class="biblillion">
+ <a class="skip-link" href="#game">Skip to game</a>
+ <div class="prototype-strip">LOCAL PROTOTYPE <span>Made for Hope Sojourns · Your progress stays in this browser</span></div>
+ <header class="game-header">
+  <a href="/" class="brand" aria-label="Hope Sojourns home"><img src="/assets/hope-sojourns-logo.png" alt="Hope Sojourns"></a>
+  <span class="header-label">A LITTLE CURIOSITY. A DEEPER DISCOVERY.</span>
+  <button class="quiet-button" id="help-button" type="button">How to play <span aria-hidden="true">?</span></button>
+ </header>
+ <main id="game" tabindex="-1"></main>
+ <footer class="game-footer"><span>A Hope Sojourns Bible game</span><button id="privacy-button" type="button">Saved progress & privacy</button><span>No timer. No account. Room to learn.</span></footer>
+ <dialog id="help-dialog" aria-labelledby="help-title">
+  <div class="dialog-top"><p class="eyebrow">YOUR FIELD GUIDE</p><button class="close-button" type="button" data-close aria-label="Close how to play">×</button></div>
+  <h2 id="help-title">The unexpected answer<br>is the treasure.</h2>
+  <ol class="rule-list"><li><strong>Choose a destination.</strong> Build a Mission Journey Passport for a Hope Sojourns destination.</li><li><strong>Seven prompts, seven stamps.</strong> Each correct answer earns a stamp. Clear misspellings count and show the correct spelling. If an answer could mean more than one thing, choose the one you meant.</li><li><strong>Find the unexpected.</strong> Less familiar answers earn up to 100 points each. All seven stamps unlock a destination celebration and 150 bonus points, for up to 850 journey points.</li><li><strong>Learn as you go.</strong> Open the Scripture, use a clue or skip. Skips earn no stamp, but you can always start a fresh practice round. A new seven-question daily round arrives at midnight Central time.</li></ol>
+  <h3>How do we decide what’s rare?</h3><p>These starting scores are editorial familiarity estimates for each question: 35, 50, 65, 85 or 100 points. They are not percentages or measured player statistics. A 100-point answer is our featured hidden treasure; some equally uncommon answers may share that score.</p>
+  <p>We favor familiar Bible stories at the lower end and less familiar details at the higher end. Ratings can be refined after review and real playtesting. Your score measures this game, not your faith or spiritual maturity.</p>
+  <p class="small-note">Rarity is scored within each question. Clear misspellings count for full points; ambiguous matches need your confirmation. Points and badges are game rewards with no cash value or travel credit. They do not certify mission readiness. Scripture references support accepted answers; you can suggest a correction after a reveal.</p>
+  <button class="primary-button" type="button" data-close>Let’s explore</button>
+ </dialog>
+ <dialog id="privacy-dialog" aria-labelledby="privacy-title">
+  <div class="dialog-top"><p class="eyebrow">ON YOUR DEVICE</p><button class="close-button" type="button" data-close aria-label="Close privacy">×</button></div>
+  <h2 id="privacy-title">Your place is saved here.</h2>
+  <p>Biblillion saves your current daily round and practice round in this browser. Come back and pick up where you left off. A short first-party cookie marks your latest daily progress; the full answers stay in browser storage.</p>
+  <p>No name, email or account is needed. By default, your game results stay here. You may optionally share anonymous results with Hope Sojourns to improve questions and inform future devotionals.</p>
+  <label class="sharing-choice"><input id="share-results" type="checkbox"> Share my anonymous game results</label>
+  <p class="small-note">If enabled, future answered/skipped questions, canonical answers, a spelling-correction flag, destination, mode and points are shared with the private MMT dashboard. No raw guesses, name, email, private reflections or persistent player identity are sent. Counts describe opted-in rounds, not unique people or everyone who plays. You can stop sharing here; already shared anonymous aggregates remain. Detailed results are kept for 180 days; anonymous totals may be retained longer.</p>
+  <p id="sharing-status" role="status"></p>
+  <p>Scripture links open Bible Gateway. The correction link opens your email app only when chosen.</p>
+  <p>Private browsing, cleared browser data, another device, or disabled storage may prevent resuming. Daily rounds change at midnight in America/Chicago. Practice is separate and never replaces your daily round.</p>
+  <button class="danger-button" id="reset-button" type="button">Clear my Biblillion progress</button><p id="reset-message" role="status"></p>
+ </dialog>
+ <dialog id="celebration-dialog" class="celebration-dialog" aria-labelledby="celebration-title"><div class="dialog-top"><p class="eyebrow">SEVEN STAMPS · A NEW HORIZON</p><button class="close-button" type="button" data-close aria-label="Close celebration">×</button></div><div class="celebration-stars" aria-hidden="true">✦ ◇ ✧ ✦ ◇</div><img id="celebration-image" alt=""><h2 id="celebration-title"></h2><p id="celebration-points" class="reward-breakdown"></p><p id="celebration-invitation"></p><p class="small-note">This celebrates your game journey. Explore the real opportunity to learn about dates, preparation and participation.</p><a id="celebration-link" class="primary-button gold-button" href="/interest/">Explore the journey</a><button class="text-button" type="button" data-close>Back to my passport</button></dialog>
+</body>
+</html>

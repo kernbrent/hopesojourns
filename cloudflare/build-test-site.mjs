@@ -1,12 +1,15 @@
 import {createHash} from 'node:crypto';
-import { cp, mkdir, rm, stat, readFile, readdir } from "node:fs/promises";
+import { cp, mkdir, rm, stat, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifySiteAssets } from '../tools/verify-site-assets.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const outputDirectory = path.resolve(repositoryRoot, "site-dist");
-if (path.dirname(outputDirectory) !== repositoryRoot || path.basename(outputDirectory) !== "site-dist") {
+// Explicit opt-in keeps the Biblillion test release out of normal production builds.
+const biblillionTest = process.argv.includes('--biblillion-test');
+const outputName = biblillionTest ? 'site-dist-biblillion-test' : 'site-dist';
+const outputDirectory = path.resolve(repositoryRoot, outputName);
+if (path.dirname(outputDirectory) !== repositoryRoot || path.basename(outputDirectory) !== outputName) {
   throw new Error("Refusing to build outside the expected site-dist directory.");
 }
 
@@ -82,6 +85,40 @@ for (const entry of publicEntries) {
   await stat(source);
   await cp(source, path.join(outputDirectory, entry), { recursive: true });
 }
+if (!biblillionTest) await rm(path.join(outputDirectory,'admin/biblillion'),{recursive:true,force:true});
+
+if (biblillionTest) {
+  const gameDirectory = path.join(outputDirectory, 'biblillion');
+  await mkdir(gameDirectory, {recursive: true});
+  // Copy runtime assets only; never publish the source README or local tooling.
+  for (const file of ['index.html', 'game.css', 'game.js', 'content.js', 'engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js']) {
+    const source = path.join(repositoryRoot, 'preview/biblillion', file);
+    if (file === 'index.html') {
+      const html = (await readFile(source, 'utf8'))
+        .replace('Hope Sojourns local preview', 'Hope Sojourns test preview')
+        .replace('LOCAL PROTOTYPE', 'TEST PREVIEW');
+      await writeFile(path.join(gameDirectory, file), html);
+    } else await cp(source, path.join(gameDirectory, file));
+  }
+  const scriptPath = path.join(outputDirectory, 'script.js');
+  const sharedScript = await readFile(scriptPath, 'utf8');
+  const menuAnchor = '<a href="/mission-journey/">Mission Journey walkthrough</a>';
+  if (!sharedScript.includes(menuAnchor)) throw new Error('Resources menu anchor missing.');
+  await writeFile(scriptPath, sharedScript.replace(menuAnchor, menuAnchor+'\n            <a href="/biblillion/">Biblillion Bible game</a>'));
+  async function reviseCache(directory) {
+    for (const entry of await readdir(directory, {withFileTypes:true})) {
+      const location = path.join(directory, entry.name);
+      if (entry.isDirectory()) await reviseCache(location);
+      else if (entry.name.endsWith('.html')) {
+        const html = await readFile(location, 'utf8');
+        await writeFile(location, html.replace(/\/script\.js\?v=[^"']+/g, '/script.js?v=2026-11-25.biblillion-passport1').replace(/\/admin\/mmt-navigation\.js\?v=[^"']+/g,'/admin/mmt-navigation.js?v=2026-11-25.biblillion-passport1').replace(/\/admin\/mmt-session\.js\?v=[^"']+/g,'/admin/mmt-session.js?v=2026-11-25.biblillion-passport1'));
+      }
+    }
+  }
+  await reviseCache(outputDirectory);
+  const headerPath = path.join(outputDirectory, '_headers');
+  await writeFile(headerPath, (await readFile(headerPath, 'utf8'))+'\n/biblillion/*\n  Cache-Control: no-store\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  X-Robots-Tag: noindex, nofollow\n');
+}
 
 await mkdir(path.join(outputDirectory, "downloads"), { recursive: true });
 await cp(
@@ -90,4 +127,4 @@ await cp(
 );
 
 const assets = await verifySiteAssets(outputDirectory);
-console.log(`Prepared ${publicEntries.length} public site entries; verified ${assets.references} script/style references across ${assets.pages} pages.`);
+console.log(`Prepared ${publicEntries.length} public site entries${biblillionTest ? ' plus Biblillion (TEST ONLY)' : ''}; verified ${assets.references} script/style references across ${assets.pages} pages. Output: ${outputName}`);

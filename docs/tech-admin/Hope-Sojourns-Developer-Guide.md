@@ -1,8 +1,8 @@
 # Hope Sojourns developer guide
 
-Version 5.37
+Version 5.40
 
-Last reviewed: November 24, 2026
+Last reviewed: November 25, 2026
 
 Prayer Portal access-request and My account gender selectors have exactly three choices: male, female and undisclosed (Prefer not to say). New API submissions reject another; empty strings remain accepted for older optional-field clients. Existing blank or retired profile values display Prefer not to say in the editor and become undisclosed only when the user saves. No existing demographic data is automatically rewritten. Resource audience controls now offer male, female and undisclosed; new resources cannot select another. Existing resources retain any retired another restriction during edits, preventing an unchecked removed control from widening visibility. Resource access continues to match stored gender values exactly. Legacy audience metadata is labeled Legacy restricted audience.
 
@@ -1504,7 +1504,31 @@ People and Contact spreadsheet share the contactTypeBulkControls component in ad
 
 POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
 
+## Biblillion test-only release and insights
+
+The public runtime lives in preview/biblillion. content.js retains the original 14 prompts and imports 196 reviewed prompts from expanded-bank.js, for 210 questions. engine.js assigns seven daily questions using America/Chicago dates and a deterministic 30-day permutation. Every question appears once within a cycle; a boundary adjustment prevents yesterday's questions from immediately repeating. Practice is separate. Saved legacy daily rounds retain their original selection; restoration validates canonical results and recalculates scores. Browser localStorage and the scoped 180-day progress cookie require no account.
+
+destinations.js contains nine Hope Sojourns destination choices and existing local images. passport.js renders seven stamps, adds a 150-point all-correct bonus (850 maximum), and opens a destination-image celebration once. Skips reveal an answer but earn no stamp or points. Points/badges carry no trip credit or qualification. Matching accepts reviewed aliases and conservative edit-distance typos with full points and canonical spelling. Ambiguous close matches require player confirmation; short names do not receive broad fuzzy matches.
+
+Question scope, Scripture support and original notes are editorially reviewed; see docs/content/biblillion-question-review.md. Familiarity scores remain editorial estimates, not measured rarity. Bump BANK_VERSION when accepted answers or scores change. Preserve the legacy bank identifiers needed for saved rounds. Run node --test tools/biblillion.test.mjs for deck, restoration, spelling and points checks.
+
+analytics.js sends only after explicit optional consent: random event/round IDs, bank/day/mode, destination, slot/question, canonical answer or skip and a spelling-corrected flag. It never transmits raw guesses, names, email addresses or a persistent player ID. A bounded local retry queue is sanitized on restoration and cleared on opt-out. Earlier results are not backfilled. Anonymous aggregates already shared remain. Local gameplay works without sharing or network access.
+
+Migration 0074_biblillion_insights.sql creates round summaries, canonical detailed results, daily answer-count aggregates, hashed hourly rate counters and private devotional drafts. An insert trigger atomically updates summaries/aggregates. Detailed answers expire after 180 days when new results arrive; aggregate counts and round summaries remain. A retained slot mask prevents counting old retries twice. Server validation enforces consent, same origin, allowed fields, known answers, expected daily slots and canonical points. Rate counters use an hourly secret-derived IP hash; direct IP addresses are not stored in game tables.
+
+POST /api/interest/public/biblillion/results is test-only. GET /api/interest/admin/biblillion requires Contacts read; POST /api/interest/admin/biblillion/drafts requires Contacts edit and CSRF. All Biblillion API routes return 404 in production. Staff filters support 7/30/90/365 days, daily/practice and destination. Reports describe opted-in rounds, not people or representative visitor percentages. The latest 50 rounds expose retained canonical answers. Private starters can be edited, saved and downloaded; saving never publishes or emails them. Existing draft question/destination context is immutable.
+
+The private page is admin/biblillion; test MMT navigation exposes Biblillion insights under People & ministry. The normal static build excludes both this page and the game. node cloudflare/build-test-site.mjs --biblillion-test writes isolated site-dist-biblillion-test with nine runtime files, TEST PREVIEW banner, output-only Resources link, revised cache queries and no-store/noindex game headers. The canonical public navigation is unchanged. Deploy this artifact only to hopesojourns-test on its codex/test-admin-portal branch; deploy only the test interest Worker, apply migration 0074 only to test D1 and upload guide HTML only to the private test guide bucket. The November 25 authorization explicitly permits commit, push and test-only deployment; it does not authorize production release.
+
+Local integration review: set BIBLILLION_PREVIEW_PORT=4196 and run tools/start-referral-preview.cjs with bundled Node. This uses an isolated SQLite fixture and blocks external providers. Open http://localhost:4196/biblillion/ and http://localhost:4196/admin/biblillion/. tools/check-biblillion-passport.cjs checks the full game-to-dashboard/draft flow; tools/check-biblillion-test-release.cjs checks Resources navigation and exact built asset hashes. Worker tests live in test/biblillion.test.ts. Run the Worker suite, type checks, environment isolation, test dry build and Check-Color-Palette.ps1 before release. Never copy the local fixture database into hosted environments.
+
 ## Revision history
+
+- November 25, 2026 — Version 5.40. Expanded Biblillion to a 210-question daily cycle, destination passports, forgiving spelling, consented analytics, migration 0074, Contacts-protected MMT insights and private devotional drafts. Documented test-only release and validation.
+
+- November 24, 2026 — Version 5.39. Documented the isolated Biblillion test artifact, Resources overlay, runtime cookie scope, test-only Pages release, normal-build exclusion and production integrity verification. Test-only deployment authorized.
+
+- November 24, 2026 — Version 5.38. Documented Biblillion content validation, editorial scoring, deterministic daily rounds, browser-only resume, exact preview allowlist and local checks. Local review; no release authorized.
 
 - November 24, 2026 — Version 5.37. Updated Prayer Portal gender validation and controls; preserved legacy resource restrictions without a data migration. Local changes pending release approval.
 

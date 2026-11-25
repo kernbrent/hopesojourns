@@ -154,16 +154,16 @@ def add_index(doc: Document, lines: list[str], heading_lookup: dict[str, str]) -
         cell = table.cell(0, col)
         for entry_number, (letter, items) in enumerate(group):
             p = cell.paragraphs[0] if entry_number == 0 else cell.add_paragraph()
-            p.paragraph_format.space_after = Pt(2)
+            p.paragraph_format.space_after = Pt(1)
             p.paragraph_format.line_spacing = 1.0
-            set_run_font(p.add_run(letter + "  "), size=9.5, color=COLORS["forest_deep"], bold=True)
+            set_run_font(p.add_run(letter + "  "), size=9, color=COLORS["forest_deep"], bold=True)
             for i, (term, anchor) in enumerate(items):
                 if i:
-                    set_run_font(p.add_run("  ·  "), size=9.5, color=COLORS["ink"])
-                add_internal_link(p, term, anchor, size=9.5)
+                    set_run_font(p.add_run("  ·  "), size=9, color=COLORS["ink"])
+                add_internal_link(p, term, anchor, size=9)
                 section = heading_lookup.get(anchor, "")
                 if section:
-                    set_run_font(p.add_run(" " + section), size=9.5, color=COLORS["ink"])
+                    set_run_font(p.add_run(" " + section), size=9, color=COLORS["ink"])
 
 
 def build() -> None:

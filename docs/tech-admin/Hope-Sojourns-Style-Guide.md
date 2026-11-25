@@ -1,8 +1,8 @@
 # Hope Sojourns website style guide
 
-Version 4.126
+Version 4.129
 
-Last reviewed: November 24, 2026
+Last reviewed: November 25, 2026
 
 Prayer Portal gender selectors offer exactly Male, Female and Prefer not to say. Prefer not to say is the default for access requests and for profiles with no current selection. Resource gender-audience controls use the same three labels. Keep this profile information private.
 
@@ -1009,7 +1009,23 @@ Place the MMT Word edition latest-revision note beneath the contents-page instru
 
 Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
 
+## Biblillion Mission Journey Passport (test only)
+
+Keep the Hope Sojourns forest, paper and gold palette through shared /styles.css tokens. The destination chooser uses nine existing Hope Sojourns photos, generous card targets and a clear optional anonymous-sharing checkbox. Destination choice introduces the game as an invitation to explore a Mission Journey. Do not imply that game completion qualifies someone for travel.
+
+The passport shows seven labeled stages, correct-answer stamps and an accessible progress indicator. Phones stack the destination postcard and compact trail above the question. A complete seven-stamp round adds 150 points to the answer score, for a maximum of 850. Celebrate with the destination photo in a keyboard-accessible dialog and a relevant trip or interest link. Respect reduced motion and open the automatic celebration only once per saved round. Badges and points have no cash value or trip credit.
+
+Show the canonical spelling when a clear typo is accepted, with the same points. When several answers are plausible, offer explicit confirmation buttons. Keep question scope, editorial rarity labels, accepted answers and Scripture references readable. There is no timer or spiritual-maturity ranking. Sharing remains optional and initially off; privacy controls explain exactly which anonymous results are sent.
+
+MMT Biblillion insights uses existing portal navigation, shared palette and responsive metric cards. Tables retain captions and readable horizontal scrolling on narrow screens. Label counts as shared rounds and answers, never unique people. Distinguish editorial points from observed choice percentages. Devotional starters open in a private editable dialog, with an explicit review-before-use reminder and separate save/download actions.
+
 ## Revision history
+
+- November 25, 2026 — Version 4.129. Added destination photo cards, seven-stamp passport, 150-point celebration, spelling confirmation, optional sharing and responsive MMT insights/draft presentation.
+
+- November 24, 2026 — Version 4.128. Authorized Biblillion on test.hopesojourns.com only, with a Resources entry and test-preview presentation. Production remains unchanged.
+
+- November 24, 2026 — Version 4.127. Added the local Biblillion game layout, mobile treasure trail, accessible reveals and transparent editorial rarity presentation. Local review; no release authorized.
 
 - November 24, 2026 — Version 4.126. Restricted Prayer Portal gender choices to Male, Female and Prefer not to say. Local changes pending release approval.
 
