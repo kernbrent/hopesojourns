@@ -1,9 +1,10 @@
-window.createPrayerTrivia = function({api,element,button,action}) {
+window.createPrayerTrivia = function({api,element,button,action,getUser}) {
  const root=document.querySelector('#trivia-game'),boards=document.querySelector('#trivia-leaderboards');
- let attempt=null,generation=0,name='Prayer player';
+ const admin=document.querySelector('#trivia-admin');
+ let attempt=null,generation=0,name=null,adminOffset=0,editing=null;
  const busyRead=async(path)=>{const stamp=generation,result=await api(path);return stamp===generation?result:null;};
  function focusHeading() {const heading=root.querySelector('h3');if(heading){heading.tabIndex=-1;heading.focus();}}
- function reset(){generation++;attempt=null;name='Prayer player';root.replaceChildren();boards.replaceChildren();}
+ function reset(){generation++;attempt=null;name=null;editing=null;adminOffset=0;root.replaceChildren();boards.replaceChildren();admin.replaceChildren();}
  function hasUnfinished(){return !!attempt&&!attempt.completed;}
  async function leave(){
   if(!hasUnfinished())return true;
@@ -30,12 +31,50 @@ window.createPrayerTrivia = function({api,element,button,action}) {
  }
  function startForm(round,practice=false,continuing=false){
   const form=element('form',undefined,'panel trivia-start');form.append(element('h3',`${practice?'Practice':'Play'} round ${round}`));
-  const label=element('label','Leaderboard display name'),input=element('input');input.name='display_name';input.required=true;input.maxLength=40;input.value=name;label.append(input);
+  const label=element('label','Leaderboard display name'),input=element('input');input.name='display_name';input.required=true;input.maxLength=80;input.value=name??getUser()?.name??'';label.append(input);
   form.append(label,element('p',practice?'Your first completed score is already recorded. You can practice without changing it.':'Your chosen name and score will be visible to approved portal members only after you finish all 10 questions.','hint'));
   const submit=element('button',continuing?'Continue to Round 2':practice?'Start practice':`Start round ${round}`,'primary');submit.type='submit';form.append(submit);
   form.addEventListener('submit',event=>{event.preventDefault();action(()=>start(round,form))(event);});return form;
  }
+ function setupAdmin(){
+  if(getUser()?.role!=='admin'){admin.replaceChildren();return;}
+  if(admin.childElementCount)return;
+  const panel=element('section',undefined,'panel trivia-admin-panel');panel.hidden=true;
+  const toggle=button('Manage challenge results',async()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)await loadAdminResults();});
+  toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-controls','trivia-admin-panel');panel.id='trivia-admin-panel';
+  panel.append(element('h3','Manage challenge results'),element('p','Correct a completed result’s display name, score or completion date. Changes require a reason and are recorded in the admin audit log. The linked account and round stay fixed.'));
+  const form=element('form'),label=element('label','Find a player'),search=element('input');search.name='search';search.type='search';search.maxLength=100;label.append(search);
+  const roundLabel=element('label','Round'),round=element('select');round.name='round';for(const [value,text] of [['0','Both rounds'],['1','Round 1'],['2','Round 2']]){const option=element('option',text);option.value=value;round.append(option);}roundLabel.append(round);
+  const submit=element('button','Search results');submit.type='submit';form.id='trivia-admin-search';form.append(label,roundLabel,submit);form.addEventListener('submit',event=>{event.preventDefault();action(()=>loadAdminResults())(event);});
+  const status=element('p');status.id='trivia-admin-status';status.setAttribute('role','status');
+  const editor=element('div');editor.id='trivia-result-editor';const items=element('div',undefined,'stack');items.id='trivia-admin-items';
+  const more=button('Load more results',()=>loadAdminResults(true));more.id='trivia-admin-more';more.hidden=true;panel.append(form,status,editor,items,more);admin.append(toggle,panel);
+ }
+ async function loadAdminResults(append=false){
+  const form=admin.querySelector('#trivia-admin-search');if(!form)return;
+  const stamp=generation,offset=append?adminOffset:0;
+  const result=await api(`trivia/admin/results?search=${encodeURIComponent(form.elements.search.value)}&round=${form.elements.round.value}&offset=${offset}`);if(stamp!==generation)return;
+  const items=admin.querySelector('#trivia-admin-items');if(!append){items.replaceChildren();admin.querySelector('#trivia-result-editor').replaceChildren();editing=null;}
+  if(!result.items.length&&!append)items.append(element('p','No completed results match your search.'));
+  for(const row of result.items){const card=element('article',undefined,'panel');card.append(element('h4',row.display_name),element('p',`Account: ${row.account_name}${row.account_username?` (${row.account_username})`:''} · ${row.account_status}`,'hint'),element('p',`Round ${row.round} · ${row.score}/100 · ${new Date(row.completed_at).toLocaleString()}`),button('Edit result',()=>editResult(row)));items.append(card);}
+  adminOffset=offset+result.items.length;admin.querySelector('#trivia-admin-more').hidden=!result.more;
+ }
+ function editResult(row){
+  editing=row;const target=admin.querySelector('#trivia-result-editor');target.replaceChildren();
+  const initialDate=new Date(row.completed_at-new Date(row.completed_at).getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const form=element('form',undefined,'panel trivia-edit-form');form.append(element('h4',`Edit ${row.account_name} · Round ${row.round}`));
+  for(const [key,title,type,value] of [['display_name','Leaderboard display name','text',row.display_name],['score','Score out of 100','number',row.score],['completed_at','Completion date (your device’s time zone)','datetime-local',initialDate]]){
+   const label=element('label',title),input=element('input');input.name=key;input.type=type;input.value=value;input.required=true;if(key==='display_name')input.maxLength=80;if(key==='score'){input.min=0;input.max=100;input.step=1;}label.append(input);form.append(label);
+  }
+  const reasonLabel=element('label','Reason for this correction'),reason=element('textarea');reason.name='reason';reason.required=true;reason.maxLength=500;reason.rows=2;reasonLabel.append(reason);form.append(reasonLabel);
+  const save=element('button','Save result','primary');save.type='submit';form.append(save,button('Cancel editing',()=>{target.replaceChildren();editing=null;}));
+  form.addEventListener('submit',event=>{event.preventDefault();action(async()=>{
+   const original=editing,stamp=generation;await api(`trivia/admin/results/${original.attempt_id}`,{display_name:form.elements.display_name.value,score:Number(form.elements.score.value),completed_at:form.elements.completed_at.value===initialDate?original.completed_at:new Date(form.elements.completed_at.value).getTime(),reason:form.elements.reason.value,revision:original.revision});
+   if(stamp!==generation)return;await Promise.all([loadAdminResults(),leaderboard()]);admin.querySelector('#trivia-admin-status').textContent='Result updated. The correction was recorded in the admin audit log.';
+  })(event);});target.append(form);form.querySelector('input').focus();
+ }
  async function load(){
+  setupAdmin();
   if(attempt){render();await leaderboard();return;}
   const result=await busyRead('trivia');if(!result)return;
   root.replaceChildren(element('p','Two rounds. Ten questions each. A new order every time.'));
@@ -66,7 +105,8 @@ window.createPrayerTrivia = function({api,element,button,action}) {
   const feedback=attempt.feedback;root.replaceChildren();const panel=element('article',undefined,'panel trivia-feedback');panel.append(element('h3',feedback.title));
   for(const [i,part] of feedback.parts.entries()){
    panel.append(element('p',`${feedback.parts.length>1?`Part ${i+1} · `:''}${part.correct?'Correct!':'Keep learning.'}`,part.correct?'trivia-correct':'trivia-incorrect'));
-   if(!part.correct)panel.append(element('p',`Your answer: ${part.selected}`));panel.append(element('p',`Correct answer: ${part.answer}`));
+   const block=element('section',undefined,'trivia-answer-block');block.append(element('p',part.prompt,'trivia-feedback-question'));
+   if(!part.correct)block.append(element('p',`Your answer: ${part.selected}`));block.append(element('p',`Correct answer: ${part.answer}`,'trivia-answer-text'));panel.append(block);
   }
   panel.append(element('p',feedback.explanation));const link=element('a','Read the source: '+feedback.source.label);link.href=feedback.source.url;link.target='_blank';link.rel='noopener noreferrer';panel.append(link);root.append(panel);
   root.append(button(attempt.completed?'See round results':'Next question',async()=>{if(attempt.completed)await renderResults();else renderQuestion();focusHeading();},'primary'));

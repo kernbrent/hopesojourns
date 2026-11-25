@@ -84,6 +84,8 @@ async function api(request, env, url, ctx) {
   if (path === '/api/health' && method === 'GET') {
     const schema = await db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('users','posts','groups','group_members','initial_admin_setup','password_resets','admin_audit','resources','resource_categories','resource_tags','resource_images','portal_requests','post_hearts','resource_thumbs','devotionals','devotional_reads','invitation_deliveries','post_revisions','prayer_comments','comment_hearts','written_prayers','written_prayer_versions','prayer_attachments','trivia_attempts','trivia_results')").first();
     requireValue(schema.count === 25, 'Portal database setup is incomplete.', 503);
+    const triviaSchema=await db.prepare("SELECT 1 AS ready FROM pragma_table_info('trivia_results') WHERE name='revision'").first();
+    requireValue(triviaSchema,'Portal database setup is incomplete.',503);
     return json({service:'hope-sojourns-prayer',version:env.RELEASE_VERSION || 'local',environment:env.ENVIRONMENT || 'local',ready:true});
   }
   if (method !== 'GET') requireValue(request.headers.get('origin') === url.origin, 'Please use this portal to submit changes.', 403);

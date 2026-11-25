@@ -1,8 +1,10 @@
 # Hope Sojourns developer guide
 
-Version 5.37
+Version 5.38
 
 Last reviewed: November 24, 2026
+
+Prayer Challenge migration 0021 adds revision to trivia_results, defaulting existing records to 1. Signed-in account names prefill editable leaderboard names; names support 80 characters and POST /api/trivia/start defaults a missing or blank display_name to the authenticated account name. Admin-only GET /api/trivia/admin/results accepts search, round (0/1/2) and offset; returns 50 completed results plus more, with account labels only for admins. POST /api/trivia/admin/results/:attempt_id edits display_name, integer score 0–100 and a nonfuture completed_at timestamp, with required reason and current revision. Account, round, edition and original attempt cannot be reassigned. The existing origin/CSRF gate applies. A fresh active/full admin check and result revision guard create the audit marker and update the result in one transaction; stale edits fail with 409. Original answers remain immutable. Leaderboards, personal summaries and ranked attempt reads use corrected scores; practice attempts keep computed scores. Health readiness checks the revision column. In The Prayer Challenge, admins choose Manage challenge results, search for the linked account, choose Edit result and save with a reason. Result corrections do not change the account profile or future default name.
 
 Prayer Portal access-request and My account gender selectors have exactly three choices: male, female and undisclosed (Prefer not to say). New API submissions reject another; empty strings remain accepted for older optional-field clients. Existing blank or retired profile values display Prefer not to say in the editor and become undisclosed only when the user saves. No existing demographic data is automatically rewritten. Resource audience controls now offer male, female and undisclosed; new resources cannot select another. Existing resources retain any retired another restriction during edits, preventing an unchecked removed control from widening visibility. Resource access continues to match stored gender values exactly. Legacy audience metadata is labeled Legacy restricted audience.
 
@@ -1477,6 +1479,8 @@ People and Contact spreadsheet share the contactTypeBulkControls component in ad
 POST /api/interest/admin/contacts/bulk-types is handled in src/admin.ts. It requires an authenticated HS session, Contacts edit access and CSRF. Validate personIds, action (add/remove) and the canonical category allowlist; reject managed portal_access and nonexistent contacts before changing data. Deduplicate IDs and target only the chosen type. An atomic D1 batch inserts/deletes category rows, updates changed contacts' updated_at and records bulk_contact_type_updated audit events with action, contactType and the authenticated actor. Idempotent repeats leave already-correct contacts unchanged. Existing category triggers govern Volunteer access; display that effect before confirming Volunteer changes. Portal Access remains managed by Account settings. Contact details, other categories, giving and contact activity are preserved. No migration or historical backfill is required. Validate the bulk-contact-types integration tests, contact/permission regressions, TypeScript, palette, static assets and isolated Worker dry builds.
 
 ## Revision history
+
+- November 24, 2026 — Version 5.38. Added audited, revision-guarded challenge result corrections, signed-in name defaults and migration 0021. User authorized commit, push and both prayer deployments after validation.
 
 - November 24, 2026 — Version 5.37. Updated Prayer Portal gender validation and controls; preserved legacy resource restrictions without a data migration. Authorized prayer portal release.
 

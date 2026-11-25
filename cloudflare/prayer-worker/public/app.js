@@ -18,7 +18,7 @@ function element(tag, content, className) {
   const node = document.createElement(tag); if (content !== undefined) node.textContent = content;
   if (className) node.className = className; return node;
 }
-const trivia=window.createPrayerTrivia({api,element,button,action});
+const trivia=window.createPrayerTrivia({api,element,button,action,getUser:()=>user});
 function genderLabel(value){return ({male:'Male',female:'Female'})[value]||'Prefer not to say';}
 function displayTime(value) {return new Date(value).toLocaleString(undefined,user?.timezone?{timeZone:user.timezone}:undefined);}
 function notice(message, error = false) {

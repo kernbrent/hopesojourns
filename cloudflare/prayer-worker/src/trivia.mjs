@@ -10,7 +10,33 @@ export async function handleTrivia(request,db,auth,url,{json,body,text,requireVa
   return {id:row.id,round:row.round,total:10,answered:state.answers.length,completed:!!row.completed_at,
    question:row.completed_at?null:publicQuestion(state.order[state.answers.length]),
    feedback:state.answers.length?feedbackFor(state.answers.at(-1).question_id,state.answers.at(-1).choices):null,
-   ...(row.completed_at?{score:scoreAnswers(state.answers),ranked:result?.attempt_id===row.id}:{}),expires_at:row.expires_at};
+   ...(row.completed_at?{score:result?.attempt_id===row.id?result.score:scoreAnswers(state.answers),ranked:result?.attempt_id===row.id}:{}),expires_at:row.expires_at};
+ }
+ if(path.startsWith('/api/trivia/admin/')) {
+  requireValue(auth.role==='admin','Portal admins only.',403);
+  if(path==='/api/trivia/admin/results'&&method==='GET') {
+   const search=(url.searchParams.get('search')||'').slice(0,100),round=Number(url.searchParams.get('round')||0),offset=Number(url.searchParams.get('offset')||0);
+   requireValue([0,1,2].includes(round)&&Number.isSafeInteger(offset)&&offset>=0&&offset<=1000000,'Choose a valid results page.');
+   const {results}=await db.prepare(`SELECT r.attempt_id,r.round,r.display_name,r.score,r.completed_at,r.revision,u.name AS account_name,u.username AS account_username,u.status AS account_status FROM trivia_results r JOIN users u ON u.id=r.user_id WHERE r.edition=? AND (?=0 OR r.round=?) AND instr(lower(r.display_name||' '||u.name||' '||coalesce(u.username,'')),lower(?))>0 ORDER BY r.completed_at DESC,r.attempt_id LIMIT 51 OFFSET ?`).bind(edition,round,round,search,offset).all();
+   return json({items:results.slice(0,50),more:results.length>50});
+  }
+  const edit=/^\/api\/trivia\/admin\/results\/([^/]+)$/.exec(path);
+  if(edit&&method==='POST') {
+   const data=await body(request),name=text(data.display_name,80,'Leaderboard display name'),reason=text(data.reason,500,'Reason for this correction');
+   requireValue(!['user_id','round','edition','attempt_id'].some(key=>key in data),'The account, round, edition and original attempt cannot be changed.');
+   requireValue(Number.isSafeInteger(data.revision)&&data.revision>=1,'Refresh the results before editing.');
+   requireValue(Number.isInteger(data.score)&&data.score>=0&&data.score<=100,'Enter a whole-number score from 0 to 100.');
+   requireValue(Number.isSafeInteger(data.completed_at)&&data.completed_at>0&&data.completed_at<=Date.now(),'Choose a valid completion date that is not in the future.');
+   await rateLimit(db,`trivia-edit:${auth.id}`,60);
+   const audit=crypto.randomUUID(),time=Date.now();
+   const changes=await db.batch([
+    db.prepare(`INSERT INTO admin_audit SELECT ?,?,'trivia-result-edit','trivia_results',?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND role='admin' AND status='active' AND access_level='full') AND EXISTS(SELECT 1 FROM trivia_results WHERE attempt_id=? AND edition=? AND revision=?)`).bind(audit,auth.id,edit[1],reason,time,auth.id,edit[1],edition,data.revision),
+    db.prepare(`UPDATE trivia_results SET display_name=?,score=?,completed_at=?,revision=revision+1 WHERE attempt_id=? AND edition=? AND revision=? AND EXISTS(SELECT 1 FROM admin_audit WHERE id=?)`).bind(name,data.score,data.completed_at,edit[1],edition,data.revision,audit)
+   ]);
+   requireValue(changes[0].meta.changes===1&&changes[1].meta.changes===1,'This result changed or your admin access ended. Refresh the results and try again.',409);
+   return json({ok:true});
+  }
+  return null;
  }
  if(path==='/api/trivia'&&method==='GET') {
   const {results}=await db.prepare('SELECT round,score FROM trivia_results WHERE user_id=? AND edition=? ORDER BY round').bind(auth.id,edition).all();
@@ -25,7 +51,7 @@ export async function handleTrivia(request,db,auth,url,{json,body,text,requireVa
  if(path==='/api/trivia/start'&&method==='POST') {
   const data=await body(request),round=Number(data.round);requireValue([1,2].includes(round),'Choose round 1 or 2.');
   if(round===2)requireValue(await ranked(1),'Complete round 1 before starting round 2.',409);
-  const name=text(data.display_name,40,'Leaderboard display name');
+  const name=text(typeof data.display_name==='string'&&data.display_name.trim()?data.display_name:auth.name,80,'Leaderboard display name');
   await rateLimit(db,`trivia-start:${auth.id}`,20);
   const time=Date.now(),row={id:crypto.randomUUID(),user_id:auth.id,edition,round,display_name:name,state:JSON.stringify({order:shuffledIds(round),answers:[]}),revision:0,expires_at:time+86400000};
   await db.batch([

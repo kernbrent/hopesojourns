@@ -1,8 +1,10 @@
 # Hope Sojourns website style guide
 
-Version 4.126
+Version 4.127
 
 Last reviewed: November 24, 2026
+
+The Prayer Challenge emphasizes each question with a forest banner and paper text inside a forest-wash card. Answer choices use paper rows with bolder labels; selection uses forest-soft shading and a forest border. Submitted answers appear in large, bold forest text within paper blocks on a gold-wash explanation card. Keep prompts and correct/incorrect wording visible so color never carries meaning alone. Admin correction forms use the shared forest-wash panel, labeled inputs and ordinary focus styling.
 
 Prayer Portal gender selectors offer exactly Male, Female and Prefer not to say. Prefer not to say is the default for access requests and for profiles with no current selection. Resource gender-audience controls use the same three labels. Keep this profile information private.
 
@@ -990,6 +992,8 @@ Place the MMT Word edition latest-revision note beneath the contents-page instru
 Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
 
 ## Revision history
+
+- November 24, 2026 — Version 4.127. Emphasized Prayer Challenge questions and answers and added admin correction forms. User authorized commit, push and both prayer deployments after validation.
 
 - November 24, 2026 — Version 4.126. Restricted Prayer Portal gender choices to Male, Female and Prefer not to say. Authorized prayer portal release.
 

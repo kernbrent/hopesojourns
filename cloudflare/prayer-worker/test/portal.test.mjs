@@ -46,6 +46,42 @@ test('trivia uses stable question IDs, independent shuffled orders and exact app
  assert.equal(triviaQuestions.find(q=>q.id==='solomon').parts[0].choices[1].text,"Wisdom - Understanding to govern God's people");
  for(const q of triviaQuestions){assert.match(q.source.url,/^https:\/\//);assert.ok(q.explanation);for(const p of q.parts)assert.ok(p.choices.some(c=>c.id===p.correct));}
 });
+test('trivia starts with the signed-in account name when no display name is supplied',async()=>{
+ const f=fixture();await f.add('wife');const name='A full signed-in name '+ 'x'.repeat(45);f.sql.prepare('UPDATE users SET name=? WHERE id=?').run(name,'wife');
+ for(const display_name of [undefined,'']){const response=await f.request('trivia/start','wife',{round:1,...(display_name===undefined?{}:{display_name})});assert.equal(response.status,200);const game=await response.json();assert.equal(f.sql.prepare('SELECT display_name FROM trivia_attempts WHERE id=?').get(game.id).display_name,name);}
+ assert.equal((await f.request('trivia/start','wife',{round:1,display_name:'x'.repeat(81)})).status,400);
+});
+test('health requires the result-edit migration before reporting readiness',async()=>{
+ const f=fixture();assert.equal((await f.request('health')).status,200);f.sql.exec('ALTER TABLE trivia_results DROP COLUMN revision');assert.equal((await f.request('health')).status,503);
+});
+test('admins correct ranked names, scores and completion dates with revisions and audit while original answers stay intact',async()=>{
+ const f=fixture();await f.add('wife');await f.add('admin','admin');const game=await finishTrivia(f,'wife');
+ let list=await(await f.request('trivia/admin/results?search=wife&round=1','admin')).json();assert.equal(list.items.length,1);const row=list.items[0];assert.equal(row.revision,1);assert.equal(row.account_name,'wife');
+ const state=f.sql.prepare('SELECT state FROM trivia_attempts WHERE id=?').get(game.id).state;
+ const edit={display_name:'Corrected player name',score:85,completed_at:Date.now()-60000,reason:'Correct name and recorded score',revision:1};
+ assert.equal((await f.request(`trivia/admin/results/${game.id}`,'admin',edit)).status,200);
+ const board=await(await f.request('trivia/leaderboard?round=1','wife')).json();assert.equal(board.items[0].name,edit.display_name);assert.equal(board.items[0].score,85);assert.deepEqual(Object.keys(board.items[0]).sort(),['name','rank','score','you']);
+ assert.equal((await(await f.request(`trivia/attempts/${game.id}`,'wife')).json()).score,85);
+ assert.equal(f.sql.prepare('SELECT state FROM trivia_attempts WHERE id=?').get(game.id).state,state);assert.equal(f.sql.prepare('SELECT name FROM users WHERE id=?').get('wife').name,'wife');
+ const saved=f.sql.prepare('SELECT * FROM trivia_results WHERE attempt_id=?').get(game.id);assert.equal(saved.revision,2);assert.equal(saved.completed_at,edit.completed_at);assert.equal(saved.round,1);
+ const audit=f.sql.prepare("SELECT * FROM admin_audit WHERE action='trivia-result-edit'").get();assert.equal(audit.actor_id,'admin');assert.equal(audit.target_id,game.id);assert.equal(audit.reason,edit.reason);
+ assert.equal((await f.request(`trivia/admin/results/${game.id}`,'admin',edit)).status,409);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,1);
+ list=await(await f.request('trivia/admin/results?search=Corrected&round=1','admin')).json();assert.equal(list.items.length,1);assert.equal((await(await f.request('trivia/admin/results?round=2','admin')).json()).items.length,0);
+});
+test('result administration enforces admin, full access, origin, CSRF, bounded fields and fixed identities',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');await f.add('pending');f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='pending'");const game=await finishTrivia(f,'member');
+ const edit={display_name:'Correct name',score:95,completed_at:Date.now()-60000,reason:'Correct a result',revision:1},path=`trivia/admin/results/${game.id}`;
+ for(const who of ['member','pending']){assert.equal((await f.request('trivia/admin/results',who)).status,403);assert.equal((await f.request(path,who,edit)).status,403);}
+ for(const [Origin,csrf] of [['https://wrong.example','csrf-admin'],['https://prayer.example.com','wrong']]){const response=await worker.fetch(new Request('https://prayer.example.com/api/'+path,{method:'POST',headers:{Origin,Cookie:'__Host-hs_prayer=admin','X-CSRF-Token':csrf,'Content-Type':'application/json'},body:JSON.stringify(edit)}),f.env);assert.equal(response.status,403);}
+ for(const changes of [{display_name:''},{display_name:'x'.repeat(81)},{score:101},{score:-1},{score:1.5},{score:'95'},{completed_at:Date.now()+86400000},{completed_at:0},{reason:''},{round:2},{user_id:'admin'}])assert.equal((await f.request(path,'admin',{...edit,...changes})).status,400,JSON.stringify(changes));
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);assert.equal(f.sql.prepare('SELECT score FROM trivia_results WHERE attempt_id=?').get(game.id).score,100);
+});
+test('failed result edits roll back their audit and stale admin authority cannot correct a result',async()=>{
+ const f=fixture();await f.add('member');await f.add('admin','admin');const game=await finishTrivia(f,'member'),path=`trivia/admin/results/${game.id}`,edit={display_name:'Correct name',score:90,completed_at:Date.now()-60000,reason:'A test correction',revision:1};
+ f.sql.exec("CREATE TRIGGER fail_result_edit BEFORE UPDATE ON trivia_results BEGIN SELECT RAISE(ABORT,'synthetic failure'); END");assert.equal((await f.request(path,'admin',edit)).status,500);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);f.sql.exec('DROP TRIGGER fail_result_edit');
+ const prepare=f.env.DB.prepare.bind(f.env.DB);let changed=false;f.env.DB.prepare=query=>{if(query.startsWith('INSERT INTO admin_audit SELECT')&&!changed){changed=true;f.sql.exec("UPDATE users SET role='member' WHERE id='admin'");}return prepare(query);};
+ assert.equal((await f.request(path,'admin',edit)).status,409);assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);assert.equal(f.sql.prepare('SELECT revision,score FROM trivia_results WHERE attempt_id=?').get(game.id).score,100);
+});
 test('trivia is private, CSRF protected and unavailable to provisional or suspended users',async()=>{
  const f=fixture();await f.add('a');await f.add('pending');f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='pending'");
  for(const path of ['trivia','trivia/leaderboard?round=1']){assert.equal((await f.request(path)).status,401);assert.equal((await f.request(path,'pending')).status,403);}
