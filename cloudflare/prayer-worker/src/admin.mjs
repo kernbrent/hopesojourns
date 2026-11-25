@@ -119,6 +119,8 @@ export async function handleAdmin(request,db,auth,url,h) {
     db.prepare(`DELETE FROM comment_hearts WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM prayer_comments WHERE author_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM devotional_reads WHERE user_id=? AND ${guard}`).bind(id,op),
+    db.prepare(`DELETE FROM trivia_attempts WHERE user_id=? AND ${guard}`).bind(id,op),
+    db.prepare(`DELETE FROM trivia_results WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM resource_thumbs WHERE user_id=? AND ${guard}`).bind(id,op),
     db.prepare(`DELETE FROM follows WHERE (follower_id=? OR followed_id=?) AND ${guard}`).bind(id,id,op),
     db.prepare(`DELETE FROM recipients WHERE user_id=? AND ${guard}`).bind(id,op),

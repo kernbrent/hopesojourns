@@ -5,6 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import worker, { passwordHash, digest } from '../src/index.mjs';
 import {sqliteDatabase} from '../src/sqlite-database.mjs';
 import {storageFor} from './sqlite-fixture.mjs';
+import {questions as triviaQuestions,shuffledIds,edition as triviaEdition} from '../src/trivia-questions.mjs';
 // Run the actual migration and queries, with D1's prepare/batch interface over SQLite.
 function fixture() {
   const sql = new DatabaseSync(':memory:');
@@ -29,6 +30,72 @@ function fixture() {
   return {sql,add,request,env};
 }
 const post = (audience, recipients = [], kind = 'request') => ({ title:'Please pray', body:'Private details', audience, recipients, kind });
+
+async function finishTrivia(f,who,round=1,wrongPart=false) {
+ let response=await f.request('trivia/start',who,{round,display_name:'Prayer learner'});assert.equal(response.status,200);let game=await response.json();
+ while(!game.completed) {
+  const q=triviaQuestions.find(q=>q.id===game.question.id),choices=Object.fromEntries(q.parts.map(p=>[p.id,wrongPart&&q.id==='rhoda'&&p.id==='place'?'1':p.correct]));
+  response=await f.request(`trivia/attempts/${game.id}/answer`,who,{question_id:q.id,choices,score:999});assert.equal(response.status,200);game=await response.json();
+ }
+ return game;
+}
+test('trivia uses stable question IDs, independent shuffled orders and exact approved wording',()=>{
+ assert.equal(triviaQuestions.length,20);assert.equal(new Set(triviaQuestions.map(q=>q.id)).size,20);
+ const orders=new Set();for(let i=0;i<20;i++){const ids=shuffledIds(1);assert.equal(new Set(ids).size,10);assert.deepEqual([...ids].sort(),triviaQuestions.filter(q=>q.round===1).map(q=>q.id).sort());orders.add(ids.join());}assert.ok(orders.size>1);
+ assert.equal(triviaQuestions.find(q=>q.id==='spirit').parts[0].choices[0].text,"God's Holy Spirit");
+ assert.equal(triviaQuestions.find(q=>q.id==='solomon').parts[0].choices[1].text,"Wisdom - Understanding to govern God's people");
+ for(const q of triviaQuestions){assert.match(q.source.url,/^https:\/\//);assert.ok(q.explanation);for(const p of q.parts)assert.ok(p.choices.some(c=>c.id===p.correct));}
+});
+test('trivia is private, CSRF protected and unavailable to provisional or suspended users',async()=>{
+ const f=fixture();await f.add('a');await f.add('pending');f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='pending'");
+ for(const path of ['trivia','trivia/leaderboard?round=1']){assert.equal((await f.request(path)).status,401);assert.equal((await f.request(path,'pending')).status,403);}
+ assert.equal((await f.request('trivia/start','pending',{round:1,display_name:'Player'})).status,403);
+ const forged=new Request('https://prayer.example.com/api/trivia/start',{method:'POST',headers:{Cookie:'__Host-hs_prayer=a',Origin:'https://prayer.example.com','Content-Type':'application/json'},body:JSON.stringify({round:1,display_name:'Player'})});assert.equal((await worker.fetch(forged,f.env)).status,403);
+ f.sql.exec("UPDATE users SET status='suspended' WHERE id='a'");assert.equal((await f.request('trivia','a')).status,401);
+});
+test('unfinished trivia never produces a score; identity, current question, parts and expiry are enforced',async()=>{
+ const f=fixture();await f.add('a');await f.add('b');
+ assert.equal((await f.request('trivia/start','a',{round:2,display_name:'Player'})).status,409);
+ const game=await(await f.request('trivia/start','a',{round:1,display_name:'Player'})).json();assert.equal(game.score,undefined);assert.equal(game.question.parts[0].correct,undefined);assert.equal(game.question.explanation,undefined);
+ assert.equal((await f.request(`trivia/attempts/${game.id}`,'b')).status,404);
+ assert.equal((await f.request(`trivia/attempts/${game.id}/answer`,'a',{question_id:'not-current',choices:{main:'0'}})).status,409);
+ assert.equal((await f.request(`trivia/attempts/${game.id}/answer`,'a',{question_id:game.question.id,choices:{}})).status,400);
+ const q=triviaQuestions.find(q=>q.id===game.question.id),choices=Object.fromEntries(q.parts.map(p=>[p.id,p.correct]));
+ const answered=await(await f.request(`trivia/attempts/${game.id}/answer`,'a',{question_id:q.id,choices})).json();assert.equal(answered.answered,1);assert.equal(answered.score,undefined);
+ assert.equal((await(await f.request('trivia/leaderboard?round=1','a')).json()).items.length,0);
+ const saved=await(await f.request(`trivia/attempts/${game.id}`,'a')).json();assert.equal(saved.answered,1);assert.equal(saved.feedback.question_id,q.id);
+ await f.request(`trivia/attempts/${game.id}/abandon`,'a',{});assert.equal(f.sql.prepare('SELECT count(*) n FROM trivia_results').get().n,0);assert.equal((await f.request(`trivia/attempts/${game.id}`,'a')).status,404);
+ const expired=await(await f.request('trivia/start','a',{round:1,display_name:'Player'})).json();f.sql.prepare('UPDATE trivia_attempts SET expires_at=1 WHERE id=?').run(expired.id);assert.equal((await f.request(`trivia/attempts/${expired.id}`,'a')).status,404);
+});
+test('completed rounds score server answers, split Rhoda points, rank only first completion and preserve round one',async()=>{
+ const f=fixture();await f.add('a');await f.add('b');const first=await finishTrivia(f,'a',1,true);assert.equal(first.score,95);assert.equal(first.ranked,true);
+ const practice=await finishTrivia(f,'a');assert.equal(practice.score,100);assert.equal(practice.ranked,false);
+ let board=await(await f.request('trivia/leaderboard?round=1','a')).json();assert.equal(board.items[0].score,95);assert.deepEqual(Object.keys(board.items[0]).sort(),['name','rank','score','you']);
+ await finishTrivia(f,'b',1,true);board=await(await f.request('trivia/leaderboard?round=1','a')).json();assert.deepEqual(board.items.map(r=>r.rank),[1,1]);
+ const second=await(await f.request('trivia/start','a',{round:2,display_name:'Player'})).json();await f.request(`trivia/attempts/${second.id}/abandon`,'a',{});assert.equal(f.sql.prepare('SELECT count(*) n FROM trivia_results WHERE user_id=?').get('a').n,1);
+ const complete=await finishTrivia(f,'a',2);assert.equal(complete.score,100);assert.equal(complete.ranked,true);assert.equal(f.sql.prepare('SELECT count(*) n FROM trivia_results WHERE user_id=?').get('a').n,2);
+ f.sql.exec("UPDATE users SET status='suspended' WHERE id='b'");assert.equal((await(await f.request('trivia/leaderboard?round=1','a')).json()).items.length,1);
+});
+test('trivia duplicate answers are idempotent and final result failures roll back completion',async()=>{
+ const f=fixture();await f.add('a');let game=await(await f.request('trivia/start','a',{round:1,display_name:'Player'})).json();
+ while(game.answered<9){const q=triviaQuestions.find(q=>q.id===game.question.id),data={question_id:q.id,choices:Object.fromEntries(q.parts.map(p=>[p.id,p.correct]))};const path=`trivia/attempts/${game.id}/answer`;game=await(await f.request(path,'a',data)).json();const replay=await(await f.request(path,'a',data)).json();assert.equal(replay.answered,game.answered);}
+ const q=triviaQuestions.find(q=>q.id===game.question.id),data={question_id:q.id,choices:Object.fromEntries(q.parts.map(p=>[p.id,p.correct]))};
+ f.sql.exec("CREATE TRIGGER fail_trivia BEFORE INSERT ON trivia_results BEGIN SELECT RAISE(ABORT,'synthetic failure'); END");
+ assert.equal((await f.request(`trivia/attempts/${game.id}/answer`,'a',data)).status,500);const pending=f.sql.prepare('SELECT * FROM trivia_attempts WHERE id=?').get(game.id);assert.equal(pending.completed_at,null);assert.equal(JSON.parse(pending.state).answers.length,9);
+ f.sql.exec('DROP TRIGGER fail_trivia');game=await(await f.request(`trivia/attempts/${game.id}/answer`,'a',data)).json();assert.equal(game.score,100);
+ const duplicate=await(await f.request(`trivia/attempts/${game.id}/answer`,'a',data)).json();assert.equal(duplicate.score,100);assert.equal(f.sql.prepare('SELECT count(*) n FROM trivia_results WHERE edition=?').get(triviaEdition).n,1);
+});
+test('trivia writes recheck live access and account deletion removes chosen names and answers',async()=>{
+ const f=fixture();await f.add('a');await f.add('admin','admin');
+ let game=await(await f.request('trivia/start','a',{round:1,display_name:'Private chosen name'})).json();
+ const q=triviaQuestions.find(q=>q.id===game.question.id),prepare=f.env.DB.prepare.bind(f.env.DB);let changed=false;
+ f.env.DB.prepare=query=>{if(query.startsWith('UPDATE trivia_attempts SET state=')&&!changed){changed=true;f.sql.exec("UPDATE users SET access_level='provisional' WHERE id='a'");}return prepare(query);};
+ assert.equal((await f.request(`trivia/attempts/${game.id}/answer`,'a',{question_id:q.id,choices:Object.fromEntries(q.parts.map(p=>[p.id,p.correct]))})).status,409);
+ assert.equal(JSON.parse(f.sql.prepare('SELECT state FROM trivia_attempts WHERE id=?').get(game.id).state).answers.length,0);
+ f.env.DB.prepare=prepare;f.sql.exec("UPDATE users SET access_level='full' WHERE id='a'");await finishTrivia(f,'a');
+ assert.equal((await f.request('admin/users/a/delete','admin',{reason:'Delete a synthetic test account',confirmation:'DELETE'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM trivia_attempts WHERE user_id=?').get('a').n,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM trivia_results WHERE user_id=?').get('a').n,0);
+});
 
 test('admin archive hides wall content and conversations without destroying them and restores original audience',async()=>{
  const f=fixture();await f.add('a');await f.add('b');await f.add('admin','admin');
@@ -492,6 +559,17 @@ test('a failed account-deletion batch rolls back group transfer, audit, and acco
 });
 
 const resourceData=(changes={})=>({title:'A helpful resource',creator:'A speaker',description:'Encouragement for the journey',url:'https://example.com/resource',category_id:'books',visible:true,featured:false,sort_order:30,tags:['#Faith','spiritual growth','faith'],reason:'Curate the library',...changes});
+test('retired gender submissions are rejected and editing retired resource audiences cannot widen access',async()=>{
+ const f=fixture();await f.add('admin','admin');await f.add('member');
+ assert.equal((await f.request('access-requests',null,{name:'Applicant',email:'new@example.com',username:'applicant',gender:'another',birth_date:'',phone:'',timezone:'',bio:'',notify_requests:true,notify_updates:true,notify_answered:true})).status,400);
+ assert.equal((await f.request('admin/resources','admin',resourceData({genders:['another']}))).status,400);
+ const created=await(await f.request('admin/resources','admin',resourceData({genders:['undisclosed']}))).json();assert.ok(created.id);
+ f.sql.exec("UPDATE users SET gender='undisclosed' WHERE id='member'");assert.equal((await(await f.request('resources?q=A%20helpful%20resource','member')).json()).total,1);
+ f.sql.prepare("UPDATE resources SET genders='another' WHERE id=?").run(created.id);
+ assert.equal((await f.request(`admin/resources/${created.id}`,'admin',resourceData({revision:1,genders:[]}))).status,200);
+ assert.equal(f.sql.prepare('SELECT genders FROM resources WHERE id=?').get(created.id).genders,'another');
+ assert.equal((await(await f.request('resources?q=A%20helpful%20resource','member')).json()).total,0);
+});
 test('resource library seeds books and categories; authentication and admin permissions protect all writes',async()=>{
  const f=fixture();await f.add('member');await f.add('admin','admin');
  for(const path of ['resources','resource-categories','admin/resources','admin/resource-categories']) assert.equal((await f.request(path)).status,401);
@@ -606,7 +684,7 @@ test('profile gender and birth date stay private, validate calendar dates, and s
  const directory=await (await f.request('people','other')).json();assert.ok(directory.every(row=>!('gender' in row)&&!('birth_date' in row)));
  const accounts=await (await f.request('admin/users','admin')).json();assert.equal(accounts.items.find(row=>row.id==='member').birth_date,'2000-02-29');
  for(const birth_date of ['2001-02-29','2000-13-01','2030-01-01','1900-01-01','2000-1-1',123]) assert.equal((await f.request('profile','member',{...data,birth_date})).status,400);
- assert.equal((await f.request('profile','member',{...data,gender:'invalid'})).status,400);
+ for(const gender of ['invalid','another'])assert.equal((await f.request('profile','member',{...data,gender})).status,400);
  const {gender,birth_date,...legacy}=data;assert.equal((await f.request('profile','member',legacy)).status,200);assert.equal(f.sql.prepare("SELECT gender FROM users WHERE id='member'").get().gender,'female');
  assert.equal((await f.request('admin/users/member/delete','admin',{reason:'Delete account',confirmation:'DELETE'})).status,200);const removed=f.sql.prepare("SELECT gender,birth_date FROM users WHERE id='member'").get();assert.equal(removed.gender,'');assert.equal(removed.birth_date,'');
 });

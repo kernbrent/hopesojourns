@@ -1,4 +1,4 @@
-export const profileGenders=['','male','female','another','undisclosed'];
+export const profileGenders=['','male','female','undisclosed'];
 export function validBirthDate(value,today=new Date()) {
  if(value==='') return true;
  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;

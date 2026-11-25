@@ -42,3 +42,7 @@
 ## Public photo presentation
 
 - Never display photo credits on Hope Sojourns web pages. Keep source and license records in private administrative metadata or project documentation. Choose images whose permitted use fits this presentation.
+
+## Website content preference
+
+- On Brent-owned websites, gender choices must be Male, Female, or Prefer not to say. Do not add alternative gender options or advocacy content. Websites built or maintained for other people may follow the client's requirements as an exception.

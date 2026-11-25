@@ -1,8 +1,12 @@
 # Hope Sojourns website style guide
 
-Version 4.121
+Version 4.126
 
-Last reviewed: November 20, 2026
+Last reviewed: November 24, 2026
+
+Prayer Portal gender selectors offer exactly Male, Female and Prefer not to say. Prefer not to say is the default for access requests and for profiles with no current selection. Resource gender-audience controls use the same three labels. Keep this profile information private.
+
+The Prayer Challenge is a full-member Prayer Portal workspace using the shared forest, paper, gold and success tokens. Present one question at a time with a labeled progress bar, generous radio-choice rows, visible focus and readable explanations. Keep the Peter/Rhoda parts together and reveal neither answer until both are submitted. Use text alongside feedback colors. Do not display a running or unfinished score. The completed-round screen shows a score out of 100 and offers Continue to Round 2 or Skip for now. Two responsive leaderboard tables use chosen names, shared ranks for ties, and a clear first-completed-attempt rule. Phone layouts wrap controls without horizontal page overflow.
 
 Admin File storage uses a horizontally scrollable data table with file links, prayer/location, uploader, date, original bytes, actual stored bytes and a permanent-delete action. Largest first is the default; labeled location/type and date/size sort filters sit beside search. A summary distinguishes storage savings from original download sizes. The standard moderation dialog requires a reason and typed DELETE confirmation. Keep the universal footer disclaimer below the organization/tagline, in readable muted text: Portal administrators may remove any item for any reason. The disclaimer appears on sign-in and authenticated pages alike.
 
@@ -986,6 +990,10 @@ Place the MMT Word edition latest-revision note beneath the contents-page instru
 Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
 
 ## Revision history
+
+- November 24, 2026 — Version 4.126. Restricted Prayer Portal gender choices to Male, Female and Prefer not to say. Authorized prayer portal release.
+
+- November 24, 2026 — Version 4.122. Added The Prayer Challenge question, feedback, completion and leaderboard presentation. Authorized prayer portal release.
 
 - November 20, 2026 — Version 4.121. Corrected homepage action spacing and replaced noninteractive principle pills with plain text.
 
