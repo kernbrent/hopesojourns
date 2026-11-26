@@ -6,7 +6,7 @@ import {ARRIVAL_TIERS} from '../../../preview/biblillion/rewards.js';
 import {DESTINATIONS} from '../../../preview/biblillion/destinations.js';
 
 const travelBonusSQL=`CASE WHEN result_count=7 AND bank_version IN (${REWARD_BANKS.map(v=>`'${v}'`).join(',')}) THEN CASE ${ARRIVAL_TIERS.map(t=>`WHEN base_points>=${t.min} THEN ${t.bonus}`).join(' ')} ELSE 0 END ELSE 0 END`;
-const CONSENT='2026-11-25',UUID=/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
+const REPORTING_VERSION='2026-11-25.auto1',CONSENT='2026-11-25',UUID=/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 const hash=async(text:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text))),n=>n.toString(16).padStart(2,'0')).join('');
 function field(value:unknown,max:number,empty=false){if(typeof value!=='string'||value.length>max||(!empty&&!value.trim())||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value))throw new AdminError(422,'INVALID_FIELD','Check the supplied fields.');return value.trim();}
 function filters(url:URL){const days=Number(url.searchParams.get('days')||30),mode=url.searchParams.get('mode')||'all',destination=url.searchParams.get('destination')||'all';if(![7,30,90,365].includes(days)||!['all','daily','practice'].includes(mode)||destination!=='all'&&!DESTINATIONS.some(d=>d.id===destination))throw new AdminError(422,'FILTER','Choose a listed filter.');const now=new Date();now.setUTCDate(now.getUTCDate()-days+1);return {days,mode,destination,from:dateKey(now)};}
@@ -18,16 +18,17 @@ export async function handleBiblillion(request:Request,env:AdminEnv,path:string)
   if(path==='/public/biblillion/results'){
    if(request.method!=='POST')throw new AdminError(405,'METHOD','Use POST.');
    if(request.headers.get('origin')!==new URL(request.url).origin)throw new AdminError(403,'ORIGIN','Share results from this website.');
-   const b=await readAdminJson(request,2048),keys=['id','roundId','bankVersion','roundDay','mode','destinationId','slot','questionId','answer','skipped','corrected','timedOut','consent','consentVersion'];
+   const b=await readAdminJson(request,2048),keys=['id','roundId','bankVersion','roundDay','mode','destinationId','slot','questionId','answer','skipped','corrected','timedOut','reportingVersion','consent','consentVersion'];
    if(Object.keys(b).some(k=>!keys.includes(k)))throw new AdminError(422,'EXTRA_FIELD','Only anonymous game-result fields are accepted.');
-   if(b.consent!==true||b.consentVersion!==CONSENT)throw new AdminError(422,'CONSENT','Choose whether to share anonymous results.');
+   const automatic=b.reportingVersion!==undefined;
+   if(automatic?(b.reportingVersion!==REPORTING_VERSION||'consent'in b||'consentVersion'in b):(b.consent!==true||b.consentVersion!==CONSENT))throw new AdminError(422,'REPORTING','Use a supported anonymous game report.');
    const id=field(b.id,36),roundId=field(b.roundId,36),version=field(b.bankVersion,40),day=field(b.roundDay,10),mode=field(b.mode,10),destination=field(b.destinationId,50),questionId=field(b.questionId,80);
    if(!UUID.test(id)||!UUID.test(roundId)||!SUPPORTED_BANKS.includes(version)||!['daily','practice'].includes(mode)||!DESTINATIONS.some(d=>d.id===destination)||!Number.isInteger(b.slot)||Number(b.slot)<0||Number(b.slot)>6||typeof b.skipped!=='boolean'||typeof b.corrected!=='boolean'||b.timedOut!==undefined&&typeof b.timedOut!=='boolean'||b.timedOut===true&&(!b.skipped||b.corrected))throw new AdminError(422,'RESULT','Check this game result.');
    const parsed=new Date(day+'T00:00:00Z');if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==day||day<'2026-11-24'||day>dateKey(new Date(Date.now()+86400000)))throw new AdminError(422,'DAY','Invalid round date.');
    const question=QUESTIONS.find(q=>q.id===questionId),answer=question?.answers.find(a=>a.name===b.answer);
    if(!question||(COMMON_BANKS.includes(version)&&!question.active)||(!COMMON_BANKS.includes(version)&&!QUESTIONS.slice(0,version===LEGACY_BANK_VERSION?14:version===PREVIOUS_BANK_VERSION?210:286).includes(question))||(b.skipped?(b.answer!==null||b.corrected):!answer))throw new AdminError(422,'ANSWER','Use a reviewed answer or a skip.');
    if(mode==='daily'&&expectedDaily(day,version)[Number(b.slot)].id!==questionId)throw new AdminError(422,'SCHEDULE','This question does not belong in that daily slot.');
-   const points=b.skipped?0:answer!.points,signature=await hash(JSON.stringify({roundId,version,day,mode,destination,slot:Number(b.slot),questionId,answer:b.skipped?null:answer!.name,skipped:b.skipped,corrected:b.corrected,points,consent:CONSENT,...(REWARD_BANKS.includes(version)?{timedOut:b.timedOut===true}:{})}));
+   const points=b.skipped?0:answer!.points,signature=await hash(JSON.stringify({roundId,version,day,mode,destination,slot:Number(b.slot),questionId,answer:b.skipped?null:answer!.name,skipped:b.skipped,corrected:b.corrected,points,...(automatic?{reportingVersion:REPORTING_VERSION}:{consent:CONSENT}),...(REWARD_BANKS.includes(version)?{timedOut:b.timedOut===true}:{})}));
    const prior=await env.DB.prepare('SELECT request_hash FROM biblillion_results WHERE id=?').bind(id).first<{request_hash:string}>();
    if(prior){if(prior.request_hash!==signature)throw new AdminError(409,'ID_REUSED','This result ID was already used.');return adminJson({accepted:true});}
    await rate(request,env);const now=new Date().toISOString(),today=dateKey();

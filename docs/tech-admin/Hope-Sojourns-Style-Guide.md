@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.133
+Version 4.134
 
 Last reviewed: November 25, 2026
 
@@ -1011,7 +1011,7 @@ Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. 
 
 ## Biblillion Mission Journey Passport (test only)
 
-Biblillion remains a test-only experience. Preserve the Hope Sojourns forest, paper and gold palette through shared /styles.css tokens. Destination cards use existing Hope Sojourns photos, generous targets, a clear countdown and optional anonymous sharing. The game invites exploration without assessing spiritual maturity or readiness to travel.
+Biblillion remains a test-only experience. Preserve the Hope Sojourns forest, paper and gold palette through shared /styles.css tokens. Destination cards use existing Hope Sojourns photos, generous targets, a clear countdown and a concise automatic-statistics notice. The game invites exploration without assessing spiritual maturity or readiness to travel. Explain that anonymous results are recorded automatically; do not present a sharing checkbox or require an account. State plainly that names, emails, raw guesses and persistent player identities are not collected in game statistics. Saved progress & privacy explains the temporary retry queue and that clearing local progress does not remove already recorded anonymous statistics.
 
 The passport uses an American-style navy cover, gold PASSPORT / UNITED STATES OF AMERICA lettering and an original eagle-and-shield illustration. Keep Hope Sojourns / Mission Journey branding visible. The shared --passport-navy token supplies the deep cover blue and pale visa-page engraving; existing information blue is reserved for feedback and partner navy belongs to a different identity. Reuse shared gold and cream for the lettering and paper.
 
@@ -1027,11 +1027,13 @@ Everyone reaches the chosen destination after all seven questions, including pla
 
 Every finished round receives one travel moment: Unexpected layover (0–174 answer points), Connection made (175–299), Right on schedule (300–449), Priority boarding (450–574), or First-class upgrade (575–700). Rewards add 0/25/50/100/150 points respectively. The separate seven-stamp bonus stays 150, for a new maximum of 1,000. Each question has a mandatory 25-second limit; answering faster earns no extra points. All tiers use a destination-photo dialog with a relevant trip/interest link. High tiers use a short finite confetti burst; other tiers use a clock, connection arrows or a passing plane. Honor reduced motion by showing a static emblem without moving confetti or stamping effects. Celebrations open automatically once per round and have an explicit replay button.
 
-MMT insights uses existing shared components. Label Common knowledge or Archived status and topic. The Question library filter defaults to regular prompts, with All and Archive options. Preserve archived difficulty labels and distinguish a timeout from a voluntary skip. Counts are opted-in rounds, not people. Observed choice percentages do not change editorial rarity scores. Devotional starters remain private drafts with review-before-use reminders. Non-Scripture sources use a Background source label; the church-family directory remains clearly identified. Devotional starters from these prompts require a Bible passage selected by the editor.
+MMT insights uses existing shared components. Label Common knowledge or Archived status and topic. The Question library filter defaults to regular prompts, with All and Archive options. Preserve archived difficulty labels and distinguish a timeout from a voluntary skip. Counts are recorded rounds, not unique people. Observed choice percentages do not change editorial rarity scores. Devotional starters remain private drafts with review-before-use reminders. Non-Scripture sources use a Background source label; the church-family directory remains clearly identified. Devotional starters from these prompts require a Bible passage selected by the editor.
 
 Touch navigation behavior: Resources uses a native disclosure and native destination links. An iPhone-style focus transition may have no next focused element; preserve the visible submenu until the tapped link receives its click. Continue to close on a real outside focus target, an outside tap, Escape or a completed link click. Keyboard navigation must remain usable, and opening a resource must not require a second tap. Verify actual touch input in WebKit emulation as well as desktop pointer checks.
 
 ## Revision history
+
+- November 25, 2026 — Version 4.134. Replaced sharing opt-in controls with automatic anonymous-statistics disclosure and updated dashboard wording. Authorized test-only release after validation.
 
 - November 25, 2026 — Version 4.133. Documented iPhone Resources tap behavior while preserving disclosure appearance and keyboard/outside closing. Authorized test-only release after validation.
 

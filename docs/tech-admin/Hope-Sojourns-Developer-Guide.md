@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.44
+Version 5.45
 
 Last reviewed: November 25, 2026
 
@@ -1526,7 +1526,11 @@ Everyone reaches the chosen destination after all seven questions, including pla
 
 rewards.js is the shared travel-tier source: answer scores 0/175/300/450/575 select bonuses 0/25/50/100/150. Rewards use base answer points out of 700, not timer speed or existing bonuses. A finished current or balanced-bank round adds its travel reward and, if all seven answers were correct, the separate 150-point passport bonus; maximum 1,000. Every finished round receives a once-only destination-photo dialog, with replay. High tiers have a finite confetti burst; other tiers have a clock, connection or flight animation. These are game rewards, never real bookings, upgrades or trip credit. Server summaries generate the travel-bonus SQL from the same tier definitions. REWARD_BANKS includes both common-knowledge banks (2026-11-25.4 and .3) and 2026-11-25.2; those versions retain their 1,000-point maximum. The original 14- and 210-question banks retain their 850-point maximum and receive no retroactive travel bonus.
 
-analytics.js sends only explicit opted-in canonical answers/skips, random event/round IDs, bank/day/mode, destination/slot, corrected flag and timeout reason. No raw guesses, name, email or persistent player ID is transmitted. The bounded retry queue is sanitized and cleared on opt-out. Existing anonymous aggregates remain. Server validation enforces origin, consent, allowed fields, daily slot, bank version and canonical points. Preserve prior-bank event signatures so existing retries remain idempotent.
+analytics.js automatically records each new answer, skip and timeout without a sharing preference or account. New payloads use reportingVersion=2026-11-25.auto1 and contain only canonical answer/skip, random event/round IDs, bank/day/mode, destination/slot and correction/timeout flags. They do not contain consent claims, raw guesses, names, emails, reflections or persistent player IDs. Earlier unshared saved answers are not backfilled. Fresh rounds and browsers saved with shareResults=false both use automatic reporting.
+
+The allowlisted retry queue retains up to 100 events and preserves their IDs across reloads. Fetch omits credentials, rejects redirects and uses keepalive. A reconnect or next visit retries queued reports. Reset aborts the active request and clears pending events without allowing an old response to remove a new round's queued event; already recorded anonymous statistics remain. The API validates Origin, reporting version, allowed fields, dates, daily slots and canonical points; new reports omit consent/consentVersion. Valid legacy opted-in payloads remain accepted with their original signature so old retries are idempotent. No schema or question-bank version change is required. Counts are recorded rounds and results, not unique people or a guaranteed traffic census.
+
+MMT uses automatic-statistics labels and no longer instructs players to opt in. Game privacy and destination screens disclose automatic reporting without a checkbox. tools/biblillion-analytics.test.mjs covers automatic defaults, old false preferences, offline restoration, queue sanitization, reset races and skipped/timed-out reports. tools/check-biblillion-passport.cjs verifies 21 unique automatic results from three local games, canonical-only payloads and dashboard totals, allowing safe retries after reload. tools/check-biblillion-automatic.cjs verifies the full local MMT flow with an old false preference, offline retry, raw-guess exclusion, timeout and reset/new-round reporting. MMT labels use Recorded rounds and Answers & skips. The test artifact uses biblillion-stats1 script revisions. An authorized release must update both the test Worker and Pages artifact; upload reviewed guide HTML only to the private test guide bucket. Production remains excluded.
 
 Migration 0074 creates anonymous rounds, detailed results, daily answer aggregates, hashed hourly rate counters and private devotional drafts. A retained slot mask prevents recounting expired detail. Migration 0075 adds timed_out detail, a round timeout counter and its insert trigger; it contains no business-data copy. Detailed results expire after 180 days during new submissions; aggregate counts and summaries remain. Do not edit migrations already deployed to test.
 
@@ -1545,6 +1549,8 @@ The test builder uses the biblillion-safari1 script cache revision so returning 
 Run tools/check-resources-navigation.cjs against the test artifact on localhost:4195. Set PLAYWRIGHT_BROWSERS_PATH to the checkout's .tmp/playwright-browsers and install the official Playwright WebKit browser there using the bundled runtime/package CLI if absent. --regression-proof restores the old handler only inside an isolated request interception and asserts the lost tap, then tests the real fixed artifact. Coverage includes WebKit iPhone emulation at 375/390/430 pixels, homepage/About entry, keyboard Tab/Escape, outside click, All resources and Chromium Android taps. Set HS_NAV_ORIGIN=https://test.hopesojourns.com for post-release verification. WebKit emulation is not a physical iPhone test. Research: Apple's Safari Web Content Guide, Handling Events, https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/HandlingEvents/HandlingEvents.html .
 
 ## Revision history
+
+- November 25, 2026 — Version 5.45. Made anonymous game statistics automatic, documented the versioned report protocol, legacy retries, reset behavior and integration checks. Authorized test-only release after validation.
 
 - November 25, 2026 — Version 5.44. Corrected Resources focus-loss handling for iPhone-style taps, added WebKit regression checks and revised test script caching. Authorized commit, push and test-only release after validation.
 

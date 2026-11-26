@@ -13,7 +13,7 @@ Two lexical exceptions remain intentionally reviewed:
 
 Other translation variants are explicit aliases, including personal-name spellings, place names and older English terms. Short or ambiguous names require clarification. Conservative typo matching never creates new accepted answers; it resolves only against the reviewed answer set. Reveals show canonical spelling and Scripture links.
 
-Familiarity points (35/50/65/85/100) are editorial game estimates within each prompt. They are not measured probabilities, spiritual importance or assessments of readiness for mission work. Opted-in answer-choice counts in MMT are a limited sample and do not automatically update scores. All notes and devotional starters require editorial judgment; popularity does not establish theology.
+Familiarity points (35/50/65/85/100) are editorial game estimates within each prompt. They are not measured probabilities, spiritual importance or assessments of readiness for mission work. Recorded answer-choice counts in MMT are a limited sample and do not automatically update scores. All notes and devotional starters require editorial judgment; popularity does not establish theology.
 
 When editing: verify complete passage context, list boundaries, aliases and collisions; preserve legacy progress; update BANK_VERSION for answer/score changes; run bank, daily-cycle, spelling and Worker validation checks. Recheck sources when changing factual content.
 
@@ -40,3 +40,7 @@ MMT defaults to the active library, with all/archive filters preserving historic
 ## Broad and specific community answers — November 25, 2026
 
 Bank 2026-11-25.4 adds reviewed broad answers to community, belonging, welcome and loneliness prompts without removing or re-scoring any prior canonical mission answer. Job, Church and Family earn 35 in community/belonging; Having a role and Being asked for their opinion retain 100. Canonical ideas and their equivalent phrases share points. Narrowness means a specific concept, not a longer string. Leading possessives and common care phrases are accepted; negation is preserved during typo matching. No unrestricted substring matching or AI adjudication is used. Original .3 daily schedules, saved rounds, 1,000-point rewards and event signatures remain supported. All 99 active prompts remain; no schema migration is required.
+
+## Automatic anonymous reporting — November 25, 2026
+
+New game results are recorded automatically without a sharing switch. Only canonical answers/skips and game metadata are reported; no arbitrary guesses, private reflections, names, emails or persistent player identity. Existing question scores and bank versions are unchanged. Recorded percentages describe captured answer choices, not unique people, population rarity or theology. Existing unshared saved results are not backfilled; older opted-in retries remain idempotent. Local reset clears saved progress and pending reports, not previously recorded statistics.

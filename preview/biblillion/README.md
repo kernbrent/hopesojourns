@@ -10,17 +10,18 @@ The bank has 99 active prompts and 286 archived prompts (385 total), with review
 
 Bible answers have Scripture support; geography and care answers have clearly labeled background sources and original notes. friendly-bank.js and mission-bank.js define regular prompts; country-areas.js snapshots UN M49 country/area data. The free starting clue supplies one familiar answer. Community and belonging accept job, church and family for 35 while existing specific discoveries retain their higher points. Care-only possessives and everyday phrases count as equivalent wording; negative phrases are not typo-corrected into positive answers. Adding words alone does not earn more points. Unknown wording may still be valid. Staff can select regular/all/archived questions; non-Scripture devotional starters require a Bible passage chosen by the editor. See docs/content/biblillion-question-review.md for verification. The 35/50/65/85/100 point bands are editorial familiarity estimates within a prompt, not measured popularity or spiritual importance. Every prompt has a featured 100-point discovery. Add precise scope, accepted answers, references and collision-free aliases before changing a bank; bump BANK_VERSION when answers or scores change.
 
-## Optional insights
+## Automatic anonymous statistics
 
-Anonymous sharing is optional and initially off. Only canonical answers/skips, correction flags and round/destination metadata are sent; no raw guesses, names, email or persistent player ID. Opt-out clears queued events. Test-only Worker routes validate consent, daily selection and canonical points. Migration 0074 provides idempotent events, aggregates, round summaries, hashed hourly rate counters and private devotional drafts. Detailed answers expire after 180 days; anonymous summaries/aggregates remain.
+Every new answer, skip and timeout is reported automatically without a sharing toggle or account. Payloads contain canonical results and round/destination metadata, with random event/round IDs; no raw guesses, names, emails, reflections or persistent player identity. reportingVersion=2026-11-25.auto1 identifies new reports without fabricating a consent choice. Existing opted-in queued payloads retain their original shape/signature. A bounded queue retries idempotently after connectivity returns; fetch omits credentials and uses keepalive. Clearing progress aborts pending requests and drops queued reports while preserving already recorded anonymous statistics; new play still reports automatically. Earlier unshared answers are not backfilled. Existing migrations 0074/0075 suffice. Detailed answers expire after 180 days; anonymous summaries/aggregates remain.
 
-In test MMT, People & ministry > Biblillion insights requires Contacts read. Contacts edit permits private drafts. Staff can filter trends, inspect the bank, review recent anonymous rounds and download editable devotional starters. Saving never publishes or emails. Review Scripture and interpretation before use. Choice percentages reflect opted-in answers only and never automatically alter editorial scores.
+In test MMT, People & ministry > Biblillion insights requires Contacts read. Contacts edit permits private drafts. Staff can filter trends, inspect the bank, review recent anonymous rounds and download editable devotional starters. Saving never publishes or emails. Review Scripture and interpretation before use. Choice percentages reflect recorded answers only and never automatically alter editorial scores.
 
 ## Local checks
 
 Use bundled Node. Set BIBLILLION_PREVIEW_PORT=4196 and run tools/start-referral-preview.cjs for the isolated fixture server. Open http://localhost:4196/biblillion/ and http://localhost:4196/admin/biblillion/. External providers are blocked; never upload the fixture database.
 
-- node --test tools/biblillion.test.mjs
+- node --test tools/biblillion.test.mjs tools/biblillion-analytics.test.mjs
+- node tools/check-biblillion-automatic.cjs: offline recovery, duplicate prevention, reset and automatically recorded MMT totals.
 - node tools/check-biblillion-common.cjs: practical/relational answer scores, step labels, mandatory timer controls and regular/archive library.
 - Worker: npm test -- --run, type/environment checks and test dry deployment.
 - node tools/check-biblillion-passport.cjs: game, resume, spelling, stamps, celebration, consent, MMT drafts and mobile layouts.
