@@ -32,6 +32,14 @@ The canonical color definitions live at the top of `styles.css` in the `:root` b
 | `--coral-wash` | Coral wash | `#FFF0EA` | `rgb(255, 240, 234)` | Error and coral-tinted surfaces |
 | `--coral-soft` | Soft coral | `#F4D1C3` | `rgb(244, 209, 195)` | Illustrated accents |
 
+## Passport illustration
+
+| Token | Name | HEX | RGB | Primary use |
+|---|---|---:|---:|---|
+| `--passport-navy` | Passport navy | `#192F4D` | `rgb(25, 47, 77)` | Biblillion American-style cover, visa engraving and number watermarks |
+
+`--passport-navy-rgb` supplies matching transparency channels. This deep blue gives the American passport illustration its recognizable cover; forest is green, functional information blue is brighter, and the existing partner navy belongs to God's Kitchen. Gold and cream reuse the shared palette.
+
 ## Functional colors
 
 These colors are intentionally distinct because they communicate system status. They should not be used decoratively.

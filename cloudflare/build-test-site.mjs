@@ -91,7 +91,7 @@ if (biblillionTest) {
   const gameDirectory = path.join(outputDirectory, 'biblillion');
   await mkdir(gameDirectory, {recursive: true});
   // Copy runtime assets only; never publish the source README or local tooling.
-  for (const file of ['index.html', 'game.css', 'game.js', 'content.js', 'engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js','general-bank.js','question-settings.js','rewards.js','timer.js','passport.css']) {
+  for (const file of ['index.html', 'game.css', 'game.js', 'content.js', 'engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js','general-bank.js','question-settings.js','rewards.js','timer.js','passport.css','friendly-bank.js','mission-bank.js','country-areas.js']) {
     const source = path.join(repositoryRoot, 'preview/biblillion', file);
     if (file === 'index.html') {
       const html = (await readFile(source, 'utf8'))
@@ -104,14 +104,14 @@ if (biblillionTest) {
   const sharedScript = await readFile(scriptPath, 'utf8');
   const menuAnchor = '<a href="/mission-journey/">Mission Journey walkthrough</a>';
   if (!sharedScript.includes(menuAnchor)) throw new Error('Resources menu anchor missing.');
-  await writeFile(scriptPath, sharedScript.replace(menuAnchor, menuAnchor+'\n            <a href="/biblillion/">Biblillion Bible game</a>'));
+  await writeFile(scriptPath, sharedScript.replace(menuAnchor, menuAnchor+'\n            <a href="/biblillion/">Biblillion discovery game</a>'));
   async function reviseCache(directory) {
     for (const entry of await readdir(directory, {withFileTypes:true})) {
       const location = path.join(directory, entry.name);
       if (entry.isDirectory()) await reviseCache(location);
       else if (entry.name.endsWith('.html')) {
         const html = await readFile(location, 'utf8');
-        await writeFile(location, html.replace(/\/script\.js\?v=[^"']+/g, '/script.js?v=2026-11-25.biblillion-passport2').replace(/\/admin\/mmt-navigation\.js\?v=[^"']+/g,'/admin/mmt-navigation.js?v=2026-11-25.biblillion-passport2').replace(/\/admin\/mmt-session\.js\?v=[^"']+/g,'/admin/mmt-session.js?v=2026-11-25.biblillion-passport2'));
+        await writeFile(location, html.replace(/\/script\.js\?v=[^"']+/g, '/script.js?v=2026-11-25.biblillion-common1').replace(/\/admin\/mmt-navigation\.js\?v=[^"']+/g,'/admin/mmt-navigation.js?v=2026-11-25.biblillion-common1').replace(/\/admin\/mmt-session\.js\?v=[^"']+/g,'/admin/mmt-session.js?v=2026-11-25.biblillion-common1'));
       }
     }
   }

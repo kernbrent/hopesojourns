@@ -4,6 +4,6 @@ export const ARRIVAL_TIERS=[
  {min:450,id:'priority',title:'Priority boarding!',bonus:100,icon:'✧',motion:'confetti',message:'You are first in line for a new discovery. Your destination is calling.'},
  {min:300,id:'on-time',title:'Right on schedule.',bonus:50,icon:'↗',motion:'flight',message:'A smooth connection and a fresh horizon. Bring what you learned along for the journey.'},
  {min:175,id:'connection',title:'Connection made!',bonus:25,icon:'➜',motion:'footsteps',message:'A quick dash through the terminal and you made it. There is always another discovery ahead.'},
- {min:0,id:'layover',title:'Unexpected layover.',bonus:0,icon:'◷',motion:'layover',message:'A little extra time to explore. Grab a window seat, revisit a discovery, and try another practice flight.'}
+ {min:0,id:'layover',title:'Unexpected layover.',bonus:0,icon:'◷',motion:'layover',message:'You arrived after an unexpected layover. Take a breath, revisit a discovery, and try another practice flight.'}
 ];
 export const arrivalForPoints=points=>ARRIVAL_TIERS.find(t=>points>=t.min);

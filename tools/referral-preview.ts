@@ -31,7 +31,7 @@ createServer(async(req,res)=>{try{
  if(!['GET','HEAD'].includes(req.method||'GET')){res.writeHead(405);res.end();return;}
  let relative=route.replace(/^\//,'')||'index.html';
  if(relative==='biblillion/'||relative.startsWith('biblillion/'))relative='preview/'+relative;
- const gameAsset=/^preview\/biblillion\/(?:index\.html|game\.(?:js|css)|content\.js|engine\.js|expanded-bank\.js|destinations\.js|analytics\.js|passport\.(?:js|css)|general-bank\.js|question-settings\.js|rewards\.js|timer\.js)?$/.test(relative);
+ const gameAsset=/^preview\/biblillion\/(?:index\.html|game\.(?:js|css)|content\.js|engine\.js|expanded-bank\.js|destinations\.js|analytics\.js|passport\.(?:js|css)|general-bank\.js|question-settings\.js|friendly-bank\.js|mission-bank\.js|country-areas\.js|rewards\.js|timer\.js)?$/.test(relative);
  if(!entries.has(relative.split('/')[0])&&!previewFiles.has(relative)&&!gameAsset)throw Error();
  let file=path.resolve(root,relative);if(path.relative(root,file).startsWith('..')||path.isAbsolute(path.relative(root,file)))throw Error();
  if(statSync(file).isDirectory())file=path.join(file,'index.html');if(!mime[path.extname(file)])throw Error();

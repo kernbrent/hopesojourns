@@ -54,6 +54,10 @@
   --error: #8f3030;           /* rgb(143, 48, 48) */
   --error-rgb: 143, 48, 48;
 
+  /* American-style Biblillion passport cover and visa-page engraving */
+  --passport-navy: #192f4d;   /* rgb(25, 47, 77): deep passport blue */
+  --passport-navy-rgb: 25, 47, 77;
+
   /* God’s Kitchen partner identity, sampled from its ministry briefing */
   --gods-kitchen-blue: #24497b; /* rgb(36, 73, 123): partner navy */
   --gods-kitchen-blue-rgb: 36, 73, 123;
