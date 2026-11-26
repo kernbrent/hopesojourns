@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.132
+Version 4.133
 
 Last reviewed: November 25, 2026
 
@@ -1029,7 +1029,11 @@ Every finished round receives one travel moment: Unexpected layover (0–174 ans
 
 MMT insights uses existing shared components. Label Common knowledge or Archived status and topic. The Question library filter defaults to regular prompts, with All and Archive options. Preserve archived difficulty labels and distinguish a timeout from a voluntary skip. Counts are opted-in rounds, not people. Observed choice percentages do not change editorial rarity scores. Devotional starters remain private drafts with review-before-use reminders. Non-Scripture sources use a Background source label; the church-family directory remains clearly identified. Devotional starters from these prompts require a Bible passage selected by the editor.
 
+Touch navigation behavior: Resources uses a native disclosure and native destination links. An iPhone-style focus transition may have no next focused element; preserve the visible submenu until the tapped link receives its click. Continue to close on a real outside focus target, an outside tap, Escape or a completed link click. Keyboard navigation must remain usable, and opening a resource must not require a second tap. Verify actual touch input in WebKit emulation as well as desktop pointer checks.
+
 ## Revision history
+
+- November 25, 2026 — Version 4.133. Documented iPhone Resources tap behavior while preserving disclosure appearance and keyboard/outside closing. Authorized test-only release after validation.
 
 - November 25, 2026 — Version 4.132. Clarified broad-answer acceptance alongside higher-scoring specific discoveries and equivalent wording. Local review; release requires approval.
 

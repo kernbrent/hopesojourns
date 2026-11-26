@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.43
+Version 5.44
 
 Last reviewed: November 25, 2026
 
@@ -1536,7 +1536,17 @@ node cloudflare/build-test-site.mjs --biblillion-test creates isolated site-dist
 
 For local integration review, set BIBLILLION_PREVIEW_PORT=4196 and run tools/start-referral-preview.cjs with bundled Node. Open http://localhost:4196/biblillion/ and http://localhost:4196/admin/biblillion/. This fixture blocks external providers; never upload its database. Run node --test tools/biblillion.test.mjs, tools/check-biblillion-fun.cjs (clock, stamps, every travel tier, reduced motion and mobile), tools/check-biblillion-passport.cjs (game-to-MMT/draft flow), tools/check-biblillion-test-release.cjs (exact artifact/navigation), Worker tests/type checks/environment isolation/dry builds, normal/test build exclusion checks and Check-Color-Palette.ps1.
 
+## Resources navigation on iPhone
+
+The shared script.js focusout handler closes Resources only when relatedTarget is a non-null element outside the disclosure. In WebKit iPhone-style touch tests, tapping a submenu link blurs the summary with relatedTarget=null; immediately closing the disclosure removes the link from hit testing before mouseup/click, so navigation never occurs. Keep it visible for that focus transition. Existing document outside-click, Escape and link-click handlers still close the menus; a keyboard Tab to a real outside element also closes Resources. Do not replace native link navigation with a scripted location redirect.
+
+The test builder uses the biblillion-safari1 script cache revision so returning visitors fetch the corrected shared handler. Biblillion remains test-only. No Worker or schema change is required for this fix.
+
+Run tools/check-resources-navigation.cjs against the test artifact on localhost:4195. Set PLAYWRIGHT_BROWSERS_PATH to the checkout's .tmp/playwright-browsers and install the official Playwright WebKit browser there using the bundled runtime/package CLI if absent. --regression-proof restores the old handler only inside an isolated request interception and asserts the lost tap, then tests the real fixed artifact. Coverage includes WebKit iPhone emulation at 375/390/430 pixels, homepage/About entry, keyboard Tab/Escape, outside click, All resources and Chromium Android taps. Set HS_NAV_ORIGIN=https://test.hopesojourns.com for post-release verification. WebKit emulation is not a physical iPhone test. Research: Apple's Safari Web Content Guide, Handling Events, https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/HandlingEvents/HandlingEvents.html .
+
 ## Revision history
+
+- November 25, 2026 — Version 5.44. Corrected Resources focus-loss handling for iPhone-style taps, added WebKit regression checks and revised test script caching. Authorized commit, push and test-only release after validation.
 
 - November 25, 2026 — Version 5.43. Added broad community answers, care-phrase normalization and negation protection while preserving narrow scores and prior-bank progress. Local review; release requires approval.
 

@@ -126,7 +126,8 @@ resourceNavigation?.addEventListener("keydown", event => {
   event.stopPropagation();
 });
 resourceNavigation?.addEventListener("focusout", event => {
-  if (!resourceNavigation.contains(event.relatedTarget)) closeResourceNavigation();
+  // Safari may blur the summary without focusing a tapped link. Keep it visible until click.
+  if (event.relatedTarget && !resourceNavigation.contains(event.relatedTarget)) closeResourceNavigation();
 });
 toggle?.addEventListener("click", () => {
   const open = toggle.getAttribute("aria-expanded") === "true";
