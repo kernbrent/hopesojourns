@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.131
+Version 4.132
 
 Last reviewed: November 25, 2026
 
@@ -1019,6 +1019,8 @@ Inside, the visa page has a subtle engraved background, a page heading and seven
 
 Frame Biblillion as common-knowledge discovery: “Start with the obvious. Discover the unexpected.” Every regular round has three approachable Bible/faith, two geography/travel and two everyday-life/care prompts. Reward familiar answers with stamps and unexpected ideas with higher editorial points. Most prompts offer 10 or more distinct responses and care prompts offer at least 20; synonyms count without inflating the displayed choices. Offer a free familiar starting answer. Scores describe game familiarity, never spiritual maturity, objective human worth or measured population percentages. Care and exploitation-awareness language emphasizes dignity, choice and listening; it must not diagnose a person or sensationalize their circumstances. The countdown starts at 25 seconds and uses text and color for its final ten seconds. Do not flash or use a ticking sound. The 25-second limit is mandatory: omit pace choices and timer-off controls. Pause for hidden tabs and open help/privacy dialogs, and preserve remaining time on return. Expiry earns no points or stamp. Timeouts reveal a discovery rather than shaming the player.
 
+Keep broad and narrow answers together. A familiar answer such as job, church or family can earn a 35-point stamp; a specific less-obvious idea such as having a role or being asked for an opinion can earn 100. Accept ordinary equivalent wording without requiring the player's phrase to match the displayed answer exactly. Do not award extra points merely for adding words. Keep the reveal's canonical wording and score clear.
+
 Keep the seven journey-step labels visible alongside the passport: Listen, Learn, Pray, Notice, Care, Serve and Arrive. Highlight the current step. Each destination stamp also carries its corresponding label, for example GREECE 1 with LISTEN · JOURNEY STEP beneath the date. These labels track progress through the seven questions, including missed questions; they do not create outlined stamp spaces on the visa page.
 
 Everyone reaches the chosen destination after all seven questions, including players who miss every question. Misses earn no points or stamp; the final answer score determines the travel tier and may mean an unexpected layover. The arrival summary and celebration both confirm that the player reached the destination.
@@ -1028,6 +1030,8 @@ Every finished round receives one travel moment: Unexpected layover (0–174 ans
 MMT insights uses existing shared components. Label Common knowledge or Archived status and topic. The Question library filter defaults to regular prompts, with All and Archive options. Preserve archived difficulty labels and distinguish a timeout from a voluntary skip. Counts are opted-in rounds, not people. Observed choice percentages do not change editorial rarity scores. Devotional starters remain private drafts with review-before-use reminders. Non-Scripture sources use a Background source label; the church-family directory remains clearly identified. Devotional starters from these prompts require a Bible passage selected by the editor.
 
 ## Revision history
+
+- November 25, 2026 — Version 4.132. Clarified broad-answer acceptance alongside higher-scoring specific discoveries and equivalent wording. Local review; release requires approval.
 
 - November 25, 2026 — Version 4.131. Added the American-style passport and stamp-over-watermark treatment, common-knowledge voice, broad answer choices, familiar clue, mandatory 25-second timer and archive/source labels. Local review; release requires approval.
 

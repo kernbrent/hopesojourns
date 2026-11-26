@@ -1,9 +1,10 @@
-import {QUESTIONS, BANK_VERSION,LEGACY_BANK_VERSION,PREVIOUS_BANK_VERSION,SUPPORTED_BANKS,BALANCED_BANK_VERSION,PLAYABLE_QUESTIONS,REWARD_BANKS} from './content.js';
+import {QUESTIONS, BANK_VERSION,LEGACY_BANK_VERSION,PREVIOUS_BANK_VERSION,SUPPORTED_BANKS,BALANCED_BANK_VERSION,PLAYABLE_QUESTIONS,REWARD_BANKS,COMMON_BANKS} from './content.js';
 import {QUESTION_MS} from './timer.js';
 import {arrivalForPoints} from './rewards.js';
 export const STORAGE_KEY='hs-biblillion-v1';
 export const normalize=value=>String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-const phraseInput=(question,input)=>question.acceptPhrases?String(input).trim().replace(/^(?:(?:a|an|the|some|having|access to|being able to|to have)\s+)+/i,''):input;
+const hasNegation=value=>/\b(?:no|not|never|without|don’t|don't|doesn’t|doesn't|isn’t|isn't)\b/i.test(String(value));
+const phraseInput=(question,input)=>question.acceptPhrases?String(input).trim().replace(/^(?:(?:a|an|the|some|my|our|your|their|having|I have|we have|being with|spending time with|access to|being able to|to have)\s+)+/i,''):input;
 export function matchAnswer(question,input){
  const key=normalize(phraseInput(question,input));if(!key)return null;
  return question.answers.find(a=>[a.name,...a.aliases].some(alias=>normalize(phraseInput(question,alias))===key))||null;
@@ -20,7 +21,7 @@ export function spellingDistance(a,b){
 export function resolveAnswer(question,input){
  const exact=matchAnswer(question,input);if(exact)return {answer:exact,corrected:false,candidates:[]};
  const key=normalize(phraseInput(question,input));if(key.length<4||key.length>100)return {answer:null,corrected:false,candidates:[]};
- const ranked=question.answers.map(answer=>({answer,distance:Math.min(...[answer.name,...answer.aliases].map(alias=>spellingDistance(key,normalize(alias))))})).sort((a,b)=>a.distance-b.distance);
+ const ranked=question.answers.map(answer=>({answer,distance:Math.min(...[answer.name,...answer.aliases].map(alias=>question.acceptPhrases&&hasNegation(input)!==hasNegation(alias)?Infinity:spellingDistance(key,normalize(phraseInput(question,alias)))))})).sort((a,b)=>a.distance-b.distance);
  const best=ranked[0],limit=key.length>=8?2:1;
  if(!best||best.distance>limit)return {answer:null,corrected:false,candidates:[]};
  const close=ranked.filter(x=>x.distance<=limit&&x.distance<=best.distance+1);
@@ -64,7 +65,7 @@ function commonDeck(seed,avoid=[]){
 export const roundQuestions=seed=>commonDeck(seed).slice(0,7);
 export const CYCLE_DAYS=14;
 function dayIndex(key){const d=new Date(key+'T00:00:00Z');if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==key)throw Error('Invalid game date');return Math.floor((d.getTime()-Date.UTC(2026,10,25))/86400000);}
-export function dailyQuestions(key){const day=dayIndex(key),cycle=Math.floor(day/CYCLE_DAYS),slot=((day%CYCLE_DAYS)+CYCLE_DAYS)%CYCLE_DAYS,seed=`common:${BANK_VERSION}:`;const previous=commonDeck(seed+(cycle-1)).slice(-7).map(q=>q.id);return commonDeck(seed+cycle,previous).slice(slot*7,slot*7+7);}
+export function dailyQuestions(key,version=BANK_VERSION){const day=dayIndex(key),cycle=Math.floor(day/CYCLE_DAYS),slot=((day%CYCLE_DAYS)+CYCLE_DAYS)%CYCLE_DAYS,seed=`common:${version}:`;const previous=commonDeck(seed+(cycle-1)).slice(-7).map(q=>q.id);return commonDeck(seed+cycle,previous).slice(slot*7,slot*7+7);}
 function balancedDaily(key){const day=dayIndex(key),cycle=Math.floor(day/20),slot=((day%20)+20)%20;return balancedDeck(`schedule:${BALANCED_BANK_VERSION}:${cycle}`,balancedDeck(`schedule:${BALANCED_BANK_VERSION}:${cycle-1}`).slice(-7).map(q=>q.id)).slice(slot*7,slot*7+7);}
 function previousDaily(key){
  const day=Math.floor((new Date(key+'T00:00:00Z').getTime()-Date.UTC(2026,10,25))/86400000),cycle=Math.floor(day/30),slot=((day%30)+30)%30;
@@ -75,13 +76,13 @@ function previousDaily(key){
  }
  return deck.slice(slot*7,slot*7+7);
 }
-export function expectedDaily(key,version){if(version===LEGACY_BANK_VERSION)return shuffled(`daily:${key}:${LEGACY_BANK_VERSION}`,QUESTIONS.slice(0,14)).slice(0,7);if(version===PREVIOUS_BANK_VERSION)return previousDaily(key);if(version===BALANCED_BANK_VERSION)return balancedDaily(key);return dailyQuestions(key);}
+export function expectedDaily(key,version){if(version===LEGACY_BANK_VERSION)return shuffled(`daily:${key}:${LEGACY_BANK_VERSION}`,QUESTIONS.slice(0,14)).slice(0,7);if(version===PREVIOUS_BANK_VERSION)return previousDaily(key);if(version===BALANCED_BANK_VERSION)return balancedDaily(key);return dailyQuestions(key,version);}
 export function newRound(mode='daily',key=dateKey(),nonce=''){
  const seed=mode==='daily'?`daily:${key}:${BANK_VERSION}`:`practice:${nonce}:${BANK_VERSION}`;
  return {version:BANK_VERSION,mode,key,ids:(mode==='daily'?dailyQuestions(key):roundQuestions(seed)).map(q=>q.id),results:[],index:0,timingMode:'timed'};
 }
 export function restoreRound(value){
- if(!value||!SUPPORTED_BANKS.includes(value.version)||!['daily','practice'].includes(value.mode)||!/^\d{4}-\d{2}-\d{2}$/.test(value.key)||!Array.isArray(value.ids)||value.ids.length!==7||new Set(value.ids).size!==7||!value.ids.every(id=>QUESTIONS.slice(0,value.version===LEGACY_BANK_VERSION?14:value.version===PREVIOUS_BANK_VERSION?210:value.version===BALANCED_BANK_VERSION?286:QUESTIONS.length).some(q=>q.id===id&&(value.version!==BANK_VERSION||q.active)))||!Array.isArray(value.results)||value.results.length>7)return null;
+ if(!value||!SUPPORTED_BANKS.includes(value.version)||!['daily','practice'].includes(value.mode)||!/^\d{4}-\d{2}-\d{2}$/.test(value.key)||!Array.isArray(value.ids)||value.ids.length!==7||new Set(value.ids).size!==7||!value.ids.every(id=>QUESTIONS.slice(0,value.version===LEGACY_BANK_VERSION?14:value.version===PREVIOUS_BANK_VERSION?210:value.version===BALANCED_BANK_VERSION?286:QUESTIONS.length).some(q=>q.id===id&&(!COMMON_BANKS.includes(value.version)||q.active)))||!Array.isArray(value.results)||value.results.length>7)return null;
  try{if(value.mode==='daily'&&JSON.stringify(value.ids)!==JSON.stringify(expectedDaily(value.key,value.version).map(q=>q.id)))return null;}catch{return null;}
  const results=[];for(let i=0;i<value.results.length;i++){
   const r=value.results[i],q=QUESTIONS.find(q=>q.id===value.ids[i]);

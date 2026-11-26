@@ -11,3 +11,6 @@ export const tierFor:(points:number)=>{min:number;name:string;mark:string;descri
 export const PLAYABLE_QUESTIONS:Question[];
 export const BALANCED_BANK_VERSION:string;
 export const REWARD_BANKS:string[];
+
+export const PREVIOUS_COMMON_BANK_VERSION:string;
+export const COMMON_BANKS:string[];

@@ -1,6 +1,6 @@
 import {AdminError,adminJson,authenticate,auditStatement,readAdminJson,type AdminEnv} from './admin';
 import {can} from './mmt-permissions';
-import {QUESTIONS,BANK_VERSION,LEGACY_BANK_VERSION,PREVIOUS_BANK_VERSION,SUPPORTED_BANKS,BALANCED_BANK_VERSION,REWARD_BANKS} from '../../../preview/biblillion/content.js';
+import {QUESTIONS,BANK_VERSION,LEGACY_BANK_VERSION,PREVIOUS_BANK_VERSION,SUPPORTED_BANKS,BALANCED_BANK_VERSION,REWARD_BANKS,COMMON_BANKS} from '../../../preview/biblillion/content.js';
 import {expectedDaily,dateKey} from '../../../preview/biblillion/engine.js';
 import {ARRIVAL_TIERS} from '../../../preview/biblillion/rewards.js';
 import {DESTINATIONS} from '../../../preview/biblillion/destinations.js';
@@ -25,7 +25,7 @@ export async function handleBiblillion(request:Request,env:AdminEnv,path:string)
    if(!UUID.test(id)||!UUID.test(roundId)||!SUPPORTED_BANKS.includes(version)||!['daily','practice'].includes(mode)||!DESTINATIONS.some(d=>d.id===destination)||!Number.isInteger(b.slot)||Number(b.slot)<0||Number(b.slot)>6||typeof b.skipped!=='boolean'||typeof b.corrected!=='boolean'||b.timedOut!==undefined&&typeof b.timedOut!=='boolean'||b.timedOut===true&&(!b.skipped||b.corrected))throw new AdminError(422,'RESULT','Check this game result.');
    const parsed=new Date(day+'T00:00:00Z');if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==day||day<'2026-11-24'||day>dateKey(new Date(Date.now()+86400000)))throw new AdminError(422,'DAY','Invalid round date.');
    const question=QUESTIONS.find(q=>q.id===questionId),answer=question?.answers.find(a=>a.name===b.answer);
-   if(!question||(version===BANK_VERSION&&!question.active)||(version!==BANK_VERSION&&!QUESTIONS.slice(0,version===LEGACY_BANK_VERSION?14:version===PREVIOUS_BANK_VERSION?210:286).includes(question))||(b.skipped?(b.answer!==null||b.corrected):!answer))throw new AdminError(422,'ANSWER','Use a reviewed answer or a skip.');
+   if(!question||(COMMON_BANKS.includes(version)&&!question.active)||(!COMMON_BANKS.includes(version)&&!QUESTIONS.slice(0,version===LEGACY_BANK_VERSION?14:version===PREVIOUS_BANK_VERSION?210:286).includes(question))||(b.skipped?(b.answer!==null||b.corrected):!answer))throw new AdminError(422,'ANSWER','Use a reviewed answer or a skip.');
    if(mode==='daily'&&expectedDaily(day,version)[Number(b.slot)].id!==questionId)throw new AdminError(422,'SCHEDULE','This question does not belong in that daily slot.');
    const points=b.skipped?0:answer!.points,signature=await hash(JSON.stringify({roundId,version,day,mode,destination,slot:Number(b.slot),questionId,answer:b.skipped?null:answer!.name,skipped:b.skipped,corrected:b.corrected,points,consent:CONSENT,...(REWARD_BANKS.includes(version)?{timedOut:b.timedOut===true}:{})}));
    const prior=await env.DB.prepare('SELECT request_hash FROM biblillion_results WHERE id=?').bind(id).first<{request_hash:string}>();

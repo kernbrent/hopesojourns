@@ -5,12 +5,14 @@ import {makeGeneralQuestions} from './general-bank.js';
 import {makeFriendlyBibleQuestions} from './friendly-bank.js';
 import {makeMissionQuestions} from './mission-bank.js';
 import {withDifficulty} from './question-settings.js';
-export const BANK_VERSION = '2026-11-25.3';
+export const BANK_VERSION = '2026-11-25.4';
+export const PREVIOUS_COMMON_BANK_VERSION='2026-11-25.3';
+export const COMMON_BANKS=[BANK_VERSION,PREVIOUS_COMMON_BANK_VERSION];
 export const BALANCED_BANK_VERSION='2026-11-25.2';
-export const REWARD_BANKS=[BANK_VERSION,BALANCED_BANK_VERSION];
+export const REWARD_BANKS=[...COMMON_BANKS,BALANCED_BANK_VERSION];
 export const PREVIOUS_BANK_VERSION = '2026-11-25.1';
 export const LEGACY_BANK_VERSION = '2026-11-24.1';
-export const SUPPORTED_BANKS=[BANK_VERSION,BALANCED_BANK_VERSION,PREVIOUS_BANK_VERSION,LEGACY_BANK_VERSION];
+export const SUPPORTED_BANKS=[...COMMON_BANKS,BALANCED_BANK_VERSION,PREVIOUS_BANK_VERSION,LEGACY_BANK_VERSION];
 const a = (name, points, ref, note, aliases = []) => ({name, points, ref, note, aliases});
 const q = (id, category, prompt, scope, hint, answers) => ({id, category, prompt, scope, hint, answers});
 const ORIGINAL_QUESTIONS = [

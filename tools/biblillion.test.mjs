@@ -87,3 +87,12 @@ test('saved balanced-bank passports retain their schedule and travel bonus',()=>
 test('saved untimed and earlier rounds resume with the mandatory 25-second timer',()=>{const r=newRound('practice','2026-11-25','mandatory');r.timingMode='untimed';assert.equal(restoreRound(r).timingMode,'timed');r.clock={slot:0,remainingMs:4300};assert.equal(restoreRound(r).clock.remainingMs,4300);});
 
 test('each destination stamp carries its corresponding journey-step label',async()=>{const {JOURNEY_STEPS,stampMarkup}=await import('../preview/biblillion/passport.js');assert.deepEqual(JOURNEY_STEPS,['Listen','Learn','Pray','Notice','Care','Serve','Arrive']);for(let i=0;i<7;i++){const svg=stampMarkup({id:'athens'},i,'2026-11-25',s=>s);assert.ok(svg.includes('GREECE '+(i+1)));assert.ok(svg.includes(JOURNEY_STEPS[i].toUpperCase()+' · JOURNEY STEP'));}});
+
+test('community and belonging accept broad ideas without replacing higher-scoring specific discoveries',()=>{
+ for(const id of ['mission-community','mission-belonging']){const q=QUESTIONS.find(q=>q.id===id);for(const typed of ['job','a job','having a job','work','my work','church','a church','going to church','my family','our family','family','friends','my friends','neighbors','a club','team','school'])assert.equal(matchAnswer(q,typed)?.points,35,id+': '+typed);
+ for(const typed of ['not family','no church','I do not have a job','banana','jobless'])assert.equal(resolveAnswer(q,typed).answer,null,typed);
+ assert.equal(resolveAnswer(q,'my famliy').answer?.name,'Family');}
+ const q=QUESTIONS.find(q=>q.id==='mission-community');for(const typed of ['having a role','a meaningful role','being asked for your opinion','having a say'])assert.equal(matchAnswer(q,typed)?.points,100,typed);
+ const b=QUESTIONS.find(q=>q.id==='mission-belonging');for(const typed of ['having my name remembered','being invited to contribute','a meaningful role'])assert.equal(matchAnswer(b,typed)?.points,100,typed);
+});
+test('care-only wording normalization does not relax factual Bible scopes',()=>{assert.equal(matchAnswer(QUESTIONS.find(q=>q.id==='friendly-city'),'my Jerusalem'),null);assert.equal(matchAnswer(QUESTIONS.find(q=>q.id==='apostles'),'my James'),null);});
