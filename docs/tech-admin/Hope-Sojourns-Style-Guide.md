@@ -1,8 +1,286 @@
 # Hope Sojourns website style guide
 
-Version 4.10
+Version 4.134
 
-Last reviewed: September 23, 2026
+Last reviewed: November 25, 2026
+
+Prayer Portal gender selectors offer exactly Male, Female and Prefer not to say. Prefer not to say is the default for access requests and for profiles with no current selection. Resource gender-audience controls use the same three labels. Keep this profile information private.
+
+## Public Mission Journey walkthrough invitations
+
+One Step Beyond is the public /mission-journey/ experience. Keep its five story chapters, five discovery stamps and seven preparation days in the shared forest, paper, sage and gold palette. The live outline form keeps email delivery and optional profile sharing separate and unchecked. Show actual delivery state: accepted for delivery, test capture, or saved with delivery unconfirmed. Never present a capture as sent or a self-reported email as verified identity.
+
+Use the label Try the Mission Journey walkthrough on the homepage, Interest and About Us invitations, and on public trip and destination pages. Put Mission Journey walkthrough near the top of the Resources menu. Describe it explicitly as a five-minute walkthrough to consider service, concerns and a next step. Invitations use a contained forest-wash section with the existing heading and button hierarchy, preserving each page’s primary content. The shared destination renderer and dated-trip template retain this invitation for future pages. Avoid a second invitation when dynamic destination content reloads.
+
+MMT Visitor insights includes Mission preparation requests. Display supplied details, consent version, contact permission and outline-delivery state. Clearly label unverified identity, avoid scores or private reflection content, and offer Mark reviewed and guarded retry controls to authorized Contacts editors.
+
+## Interest referral source and homepage walkthrough preview
+
+The I’m Interested form asks How did you hear about us? as an optional seven-choice dropdown. Reveal one optional follow-up whose label matches the selected source: Who may we thank?, Which church or ministry?, Which platform or account?, What did you search for?, Which event or presentation?, or Tell us a little more. Clear the follow-up when the source changes and disable it when the source is blank. Use the existing form input typography, 49-pixel height, forest borders and gold focus styling for selects; inset the chevron and retain a visible label and associated errors. Limit follow-up text to 240 characters.
+
+MMT presents the supplied source and detail as readable text in inquiry details and duplicate review. Contact profiles show dated How they heard about us entries, earliest first, with Open source inquiry controls. Use existing contact cards and text rendering; later inquiries must preserve earlier attribution.
+
+The local homepage concept adds one contained forest-wash invitation just above Upcoming journeys. Lead with A five-minute walkthrough and Could a Mission Journey be your next step?, followed by a concrete explanation and Try the Mission Journey walkthrough. The hero, main navigation and broader service offerings retain their existing roles. The homepage invitation is injected only by the local preview server; it is not a change to the canonical homepage or public build.
+
+## Mission Journey local prototype
+
+The isolated /preview/one-step-beyond/ experience pairs five story chapters with seven preparation days. Use the shared forest, paper, gold and sage tokens, Georgia display headings, generous choice rows and a responsive passport rail. Passport stamps recognize exploration and reflection; do not score spiritual maturity or claim to determine calling. Keep the fictional encounter explicitly labeled. Each preparation day presents a Scripture reference and external reading link, an original devotional, a prayer, a small practice and an optional browser-private reflection. All days remain available without streak penalties. Use native progress bars, pressed choice states, visible focus, text feedback and 44-pixel controls. Email and optional MMT profile sharing are separate unchecked choices; label local previews clearly and never imply delivery. No public navigation or shared styles changed.
+
+The Prayer Challenge is a full-member Prayer Portal workspace using the shared forest, paper, gold and success tokens. Present one question at a time with a labeled progress bar, generous radio-choice rows, visible focus and readable explanations. Keep the Peter/Rhoda parts together and reveal neither answer until both are submitted. Use text alongside feedback colors. Do not display a running or unfinished score. The completed-round screen shows a score out of 100 and offers Continue to Round 2 or Skip for now. Two responsive leaderboard tables use chosen names, shared ranks for ties, and a clear first-completed-attempt rule. Phone layouts wrap controls without horizontal page overflow.
+
+Admin File storage uses a horizontally scrollable data table with file links, prayer/location, uploader, date, original bytes, actual stored bytes and a permanent-delete action. Largest first is the default; labeled location/type and date/size sort filters sit beside search. A summary distinguishes storage savings from original download sizes. The standard moderation dialog requires a reason and typed DELETE confirmation. Keep the universal footer disclaimer below the organization/tagline, in readable muted text: Portal administrators may remove any item for any reason. The disclaimer appears on sign-in and authenticated pages alike.
+
+Prayer wall card footers place audience and update metadata on their own full-width lines. Action buttons keep whole labels, a consistent 44 px minimum height and natural widths, wrapping as complete buttons onto additional rows. Use the shared forest/paper palette and visible keyboard focus; never shrink buttons to fit one row.
+
+## Guided visitor discovery
+
+The homepage button **Need help finding your way?** opens a native modal dialog. Show one question at a time, progress through six questions, Back and Continue controls, and a reviewable result. Use the existing forest, paper, line, and gold focus tokens; never introduce independent colors. Radio choices use spacious full-width labels and visible selection states. Keep all controls at least 44 pixels high. Support Escape, dialog focus containment, keyboard selection, and return focus to the opening button.
+
+The homepage hero grows with its content. Place the help action on its own row, with the two browsing actions below it; stack all three on phones with 12-pixel gaps. Show the service principles as plain text below the actions, without pill borders or backgrounds.
+
+The conversation introduces locally led mission journeys, internships, corporate humanitarian journeys, and support from home. Ask about purpose, gifts, companions, timing, and concerns in warm, concrete language. Offer uncertainty as a valid answer. Results suggest a path and practical resources without promising a placement or departure. Sharing is optional, unchecked, and separate from using the results. Explain anonymous storage and verified account association beside the consent control. Do not request sensitive health details. The private Visitor insights workspace uses the same palette and readable cards.
+
+## Mexico City host photography and God’s Kitchen briefing
+
+Use real host photography for Mexico City destination tiles, the destination gallery and the shared public/traveler portal introduction. Captions explain the scene and practical limitations without showing credits. Preserve each full image’s proportions; gallery images open the complete photo. Lodging and transport photos illustrate spaces rather than guaranteeing assignments. Native disclosure groups keep the complete 17-photo gallery manageable on mobile.
+
+The evergreen destination and God’s Kitchen briefing must suit repeated departures. Keep departure dates and daily times on each journey’s public page and Traveler Portal. Label every itinerary proposed and explain that activities and times can change before and during the journey. Show estimates and optional sightseeing allowances as provisional, specific to the traveler’s journey.
+
+The God’s Kitchen page retains the source’s bold condensed headings, navy/teal palette, large foundation mark, alternating panels, numbered process and scriptural emphasis inside standard Hope Sojourns navigation and footer. Define the source identity colors only in styles.css :root: --gods-kitchen-blue (#24497b; RGB 36,73,123) and --gods-kitchen-teal (#2aa7b9; RGB 42,167,185), with matching RGB channel tokens. Existing forest and functional-information colors do not match the ministry identity. COLOR-PALETTE.md records their roles. Page CSS uses these tokens and existing shared paper/ink colors.
+
+Keep headings readable on small screens, photos proportional, captions and caveats adjacent to their content, and native link/focus behavior intact. Public and traveler portal ministry links share the same destination briefing. Local changes pending release.
+
+## Prayer Portal buttons and mobile navigation
+
+Use a shared 44 px minimum button height, consistent rounded borders, centered labels and comfortable gaps throughout Prayer Portal cards, forms, reactions, admin actions, upload controls and dialogs. Keep words intact and allow complete buttons or whole words to wrap naturally; preserve primary, active, disabled, hover and keyboard-focus states using existing palette tokens. Scope desktop navigation styles to #portal-navigation so administration tabs retain their own wrapping layout.
+
+At 900 px and below, replace the sidebar with a Menu button containing a decorative hamburger icon and a visible label. It opens a left-side native dialog with a vertical navigation list, current-page highlight, existing permission-controlled entries, Close control and a dismissible backdrop. Use full-height scrolling inside the drawer. At 700 px and below, the header places the logo and Sign out on the first row, Menu and Refresh content on the second. Forms, headings and action rows wrap within the viewport; wide data tables scroll inside their own labeled regions. Desktop keeps its sidebar.
+
+## Prayer Portal collaboration and written prayers
+
+Keep the approved Prayer Portal logo and shared styles.css colors. Refresh content appears in the portal header; a status banner offers Load the update when a new build is available without interrupting an editor. Native labeled dialogs support prayer updates, comments, written prayers, version history and file uploads. Plain prayer text preserves paragraph breaks and wraps long content. Comments show author, date, a labeled heart toggle and count; their privacy follows the original prayer. Earlier versions use expandable disclosures with editor/date metadata.
+
+Written prayers has a distinct navigation item, word search and custom-tag filter. Cards show authorship, version, status, plain prayer text, clickable tags and native audio controls when a recording exists. Respect the global Expanded/Collapsed preference. Label file types and size limits near upload controls and require an explicit confirmation before permanent file/comment removal. Use published versus hidden labels to make the audience understandable. Admin accounts show expandable group membership history. Archived prayers have a visible badge and an explicit Restore to prayer wall action; active and archived filters remain separate from permanent deletion. No new color tokens or changes to the main website/MMT branding are needed.
+
+## Outreach workspace and sidebar counters
+
+The generated MMT user-guide index uses 9.5-point text, single line spacing and 2-point paragraph spacing in its two-column layout to keep navigation compact and prevent a few index lines spilling onto an otherwise empty page. Preserve readable body text and complete index entries.
+
+Outreach is a distinct People & ministry workspace. Use the existing portal shell, forest headings, paper surfaces and semantic line/error colors from styles.css; no new palette values are required. Four compact summaries precede labeled Search, Stage and Show filters. The organization/person table keeps stage, last contact, next action/date, owner and Open controls readable in a horizontal scroll region on narrow screens. Do not merge prospects into the main contact list visually or automatically.
+
+Use native labeled dialogs for detail, editing, activity logging, import review and positive-response promotion. Preserve full message text as wrapping plain text, with sender/recipient/date metadata and source links. Escape all imported text. Show Positive response separately from pipeline stage, and keep Add to Contacts an explicit action; a coffee invitation does not mean a meeting is scheduled or partnership confirmed. Show linked contacts after promotion while retaining Outreach history. Editing, Update follow-up and Log activity use descriptive controls; use a live status region for errors.
+
+Sidebar Tasks & follow-up displays an open-task numeric badge, and Inbox displays a personal unread-notice badge, including zero. Use shared paper/forest tokens, visible text and accessible count labels. Read/unread controls are independent of completed/action workflow notices. The login Remember me description distinguishes remembered username/session from browser-managed password autofill. Keep keyboard focus, native dialogs, responsive menu behavior and comfortable control sizes consistent with other MMT screens.
+
+
+## Newsletter web editions and Resources navigation
+
+The shared header presents Resources as a native disclosure dropdown. Include All resources, Newsletters, Guided readings, Collections, Articles, Sermons, Devotionals, Songs, Videos and Brochures. Support click, touch, Enter/Space, Tab, Escape, outside click and focus leaving the dropdown; keep mobile links inline within the scrollable Menu panel. Preserve an ordinary Resources link in the footer.
+
+Public newsletters use semantic HTML inside the standard site shell rather than the email table layout. The archive lives at /resources/newsletters/ and the November edition at /resources/newsletters/2026-11/. Preserve the approved newsletter text and image in full, with a forest masthead, serif editorial headings, gold rules, comfortable reading width and a responsive journey list. Use shared palette variables exclusively. Include an issue date, in-page contents, archive breadcrumb and a note distinguishing the archived invitation from current journey availability. Do not display email-only unsubscribe instructions or photo credits.
+
+## Public photo credits
+
+Never display photo credits on Hope Sojourns web pages, including destination banners. Preserve source and license records in private administrative metadata or project documentation. Choose imagery whose permitted use fits this presentation. The shared destination renderer omits image_credit; accessibility descriptions remain in place.
+
+## Phone number presentation
+
+Display US contact phone numbers as (###)###-#### in lists, complete records and edit forms using the shared phone-ui.js formatter. Preserve international numbers and extensions. The formatter must be present in each published artifact; verify its live response is JavaScript rather than the homepage fallback.
+
+## Guided story readings in Resources
+
+Guided readings use the established forest, cream, coral and gold palette with serif story headings, six numbered moments, responsive scene illustrations and explicit AI-created illustration captions. Keep standard site navigation and Resources links visible. Reflection choices are optional, keyboard accessible, announced through a live region and never saved or sent. Without JavaScript, all moments remain readable.
+
+
+## Meeting and relationship workspace
+
+Show Meeting title, When, People, Meeting notes and Next steps. Task summaries show title, Created, owner and due date. Independent down/up arrows reveal Task, Who, Due, Done and Task details. Use buttons for Open contact and Delete, with Restore under Deleted tasks. Start saved tasks collapsed and new tasks expanded; preserve keyboard focus and allow multiple open rows. Use Add task for introductions and other follow-up. Hide separate introduction stages and My action / Waiting fields. New-person chips offer an unchecked contact-details reminder. Retain similar-contact matching and explicit new-person selection.
+
+More details holds type (Coffee by default), end, all-day dates, location, outcome, restoration and earlier introduction history. Hide calendar import. Save stores edits; Finish meeting marks Held and moves the record to Past meetings, retaining open tasks. Explain that Finish also updates linked contacts’ Last Contacted date and meeting note; planned meetings do not record contact. Explain that beside the buttons; remove separate closure and retention controls.
+
+Default to compact Grid rows in Upcoming & recent: unfinished records plus finished meetings from the last 90 days. Offer Past meetings, All meetings and optional Month/Week calendar views with Sunday-first America/Chicago times. Row arrows independently expand/collapse with aria-expanded and aria-controls. Clamp summaries to two lines; expansion exposes full text. Use shared paper/forest tokens, Georgia headings, native controls and visible keyboard focus. Wrap task/footer controls on phones and contain table scrolling.
+
+## Independent prayer portal
+
+In Invite someone, use Send invitation and explain the private seven-day link. Display send confirmation, a clear test-only no-email message, or an email-not-confirmed warning with manual link/reinvite steps. Recent invitations shows status; describe sent as email-service acceptance, without promising inbox delivery. Keep the copyable private backup link and tell admins that reissuing replaces the earlier invitation. Reuse the existing status, hint, panel and button styles. No new palette tokens or layout components are required.
+
+The Prayer Portal uses its own approved horizontal logo: the original-style oval landscape with praying hands replacing the j in Sojourns, and PRAYER PORTAL beneath the wordmark. Use the transparent public/assets/prayer-portal-logo.png only in the independent prayer app, preserving its aspect ratio. Main website, MMT portal and document logos retain the original Hope Sojourns artwork.
+
+How it Works appears in the prayer navigation for every signed-in user, including provisional accounts. Use a clear access-status note, labeled search, live topic count and native disclosure rows that follow Expanded/Collapsed. Explain the path to full membership first, with numbered steps and the exact Refresh access label. Cover privacy, groups, resources, devotionals, notification limits and sign-in. Use existing palette and type tokens, comfortable paragraph spacing, and role-appropriate quick links. A topic list at the top lets readers jump to each matching section; choosing a topic opens its instructions and moves keyboard focus to its heading. The list follows search results and hides admin topics from non-admin accounts.
+
+Daily devotional appears in the prayer navigation for every signed-in user, including provisional accounts. The current reading leads with Today’s devotional or Latest devotional and its date. Clearly label sample content as for testing. Use the shared paper/forest palette, a serif reading title, generous paragraph line height, a Scripture link, Reflect and Pray prompts, and an accessible read/unread toggle. Browse devotionals offers search, reading-status filters, pagination and the account’s Expanded/Collapsed treatment. Admin-only Manage devotionals and Add devotional controls expose draft/published/hidden status, scheduling date and sample designation in a native dialog. Scheduled and hidden states are explicit in management. Require a reason when saving and typed DELETE before permanent deletion. Empty and result-count messages remain visible and accessible. The three original sample devotionals are for test/local use only and are removed from production; authored readings are preserved.
+
+Prayer sign-in offers a simple Remember me checkbox. Explain that the browser saves ID/password details and the user still clicks Sign in on each visit. Remembered IDs prefill the username field; password saving/autofill follows the browser password manager and its prompts. Do not describe this as staying signed in. Password fields retain eye buttons, Show password or Hide password accessible names, aria-pressed feedback and minimum 44-pixel targets. Form reset and switching auth modes hide passwords again. General copy invites anyone seeking Christian prayer and growth; group examples avoid demographic assumptions. Admin begins with Needs your attention, pending counts, direct review buttons and a caught-up message. Use shared palette tokens.
+
+A shared List view toolbar offers Expanded and Collapsed with pressed-state feedback. Expanded is the default, and the setting applies to all card lists for the signed-in account. Native details rows preserve keyboard expansion; collapsed summaries show the item title, a compact metadata line, an Expand label and reaction tally where applicable. Expanding a row reveals its existing content and controls. Use the same treatment for people, prayers, resources, groups, group members, notifications, invitations, admin cards and resource categories. Keep the audit grid as a compact table. Prayer hearts and resource thumbs are toggle buttons with visible counts, accessible action labels and aria-pressed state. Reaction controls also work in collapsed summaries without opening the row. Provisional users can see counts but the reaction control explains that approval is required. Use shared palette tokens, visible focus and wrapping toolbar controls.
+
+Request access now collects a new password and explains provisional read-only access while awaiting approval. The pending banner identifies Global prayers and eligible resources, with Refresh access after approval. Provisional navigation exposes only Prayer wall, Resources and My account; hide posting and recommendations. Label Global clearly as including provisional users, distinct from full portal membership. The composer offers Global in Share in, locks its audience to everyone signed in and explains that no group or demographic restriction applies. The wall offers a Global-only filter and explicit Global labels on cards. Make Global / Limit to members opens a native confirmation dialog with a reason, audience consequences and an explicit checkbox. Preserve existing audiences until a user deliberately changes them. Admin cards label provisional accounts and the review dialog explains promotion versus suspension; approval does not create another password or setup link. Reuse existing palette tokens and responsive form styles.
+
+The original sign-in help workflow offers Request access and Forgot password? with a Back to sign in action. Access requests show all existing profile fields: display name, username, associated email, optional phone/time zone/introduction/gender/birth date, and three notification choices. Keep private/public labels explicit, collect no password before approval, and state that new members receive no admin access. The long form aligns the welcome copy at the top and retains readable single-column fields; validation feedback appears beside submission. Admin navigation shows pending request counts; Access & password requests offers status/search filters and profile review. Approval/replacement uses a native dialog with a reason and explicit identity-verification checkbox. Show admin-issued private links once in a labeled copy panel with expiry and manual-delivery wording. Forgot password explains automatic delivery to the associated account email, one-hour expiry, generic confirmation and the separate MMT identity; test mode explicitly says no email is sent. Reuse the shared palette, visible focus, native labels and responsive wrapping.
+
+The three curated books use original paragraph descriptions explaining their themes and possible group-discussion use. The Connection Codes card retains the full retailer cover image, existing proportional image treatment, Books category, clickable relationship tags, and a clearly labeled retailer link.
+
+Audit log uses a compact semantic table with Date / time, Admin, Action, Item type, Item, and Reason columns. Keep newest actions first, a sticky forest header, alternating shared-token row backgrounds, wrapping reasons, and keyboard-accessible scrolling within the table container on small screens.
+
+The local resource approval/audience revision shows Recommend a resource to regular members, with plain notice that only admins see the submission until approval. Admin navigation includes pending-review counts and the library includes a review banner and review-state filter. Pending cards show submitter and approval state; Approve/Decline require a reason in a native dialog. Cards display proportional, uncropped images, gender/age audience badges, and external provider links. The resource editor supports image selection/removal with preview, gender checkboxes (none means unrestricted), and optional minimum/maximum ages. Explicitly explain that any age restriction requires a birth date and admins can review all resources. My account labels gender and birth date as optional/private, offers Not provided, Male, Female, Another gender, and Prefer not to say, and explains their effect on resource availability. Reuse existing forest/gold/neutral tokens and visible labels. Keep image upload and review errors inside their active dialog.
+
+The local Resources section uses existing Hope Sojourns typography, paper cards, forest buttons, and gold featured accents. Show a category badge, title, creator, description, clickable hashtag filters, and a clearly labeled external resource link. Keep search and category/tag/featured/sort filters in a labeled responsive form with result counts, clear filters, and load more. Admins additionally see visibility filters, add/edit/hide/feature/order/delete controls, and category management. Hide opens the editor with member visibility off; promote opens it with Featured selected. State that featured items lead recommended order and lower order numbers appear first. Changes require a reason; permanent deletion requires typed DELETE. Keep every editor in a native dialog with local error feedback and visible close controls. Categories can be renamed and ordered, and must be empty before removal. Member views never reveal hidden resources or hidden-only tags. Reuse existing palette tokens without introducing colors.
+
+The authorized admin/profile revision adds a clearly labeled Admin entry for portal admins and My account for all members. State Primary owner or Portal admin in the greeting. Admin uses wrapping Accounts, All prayers, All groups, and Audit log controls with labeled search, account status/role/lock badges, and paginated results. Confirm role grants with explicit disclosure of access to every prayer. Confirm destructive removals with a reason and typed DELETE, explaining account anonymization, authored-prayer removal, and group ownership transfer. Keep private recovery links in a one-time copy panel, never in content lists or audit copies.
+
+My account distinguishes display name from sign-in username and associated email. Phone, email, and time zone are labeled private; the introduction explicitly states that it appears in the member directory. Do not display email-style usernames as public handles. Explain master notification controls and their relationship to group/person subscriptions. Invitation wording states that every recipient joins as a regular member and admin access is a later explicit action. Use the existing semantic palette and responsive native forms/dialogs; add no new colors. These interface changes are authorized for release to both prayer environments.
+
+The separate prayer test hostname displays the shared gold test-site banner with plain-language notice that its accounts and prayer data are isolated from production. Production hides the banner. Initial administrator setup uses the existing invitation form and preserves the same visible labels, password guidance, and private-token handling as ordinary invitations. Do not publish temporary sample accounts or preview prayers to either hosted environment.
+
+The initial focus is men's accountability and prayer partners, with configurable welcome copy and organization details. Keep the Hope Sojourns identity intact. Group cards use existing paper surfaces and category/status labels; My groups & invitations and Discover groups distinguish belonging from discovery. Listed cards disclose only the name, description, type, and leader. Do not show private group membership in the people directory. Group details disclose leader versus portal-admin permissions and clarify that new approved members can see existing group-shared prayers.
+
+The composer separates **Share in** (community or an approved group) from **Who can see this?** (admins only, selected people, or the selected community/group). Reset to admins only when the context changes. Selected-group choices show current group members only. Group leaders do not automatically see restricted posts; portal admins do. Membership actions use clear verbs such as Ask to join, Approve request, Accept invitation, Revoke invitation, and Leave group. Keep errors inside the active modal, preserve visible field labels, and allow member controls to wrap on phones. Organization display settings and an optional proportional customer logo can vary in isolated future installations without changing group workflows; Hope Sojourns continues to use its canonical logo and palette.
+
+The local prayer portal in `cloudflare/prayer-worker/public/` uses the existing Hope Sojourns logo without cropping or recoloring, the established “Go with Hope. Serve with Faith.” tagline, the canonical `/styles.css` palette, forest actions, cream backgrounds, paper cards, Georgia headings, and existing semantic tokens. “Prayer portal” is a section label beside the ministry logo. The preparation command copies the shared stylesheet and original logo into ignored `dist/` assets. No new colors are introduced. The sign-in page introduces an invitation-only prayer community; the signed-in wall uses responsive navigation, readable prayer cards, post-type badges, and a quiet reflection panel on wide screens.
+
+Every post shows its audience. The composer defaults to **Only me and admins**, with separate choices for selected people and all portal members. Explain admin visibility alongside the audience control and clarify that following grants no additional access. Forms have visible labels, keyboard focus, live status feedback, native modal focus management, and explicit close controls. Use display names in the member directory; do not expose email addresses there. Invitations explicitly state that links must be shared privately and are not emailed automatically. Notifications are currently inside the portal only. The prayer portal has its own test and production hostnames, separate from MMT.
+
+## Three public service offerings and corporate leadership
+
+The home page introduces Mission Journeys, Internship Placements, and Corporate Humanitarian Journeys before the destination grid. Use equally sized clickable cards on a forest gradient, warm paper surfaces, colored top accents, and rounded rectangular number badges. Each card opens one shared detail panel below the row. Keep the group independent of Our approach. Minimize pathway details and Escape close the panel and return focus. Use aria-expanded, aria-controls, hidden, and inert to reflect its state. Stack cards and panel columns on mobile and respect reduced motion. Keep the photographic hero, Georgia headings, and shared palette.
+
+Place the journey collage in its own paper section beneath the service cards. The six-panel collage excludes Nice and Belize. Each panel has a small location label; the Halifax panel and local destination tile use the verified English town view from Beacon Hill. The user requested removal of the AI-content text inside the collage. Preserve proportions and retain Mexico/Halifax source and license records privately. Use `assets/journey-collage-labeled.png`; the tile uses `assets/halifax-england-beacon-hill.jpg`.
+
+Corporate pages at `/corporate-journeys/` and `/corporate-journeys/curriculum/` use the existing paper, forest, gold, and coral tokens. The corporate introduction pairs a text lead with a forest panel; cards and stages stack on narrower screens. Shared navigation wraps on desktop and retains the Menu disclosure on mobile. The curriculum is titled Leadership Transformation, with eight readable sessions, anchor navigation, semantic lists, and a horizontally scrollable comparison table. Print rules affecting navigation are scoped to the curriculum body.
+
+Describe heart transformation as the foundation for observable leadership practice with staff, clients, and peers. Honor the agency, strengths, and freely shared stories of local people. Avoid guaranteed transformation, staged testimony, assumed consent, and claims that community members exist to educate visiting executives. State the Christian foundation and make spiritual reflection voluntary. These pages are local review only until release approval.
+
+## Traveler workflow and private application screens
+
+Keep Rejected separate from the active roster. Reject selected explains that capacity belongs in Waitlisted and requires a labeled reason. The Rejected filter offers Re-add selected with clear history-preservation wording. Show prior-rejection note counts in roster rows, cross-trip reasons in Review / details, and dated, attributed Traveler review notes on the contact. Re-adding never removes those notes.
+
+Place Traveler workflow first under Travelers. Show stage counts above a searchable all-traveler table with names, current stage, application status/skip reason, background screening, follow-up date and actions. Keep selection and bulk controls together. Stage counts are filters; labels and counts must communicate state without color alone. A bulk confirmation dialog lists selected names and explains financial effects. Select all applies to visible rows; the selected count includes hidden selections until cleared.
+
+Use responsive table scrolling within its container, two-column profile fields on wide screens and one column on narrow screens. Application, contact-review, skip and screening dialogs use the shared cream/forest palette, visible labels, keyboard-accessible native dialogs and live error/status text. Existing palette tokens are sufficient; no color additions. Private application pages load /styles.css, remove the token fragment, and distinguish submission from approval or reservation. Prefill known traveler fields, explain that they remain editable, and ask the traveler to confirm citizenship when defaulted from contact country. Label personal-reference name/email as optional and explain that a pastor, ministry leader or other person who knows the applicant can speak to their character and suitability. Use associated field help for screen readers. Keep application-related contact fields inside a native Additional data disclosure, collapsed by default in contact detail and the contact editor. Place Edit additional data inside the disclosure and avoid an extra main-profile action. Keep new sensitive fields outside public pages and the shared traveler portal. Screening controls accept any vendor URL and a custom explanation. Preview the standard branded HS MMT email with WitLooL and signature before sending; display recipient count and test-capture status. Separate delivery labels from screening outcomes, and never imply that provider acceptance means inbox receipt or clearance. Label conditionally required screening fields, and focus visible save errors. Not needed requires no extra fields. Local review displays a sample-data banner.
+
+## Potential travelers and contact journey history
+
+Place Potential travelers first under the Travelers work area. Use existing trip record cards and Add as traveler buttons, with an explanation of journey matching, departure dates, and account effects. Show progress and errors in a live status region. Contact Journey history uses existing linked-record rows with dates, role, member status, trip status, and Open trip links. Keep interests distinct from membership history and use shared palette tokens without new colors.
+
+## Past trip story selection controls
+
+Past-trip story selection sections place Select all and Clear all beside each other using the existing memory-actions button layout. Show save progress and errors beside Save and preview as well as above the form, using live status text. Keep the controls within their fieldset, preserve individual checkboxes, and disable both buttons when the section is empty or the user has read-only access.
+
+## Verified account email changes
+
+Keep the existing account form and shared palette. Explain that recovery email changes require the current password and a confirmation link, while ordinary profile changes do not. Label the password field clearly, show the pending address alongside the still-active recovery address, and offer Cancel pending email change. Use the semantic success token for successful account notices; errors retain the existing error treatment. The confirmation page describes the effect on shared sign-ins and asks for an explicit Confirm email address action before making the change. After confirmation, provide a Sign in link. Existing-user administrative email fields are read-only and direct the account owner to My profile. Retain visible labels, keyboard access, live status messages and responsive account layouts.
+
+## Volunteer Time workspace and service reports
+
+Volunteer Time is a first-level link directly below Finances in the shared left navigation for Volunteer and Admin accounts. Volunteer-only users land here after login and see their service tools and account controls. Use the established finance workspace shell, shared /styles.css tokens and keyboard focus behavior. Do not add page-local color literals. The workspace has My hours, Reports & history and administrator-only Review & organizations tabs.
+
+Use a calendar-month selector and horizontally scrollable service table with date, hours, service/activity, service organization and row action. Hours display exactly one decimal, including totals. Add the leading zero when a user leaves a fractional-hours field, so .5 becomes 0.5; do not round invalid extra decimal places. Monthly reporting organization and recipient controls remain editable regardless of the send-report checkbox, which controls delivery intent only. Provide visible draft/submitted/approved/returned states and an explicit self-reported notice before approval. Announce saves/errors through a live status region; show review notes and duplicate warnings near entries. Keep service organization separate from reporting organization. Unsaved edits warn before navigation. Preserve the selected volunteer and month across page refreshes within the same browser tab so an administrator does not mistake another account’s blank table for lost hours. Mobile tables scroll within the card rather than widening the page.
+
+Organization restrictions are an administrator checkbox list: selecting none means all active organizations. Volunteers see a dropdown of permitted names only. Give each recipient email its own unique name, ID and autocomplete section within each form; preserve normal email suggestions without copying an address across recipients. Report forms use explicit start/end dates for month, calendar, fiscal, school and custom ranges. Explain that fiscal and school dates vary. Provide review confirmation before sending. A history card identifies report version, issued date, original report link and each delivery's status.
+
+Certified reports use HS palette values generated from the shared root, daily rows, monthly subtotals and a clear total. Close with the accuracy certification, WitLooL, Brent's private signature and the exact giving-email logo/contact/trademark footer shared by givingEmailFooter. Original report pages retain the embedded signature for printing; email embeds it by content ID. Draft hours never display this signed certification. Printed reports repeat table headers and avoid splitting a row; use browser Print / Save as PDF. Test displays captured delivery clearly.
+
+## Portal guide navigation
+
+Authenticated portal footers stack guide links on separate lines. For portal administrators, MMT developer guide appears immediately below MMT user guide. Both use existing navigation colors and keyboard focus outlines. The developer web edition reuses the user guide page layout and shared palette, with horizontally scrollable tables and code examples on small screens, a clickable contents list, and Back to contents links.
+
+## Live public questions and portal knowledge tools
+
+Each review card has one state-dependent reuse control: Approve for reuse before approval and Withdraw reuse after approval. Never display both reuse actions together. Keep FAQ Publish/Unpublish as its separate state-dependent control.
+
+Knowledge & FAQ adds Move to trash on review entries and a separate Trash tab. The confirmation dialog lists active reuse approval, FAQ publication and essential pinning, then offers Yes, undo and move to trash or Cancel. Entries without those settings still receive a move confirmation. Restore returns entries to pending review. The shared public header links to /faq/ as FAQ, and the Explore footer uses Questions & answers; use the existing mobile menu and shared palette.
+
+The public /faq/ page uses the shared site header and footer exactly once. Use a soft forest-and-gold introduction, a cream search panel, labeled 48px controls, and stacked paper answer cards with reviewed or essential badges and source links. Hide zero popularity counts, wrap filters on phones, and keep the complete privacy notice in an accessible details disclosure. faq/faq.css uses shared palette tokens; preserve visible keyboard focus and prevent horizontal overflow.
+
+The Knowledge & FAQ review queue and source list use labeled native checkboxes, a Select all visible checkbox with an indeterminate state, and an Approve checked button showing the selected count. Already approved records have no selection checkbox. Disable approval when nothing is selected. Filtering sources clears hidden selections. Wrap controls on narrow screens and retain the shared paper, ink and line palette. Confirm the complete review before a batch; show progress, successful approval count and individual failures. Source visibility and FAQ publication remain separate from approval.
+
+Public pages use small circular “?” buttons inside content cards, photos and videos, plus a circular page launcher. Never insert these controls as siblings in a grid. For a collapsible details tile, place the question button inside its summary so it remains visible when closed and open; opening the assistant must preserve the disclosure state. Keep existing cards, columns and spacing intact; position the icons at the item’s upper right. Hover and keyboard focus show a small tooltip explaining that clicking opens an interactive question panel. Give each icon a descriptive accessible name, visible focus ring, and sufficient contrast. Tooltips must escape clipped card boundaries and follow their focused control during scrolling. The modal labels the assistant as AI, names its context, cites original public sources, and offers a clear close control. It uses the existing forest, gold, paper, cream, ink, muted and line tokens. On phones, controls wrap and the dialog fits the viewport. The private traveler and management pages do not receive public content buttons.
+
+When paid AI is off, use the explicit wording “Live AI is currently off” and label approved extracts as excerpts. Never substitute fictional preview answers on the live site. Missing information offers a private handoff to Brent through the existing interest form, without a promised response deadline. No private question or contact details appear in the URL. Optional browser read-aloud must be user initiated; voice recording and paid speech remain off in this release.
+
+The public Questions & answers page presents a search field, all-time/recent popularity window, reviewed answers, source links, essential pins and estimated-browser counts. The portal left menu calls the workspace “Knowledge & FAQ”; its tabs are “Review queue & FAQ”, “Sources & transcripts” and “Topics & analytics”. Reuse approval and public publication stay visibly separate. Imported recordings say transcript_missing until full timestamped text is reviewed. Source edits explicitly warn that dependent approvals are withdrawn. Permission controls belong to existing user settings and server checks remain authoritative.
+
+
+## Internship questions and knowledge preview
+
+The interactive mock preview starts with six fictional answer topics and example FAQ counts. Display SAMPLE ANSWER beside every fictional conversational response and Fictional sample on sample FAQs. Keep the sample-mode checkbox visible and explain that disabling it hides the fictional corpus and counts. Never present mock content as an interview transcript or a verified commitment. Clear my demo restores the fictional starter content; voice remains disabled.
+
+The same contextual entry point is demonstrated on photo captions and information cards using data-ask-source. The AI assistant concept remains identified as AI rather than a live person. Unknown answers offer the existing journey-interest form with no private question in the URL and no automatic submission. Extending this across site content and reusing the actual inquiry workflow is planned; intake must succeed before promising follow-up.
+
+The preview comparison adds an Internship knowledge assistant tile linking to `/intern-assistant/`. Use the existing forest, paper, cream, gold, and coral tokens with Georgia headings and system body text. The internship landing page pairs an uncropped, proportionally scaled Athens photograph with the invitation. On wide screens, the question panel stays beside the content; below 950 pixels it becomes a normal full-width section before video and FAQ content. Video files load only after an explicit Load video action. The ministry selector and Ask about this video controls set a visible context label; Back to general internships clears it.
+
+Keep the working-preview notice, source-lookup limitation, missing-transcript notice, and browser-only review explanation visible. Show citations beside answers and separate feedback from reuse approval and FAQ publication. Do not imply that a role selector supplies real authentication. Disabled microphone controls say later; typed questions remain usable. Use explicit labels, focus outlines, semantic status/log regions, wrapping controls, and reduced-motion support. The source and review forms render user text as text, not HTML. Searchable FAQs explain ranking, pins, counting window, and anonymous-count limitations. This is preview only, using no new palette token or live portal layout change.
+
+## Mexico ministry partner recognition
+
+The Mexico City destination displays Metro Relief’s official circular logo beside the cooperation statement under Ministry partners. Use the unmodified official artwork at 112 pixels, preserve its aspect ratio and colors, give it descriptive alt text, and link to https://www.metrorelief.org/. The row wraps on small screens and uses existing typography and palette tokens. Long photo-credit URLs wrap to avoid horizontal scrolling. This local change is pending release.
+
+## Ministry home layout
+
+The ministry-home body class scopes the daily-work layout to Home. Use a forest-dark heading panel with paper text and a gold edge, followed by attention, journey preparation, and document shortcut cards. Show planned journeys with compact month-and-day badges, followed by task and recent-activity panels and Next actions. Keep the financial summary in its existing shared component. Journey cards use three columns on wide screens, two below 1100 pixels, and one below 650 pixels. Wrap long titles and use the existing semantic color variables throughout. The shared sign-in page also loads the common stylesheet.
+
+This combined release includes inquiry controls, contact association for donations, phone-entry formatting, and the Home layout. Brent authorized commit, push, and deployment to both test and production on October 8, 2026.
+
+## Payment inbox contact association
+
+Every incoming gift review includes Associate this gift with a contact and Find an existing contact, even when no automatic suggestion exists. Search contacts is a separate button; Enter in the search field searches without approving the gift. Results include name, email, and phone when available. Announce result counts and failures through a status region, preserve the selected contact during searches, and explain when the first 50 results require a narrower search.
+
+Selecting an existing contact disables the new-contact fields and hides the separate new-person confirmation. When existing suggestions are present and the administrator chooses New contact, require the explicit different-person checkbox before approval. Render the checkbox at its natural width beside wrapping text. Use the existing grid, button, help-text styles, and shared palette; no new color token is needed. Application changes are included in the authorized October 8 paired release.
+
+## Inquiry follow-up controls
+
+Request details use the existing admin card, form, button, and dialog styles for Inquiry and next steps. Keep the responsible person, next-action date, and action visible together. Display future-interest list names separately from dated journeys. Show captured, failed, uncertain, and provider-accepted email states in words; never rely on color alone or describe test capture as sent. Required closure reasons and clear retry instructions belong next to their actions. The list dialog supports destination/list, workflow, and text filters using labeled controls and mobile wrapping.
+
+The public interest form presents US numbers as (972) 555-0123 during entry. Preserve caret placement and international numbers with an explicit non-US country prefix. Formatting is presentation only. Reuse the shared palette and typography; this change introduces no colors or typography tokens.
+
+## Home financial summary
+
+Keep this summary compact: 1.35rem amounts, 0.8rem tile labels, 1.15rem section heading and 0.95rem period headings. Use 0.75rem by 1rem tile padding and 1rem panel padding. Preserve paper and forest-wash surfaces, rounded tiles, visible focus and responsive stacking.
+
+Home places the Financial summary beside the stacked Tasks and Recently opened trips panels. Show Current year with its year and All time, each with Total income and Total expenses links. Use the shared forest, paper, muted and border tokens, tabular currency figures, responsive stacking, a loading state and an unavailable state instead of false zeroes.
+
+## Contact column filters
+
+On the People list, Contact type and Organization headings use keyboard-accessible disclosure controls with a downward filter indicator. Use the shared paper surface, forest text, gold active state, and focus outline. The checklist panel includes search, Select all, Select none, Clear filter, Apply, and Cancel. Escape and outside clicks dismiss without applying. Keep these two controls visible above the cards on phones, and retain the headings when no contacts match. Name and Phone number remain plain labels.
+
+
+## Itinerary categories and traveler views
+
+Use **Itinerary** as the primary content type with a labeled **Category** selector. Default to **Daily overview** and explain that the whole day can be written in one item. Keep optional specialty fields secondary and show only those relevant to the selected category. Use **Also show under** checkboxes for Daily overview and General, so one entry can be found in multiple traveler sections without duplicate entry.
+
+Use **Transportation** for all transport modes, **Lodging**, **Meals / Restaurants**, **Ministry / Service**, **Bible Studies & Worship**, **Meetings / Training**, **Activities / Visits**, **Free Time / Rest**, and **General**. Transportation uses departure/arrival labels and local-time guidance; public visibility is disabled. Lodging identifies check-in and check-out. Put internal reservation references and notes behind the clearly labeled Private booking information disclosure.
+
+Ministry lookup uses labeled search, matching record buttons, and an optional Add a ministry dialog. Show duplicate matches and the explicit Create separate ministry action only after review; never imply that a match has been automatically merged. Retain the itinerary form while the dialog is open. Use existing dialog, form, button, focus, spacing, and palette styles.
+
+In the traveler portal, a labeled **Show** selector and category links choose All sections, By day, or an available category. Hide unrelated sections when a category is selected, with a clear All sections option. Use date disclosures for the daily schedule and worship studies. Devotionals appear in Bible Studies & Worship; preserve their links and Scripture formatting. Show lodging on stay dates and transportation on its departure/arrival dates. Shared details use readable text in the admin cards, traveler view, and packet. All new styling uses shared palette variables.
+
+## Scripture reference links and hymns
+
+Make each displayed Scripture reference an underlined text link to its exact Bible Gateway passage. Preserve the written book and verse text, including shortened second references; the accessible link name should state the full resolved passage and NIV destination. Use the existing forest link colors and visible keyboard focus treatment. In the devotional library, place passage links outside the button that selects a master so link navigation and editing remain separate actions.
+
+The Day 1 Bible Study uses the existing devotional heading hierarchy for its Hymns for Day 1 section and the two hymn titles. Keep each stanza's original line breaks and space between stanzas and the refrain. Do not add decorative colors or reformat the lyrics as a continuous paragraph. The downloadable traveler packet retains this hierarchy and reminds readers that its Scripture links require internet access.
+
+## Ministry Home presentation
+
+The local Home redesign uses a forest-dark header with paper text and a restrained gold edge. Keep the shared serif headings, cream page, paper cards, and existing palette; introduce no new colors. Show the attention, trip preparation, and document shortcuts first. Use a gold-tinted attention card and one gold inbox action to establish priority.
+
+Upcoming journey cards show a compact month/day badge, written trip status, date range, and a labeled preparation progress bar. Preserve the early-completion warning in a gold-wash notice. Tasks and recently opened trips occupy separate paper and forest-wash panels. Keep meaningful empty states and existing navigation labels. On phones, stack cards and panels in one column; preserve visible focus and wrap long titles. These visual changes are local pending a separate release.
+
+## Finance labels and expense review
+
+Finance tables use an explicit Type column with Income and Expense badges on the dashboard, lists, and reports. Income uses forest-wash and forest-dark; Expense uses gold-wash and ink. Text remains the primary distinction.
+
+Expense Review offers General operations, Outreach & promotion, Trip expenses, and Direct ministry support. Show purpose under category and in report filters and exports. Planned trip is enabled and required for Trip expenses; eligible statuses are draft, recruiting, confirmed, and full, plus an unchanged historical selection. Keep purpose separate from reimbursement and reporting status.
+
+Reclassify as transfer opens a separate dialog naming the amount and payee and requiring a reason and confirmation. Explain that no money moves and that the record remains in the full ledger. These controls are included in the September 24, 2026 release.
+
+## Private user guide and portal footer
+
+Show one underlined MMT user guide link in the footer of every authenticated portal workspace. Align it with the content beside the shared sidebar on desktop and within the page width on phones. Do not display the link on the sign-in screen or during mandatory password setup. The guide itself is a read-only, responsive reading page: use a narrow text measure, distinct section headings, visible table-of-contents and index links, and a simple return-to-portal link. Draw its colors from the shared `styles.css` palette. Do not add editing controls, public navigation links, or guide content to a static public page.
+
+## Contact giving history
+
+The complete contact record includes a full-width Giving · Past two years card after the profile and ministry relationships. Reuse the existing detail cards, summary list, and responsive table styles. Show the exact date range, total giving, gift count, and gifts newest first with date, amount, payment method, purpose or trip, and notes. On phones, retain the table's field labels. Explain that amounts are before processing fees and donor splits include only the contact's share. Hide the entire card when no gifts fall within the displayed two-year period. Hide the section when the viewer lacks finance access. The giving card was released September 23, 2026; build 2026-09-23.4 includes the empty-card visibility correction.
 
 ## Planning workspace and interested submission review
 
@@ -21,15 +299,19 @@ Duplicate review presents submitted information alongside every matching contact
 
 Photos & memories adds responsive photo cards and dated journal notes to each trip. Administrators can upload several photos, add captions and credits, edit image descriptions, and select traveler visibility. Use descriptive alternative text that communicates the scene. The collection separates adding new material from editing saved items and includes a removed-items view with Restore controls.
 
+Story gallery selections include separate Move up and Move down buttons with photo-specific accessible names. Keep checkbox labels separate from action buttons. Preserve the saved gallery sequence in previews and published recaps; live trip feeds retain their date order. First and last rows disable the unavailable move direction.
+
 Past-trip story uses a destination selector, public title, short summary, narrative, and explicit checkboxes for the material to publish. Save and preview opens a modal showing the exact public version. Publishing remains unavailable until the trip has ended and is marked Completed. The live version stays unchanged while a new draft is prepared; Unpublish story removes it from public access.
 
-Traveler and public displays share journey/memories.css and memories-view.js. Galleries adapt to available width, include captions and dates, and open the full image in a new tab. Longer devotional resources use native expandable sections. Text uses the existing safe content formatter. Forms, cards, previews, and disclosure controls use existing palette tokens, visible labels, keyboard-accessible controls, and readable spacing. Keep the established public homepage and destination design; add past-trip stories within the existing destination layout.
+Traveler and public displays share journey/memories.css and memories-view.js. Galleries adapt to available width, include captions and dates, and open full-size photos and videos in the shared popup. Longer devotional resources use native expandable sections. Text uses the existing safe content formatter. Forms, cards, previews, and disclosure controls use existing palette tokens, visible labels, keyboard-accessible controls, and readable spacing. Keep the established public homepage and destination design; add past-trip stories within the existing destination layout.
 
 In Photos & memories, Show removed items reveals Restore and, for administrators, Delete permanently. Keep the removed view selected after an action so the user can see the result. Permanent deletion asks for confirmation naming the item and explains that its record and stored media cannot be restored. Items still used in a story show instructions to remove them from the preview and update or unpublish the public version first. An interrupted deletion shows a pending message and a retry control; hide the image and Restore control while its file is being deleted.
 
-Traveler photo galleries use two equal-width tiles per row above 600 pixels and one tile per row on smaller phones. A single photo retains one tile width on wider screens. Photos run from oldest to newest using the assigned Date; undated photos appear last. Clicking or tapping a photo opens the full image in a new tab. Image links include an accessible full-size label.
+Traveler photo galleries use two equal-width tiles per row above 600 pixels and one tile per row on smaller phones. A single photo retains one tile width on wider screens. Photos run from oldest to newest using the assigned Date; undated photos appear last. Clicking or tapping a photo opens the full image in the shared media popup. Photo buttons have an accessible full-size label.
 
-Photos and videos share the traveler gallery and are sorted together by assigned date. Video tiles show a preview frame when supported and a clearly labeled Play video button. Clicking opens a larger, keyboard-accessible dialog with playback controls; Close or Escape stops playback and returns focus to the tile. Videos never autoplay in the gallery. Saved videos are MP4 or WebM and remain limited to 20 MB per file. Video cards retain titles, dates, descriptions, captions, credits, and visibility controls.
+Photos and videos share a keyboard-accessible popup across traveler galleries, public dated trip pages, past-trip stories, and staff story previews. Keep the complete image or video frame visible with proportional contain sizing. Provide a sticky heading and Close button, Previous and Next controls, an item counter, captions, and credits. Navigation follows the displayed mixed-media gallery and wraps at either end. Left and Right arrows navigate unless video controls have focus; Escape closes. Pause and unload a video when leaving it, lock background scrolling while open, and restore focus to the original tile when closed. Use existing palette tokens and comfortable touch targets.
+
+Continue playback automatically only between explicitly numbered parts of the same recording, for example “Light Group interview — Part 1 of 3” followed by Part 2 of 3 on the same date. Stop after the final part or when the next part is missing or ambiguous. Do not turn the mixed gallery into a slideshow: photos and unrelated videos retain manual navigation. At the bottom of the popup, show the italic, parenthesized note “(The next segment will play automatically when this one ends.)” only when a matching next segment is available. Continue to update the heading, caption, credit, and announced item counter when a part changes; keep the existing Close and Previous/Next controls and video playback fallback. This local behavior change is pending release.
 
 Optimize uploads for faster viewing is checked by default. The browser prepares smaller photos and videos before upload; original files on the device are unchanged. Show file-by-file preparation progress, a Cancel preparation control, and the original and stored sizes with the percentage saved. Keep the smaller original when conversion would enlarge it. Accept original photos up to 50 MB and video clips up to 250 MB and five minutes; saved photos remain limited to 6 MB and videos to 20 MB. Explain unsupported formats with a useful retry instruction. Users may turn optimization off for files already within the saved-file limits. Refresh the collection after partial success so retries do not create duplicates.
 
@@ -54,7 +336,7 @@ Begin the devotional section with wrapping day-and-date links. Each dated group 
 
 ## Traveler study typography
 
-Bible studies and devotionals in the traveler portal use a reading column limited to 70 characters, generous paragraph spacing, forest-green bold section headings, bulleted talking points, and numbered group questions. Scripture references are bold; NIV reading links are descriptive and underlined. Closing prayers use italics and the existing dark gold-ink token. Keep body copy at 17px on desktop and 16px on small phones, with a 1.8 line height. Underlining denotes links rather than decorative emphasis. Use semantic headings, lists, strong text, and emphasis so the organization remains clear without color.
+Bible studies and devotionals in the traveler portal use a reading column limited to 70 characters, generous paragraph spacing, forest-green bold section headings, bulleted talking points, and numbered group questions. Scripture references and NIV reading links are descriptive and underlined; Scripture callouts retain their bold treatment. Closing prayers use italics and the existing dark gold-ink token. Keep body copy at 17px on desktop and 16px on small phones, with a 1.8 line height. Underlining denotes links rather than decorative emphasis. Use semantic headings, lists, strong text, and emphasis so the organization remains clear without color.
 
 Apply this presentation when displaying devotional records, including Bible studies stored in that category. Existing drafts receive the same presentation when their owner publishes them. Formatting does not change publication status, visibility, or saved text. The typography update was deployed September 21, 2026.
 
@@ -177,7 +459,8 @@ Hope Sojourns invites people to travel with humility, serve alongside trusted lo
 
 | Asset | Approved use |
 |---|---|
-| `/assets/hope-sojourns-logo.png` | Primary horizontal website and document logo |
+| `/assets/hope-sojourns-logo.png` | Primary horizontal website, MMT and document logo |
+| Prayer app `/assets/prayer-portal-logo.png` | Independent Prayer Portal only; praying-hands j and Prayer Portal subtitle |
 | `/assets/hope-sojourns-icon.png` | Favicon, compact identity, circular or square brand placement |
 | `/assets/hope-sojourns-oval-icon.png` | Alternate emblem where the oval silhouette is specifically useful |
 | `/assets/csm-logo.jpg` | Christian Steps Ministries partnership identification |
@@ -639,10 +922,364 @@ Version 4.10 adds local presentation for gifts received through personal payment
 
 CSM provides a separate Personally received gifts workspace with HS contact search, original gift entry, expandable reconciliation rows, evidence attachments, and a step-by-step guide. Status labels distinguish funds still held, queued review, approved, and denied. Present the original donor on statements and identify the gift as Christian Steps Ministries — Hope Sojourns. Bank transfers are settlement information, not additional gifts.
 
+## Traveling trips and public follow-along
+
+Keep the status label Traveling. Active destination tiles and departure listings offer Follow [trip name] and Traveler Portal sign-in without replacing destination exploration. Public and traveler pages place Trip at a glance near the top, with Previous month/Next month controls, a semantic calendar table, and expandable Daily highlights. Calendar overflow stays inside its scroll container on narrow screens; the daily list is the compact alternative. Reuse forest-wash for active trip days, forest-dark links, paper controls, and the shared line token. Dates and titles remain text, independent of color.
+
+Public trip pages provide Updates & photos and a traveler sign-in link. The traveler sign-in page offers a public trip return link for visitors following from home, and the authenticated view also links to the public page. Photos & memories uses independent Show in traveler portal and Show on public trip page checkboxes, with public sharing initially unchecked. Explain that starting a trip does not publish private memories. Existing post-trip story preview/publishing remains separate. These controls are local pending release.
+
+## Gift thank-you email acknowledgments
+
+The Income screen displays a clearly labeled Email status column for charitable gifts, with donor-specific statuses for splits and a visible sent date and time. Use plain text for Sent, Not sent, Missing email, Failed, Needs delivery review, Sending / needs review, Test preview only, Donor not linked, and Not applicable. Keep the automatic-email On/Off indicator beside its checkbox above the list. State that Sent means provider acceptance and does not prove inbox delivery. Use the existing palette, horizontally scrollable table, labeled checkbox, and existing email preview dialog. The Income controls are included in the October 9, 2026 authorized release.
+
+
+Use the approved subject, Thank You for your support of Hope Sojourns. Greet the donor by preferred name when available, otherwise first name. The gift summary contains date given, charitable amount and payment method. Keep the thank-you copy warm and concise. Use the same template for automatic and manual acknowledgments.
+
+Place the complete Hope Sojourns oval, without its wordmark, to the left of the closing. Preserve its aspect ratio and full outline; do not clip it. Its visible height should match the closing on a full-width email, with responsive scaling on narrower screens. The right column reads WitLooL, followed by Brent's handwritten signature, Brent Kern, Hope Sojourns, 972-505-0171, and Christian Steps Ministries. Do not add a trademark mark beside the closing.
+
+The footer reads: WitLooL™ means “Working in the Light of our Lord.” WitLooL is a trademark. Include links to https://hopesojourns.com and https://www.christiansteps.net. The sender and reply-to are giving@hopesojourns.com. Derive email colors from the shared root palette through tools/build-gift-email-colors.mjs; email clients receive inline styles and table layout.
+
+The Ledger and contact giving list expose Gift thank-you. The preview identifies the recipient and subject, displays the complete email, and offers Send thank-you. Successful sends turn the action gray and disable it, with the sent time available. Missing-email and provider errors must remain readable. Test mode says Save test preview and clearly states that no donor email will be sent. Automatic acknowledgment is an explicit Ledger checkbox and is off initially. Keep annual giving letters independent.
+
+## Story preview presentation
+
+The October 5, 2026 second design round is a separate public preview at `preview.hopesojourns.com`. The comparison page links five complete visitor-facing directions: The open door, The field journal, People first, The wide horizon, and Your next step. The original six-moment draft remains at `/first-draft.html` for comparison. This exploration is independent of the approved public design.
+
+Each direction explains the Christian mission travel ministry before inviting visitors into the stories. Use open sections, generous spacing, Georgia headings, existing ministry photography, and a visible next action. Distinguish the directions through arched imagery, editorial composition, personal portraits, a full-width landscape, or three optional starting-point choices. All colors come from the canonical `/styles.css` palette; no new tokens are needed.
+
+Both Athens stories are faithful abridgements credited to Brent's chapters. Keep the endings within the reading experience, preserve dialogue and order, and separate reader prompts from the account. Native expandable sections reveal continuous prose without requiring repeated slide navigation. Keep summaries keyboard accessible, readable without JavaScript, and large enough to select on a phone. Direct story links open the relevant section; closing a story returns focus to its summary. Respect reduced motion. Choices in Your next step update the invitation locally without saving information. All directions retain clear links to ministry information, existing journey pages, and a conversation with Brent.
+
+### Local motion exploration
+
+The October 6 local direction at `/in-motion/` responds to Brent's preference for a more animated, colorful experience. Keep the recognizable invitation and six manually paced moments per story. The opening uses existing team photography with a slow camera movement, large gold typography, orbit lines, and a floating red-carton invitation. Coral and forest story entrances lead to ministry photography, featured destination images, smaller additional destination tiles, and a closing invitation. The production menu sits above the opening. Do not use a scrolling text band. Avoid large empty cream sections.
+
+Story scenes use naturalistic AI-created images: a small red carton on stone and a weathered bench in an olive-lined park. Keep these images compact beside the reading column, and use a small thumbnail beside the scene note on phones. They do not claim to depict the actual woman, John, or his bench. Scene changes reveal the next passage while its reading surface stays steady. Pause motion is available below the navigation and pauses decorative movement; reduced-motion preferences disable it automatically. Navigation, copy, and reading remain usable without motion. This local direction has not been published or adopted as the production design.
+
+## Related contact card
+
+Use a full-width Related contacts card in the complete person record, following existing detail-card, linked-record, and responsive editor-grid styles. Display the other person's name and relationship, with Open contact and Remove relationship actions. Label the direction explicitly as Their relationship to the current contact. Offer a shared-email checkbox with a plain explanation. Show search results with name and email or phone so people with shared addresses can be distinguished. At phone widths, fields and actions stack without horizontal scrolling. Keep giving visibly separate and avoid household or tax language that implies combined giving.
+
+## Book reading pages
+
+Use a forest photographic opening and warm cream reading surface. Book text uses Georgia at 22px (20px on phones), 1.8–1.85 line height, and a reading column up to 740px. Text size controls offer 25px and 28px alternatives. Keep chapter imagery compact and label AI-created scenes. Animate only the cover image and decorative orbit; provide Pause animation and respect reduced motion. Chapter contents stay sticky on desktop and use a disclosure on phones. Full chapter calls to action appear at the end of both local story paths.
+
+## Managed contact access categories
+
+Board Member uses the existing contact-type checkbox and filters. Portal Access appears checked only for active HS access and uses a greyed managed-control treatment. Keep the category label focusable so keyboard users can request the same explanation as pointer users. A visible help sentence links to Account & settings → Users & access requests; the message asks users to save the contact first. Grey styling uses opacity and existing palette tokens.
+
+Within the account editor, group contact association under Hope Sojourns contact. Use plain labels: Contact association, Find by name, email, or phone, and Find contacts. Distinguish automatic matching from the deliberate Create a separate new contact choice. Search results include name, email, and phone and identify people already linked to accounts. Linked contact is read-only when the account already has an association. Preserve the existing responsive account form layout and live status messages.
+
+## Three ways to serve in the local preview
+
+Retain the cinematic welcome and shared Athens stories while presenting Mission Journeys, Internships, and Corporate Humanitarian Journeys as equally visible paths. Use forest, gold, and coral palette tokens, photographic cards, restrained motion, and reduced-motion support. The internship explorer uses ministry-first cards, destination and service-area filters, and a details dialog. Mark the catalog and every card as sample; ministry names and placements are fictional. Use people-first service labels, including Women & exploitation recovery; search also recognizes prostitution and trafficking. Corporate planning choices are exploratory, not bookable offers.
+
+## Production-margin comparison
+
+Keep /in-motion/ as the original full-width design. The comparison at /in-motion-margins/ uses the live production outer frame: min(100% - 32px, 1240px), 18px total gutters at widths up to 850px, and full width up to 560px. Content, imagery, interactions and internal component styling remain shared. Apply the same frame to the linked pathway and chapter pages. The comparison index presents both newest versions before the five earlier options.
+
+## Completed-trip traveler portal navigation
+
+Published past-trip cards place Traveler Portal sign-in beneath Read the trip story when access is available. Story pages place the same text link below the title. Use existing text-link styling and spacing; retain the reviewed photo cover and story contents.
+
+## Public trip journal before photos
+
+On the public dated trip page, show Notes from the journey before the photo/video gallery so followers can read daily reflections before browsing images. Keep the existing typography, cards, and spacing. Traveler collections and reviewed past-trip stories retain their existing section order.
+
+## Contact email composer
+
+Center the email composer and history card inside a full-viewport native dialog shell at every browser zoom and window size. Keep the paper card at most 850 pixels wide, within the available height with a small outer gutter, and scroll its content internally. The heading and Close button remain accessible in a sticky wrapping header. Allow long addresses and attachment filenames to wrap without widening the card. Preserve the open draft when the viewport changes; do not require users to reset zoom. Use the existing paper, forest, line, and shadow tokens with no new colors.
+
+After accepted contact email delivery, show the acceptance date in Last Contacted and a short Email sent: subject note, limited to 50 characters. Preserve newer contact activity. Test captures and unsuccessful sends must not appear as completed contact activity; full message details remain in email history.
+
+Use the existing Selected contacts toolbar and primary Email selected contacts action in People and Contact spreadsheet. Contact checkboxes have person-specific accessible labels; the selected count remains visible across filters and pages. Keep the compact contact name, checkbox, and summary expansion controls distinct. Disable composing with no selection or without Contacts edit access.
+
+The contact email composer uses the existing native modal dialog and paper/forest palette, with a maximum desktop width of 850 pixels, a viewport-limited scroll area, and a fixed To: admin@hopesojourns.com line and full-width labeled BCC (hidden recipients), Subject, and Message fields. Wrap action buttons on phones. Display the standard Hope Sojourns footer below Message with its oval logo, Brent Kern signature, phone number, Christian Steps Ministries affiliation, WitLooL explanation, and both ministry links. The footer is included automatically; preserve its image proportions. Explain recipient separators, the 50-address limit, and that BCC hides addresses from other recipients beside the field. Show skipped contacts, configuration issues, and send status in readable text. Test capture must say that no email was sent; live acceptance must say Accepted for delivery. Use expandable history rows that distinguish visible To from hidden BCC or original visible recipients, with wrapped addresses and preserved message line breaks. Escape and Close protect unsent text from accidental dismissal and restore focus to the opening control.
+
+The People selection toolbar includes a labeled Select all visible contacts checkbox. Its indeterminate state reflects a partial selection, and its disabled state reflects an empty page. Keep Clear selection beside the selected count. Display the latest accepted group email date in the expanded contact summary; provide a Contact email history section in the full record with expandable subjects, explicit delivery states, timestamps, and View all contact emails pagination. Replace the contact's embedded reply form with an Interest awaiting reply button only when a form needs a response. Preserve past Reply history and the task controls. The interest button opens the shared composer and follows Contacts edit permission.
+
+Inbox Show includes Emails sent, with readable cards for subject and accepted timestamp and expandable View sent copy details. Keep full message text and footer line breaks, wrap addresses on narrow screens, and distinguish To from BCC. Use Previous emails and Next emails with a page count. Accepted copies have no Complete, Delete, or Retry actions in this view. State clearly that acceptance does not confirm receipt and that test captures and unsuccessful sends remain in Email history. Reuse existing palette tokens and card styles.
+
+The contact email composer places a labeled Attachments (optional) file picker below Message. Show supported file types and the limits of five files, 5 MB per file, and 10 MB total. List each chosen filename and size with an accessible Remove button. Wrap long filenames and controls on phones. Disable file selection and removal after submission alongside the message fields. Saved contact history and Inbox > Emails sent show private attachment download links with filenames and sizes.
+
+The contact email composer offers Email format with Plain text as the default and HTML newsletter as the alternative. HTML mode labels the message field Plain-text alternative and reveals Load newsletter HTML, Newsletter HTML, and Preview newsletter. Reuse full-width controls and existing paper/forest/line tokens. The preview fills the card width with its own bounded scroll area and a descriptive iframe title. Load a separate authenticated, sandboxed HTML document so newsletter CSS works without changing the portal security policy; isolate it from portal styling, scripts and forms. Require another preview after an HTML edit and explain validation and loading states in the existing live status region. Email history provides View newsletter for formatted messages. The public Giving invitation uses Founding Partners, welcomes every monthly amount, and treats 100 people at $100 monthly as an initial goal without a deadline or community cap.
+
+Place the MMT Word edition latest-revision note beneath the contents-page instructions so it uses available space and does not create a nearly empty page after the index.
+
+## Bulk contact type controls
+
+Reuse the existing Selected contacts toolbar on People and Contact spreadsheet. Place Change contact type for selected contacts above the email actions. Use one labeled Contact type select followed by Add contact type and Remove contact type buttons in the established primary and outline styles. Preserve the shared responsive grid, palette tokens and full-width help/status rows. Keep counts visible, disable actions for empty selections or read-only access, confirm the chosen category and count, and report changed versus unchanged contacts through a polite live status region. The Volunteer choice explains linked Volunteer Portal access. Portal Access is excluded from the select and identified as managed in Account settings.
+
+## Biblillion Mission Journey Passport (test only)
+
+Biblillion remains a test-only experience. Preserve the Hope Sojourns forest, paper and gold palette through shared /styles.css tokens. Destination cards use existing Hope Sojourns photos, generous targets, a clear countdown and a concise automatic-statistics notice. The game invites exploration without assessing spiritual maturity or readiness to travel. Explain that anonymous results are recorded automatically; do not present a sharing checkbox or require an account. State plainly that names, emails, raw guesses and persistent player identities are not collected in game statistics. Saved progress & privacy explains the temporary retry queue and that clearing local progress does not remove already recorded anonymous statistics.
+
+The passport uses an American-style navy cover, gold PASSPORT / UNITED STATES OF AMERICA lettering and an original eagle-and-shield illustration. Keep Hope Sojourns / Mission Journey branding visible. The shared --passport-navy token supplies the deep cover blue and pale visa-page engraving; existing information blue is reserved for feedback and partner navy belongs to a different identity. Reuse shared gold and cream for the lettering and paper.
+
+Inside, the visa page has a subtle engraved background, a page heading and seven large, faint numeral watermarks. Do not draw boxes, dashed outlines, active fills or visible stage labels around individual stamp positions. An earned destination stamp lands over its numeral, which fades out as the ink appears. Unfilled and skipped positions retain only their watermark numbers. Preserve stage/result descriptions for screen readers. Keep the slight stamp rotations, distressed ink and brief press animation; restored stamps are static. On phones the passport stays collapsible and the earned stamp also appears in the answer reveal.
+
+Frame Biblillion as common-knowledge discovery: “Start with the obvious. Discover the unexpected.” Every regular round has three approachable Bible/faith, two geography/travel and two everyday-life/care prompts. Reward familiar answers with stamps and unexpected ideas with higher editorial points. Most prompts offer 10 or more distinct responses and care prompts offer at least 20; synonyms count without inflating the displayed choices. Offer a free familiar starting answer. Scores describe game familiarity, never spiritual maturity, objective human worth or measured population percentages. Care and exploitation-awareness language emphasizes dignity, choice and listening; it must not diagnose a person or sensationalize their circumstances. The countdown starts at 25 seconds and uses text and color for its final ten seconds. Do not flash or use a ticking sound. The 25-second limit is mandatory: omit pace choices and timer-off controls. Pause for hidden tabs and open help/privacy dialogs, and preserve remaining time on return. Expiry earns no points or stamp. Timeouts reveal a discovery rather than shaming the player.
+
+Keep broad and narrow answers together. A familiar answer such as job, church or family can earn a 35-point stamp; a specific less-obvious idea such as having a role or being asked for an opinion can earn 100. Accept ordinary equivalent wording without requiring the player's phrase to match the displayed answer exactly. Do not award extra points merely for adding words. Keep the reveal's canonical wording and score clear.
+
+Keep the seven journey-step labels visible alongside the passport: Listen, Learn, Pray, Notice, Care, Serve and Arrive. Highlight the current step. Each destination stamp also carries its corresponding label, for example GREECE 1 with LISTEN · JOURNEY STEP beneath the date. These labels track progress through the seven questions, including missed questions; they do not create outlined stamp spaces on the visa page.
+
+Everyone reaches the chosen destination after all seven questions, including players who miss every question. Misses earn no points or stamp; the final answer score determines the travel tier and may mean an unexpected layover. The arrival summary and celebration both confirm that the player reached the destination.
+
+Every finished round receives one travel moment: Unexpected layover (0–174 answer points), Connection made (175–299), Right on schedule (300–449), Priority boarding (450–574), or First-class upgrade (575–700). Rewards add 0/25/50/100/150 points respectively. The separate seven-stamp bonus stays 150, for a new maximum of 1,000. Each question has a mandatory 25-second limit; answering faster earns no extra points. All tiers use a destination-photo dialog with a relevant trip/interest link. High tiers use a short finite confetti burst; other tiers use a clock, connection arrows or a passing plane. Honor reduced motion by showing a static emblem without moving confetti or stamping effects. Celebrations open automatically once per round and have an explicit replay button.
+
+MMT insights uses existing shared components. Label Common knowledge or Archived status and topic. The Question library filter defaults to regular prompts, with All and Archive options. Preserve archived difficulty labels and distinguish a timeout from a voluntary skip. Counts are recorded rounds, not unique people. Observed choice percentages do not change editorial rarity scores. Devotional starters remain private drafts with review-before-use reminders. Non-Scripture sources use a Background source label; the church-family directory remains clearly identified. Devotional starters from these prompts require a Bible passage selected by the editor.
+
+Touch navigation behavior: Resources uses a native disclosure and native destination links. An iPhone-style focus transition may have no next focused element; preserve the visible submenu until the tapped link receives its click. Continue to close on a real outside focus target, an outside tap, Escape or a completed link click. Keyboard navigation must remain usable, and opening a resource must not require a second tap. Verify actual touch input in WebKit emulation as well as desktop pointer checks.
+
 ## Revision history
+
+- November 25, 2026 — Version 4.134. Replaced sharing opt-in controls with automatic anonymous-statistics disclosure and updated dashboard wording. Authorized test-only release after validation.
+
+- November 25, 2026 — Version 4.133. Documented iPhone Resources tap behavior while preserving disclosure appearance and keyboard/outside closing. Authorized test-only release after validation.
+
+- November 25, 2026 — Version 4.132. Clarified broad-answer acceptance alongside higher-scoring specific discoveries and equivalent wording. Local review; release requires approval.
+
+- November 25, 2026 — Version 4.131. Added the American-style passport and stamp-over-watermark treatment, common-knowledge voice, broad answer choices, familiar clue, mandatory 25-second timer and archive/source labels. Local review; release requires approval.
+
+- November 25, 2026 — Version 4.130. Added customs-style ink stamps and press animation, five travel moments, confetti/reduced-motion behavior, accessible 25-second pace controls and question difficulty presentation. Authorized commit, push and test-only deployment after validation.
+
+- November 25, 2026 — Version 4.129. Added destination photo cards, seven-stamp passport, 150-point celebration, spelling confirmation, optional sharing and responsive MMT insights/draft presentation.
+
+- November 24, 2026 — Version 4.128. Authorized Biblillion on test.hopesojourns.com only, with a Resources entry and test-preview presentation. Production remains unchanged.
+
+- November 24, 2026 — Version 4.127. Added the local Biblillion game layout, mobile treasure trail, accessible reveals and transparent editorial rarity presentation. Local review; no release authorized.
+
+- November 24, 2026 — Version 4.126. Restricted Prayer Portal gender choices to Male, Female and Prefer not to say. Local changes pending release approval.
+
+- November 24, 2026 — Version 4.125. Promoted One Step Beyond to the public route, added the contained homepage/Interest/About/trip invitations and Resources entry, and documented real email status and private preparation-request review. Authorized release after validation.
+
+- November 24, 2026 — Version 4.124. Added optional referral-source controls, dated MMT attribution and the contained local homepage walkthrough invitation. Local review only.
+
+- November 24, 2026 — Version 4.123. Added the local Mission Journey story, preparation passport, reflection and consent-preview standards. Local prototype only.
+
+- November 24, 2026 — Version 4.122. Added The Prayer Challenge question, feedback, completion and leaderboard presentation. Local review; pending release approval.
+
+- November 20, 2026 — Version 4.121. Corrected homepage action spacing and replaced noninteractive principle pills with plain text.
+
+- November 20, 2026 — Version 4.120. Added guided visitor interview, optional sharing, and Visitor insights presentation. Pending release.
+
+- November 16, 2026 — Version 4.119. Added reusable Mexico City host photography and ministry briefing, journey-specific proposed schedules, and clear notice of changes before and during travel. Pending release.
+
+- November 16, 2026 — Version 4.118. Standardized Prayer Portal action controls and documented the accessible phone navigation drawer, responsive header and page layouts. Local review pending release.
+
+- November 16, 2026 — Version 4.117. Refined Prayer Portal card action buttons with full-width audience metadata, consistent touch targets and whole-label wrapping. Local review pending release.
+
+- November 16, 2026 — Version 4.116. Added Prayer Portal lossless upload compression, admin file storage search and permanent deletion, and universal moderation disclaimer. Local changes pending release approval.
+
+- November 16, 2026 — Version 4.115. Documented Prayer Portal refresh/update affordances, collaborative editing, comments/hearts, written prayer search/history/audio, attachments, admin membership disclosures and archive controls. Local changes pending release approval.
+
+- November 16, 2026 — Version 4.114. Documented Outreach separation, history and promotion, task state repair, sidebar counts/read status and remembered sign-in. Local changes pending release approval.
+
+- November 11, 2026 — Version 4.113. Added the public November newsletter, archive, responsive editorial layout and accessible Resources dropdown. Prepared for the authorized test and production release.
+
+- November 11, 2026 — Version 4.112. Removed public destination photo credits at Brent’s request; source/license metadata retained privately. Local pending release.
+
+- November 9, 2026 — Version 4.111. Added consistent responsive bulk contact type controls, selection confirmation and accessible result messages. Pending release approval.
+
+- November 9, 2026 — Version 4.110. Added the accessible HTML newsletter composer, isolated preview and saved-copy controls. Pending release approval.
+
+- November 9, 2026 — Version 4.109. Added automatic production invitation email, admin send status and manual fallback; test/local mail capture remains isolated. Sender prayer@hopesojourns.com has active forwarding to the ministry inbox. Local review; pending release approval.
+
+- November 8, 2026 — Version 4.108. Added the approved Prayer Portal logo with praying-hands j and Prayer Portal subtitle. Original website/MMT logo preserved. Local review; pending release approval.
+
+- November 7, 2026 — Version 4.107. Added searchable How it Works and provisional full-access instructions; verified help and daily devotional navigation for provisional accounts. Local review only.
+
+- November 7, 2026 — Version 4.106. Added independent prayer daily devotionals, samples, scheduling, private read tracking and admin curation. Local review only.
+
+- November 7, 2026 — Version 4.105. Added optional remembered sign-in, password visibility, inclusive Christian wording and actionable admin review notices. Local review only.
+
+- November 5, 2026 — Version 4.104. Added shared Expanded/Collapsed list controls, compact disclosure rows, counted hearts and thumbs. Local review only.
+
+- November 4, 2026 - Version 4.100: Added task Created dates, independent compact down/up controls, contact buttons and reversible Delete / Restore. Release authorized for test and production.
+
+- November 4, 2026 - Version 4.99: Simplified meeting entry, ordinary introduction tasks, optional contact reminders and one Finish meeting action. Local review only; not deployed.
+
+- November 3, 2026 — Version 4.98. Added provisional navigation and status, Global composer/filter labels and explicit audience-change confirmation. Local review only.
+
+- November 3, 2026 - Version 4.97: Added compact meeting grid rows with independent down-arrow expansion and up-arrow collapse. Local review only.
+
+- November 3, 2026 - Version 4.96: Made task editing, completion, reopening and contact access visible on task cards. Local review only.
+
+- November 3, 2026 - Version 4.95: Separated named introduction targets from unnamed promises, blocked unselected names, and made contact creation and Inbox/Tasks reminders explicit. Local review only.
+
+- November 3, 2026 — Version 4.94. Added sign-in help forms, full-profile access requests, pending badges and verified admin review dialogs. Local review only.
+
+- November 3, 2026 - Version 4.93: Added meeting grid/calendar, relationship pickers, source review, separate closure/History controls and responsive details standards. Local review only.
+
+- November 2, 2026 — Version 4.92. Reviewed Newsletter category labels, attachment controls, saved downloads, centered email dialogs, and accepted-delivery contact activity for the authorized release.
+
+- October 30, 2026 — Version 4.91. Added The Connection Codes cover and paragraph-length descriptions for all three curated books. Local review only.
+
+- October 29, 2026 — Version 4.90. Replaced prayer audit tiles with a compact accessible table and contained scrolling. Local review only.
+
+- October 29, 2026 — Version 4.89. Added local recommendation/approval presentation, pending counts, book covers and image previews, demographic audience controls, and private profile disclosures. Pending release approval.
+
+- October 29, 2026 — Version 4.88. Added local resource cards, featured styling, searchable filters, responsive curation forms, category controls, and deletion confirmations. Pending release approval.
+
+- October 29, 2026 — Version 4.87. Prepared authorized admin/profile navigation, role/status controls, explicit admin grants, deletion confirmations, username and contact-field disclosures, and profile notification settings. Unreviewed Word editions remain unpublished pending required document review.
+
+- October 29, 2026 — Version 4.86. Added the prayer test-environment banner and first-admin invitation presentation for the authorized release. Unreviewed Word editions remain unpublished.
+
+- October 28, 2026 — Version 4.85. Defined centered, viewport-bounded email cards with sticky close controls and automatic Last Contacted display after accepted delivery. Local changes pending release approval.
+
+- October 28, 2026 — Version 4.84. Added accountability-group discovery, membership controls, group-aware sharing and audience disclosures, modal error feedback, and configurable organization presentation. Local work pending review.
+
+- October 28, 2026 — Version 4.83. Added the independent prayer portal visual system, audience disclosure, invitation controls, and notification presentation. Local work pending review and release preparation.
+
+- October 27, 2026 — Version 4.82. Added email attachments, file limits, saved private downloads, and attachment-preserving retries. Local change pending release approval.
+
+- October 26, 2026 — Version 4.81. Added Select all visible contacts, per-contact email history, Interest awaiting reply, and the Emails sent inbox view. Local change pending release approval.
+
+- October 26, 2026 — Version 4.80. Changed the contact composer to show fixed To and editable BCC hidden recipients, privacy help, and accurate historical recipient labels. Local change pending release approval.
+
+- October 26, 2026 — Version 4.79. Added contact selection, accessible group email modal, responsive fields, standard signed footer preview, and truthful delivery and retry states. Local change pending release approval.
+
+- October 26, 2026 — Version 4.78. Restyled service pathways with distinct number badges, equal-height clickable cards, and an independent shared detail panel. Added the collage excluding Nice and Belize, then small location labels, a verified Halifax town photo, and user-requested removal of the image's AI-content text. Existing palette and keyboard behavior. Local review only.
+
+- October 26, 2026 — Version 4.77. Rebalanced the home page around three service offerings; added corporate humanitarian journeys and the Leadership Transformation curriculum with responsive layouts and shared navigation. Existing palette only. Localhost review; no release authorized.
+
+- October 26, 2026 — Version 4.76. Expanded the Mexico destination with a proposed six-day rhythm, partner-led service, preparation, explicit estimated pricing and transparent stewardship. Reused the Mexico brochure outreach photo at its full aspect ratio with a contextual caption. Scoped Mexico styles reuse palette tokens and preserve other destination layouts. Release authorized for test and production on October 26, 2026; verify the deployed version before training.
+
+- October 26, 2026 — Version 4.75. Destination interest forms include optional Age range radio buttons, Occupation (Student if still in school), and Church. Age choices preserve guardian and parental-consent guidance beside the minor ranges. Additional data displays matching age labels and editable age/occupation fields, reusing Church / ministry. Existing contact-match review presents each new value as an explicit checkbox; no new colors. Local change pending release.
+
+- October 25, 2026 — Version 4.74. Combined application request and email buttons into one Request application flow. The dialog shows current contact emails, a clear regeneration choice and an optional additional-information textarea. Preview separates actual recipients from Not sending explanations, preserves the standard WitLooL/signature template and offers Back to invitation without losing the draft message. Released to test and production with isolated databases and private uploads. All 380 tests and browser checks passed; deployed assets, API health and database integrity were verified. Test captures invitations; production uses configured live portal email.
+
+- October 25, 2026 — Version 4.73. Traveler Stage labels use font weight 800 so their status colors are easier to distinguish. Row backgrounds and other text remain unchanged. Local review only.
+
+- October 25, 2026 — Version 4.72. Color only traveler workflow Stage text: Confirmed uses dark success green; Rejected, Waitlisted and Withdrawn use error red; Contacted and Application use info blue; Review and Approved use warning gold; Received uses normal ink. Preserve row backgrounds and all other text. The explicit label remains present for accessibility. Reuse existing palette tokens without new colors. Local review only.
+
+- October 25, 2026 — Version 4.71. Additional data editing groups staff-only investigation date, company, reference and type in a labeled fieldset. Proof image selection shows optimization progress, original and saved size, a proportional preview, and explicit Save; existing proof is viewed through a private link. Images retain their complete content without cropping. Local review only.
+
+- October 25, 2026 — Version 4.70. Added standard branded application invitation email previews with a trip-specific introduction, one-use URL warning, admin@hopesojourns.com replacement instructions and shared WitLooL/signature footer. Traveler forms and collapsed Additional data share an optional Yes/No/Not sure background-check-on-file question. Local review only.
+
+- October 25, 2026 — Version 4.69. Added the explicit Reject application decision, conditional required reason and separate rejected-application history. Copying answers is disabled for rejection. Application rejected indicators remain distinct from traveler rejection and preserve a compact contact layout. Local review only.
+
+- October 25, 2026 — Version 4.68. Traveler applications use matching Received, Reviewed and Approved indicators in Inbox, departure roster and collapsed Additional data. Contact summaries flag pending applications without expanding the form. Review decision is explicit and separate from trip confirmation. Local review only.
+
+- October 25, 2026 — Version 4.67. Traveler phone fields and readouts use the shared HS U.S. format, such as (972)505-0171, in the application, Additional data and review dialog. Local review only.
+
+- October 25, 2026 — Version 4.66. Additional data shows name and citizenship read-only with guidance to edit their main contact source. Local review only.
+
+- October 25, 2026 — Version 4.65. Added editable application prefills and clear optional personal-reference labels, field help and a collapsed Additional data contact section. Local review only.
+
+- October 25, 2026 — Version 4.64. Added Rejected and Re-add controls, required suitability reasons and retained contact review notes; distinguished Waitlisted capacity. Local review only.
+
+- October 25, 2026 — Version 4.63. Added local traveler workflow, optional application exceptions, private contact details and optional background screening; pending local review. Fixed screening Save for Not needed and clarified conditional required fields and visible errors.
+
+- October 23, 2026 — Added potential traveler conversion and dated contact journey history. Local pending release.
+
+- October 22, 2026 — Fixed story preview selection eligibility and added save feedback beside the button. Local pending release.
+
+- October 22, 2026 — Added section-specific Select all and Clear all controls to Past-trip story. Local pending release.
+
+- October 20, 2026 - Version 4.62. Added verified recovery-address changes, protected account forms and atomic concurrent-login limits. Session timeouts remain unchanged.
+
+- October 20, 2026 — Version 4.58. Added the private developer web guide and administrator footer link. Release authorized for test and production.
+
+- October 18, 2026 — Replaced separate reuse approval and withdrawal buttons with one state-dependent control. Local pending release.
+
+- October 18, 2026 — Added guarded Move to trash, pending-only restore and public Questions & answers navigation links. Local pending release.
+
+- October 18, 2026 — Version 4.55. Kept contextual question icons visible inside collapsed and expanded pathway summaries, preserving disclosure state and keyboard access.
+
+- October 18, 2026 — Version 4.54. Redesigned public FAQ with shared navigation, themed search and answer cards, responsive controls and expandable privacy details. Local pending release.
+
+- October 18, 2026 — Added checked-item approval for the Knowledge & FAQ queue and sources, with visibility preservation, separate publication and partial-failure reporting. Local pending release.
+
+- October 18, 2026 — Version 4.52. Added compact question-mark icons with hover/focus hints, preserved card grids, and documented original public content search.
+
+- October 16, 2026 — Version 4.51. Added live public question/FAQ and authenticated Knowledge & FAQ workflows, granular rights, reviewed sources/transcripts, retention, topic analytics and test/production release procedure. Paid services remain disabled by Brent’s choice.
+
+- October 15, 2026 — Version 4.50. Added explicitly labeled fictional answer/FAQ fixtures, example popularity counts, sample-mode controls, and preview-only commit/push/deploy authorization. Paid AI remains off.
+
+- October 15, 2026 — Version 4.49. Documented the preview internship question panel, contextual video controls, review and FAQ presentation, privacy/limitations, and responsive behavior. Preview only.
+
+- October 15, 2026 — Version 4.48. Documented automatic continuation only within numbered parts of one recording, with manual photo and unrelated-video navigation retained and an italic continuation note in the popup. Local change pending release.
+- October 12, 2026 — Version 4.47. Added the shared full-size photo/video popup, Close and Previous/Next controls, keyboard navigation, complete-image display, and mobile layout. Technical Word guides use a two-column map for long section lists to avoid nearly empty spillover pages. Release authorized for test and production.
+
+- October 11, 2026 — Version 4.46. Put daily journal notes before the gallery on public dated trip pages. Local pending release.
+
+- October 9, 2026 — Version 4.45. Added completed-trip portal navigation using existing text links. Local pending release.
+
+- October 9, 2026 — Version 4.44. Added accessible story gallery ordering controls and preserved the reviewed photo sequence. Local pending release.
+
+- October 9, 2026 — Version 4.43. Added Traveling discovery and follow-along navigation, public media visibility, shared calendar and mobile daily-list standards. Local pending release.
+
+- October 9, 2026 — Version 4.42. Added Income email statuses, sent timestamps, automatic-email indicator and reusable thank-you preview controls. Release authorized for test and production.
+
+- October 8, 2026 — Version 4.41. Added Mexico City cooperation statement, official circular Metro Relief logo, accessible website link, and responsive partner recognition.
+
+- October 8, 2026 — Version 4.40. Documented the scoped Ministry Home layout, responsive journey cards, and shared sign-in stylesheet; included inquiry, phone-entry, and donation-association updates in the authorized paired release.
+
+- October 8, 2026 — Version 4.39. Added accessible all-contact search and deliberate contact association in Payment inbox, with disabled new-contact fields and separate confirmation for a different person. Local pending release.
+
+October 7, 2026 — Version 4.38: Added inquiry follow-up, future-interest lists, portal email delivery, phone input, and confirmation-stage billing guidance. Local pending release.
+
+- October 6, 2026 — Version 4.37. Corporate pathway card uses the selected AI-created exterior home repair scene in a Mexico City neighborhood. Preserve existing overlay and layout; this is illustrative imagery, not an actual trip photograph. Both width variants share the card.
+
+- October 6, 2026 — Version 4.36. Documented production-margin comparison.
+
+- October 6, 2026 — Version 4.35. Documented three ways to serve in the local preview.
+
+- October 6, 2026 — Version 4.34. Local destination cards reveal public MMT summaries and date labels over a dimmed photograph; smaller cards expand beneath the image. Use the details button for touch and keyboard, Escape to close, shared palette tokens and reduced-motion support. Keep England, Mexico City and Athens featured in that order.
+
+- October 6, 2026 — Version 4.33. Preview group imagery now uses the approved AI composite including Brent, assets/ministry-gathering-athens-with-brent.png. Preserve the original photograph and existing crops/layout. Production imagery is unchanged.
+
+- October 6, 2026 — Version 4.32. Keep all three foreground faces visible in the local compact hero: desktop photo crop uses center 25% and a top-centered zoom origin. Hero dimensions remain unchanged.
+
+- October 6, 2026 — Version 4.31. Added Board Member and accessible managed Portal Access guidance, contact association choices, and duplicate-match display. Authorized release to test and production.
+
+- October 6, 2026 — Version 4.30. Shortened the local opening to a 560px desktop minimum with smaller headline type and tighter spacing. On phones, use natural content height and place the story invitation and footer in normal flow.
+
+- October 6, 2026 — Version 4.29. Added local full-chapter reader and shared chapter navigation. Local review only.
+
+- October 6, 2026 — Version 4.28. The local in-motion preview reuses the production “You are Invited” welcome, Athens backdrop, and logo flight. Replay intro sits beside Pause motion; it is hidden on story pages and with reduced or paused motion.
+
+- October 6, 2026 — Version 4.27. Replaced cartoon story objects with naturalistic AI-created imagery. Story images use a compact 30-percent desktop column and a small phone thumbnail; reading remains primary.
+
+October 6, 2026 — Version 4.27: Added related-contact controls and shared-email guidance using existing palette, responsive fields and accessible labels. Test-only release.
+
+- October 6, 2026 — Version 4.26. Removed the scrolling text band from the local motion direction; restored the production navigation and added featured England, Mexico City, and Athens images above smaller images for all other destinations.
+
+October 6, 2026 — Version 4.26: Added the local animated direction, saturated brand surfaces, illustrated walk-through scenes, and motion controls.
+
+October 5, 2026 — Version 4.24: Added five complete design directions, comparison navigation, clear visitor orientation, open layouts, and continuous accessible story reading.
+
+October 5, 2026 — Version 4.23: Added the isolated story preview's typography, symbolic illustrations, six-moment pacing, optional reflection, and responsive accessibility standards.
+
+October 5, 2026 — Version 4.22: Added a giving thank-you page using the shared opening-section and giving-status components, forest-colored amount, wrapping payment reference, and spaced return links. Personalize the heading with the PayPal donor name, with a generic fallback and wrapping for long names. Hide the floating Donate now control on this confirmation page. Local pending release.
+
+October 2, 2026 — Version 4.21: Reduced Home summary typography and spacing while preserving tiles and colors; local pending release.
+
+October 2, 2026 — Version 4.20: Added Home current-year and all-time financial totals; local pending release.
+
+- September 30, 2026 - Version 4.19. Added itinerary category controls, optional daily overview tags, ministry duplicate review, private booking disclosure, and traveler category views. Local pending release.
+
+- September 28, 2026 - Version 4.18. Added People column checklist filters and responsive accessibility guidance (local, pending release).
+
+- September 26, 2026 - Version 4.17. Added the separate Travel form and traveler section using shared components; local pending release.
+
+September 26, 2026 — Version 4.16: Added underlined per-passage Scripture links, separate library-link controls, and hymn stanza presentation; local pending release.
+
+September 24, 2026 — Version 4.15: Refined Ministry Home hierarchy, journey cards, progress indicators, task panels, and responsive layout; local review.
+
+September 24, 2026 - Version 4.14: expense purposes, planned-trip validation, transfer review, and transaction type labels (local pending release).
+
+September 24, 2026 — Version 4.12: Added optional automatic and per-gift thank-you emails, the approved signature template, giving@hopesojourns.com routing, and duplicate-send protection.
+
+September 23, 2026 — Version 4.11: Released the contact giving card to both portals. Build 2026-09-23.4 hides the entire card for contacts with no gifts in the displayed period.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-11-05 | 4.103 | Released Finish meeting contact-date and meeting-note updates, newer-date protection and contact-date display correction to test and production. |
+| 2026-11-04 | 4.102 | Restored phone formatter packaging, added release asset validation and released the guided readings with a refreshed public search catalog. |
+| 2026-11-04 | 4.101 | Published both original guided readings under Resources and connected the general handout. |
+| September 24, 2026 | 4.13 | Added the signed-in portal footer guide link and read-only responsive guide layout. |
 | September 22, 2026 | 4.8.3 | Automatic photo/video upload optimization, local processing, progress, cancellation, and storage savings. |
 | September 22, 2026 | 4.8.2 | Two-column dated photo/video tiles, video uploads and playback, and accessible full-image links. |
 | September 22, 2026 | 4.8.1 | Administrator permanent deletion for removed trip memories with confirmation, story protection, and retry handling. |
