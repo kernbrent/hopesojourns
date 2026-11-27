@@ -91,7 +91,7 @@ if (biblillionTest) {
   const gameDirectory = path.join(outputDirectory, 'biblillion');
   await mkdir(gameDirectory, {recursive: true});
   // Copy runtime assets only; never publish the source README or local tooling.
-  for (const file of ['index.html', 'game.css', 'game.js', 'content.js', 'engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js','general-bank.js','question-settings.js','rewards.js','timer.js','passport.css','friendly-bank.js','mission-bank.js','country-areas.js']) {
+  for (const file of ['index.html', 'game.css', 'game.js', 'content.js', 'engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js','general-bank.js','question-settings.js','rewards.js','timer.js','passport.css','friendly-bank.js','mission-bank.js','country-areas.js','open-ended.js']) {
     const source = path.join(repositoryRoot, 'preview/biblillion', file);
     if (file === 'index.html') {
       const html = (await readFile(source, 'utf8'))
@@ -111,7 +111,7 @@ if (biblillionTest) {
       if (entry.isDirectory()) await reviseCache(location);
       else if (entry.name.endsWith('.html')) {
         const html = await readFile(location, 'utf8');
-        await writeFile(location, html.replace(/\/script\.js\?v=[^"']+/g, '/script.js?v=2026-11-25.biblillion-stats1').replace(/\/admin\/mmt-navigation\.js\?v=[^"']+/g,'/admin/mmt-navigation.js?v=2026-11-25.biblillion-stats1').replace(/\/admin\/mmt-session\.js\?v=[^"']+/g,'/admin/mmt-session.js?v=2026-11-25.biblillion-stats1'));
+        await writeFile(location, html.replace(/\/script\.js\?v=[^"']+/g, '/script.js?v=2026-11-27.biblillion-judge1').replace(/\/admin\/mmt-navigation\.js\?v=[^"']+/g,'/admin/mmt-navigation.js?v=2026-11-27.biblillion-judge1').replace(/\/admin\/mmt-session\.js\?v=[^"']+/g,'/admin/mmt-session.js?v=2026-11-27.biblillion-judge1'));
       }
     }
   }

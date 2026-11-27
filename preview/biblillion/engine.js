@@ -1,3 +1,4 @@
+import {validReceipt} from './open-ended.js';
 import {QUESTIONS, BANK_VERSION,LEGACY_BANK_VERSION,PREVIOUS_BANK_VERSION,SUPPORTED_BANKS,BALANCED_BANK_VERSION,PLAYABLE_QUESTIONS,REWARD_BANKS,COMMON_BANKS} from './content.js';
 import {QUESTION_MS} from './timer.js';
 import {arrivalForPoints} from './rewards.js';
@@ -87,13 +88,13 @@ export function restoreRound(value){
  const results=[];for(let i=0;i<value.results.length;i++){
   const r=value.results[i],q=QUESTIONS.find(q=>q.id===value.ids[i]);
   if(!r||typeof r.skipped!=='boolean'||r.timedOut===true&&!r.skipped)return null;
-  const answer=r.skipped?null:q.answers.find(a=>a.name===r.answer);if(!r.skipped&&!answer)return null;
-  results.push({skipped:r.skipped,answer:answer?.name||null,points:answer?.points||0,...(r.corrected===true?{corrected:true}:{}),...(r.timedOut===true?{timedOut:true}:{})});
+  const receipt=validReceipt(q,r.receipt)&&r.receipt.name===r.answer?r.receipt:null;const answer=r.skipped?null:receipt||q.answers.find(a=>a.name===r.answer);if(!r.skipped&&!answer)return null;
+  results.push({skipped:r.skipped,answer:answer?.name||null,points:answer?.points||0,...(receipt?{receipt}:{}),...(r.corrected===true?{corrected:true}:{}),...(r.timedOut===true?{timedOut:true}:{})});
  }
  // Ignore supplied totals and scores. The reviewed content is authoritative.
  const index=Number.isInteger(value.index)&&value.index>=0&&value.index<=7?value.index:0;
  if(!(index===results.length||index===results.length-1))return null;
- return {version:value.version,mode:value.mode,key:value.key,ids:[...value.ids],results,index,timingMode:'timed',...(value.clock&&value.clock.slot===index&&Number.isFinite(value.clock.remainingMs)&&value.clock.remainingMs>=0&&value.clock.remainingMs<=45000?{clock:{slot:index,remainingMs:Math.min(QUESTION_MS,value.clock.remainingMs)}}:{}),...(typeof value.destinationId==='string'?{destinationId:value.destinationId.slice(0,50)}:{}),...(typeof value.analyticsRoundId==='string'&&/^[a-f0-9-]{36}$/i.test(value.analyticsRoundId)?{analyticsRoundId:value.analyticsRoundId}:{}),...(value.celebrated===true?{celebrated:true}:{})};
+ return {version:value.version,mode:value.mode,key:value.key,ids:[...value.ids],results,index,timingMode:'timed',...(value.clock&&value.clock.slot===index&&Number.isFinite(value.clock.remainingMs)&&value.clock.remainingMs>=0&&value.clock.remainingMs<=45000?{clock:{slot:index,remainingMs:Math.min(QUESTION_MS,value.clock.remainingMs),cushionUsed:value.clock.cushionUsed===true,typing:value.clock.typing===true,attempts:Array.isArray(value.clock.attempts)?value.clock.attempts.filter(x=>typeof x==='string').slice(-50):[]}}:{}),...(typeof value.destinationId==='string'?{destinationId:value.destinationId.slice(0,50)}:{}),...(typeof value.analyticsRoundId==='string'&&/^[a-f0-9-]{36}$/i.test(value.analyticsRoundId)?{analyticsRoundId:value.analyticsRoundId}:{}),...(value.celebrated===true?{celebrated:true}:{})};
 }
 export const totalFor=round=>round.results.reduce((sum,r)=>sum+r.points,0);
 export function submitAnswer(round,input,{skip=false,timedOut=false}={}){

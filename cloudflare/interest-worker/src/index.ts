@@ -479,7 +479,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     await env.DB.prepare("SELECT 1").first();
     return json(request, env, { status: "ok", service: "hope-sojourns-interest", environment: env.ENVIRONMENT });
   }
-  if(path==='/public/biblillion/results'||path==='/admin/biblillion'||path.startsWith('/admin/biblillion/'))return handleBiblillion(request,env,path);
+  if(path.startsWith('/public/biblillion/')||path==='/admin/biblillion'||path.startsWith('/admin/biblillion/'))return handleBiblillion(request,env,path);
   if(path==='/public/mission-preparation'||path==='/admin/mission-preparation'||path.startsWith('/admin/mission-preparation/'))return handleMissionPreparation(request,env,path);
   if (path === "/internal/donation-splits") return internalDonationSplits(request, env);
   if(path==='/public/discovery'||path==='/admin/discovery-self'||path==='/admin/discovery'||path.startsWith('/admin/discovery/'))return handleDiscovery(request,env,path);

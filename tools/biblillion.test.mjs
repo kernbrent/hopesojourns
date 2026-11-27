@@ -64,7 +64,7 @@ test('travel reward thresholds apply once, only to completed current-bank rounds
 });
 test('remaining question time pauses, clamps and restores without granting a fresh clock',async()=>{
  const {remainingAfter}=await import('../preview/biblillion/timer.js');assert.equal(remainingAfter(25000,15000),10000);assert.equal(remainingAfter(10000,60000,true),10000);assert.equal(remainingAfter(500,1000),0);assert.equal(remainingAfter(25000,-100),25000);
- const r=newRound();r.clock={slot:0,remainingMs:12345};assert.deepEqual(restoreRound(r).clock,r.clock);r.clock.remainingMs=45000;assert.equal(restoreRound(r).clock.remainingMs,25000);r.clock.remainingMs=999999;assert.equal(restoreRound(r).clock,undefined);
+ const r=newRound();r.clock={slot:0,remainingMs:12345};assert.deepEqual({...restoreRound(r).clock,cushionUsed:undefined,typing:undefined,attempts:undefined},{...r.clock,cushionUsed:undefined,typing:undefined,attempts:undefined});r.clock.remainingMs=45000;assert.equal(restoreRound(r).clock.remainingMs,25000);r.clock.remainingMs=999999;assert.equal(restoreRound(r).clock,undefined);
 });
 
 test('broad warm-ups accept familiar first names, royal titles, places and denomination aliases',()=>{

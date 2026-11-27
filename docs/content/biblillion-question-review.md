@@ -44,3 +44,5 @@ Bank 2026-11-25.4 adds reviewed broad answers to community, belonging, welcome a
 ## Automatic anonymous reporting — November 25, 2026
 
 New game results are recorded automatically without a sharing switch. Only canonical answers/skips and game metadata are reported; no arbitrary guesses, private reflections, names, emails or persistent player identity. Existing question scores and bank versions are unchanged. Recorded percentages describe captured answer choices, not unique people, population rarity or theology. Existing unshared saved results are not backfilled; older opted-in retries remain idempotent. Local reset clears saved progress and pending reports, not previously recorded statistics.
+
+November 27, 2026: Added an explicit open-ended prompt allowlist for bounded semantic checking. Bible and factual geography answers remain curated. New accepted ideas have provisional familiarity points and a private MMT review workflow; novel wording alone does not establish rarity. Review changes affect future checks while earned scoring receipts remain immutable.
