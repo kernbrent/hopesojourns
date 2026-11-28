@@ -48,3 +48,16 @@ New game results are recorded automatically without a sharing switch. Only canon
 November 27, 2026: Added an explicit open-ended prompt allowlist for bounded semantic checking. Bible and factual geography answers remain curated. New accepted ideas have provisional familiarity points and a private MMT review workflow; novel wording alone does not establish rarity. Review changes affect future checks while earned scoring receipts remain immutable.
 
 November 27, 2026: Corrected fallback coverage for all care prompts, ordinary punctuation and unmatched ambiguous wording. No factual Bible/geography scope was widened. New daily/Practice browser-history rounds expose all 99 active prompts before repeat; topic proportions may vary to include the 99th prompt. Existing archival content remains outside regular play. Local review pending release approval.
+
+November 27, 2026, additional content review: appended friendly-number (26 cited number answers; digits/words accepted), broadened the existing color and miracle prompts, and added Leviathan/Unicorn at 100 points. Unicorn follows Job 39:9 KJV; NIV uses wild ox. KJV links are explicitly labeled. No numerological meaning is imposed on every occurrence of a number. New totals: 100 active (43 Bible, 29 geography, 28 care), 286 archived; 386 total. All 400 checked legacy daily schedules remain identical.
+
+The question remains “Name a continent.” The hint mentions continental groupings without giving away the extra names; explanations appear after the answer. Sources: National Geographic’s Continent resource (Eurasia), Spain’s INTEF educational resource (América/Oceanía), USGS Professional Paper 1386A (Pangaea, Gondwana, Laurasia, Rodinia), Earth Sciences New Zealand/GNS (Te Riu-a-Māui Zealandia), and Evans et al.’s Yale-hosted Nuna reconstruction. Columbia/Nuna names are contextualized as reconstructed/proposed geological usage. Oceania is no longer an alias of Australia, but previous Australia scores remain valid.
+
+- https://www.biblegateway.com/passage/?search=Job%2039%3A9&version=KJV
+- https://www.biblegateway.com/passage/?search=Job%2039%3A9&version=NIV
+- https://www.biblegateway.com/passage/?search=Job%2041%3A1&version=KJV
+- https://education.nationalgeographic.org/resource/Continent/
+- https://descargas.intef.es/recursos_educativos/It_didac/CCSS/3/08/El_mundo_y_sus_continentes/aprendemos_sobre_los_continentes_y_ocanos.html
+- https://pubs.usgs.gov/pp/p1386a/pdf/pp1386a-2-web.pdf
+- https://www.gns.cri.nz/our-science/land-and-marine-geoscience/te-riu-a-maui-our-continent/
+- https://earth.yale.edu/sites/default/files/2024-09/Evans%20doc%2037.pdf

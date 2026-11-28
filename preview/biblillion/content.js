@@ -2,7 +2,7 @@
 // References establish eligibility. Explanations are original paraphrases, not Bible quotations.
 import {EXPANDED_QUESTIONS} from './expanded-bank.js';
 import {makeGeneralQuestions} from './general-bank.js';
-import {makeFriendlyBibleQuestions} from './friendly-bank.js';
+import {makeFriendlyBibleQuestions,SCRIPTURE_NUMBERS} from './friendly-bank.js';
 import {makeMissionQuestions} from './mission-bank.js';
 import {withDifficulty} from './question-settings.js';
 export const BANK_VERSION = '2026-11-25.4';
@@ -76,7 +76,7 @@ const ORIGINAL_QUESTIONS = [
  ,...EXPANDED_QUESTIONS
 ];
 const LEGACY_QUESTIONS=[...ORIGINAL_QUESTIONS,...makeGeneralQuestions(ORIGINAL_QUESTIONS)].map(withDifficulty);
-export const QUESTIONS=[...LEGACY_QUESTIONS.map(q=>({...q,active:false,topic:'archive'})),...makeFriendlyBibleQuestions(LEGACY_QUESTIONS),...makeMissionQuestions()];
+export const QUESTIONS=[...LEGACY_QUESTIONS.map(q=>({...q,active:false,topic:'archive'})),...makeFriendlyBibleQuestions(LEGACY_QUESTIONS),...makeMissionQuestions(),SCRIPTURE_NUMBERS];
 export const PLAYABLE_QUESTIONS=QUESTIONS.filter(q=>q.active);
 export const TIERS = [
  {min:100,name:'Hidden treasure',mark:'✦',description:'Our most unexpected pick in this set.'},

@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.136
+Version 4.137
 
 Last reviewed: November 27, 2026
 
@@ -1025,7 +1025,7 @@ Keep the seven journey-step labels visible alongside the passport: Listen, Learn
 
 Everyone reaches the chosen destination after all seven questions, including players who miss every question. Misses earn no points or stamp; the final answer score determines the travel tier and may mean an unexpected layover. The arrival summary and celebration both confirm that the player reached the destination.
 
-Every finished round receives one travel moment: Unexpected layover (0–174 answer points), Connection made (175–299), Right on schedule (300–449), Priority boarding (450–574), or First-class upgrade (575–700). Rewards add 0/25/50/100/150 points respectively. The separate seven-stamp bonus stays 150, for a new maximum of 1,000. Each question starts with a mandatory 25-second countdown, with limited retry and typing extensions; answering faster earns no extra points. All tiers use a destination-photo dialog with a relevant trip/interest link. High tiers use a short finite confetti burst; other tiers use a clock, connection arrows or a passing plane. Honor reduced motion by showing a static emblem without moving confetti or stamping effects. Celebrations open automatically once per round and have an explicit replay button.
+Every finished round receives one travel moment: Unexpected layover (0–174 answer points), Connection made (175–2100), Right on schedule (300–449), Priority boarding (450–574), or First-class upgrade (575–700). Rewards add 0/25/50/100/150 points respectively. The separate seven-stamp bonus stays 150, for a new maximum of 1,000. Each question starts with a mandatory 25-second countdown, with limited retry and typing extensions; answering faster earns no extra points. All tiers use a destination-photo dialog with a relevant trip/interest link. High tiers use a short finite confetti burst; other tiers use a clock, connection arrows or a passing plane. Honor reduced motion by showing a static emblem without moving confetti or stamping effects. Celebrations open automatically once per round and have an explicit replay button.
 
 MMT insights uses existing shared components. Label Common knowledge or Archived status and topic. The Question library filter defaults to regular prompts, with All and Archive options. Preserve archived difficulty labels and distinguish a timeout from a voluntary skip. Counts are recorded rounds, not unique people. Observed choice percentages do not change editorial rarity scores. Devotional starters remain private drafts with review-before-use reminders. Non-Scripture sources use a Background source label; the church-family directory remains clearly identified. Devotional starters from these prompts require a Bible passage selected by the editor.
 
@@ -1039,8 +1039,14 @@ Daily renewal uses America/Chicago dates. A completed daily journey automaticall
 
 Unfamiliar answers on every active care prompt and listed open-ended travel prompts reach AI after local matching, even when the spelling checker has several suggestions. Accept ordinary punctuation and up to 100 characters, while screening links/contact details and instruction text. Explain whether an AI check, a saved AI decision or an editor decision rejected an idea. Service limits or unavailable checks must not be described as a wrong answer. Factual prompts clearly state that they use the reviewed bank rather than AI. Older pending invalid/uncertain AI decisions are checked once under the corrected policy; editor decisions remain authoritative.
 
+The regular pool now contains 100 prompts. The Scripture-number question accepts digits and number words with passage references; do not imply that a number always has one symbolic meaning. The existing color question includes translation-specific terms, and the existing miracle question accepts Old and New Testament examples. This avoids duplicate prompts. Leviathan and Unicorn each earn 100 points in the regular Bible-animal question. Unicorn links directly to Job 39:9 in the King James Version, with a brief note that many modern translations use wild ox. Direct Bible Gateway KJV sources are labeled Scripture (KJV), not Background source.
+
+Keep the original question, “Name a continent.” The hint may mention continental groupings without naming the extra answers. Additional accepted names remain discoveries, with geographic context shown after the answer. Oceania is a separate accepted answer from Australia; Pangaea and Pangea are equivalent. America/the Americas, Eurasia, Gondwana, Laurasia, Rodinia, Zealandia and Columbia/Nuna are accepted with source/context notes. Explain that geographic conventions differ and that ancient or submerged landmasses are not all separate present-day school continents. French/Spanish Latin-script names such as Europa, América del Norte and Océanie are accepted aliases.
+
 
 ## Revision history
+
+- November 27, 2026 — Version 4.137. Added Scripture numbers; expanded colors, miracles and continent conventions; added Leviathan/Unicorn at 100 points with KJV source labeling. Preserved prior daily schedules and the shared no-repeat pool. Local changes awaiting release approval.
 
 - November 27, 2026 — Version 4.136. Corrected AI fallback paths and feedback, added automatic new-day renewal and shared browser question history covering all 99 regular prompts. Local changes awaiting release approval.
 

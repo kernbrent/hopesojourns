@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {PLAYABLE_QUESTIONS as questions,QUESTIONS} from '../preview/biblillion/content.js';
 import {historyRound,restoreHistory,mergeHistory,seedHistory,showHistoryQuestion,rolloverDaily,restoreRound,submitAnswer,adoptHistoryRound,newRound} from '../preview/biblillion/engine.js';
 import {checkPath,safeAnswer,answerKey} from '../preview/biblillion/open-ended.js';
-test('daily and Practice show all 99 questions before repeating, across cycle seams and resumed rounds',()=>{
+test('daily and Practice show all active questions before repeating, across cycle seams and resumed rounds',()=>{
  let h=restoreHistory(),sequence=[];const rounds=[];
  for(let n=0;n<90;n++){
   let r=historyRound(n%2?'daily':'practice','2026-11-27','round'+n);r.destinationId='athens';r.analyticsRoundId='round'+n;
@@ -12,16 +12,16 @@ test('daily and Practice show all 99 questions before repeating, across cycle se
   }
   assert.equal(new Set(r.ids).size,7);rounds.push(r);
  }
- for(let i=0;i+99<=sequence.length;i+=99){const cycle=sequence.slice(i,i+99);assert.equal(new Set(cycle).size,99);assert.deepEqual([...cycle].sort(),questions.map(q=>q.id).sort());}
+ for(let i=0;i+questions.length<=sequence.length;i+=questions.length){const cycle=sequence.slice(i,i+questions.length);assert.equal(new Set(cycle).size,questions.length);assert.deepEqual([...cycle].sort(),questions.map(q=>q.id).sort());}
  assert.ok(h.cycle>=6);
 });
 test('only displayed questions count; abandoned rounds and both modes share the same pool',()=>{
  const h=restoreHistory(),seen=[];
- for(let n=0;n<99;n++){const r=historyRound(n%2?'practice':'daily','2026-11-27','abandon'+n);r.destinationId='kenya';showHistoryQuestion(h,r);seen.push(r.ids[0]);assert.equal(h.seen.length,n+1);}
- assert.equal(new Set(seen).size,99);
+ for(let n=0;n<questions.length;n++){const r=historyRound(n%2?'practice':'daily','2026-11-27','abandon'+n);r.destinationId='kenya';showHistoryQuestion(h,r);seen.push(r.ids[0]);assert.equal(h.seen.length,n+1);}
+ assert.equal(new Set(seen).size,questions.length);
 });
-test('all current topics drain before resetting, including the 99th geography prompt',()=>{
- const target=questions.filter(q=>q.topic==='geography').at(-1),h=restoreHistory({seen:questions.filter(q=>q!==target).map(q=>q.id)}),r=historyRound();r.destinationId='athens';showHistoryQuestion(h,r);assert.equal(r.ids[0],target.id);assert.equal(h.seen.length,99);submitAnswer(r,'',{skip:true});r.index++;showHistoryQuestion(h,r);assert.equal(h.cycle,1);assert.notEqual(r.ids[0],r.ids[1]);
+test('all current topics drain before resetting, including the final unseen geography prompt',()=>{
+ const target=questions.filter(q=>q.topic==='geography').at(-1),h=restoreHistory({seen:questions.filter(q=>q!==target).map(q=>q.id)}),r=historyRound();r.destinationId='athens';showHistoryQuestion(h,r);assert.equal(r.ids[0],target.id);assert.equal(h.seen.length,questions.length);submitAnswer(r,'',{skip:true});r.index++;showHistoryQuestion(h,r);assert.equal(h.cycle,1);assert.notEqual(r.ids[0],r.ids[1]);
 });
 test('new days refresh completed games, preserve unfinished journeys and never reset same-day progress',()=>{
  const daily=historyRound('daily','2026-11-26');daily.destinationId='athens';daily.results=Array.from({length:7},()=>({skipped:true}));daily.index=6;

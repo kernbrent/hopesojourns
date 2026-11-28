@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {QUESTIONS,BANK_VERSION,LEGACY_BANK_VERSION,PREVIOUS_BANK_VERSION,BALANCED_BANK_VERSION,PLAYABLE_QUESTIONS,tierFor,scriptureURL} from '../preview/biblillion/content.js';
 import {normalize,matchAnswer,resolveAnswer,clarify,dateKey,newRound,restoreRound,submitAnswer,totalFor,roundQuestions,dailyQuestions,expectedDaily,completionBonus,journeyTotal,CYCLE_DAYS,arrivalBonus,maxFor} from '../preview/biblillion/engine.js';
 test('every prompt has a complete, non-colliding reviewed answer set and a featured treasure',()=>{
- assert.equal(new Set(QUESTIONS.map(q=>q.id)).size,QUESTIONS.length);assert.equal(QUESTIONS.length,385);assert.equal(PLAYABLE_QUESTIONS.length,99);assert.equal(CYCLE_DAYS,14);
+ assert.equal(new Set(QUESTIONS.map(q=>q.id)).size,QUESTIONS.length);assert.equal(QUESTIONS.length,386);assert.equal(PLAYABLE_QUESTIONS.length,100);assert.equal(CYCLE_DAYS,14);
  for(const q of QUESTIONS){assert.ok(q.scope&&q.hint&&q.category);assert.ok(q.answers.some(a=>a.points===100),q.id);const aliases=new Map();
   for(const a of q.answers){assert.ok([35,50,65,85,100].includes(a.points));assert.ok(a.ref&&a.note);assert.equal(new URL(scriptureURL(a.ref)).protocol,'https:');assert.ok(tierFor(a.points));
    for(const alias of [a.name,...a.aliases]){const key=normalize(alias);assert.ok(!aliases.has(key)||aliases.get(key)===a.name,`${q.id}: ambiguous ${alias}`);aliases.set(key,a.name);assert.equal(matchAnswer(q,' '+alias.toUpperCase()+' '),a);}
@@ -96,3 +96,14 @@ test('community and belonging accept broad ideas without replacing higher-scorin
  const b=QUESTIONS.find(q=>q.id==='mission-belonging');for(const typed of ['having my name remembered','being invited to contribute','a meaningful role'])assert.equal(matchAnswer(b,typed)?.points,100,typed);
 });
 test('care-only wording normalization does not relax factual Bible scopes',()=>{assert.equal(matchAnswer(QUESTIONS.find(q=>q.id==='friendly-city'),'my Jerusalem'),null);assert.equal(matchAnswer(QUESTIONS.find(q=>q.id==='apostles'),'my James'),null);});
+
+test('requested Scripture discoveries accept digits, colors, miracles and the two 100-point animals',()=>{
+ const number=QUESTIONS.find(q=>q.id==='friendly-number');assert.ok(number.answers.length>=20);for(const typed of ['7','seven','3','12','40','153','one hundred and fifty three','144,000'])assert.ok(matchAnswer(number,typed),typed);
+ const color=QUESTIONS.find(q=>q.id==='friendly-color');for(const typed of ['blue','red','white','black','gray','grey','brown','amber','vermilion'])assert.ok(matchAnswer(color,typed),typed);
+ const miracle=QUESTIONS.find(q=>q.id==='friendly-miracle');assert.ok(miracle.answers.length>=25);for(const typed of ['Water into wine','Red Sea','Resurrection','manna','Daniel in the lions den','floating ax head','talking donkey'])assert.ok(matchAnswer(miracle,typed),typed);
+ const animals=QUESTIONS.find(q=>q.id==='friendly-animal');for(const typed of ['Leviathan','Unicorn'])assert.equal(matchAnswer(animals,typed)?.points,100);assert.ok(scriptureURL(matchAnswer(animals,'Unicorn').ref).includes('version=KJV'));
+});
+
+test('continent discoveries accept modern conventions and ancient names with distinct Oceania scoring',()=>{
+ const q=QUESTIONS.find(q=>q.id==='mission-continents');assert.equal(q.prompt,'Name a continent.');assert.equal(q.hint,'Think of a very large part of a world map. Continental groupings count too.');assert.ok(q.answers.length>=15);for(const typed of ['Pangea','Pangaea','Oceania','Eurasia','Americas','Gondwanaland','Laurasia','Rodinia','Zealandia','Te Riu a Maui','Nuna','Europa','Amérique du Nord'])assert.ok(matchAnswer(q,typed),typed);assert.equal(matchAnswer(q,'Oceania').name,'Oceania');assert.equal(matchAnswer(q,'Australia').name,'Australia');assert.equal(matchAnswer(q,'Pangea').points,100);assert.equal(resolveAnswer(q,'Atlantis').answer,null);
+});

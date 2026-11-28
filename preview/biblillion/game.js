@@ -7,7 +7,7 @@ import {reporter} from './analytics.js';
 import {startQuestionTimer} from './timer.js';
 import {validReceipt,checkPath} from './open-ended.js';
 const $=s=>document.querySelector(s), escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const refLabel=ref=>ref.startsWith('https:')?(ref.includes('oikoumene.org')?'Church-family directory':'Background source'):ref.length>75?'Supporting Bible passages':ref;
+const refLabel=ref=>ref.startsWith('https:')?(ref.includes('biblegateway.com/passage/')?'Scripture (KJV)':ref.includes('oikoumene.org')?'Church-family directory':'Background source'):ref.length>75?'Supporting Bible passages':ref;
 const cookiePath=new URL('.',import.meta.url).pathname;
 let store={daily:null,practice:null,mode:'daily'},storageOK=true,notice='';
 try{const data=JSON.parse(localStorage.getItem(STORAGE_KEY));if(data){store={daily:restoreRound(data.daily),practice:restoreRound(data.practice),mode:data.mode==='practice'?'practice':'daily',history:data.history};}}catch{storageOK=false;}

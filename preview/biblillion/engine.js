@@ -59,7 +59,7 @@ function balancedDeck(seed,avoid=[]){
  return deck;
 }
 function commonDeck(seed,avoid=[]){
- const pools={bible:shuffled(seed+':bible',PLAYABLE_QUESTIONS.filter(q=>q.topic==='bible')),geography:shuffled(seed+':geography',PLAYABLE_QUESTIONS.filter(q=>q.topic==='geography')),care:shuffled(seed+':care',PLAYABLE_QUESTIONS.filter(q=>q.topic==='care'))};
+ const pools={bible:shuffled(seed+':bible',PLAYABLE_QUESTIONS.filter(q=>q.id!=='friendly-number'&&q.topic==='bible')),geography:shuffled(seed+':geography',PLAYABLE_QUESTIONS.filter(q=>q.id!=='friendly-number'&&q.topic==='geography')),care:shuffled(seed+':care',PLAYABLE_QUESTIONS.filter(q=>q.id!=='friendly-number'&&q.topic==='care'))};
  for(const [topic,n] of [['bible',3],['geography',2],['care',2]])for(let i=0;i<n;i++)if(avoid.includes(pools[topic][i].id)){const j=pools[topic].findIndex((q,k)=>k>=n&&k<({bible:42,geography:28,care:28}[topic])-n&&!avoid.includes(q.id));[pools[topic][i],pools[topic][j]]=[pools[topic][j],pools[topic][i]];}
  const take=t=>pools[t].shift(),deck=[];for(let day=0;day<14;day++)deck.push(take('bible'),take('geography'),take('care'),take('bible'),take('geography'),take('care'),take('bible'));return deck;
 }
