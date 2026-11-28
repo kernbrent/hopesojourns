@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.46
+Version 5.47
 
 Last reviewed: November 27, 2026
 
@@ -1896,3 +1896,9 @@ Portal restoration requires trip-matched sessions. Admin links include trip and 
 ### Check and Cash release November 27 2026
 
 Version 5.46 adds Check and Cash to the CSM gift handoff, with original donor credit and idempotent approval verified by receiver tests.
+
+### Explained gift overrides and evidence paste November 27 2026
+
+Version 5.47 extends the PERSONAL_GIFT contract with optional reviewOverride metadata: reason, actor, recordedAt, unsettledCents, and missingEvidence. A positive held amount must exactly reconcile the original gift after recorded movements. An empty movement list is accepted only when that explicit held balance covers the gift. Ordinary gifts retain their full settlement requirements. CSM Giving editors save an explained missing-deposit or missing-evidence override in migration 0008, with revisions, source locking, and append-only audit history. The receiver preserves the original donor, payment method, and approval idempotency. The exception and actual held balance appear in the payment item description; no cleared bank transfer is invented.
+
+CSM Giving activity now places per-gift sending status and deposit/evidence links beside the donor, replaces disabled personal-gift bulk checkboxes with Individual gift, and shows the individual Send button. Gift details provides the same explanation and override form near the top. Its Evidence paste area accepts Ctrl+V PNG/JPEG uploads to that gift, using the existing private evidence endpoint and size/signature validation. Deploy the compatible HS contract before CSM; apply CSM migration 0008 before the CSM release.

@@ -21,3 +21,20 @@ it.each(['Check','Cash'])('approves %s once and credits the selected original do
  expect(f.sqlite.prepare("SELECT person_id,payment_type,amount,charitable_amount FROM ledger_entries WHERE entry_type='income'").all()).toEqual([{person_id:f.donor,payment_type:method,amount:245,charitable_amount:250}]);
  expect(f.sqlite.prepare('SELECT count(*) n FROM financial_transactions').get()?.n).toBe(1);
 });
+
+it('receives an explained cash override with funds still held and credits the original donor only once',async()=>{
+ const f=await setup(),m=message(f.donor) as any;m.personalGift.method='Cash';m.personalGift.movements=[];m.transaction.fee=0;m.transaction.net=250;
+ m.personalGift.reviewOverride={reason:'Cash received; no deposit or receipt yet',actor:'csm-reviewer',recordedAt:'2026-11-27T20:00:00Z',unsettledCents:25000,missingEvidence:true};
+ const received=await (await handleCsmDelivery(delivery(m),f.env)).json() as any;expect(received.status).toBe('pending');
+ const path='/admin/csm-inbox/'+received.inboxId+'/approve';expect((await handleCsmAdminRequest(f.request(path,{personId:f.donor}),f.env,path)).status).toBe(200);
+ await handleCsmAdminRequest(f.request(path,{personId:f.donor}),f.env,path);
+ expect(f.sqlite.prepare("SELECT person_id,payment_type,amount,charitable_amount FROM ledger_entries WHERE entry_type='income'").all()).toEqual([{person_id:f.donor,payment_type:'Cash',amount:250,charitable_amount:250}]);
+ expect(f.sqlite.prepare("SELECT count(*) n FROM ledger_entries WHERE entry_type='expense'").get()?.n).toBe(0);
+});
+it('rejects cash exceptions with missing explanations, wrong held balances, or no explicit override',async()=>{
+ const f=await setup(),m=message(f.donor) as any;m.personalGift.movements=[];m.transaction.fee=0;m.transaction.net=250;
+ expect(()=>parseDistributionMessage(m)).toThrow();
+ m.personalGift.reviewOverride={reason:'',actor:'reviewer',recordedAt:'2026-11-27T20:00:00Z',unsettledCents:25000,missingEvidence:true};expect(()=>parseDistributionMessage(m)).toThrow();
+ m.personalGift.reviewOverride.reason='Cash held';m.personalGift.reviewOverride.unsettledCents=24000;expect(()=>parseDistributionMessage(m)).toThrow();
+ m.personalGift.reviewOverride.unsettledCents=25000;expect(()=>parseDistributionMessage(m)).not.toThrow();
+});
