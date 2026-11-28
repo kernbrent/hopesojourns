@@ -1,3 +1,5 @@
+import {ADVENTURE,themeForSeed,questionThemes,THEMES} from './adventure.js';
+import {restoreDiscovery} from './discovery.js';
 import {validReceipt} from './open-ended.js';
 import {QUESTIONS, BANK_VERSION,LEGACY_BANK_VERSION,PREVIOUS_BANK_VERSION,SUPPORTED_BANKS,BALANCED_BANK_VERSION,PLAYABLE_QUESTIONS,REWARD_BANKS,COMMON_BANKS} from './content.js';
 import {QUESTION_MS} from './timer.js';
@@ -80,7 +82,7 @@ function previousDaily(key){
 export function expectedDaily(key,version){if(version===LEGACY_BANK_VERSION)return shuffled(`daily:${key}:${LEGACY_BANK_VERSION}`,QUESTIONS.slice(0,14)).slice(0,7);if(version===PREVIOUS_BANK_VERSION)return previousDaily(key);if(version===BALANCED_BANK_VERSION)return balancedDaily(key);return dailyQuestions(key,version);}
 export function newRound(mode='daily',key=dateKey(),nonce=''){
  const seed=mode==='daily'?`daily:${key}:${BANK_VERSION}`:`practice:${nonce}:${BANK_VERSION}`;
- return {version:BANK_VERSION,mode,key,ids:(mode==='daily'?dailyQuestions(key):roundQuestions(seed)).map(q=>q.id),results:[],index:0,timingMode:'timed'};
+ return {version:BANK_VERSION,mode,key,ids:(mode==='daily'?dailyQuestions(key):roundQuestions(seed)).map(q=>q.id),results:[],index:0,timingMode:'timed',adventure:ADVENTURE,themeId:themeForSeed(seed)};
 }
 export const HISTORY_SELECTION='browser-history-v1';
 const playableIds=new Set(PLAYABLE_QUESTIONS.map(q=>q.id));
@@ -109,7 +111,7 @@ export function showHistoryQuestion(history,round){
  if(!unseen.length&&history.seen.length===playableIds.size){history.cycle++;history.seen=[];unseen=PLAYABLE_QUESTIONS.filter(q=>!alreadyShown.has(q.id));}
  if(!unseen.length)throw Error('No unseen discovery available.');
  const proposed=QUESTIONS.find(q=>q.id===round.ids[slot]);
- const preferred=unseen.filter(q=>q.topic===proposed.topic),pool=preferred.length?preferred:unseen;
+ const preferred=unseen.filter(q=>q.topic===proposed.topic),topicPool=preferred.length?preferred:unseen,themed=round.adventure===ADVENTURE?topicPool.filter(q=>questionThemes(q).includes(round.themeId)):[];const pool=themed.length?themed:topicPool;
  const chosen=pool.find(q=>q.id===proposed.id)||shuffled(`history:${round.key}:${round.mode}:${history.cycle}:${slot}:${round.analyticsRoundId||''}`,pool)[0];
  const other=round.ids.indexOf(chosen.id);
  if(other!==-1&&other!==slot)[round.ids[slot],round.ids[other]]=[round.ids[other],round.ids[slot]];else round.ids[slot]=chosen.id;
@@ -133,7 +135,8 @@ export function restoreRound(value){
  // Ignore supplied totals and scores. The reviewed content is authoritative.
  const index=Number.isInteger(value.index)&&value.index>=0&&value.index<=7?value.index:0;
  if(!(index===results.length||index===results.length-1))return null;
- return {version:value.version,mode:value.mode,key:value.key,ids:[...value.ids],results,index,timingMode:'timed',...(personal?{selection:HISTORY_SELECTION,shownSlots:[...value.shownSlots]}:{}),...(value.clock&&value.clock.slot===index&&Number.isFinite(value.clock.remainingMs)&&value.clock.remainingMs>=0&&value.clock.remainingMs<=45000?{clock:{slot:index,remainingMs:Math.min(QUESTION_MS,value.clock.remainingMs),cushionUsed:value.clock.cushionUsed===true,typing:value.clock.typing===true,attempts:Array.isArray(value.clock.attempts)?value.clock.attempts.filter(x=>typeof x==='string').slice(-50):[]}}:{}),...(typeof value.destinationId==='string'?{destinationId:value.destinationId.slice(0,50)}:{}),...(typeof value.analyticsRoundId==='string'&&/^[a-f0-9-]{36}$/i.test(value.analyticsRoundId)?{analyticsRoundId:value.analyticsRoundId}:{}),...(value.celebrated===true?{celebrated:true}:{})};
+ const adventure=value.adventure===ADVENTURE&&value.version===BANK_VERSION;const discovery=adventure&&index<7&&!results[index]?restoreDiscovery(QUESTIONS.find(q=>q.id===value.ids[index]),value.discovery,index):null;
+ return {version:value.version,mode:value.mode,key:value.key,ids:[...value.ids],results,index,timingMode:'timed',...(adventure?{adventure:ADVENTURE,themeId:THEMES.some(t=>t.id===value.themeId)?value.themeId:themeForSeed(value.key)}:{}),...(discovery?{discovery}:{}),...(personal?{selection:HISTORY_SELECTION,shownSlots:[...value.shownSlots]}:{}),...(value.clock&&value.clock.slot===index&&Number.isFinite(value.clock.remainingMs)&&value.clock.remainingMs>=0&&value.clock.remainingMs<=45000?{clock:{slot:index,remainingMs:Math.min(QUESTION_MS,value.clock.remainingMs),cushionUsed:value.clock.cushionUsed===true,typing:value.clock.typing===true,attempts:Array.isArray(value.clock.attempts)?value.clock.attempts.filter(x=>typeof x==='string').slice(-50):[]}}:{}),...(typeof value.destinationId==='string'?{destinationId:value.destinationId.slice(0,50)}:{}),...(typeof value.analyticsRoundId==='string'&&/^[a-f0-9-]{36}$/i.test(value.analyticsRoundId)?{analyticsRoundId:value.analyticsRoundId}:{}),...(value.celebrated===true?{celebrated:true}:{})};
 }
 export const totalFor=round=>round.results.reduce((sum,r)=>sum+r.points,0);
 export function submitAnswer(round,input,{skip=false,timedOut=false}={}){

@@ -2,7 +2,7 @@
 const http=require('node:http'),fs=require('node:fs/promises'),path=require('node:path');
 const testBuild=process.argv.includes('--test-build');
 const root=path.resolve(__dirname,'..',...(testBuild?['site-dist-biblillion-test']:[])),prefix=testBuild?'/biblillion/':'/preview/biblillion/';
-const files=new Set(['/styles.css','/assets/hope-sojourns-logo.png','/assets/hope-sojourns-icon.png',...['index.html','game.css','game.js','content.js','engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js','general-bank.js','question-settings.js','rewards.js','timer.js','passport.css','friendly-bank.js','mission-bank.js','country-areas.js','open-ended.js'].map(f=>prefix+f)]);
+const files=new Set(['/styles.css','/assets/hope-sojourns-logo.png','/assets/hope-sojourns-icon.png',...['index.html','game.css','game.js','content.js','engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js','general-bank.js','question-settings.js','rewards.js','timer.js','passport.css','friendly-bank.js','mission-bank.js','country-areas.js','open-ended.js','adventure.js','discovery.js','souvenirs.js'].map(f=>prefix+f)]);
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.json':'application/json','.ico':'image/x-icon','.woff2':'font/woff2'};
 http.createServer(async(req,res)=>{res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');
  if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return;}

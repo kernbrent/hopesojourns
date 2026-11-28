@@ -1,6 +1,6 @@
 # Hope Sojourns developer guide
 
-Version 5.48
+Version 5.49
 
 Last reviewed: November 27, 2026
 
@@ -1571,7 +1571,21 @@ The test builder uses the biblillion-safari1 script cache revision so returning 
 
 Run tools/check-resources-navigation.cjs against the test artifact on localhost:4195. Set PLAYWRIGHT_BROWSERS_PATH to the checkout's .tmp/playwright-browsers and install the official Playwright WebKit browser there using the bundled runtime/package CLI if absent. --regression-proof restores the old handler only inside an isolated request interception and asserts the lost tap, then tests the real fixed artifact. Coverage includes WebKit iPhone emulation at 375/390/430 pixels, homepage/About entry, keyboard Tab/Escape, outside click, All resources and Chromium Android taps. Set HS_NAV_ORIGIN=https://test.hopesojourns.com for post-release verification. WebKit emulation is not a physical iPhone test. Research: Apple's Safari Web Content Guide, Handling Events, https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/HandlingEvents/HandlingEvents.html .
 
+### Biblillion adventure state, word cloud and travel journal
+
+New rounds carry adventure=journey-v1 plus themeId. discovery.js holds a tentative slot/phase/latest answer; only bankDiscovery commits one final result and triggers automatic analytics. Dig deeper clears the tentative score and resumes the saved clock, including its used extensions and cushion state. restoreDiscovery validates canonical answers or immutable AI receipts and recomputes points. Older saved rounds without the marker retain their original immediate-reveal behavior. No bank-version bump or legacy schedule change is required.
+
+adventure.js defines five authored themes, source-backed destination phrases and editorial cloud ordering. Each active question has theme tags. The history selector prefers matching unseen questions within the planned topic, falling back to other unseen prompts; all 100 active questions still drain before any repeat. Archive IDs, answer points and earlier daily schedules are preserved. Arrival explains how many questions matched rather than claiming all seven did. Imagined reflections are clearly labeled; no host testimonies are generated.
+
+Test-only migration 0077_biblillion_word_cloud.sql seeds database editorial answer rankings for all 100 questions and creates question-scoped anonymous contribution rows. GET /api/interest/public/biblillion/cloud?questionId=... returns editorial rankings until 25 distinct contributors have reviewed canonical answers, then measured frequencies. Automatic final-result events may add cloudToken, a random per-question browser key. The server validates it and stores only a salted SHA-256 hash scoped to that question. The same browser updates its latest reviewed choice, rather than increasing that question’s contributor count. Browser contributors are a practical approximation, not verified unique people; clearing storage or another browser creates a new key. Existing historical stats are not backfilled as unique users. Unreviewed AI-only answer labels are excluded from the public cloud. All routes remain test-only, and public results retain origin/rate/scoring/receipt validation. Cloud data never changes point values.
+
+souvenirs.js stores the latest 60 completed validated rounds in hs-biblillion-journal-v1, once per arrival; Journal is accessible from the header and summary. Canvas downloads create a local PNG using same-origin destination assets and shared color tokens. No postcard or reflection is sent to a provider. Sharing invokes the device sheet or clipboard, with a manual-copy fallback and optional mailto invitation; the app does not send email. Only the game link and invitation text are included. Clearing progress also clears journal entries, cloud keys and pending stats; recorded anonymous results are unaffected.
+
+The local referral preview allows the public cloud GET and the three new runtime modules. Test builder/preview allowlists include adventure.js, discovery.js and souvenirs.js; normal builds continue to exclude Biblillion. Validate with tools/biblillion-adventure.test.mjs, existing game/history/timer/analytics tests, tools/check-biblillion-adventure.cjs, Worker Biblillion/AI tests, TypeScript, palette check, isolated artifact checks and deployment dry run. Test deployment requires only migration 0077 in the isolated test database; never copy business data or deploy this game to production.
+
 ## Revision history
+
+- November 27, 2026 — Version 5.49. Added latest-answer risk choices, animated route, editorial/live word cloud, themed reflections, destination phrases, postcard journal and friend invitations. Preserved the complete question bank and legacy saves. Authorized commit, push and test-only deployment after validation.
 
 - November 27, 2026 — Version 5.48. Added Scripture numbers; expanded colors, miracles and continent conventions; added Leviathan/Unicorn at 100 points with KJV source labeling. Preserved prior daily schedules and the shared no-repeat pool. Local changes awaiting release approval.
 

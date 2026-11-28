@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.137
+Version 4.138
 
 Last reviewed: November 27, 2026
 
@@ -1044,7 +1044,17 @@ The regular pool now contains 100 prompts. The Scripture-number question accepts
 Keep the original question, “Name a continent.” The hint may mention continental groupings without naming the extra answers. Additional accepted names remain discoveries, with geographic context shown after the answer. Oceania is a separate accepted answer from Australia; Pangaea and Pangea are equivalent. America/the Americas, Eurasia, Gondwana, Laurasia, Rodinia, Zealandia and Columbia/Nuna are accepted with source/context notes. Explain that geographic conventions differ and that ancient or submerged landmasses are not all separate present-day school continents. French/Spanish Latin-script names such as Europa, América del Norte and Océanie are accepted aliases.
 
 
+### Biblillion adventure choices and keepsakes
+
+New journeys use a tentative-answer decision card. Show only the submitted answer and its score before the player banks it; keep the full bank and word cloud hidden until the final reveal. “Take [points] points & stamp” finalizes the score. “Dig deeper” explicitly gives up that score and resumes the remaining 25-second clock. The latest submitted answer wins, including a lower score or zero; an earlier answer may be typed again. Decision time pauses the clock; automatic answer checking does not. Keep the loss-of-score warning beside the choice, with no timer reset or extra speed bonus.
+
+Use the shared forest/gold palette for the illustrated flight route, word cloud, reflection cards and arrival postcard. Every visited discovery moves the plane toward arrival, including misses. Respect reduced motion. On phones, compact the passport to the route and step labels while the answer form is open; keep input, timer and submit action together. Journal remains accessible from the header. Save postcard PNGs using the shared palette and existing destination photography without photo credits on the image.
+
+Label word-cloud preview sizes as editorial rankings, never measured popularity. Switch to live frequency only after 25 distinct question-scoped browser contributors with reviewed canonical answers. Display a readable, wrapping text cloud, with accessible list semantics. Reflections are original imagined moments, never fabricated host testimony. Reveal a theme, its actual matching-question count, an optional unscored destination phrase and a small next action at arrival. Keep the seven-day preparation invitation and native sharing/copy/email invitation controls clear and optional.
+
 ## Revision history
+
+- November 27, 2026 — Version 4.138. Added latest-answer risk choices, animated route, editorial/live word cloud, themed reflections, destination phrases, postcard journal and friend invitations. Preserved the complete question bank and legacy saves. Authorized commit, push and test-only deployment after validation.
 
 - November 27, 2026 — Version 4.137. Added Scripture numbers; expanded colors, miracles and continent conventions; added Leviathan/Unicorn at 100 points with KJV source labeling. Preserved prior daily schedules and the shared no-repeat pool. Local changes awaiting release approval.
 

@@ -18,12 +18,23 @@ export async function handleBiblillion(request:Request,env:AdminEnv,path:string)
  if(env.ENVIRONMENT!=='test')return adminJson({error:'Not found.'},404);
  try{
   if(path==='/public/biblillion/judge')return await judgeAnswer(request,env as JudgeEnv);
+  if(path==='/public/biblillion/cloud'){
+   if(request.method!=='GET')throw new AdminError(405,'METHOD','Use GET.');
+   const q=QUESTIONS.find(q=>q.active&&q.id===new URL(request.url).searchParams.get('questionId'));if(!q)throw new AdminError(404,'QUESTION','Choose a current question.');
+   const rows=await env.DB.prepare('SELECT answer,count(*) count FROM biblillion_cloud_contributions WHERE question_id=? GROUP BY answer ORDER BY count DESC,answer').bind(q.id).all<{answer:string;count:number}>();
+   const reviewed=rows.results.filter(r=>q.answers.some(a=>a.name===r.answer)),contributors=reviewed.reduce((n,r)=>n+r.count,0);
+   if(contributors>=25)return adminJson({source:'live',contributors,answers:reviewed});
+   const saved=await env.DB.prepare('SELECT ranking_json FROM biblillion_cloud_rankings WHERE question_id=?').bind(q.id).first<{ranking_json:string}>();
+   const ranking:string[]=saved?JSON.parse(saved.ranking_json):[...q.answers].sort((a,b)=>a.points-b.points).map(a=>a.name);
+   return adminJson({source:'editorial',contributors,answers:ranking.filter(name=>q.answers.some(a=>a.name===name)).map((answer,i)=>({answer,count:Math.max(1,ranking.length-i)}))});
+  }
   if(path==='/public/biblillion/results'){
    if(request.method!=='POST')throw new AdminError(405,'METHOD','Use POST.');
    if(request.headers.get('origin')!==new URL(request.url).origin)throw new AdminError(403,'ORIGIN','Share results from this website.');
-   const b=await readAdminJson(request,2048),keys=['id','roundId','bankVersion','roundDay','mode','destinationId','slot','questionId','answer','skipped','corrected','timedOut','reportingVersion','consent','consentVersion','judgmentId','selection'];
+   const b=await readAdminJson(request,2048),keys=['id','roundId','bankVersion','roundDay','mode','destinationId','slot','questionId','answer','skipped','corrected','timedOut','reportingVersion','consent','consentVersion','judgmentId','selection','cloudToken'];
    if(Object.keys(b).some(k=>!keys.includes(k)))throw new AdminError(422,'EXTRA_FIELD','Only anonymous game-result fields are accepted.');
    const automatic=b.reportingVersion!==undefined;
+   if(b.cloudToken!==undefined&&(!automatic||typeof b.cloudToken!=='string'||!UUID.test(b.cloudToken)))throw new AdminError(422,'CLOUD_TOKEN','Use a question-specific anonymous browser key.');
    if(automatic?(b.reportingVersion!==REPORTING_VERSION||'consent'in b||'consentVersion'in b):(b.consent!==true||b.consentVersion!==CONSENT))throw new AdminError(422,'REPORTING','Use a supported anonymous game report.');
    const id=field(b.id,36),roundId=field(b.roundId,36),version=field(b.bankVersion,40),day=field(b.roundDay,10),mode=field(b.mode,10),destination=field(b.destinationId,50),questionId=field(b.questionId,80);
    if(!UUID.test(id)||!UUID.test(roundId)||!SUPPORTED_BANKS.includes(version)||!['daily','practice'].includes(mode)||!DESTINATIONS.some(d=>d.id===destination)||!Number.isInteger(b.slot)||Number(b.slot)<0||Number(b.slot)>6||typeof b.skipped!=='boolean'||typeof b.corrected!=='boolean'||b.timedOut!==undefined&&typeof b.timedOut!=='boolean'||b.timedOut===true&&(!b.skipped||b.corrected))throw new AdminError(422,'RESULT','Check this game result.');
@@ -40,10 +51,12 @@ export async function handleBiblillion(request:Request,env:AdminEnv,path:string)
    const prior=await env.DB.prepare('SELECT request_hash FROM biblillion_results WHERE id=?').bind(id).first<{request_hash:string}>();
    if(prior){if(prior.request_hash!==signature)throw new AdminError(409,'ID_REUSED','This result ID was already used.');return adminJson({accepted:true});}
    await rate(request,env);const now=new Date().toISOString(),today=dateKey();
+   const cloudHash=b.cloudToken?await hash(`${env.ADMIN_SESSION_SECRET}:cloud:${questionId}:${b.cloudToken}`):null;
    await env.DB.batch([
     env.DB.prepare('INSERT OR IGNORE INTO biblillion_rounds(id,bank_version,round_day,mode,destination_id,started_day,first_shared_at,last_shared_at) VALUES(?,?,?,?,?,?,?,?)').bind(roundId,version,day,mode,destination,today,now,now),
     env.DB.prepare(`INSERT OR IGNORE INTO biblillion_results(id,request_hash,round_id,slot,question_id,answer,skipped,corrected,points,received_at,timed_out,judgment_id) SELECT ?,?,id,?,?,?,?,?,?,?,?,? FROM biblillion_rounds WHERE id=? AND bank_version=? AND round_day=? AND mode=? AND destination_id=? AND (recorded_slots & (1 << ?))=0`).bind(id,signature,Number(b.slot),questionId,b.skipped?null:answer!.name,b.skipped?1:0,b.corrected?1:0,points,now,b.timedOut===true?1:0,judged?b.judgmentId:null,roundId,version,day,mode,destination,Number(b.slot)),
     env.DB.prepare('DELETE FROM biblillion_results WHERE received_at<?').bind(new Date(Date.now()-180*86400000).toISOString()),
+    ...(cloudHash&&!b.skipped&&!judged?[env.DB.prepare('INSERT INTO biblillion_cloud_contributions(question_id,contributor_hash,answer,updated_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM biblillion_results WHERE id=? AND request_hash=?) ON CONFLICT(question_id,contributor_hash) DO UPDATE SET answer=excluded.answer,updated_at=excluded.updated_at').bind(questionId,cloudHash,answer!.name,now,id,signature)]:[]),
    ]);
    const saved=await env.DB.prepare('SELECT request_hash FROM biblillion_results WHERE id=?').bind(id).first<{request_hash:string}>();if(saved?.request_hash!==signature)throw new AdminError(409,'ROUND_CONFLICT','That round slot or destination was already recorded.');
    return adminJson({accepted:true},201);

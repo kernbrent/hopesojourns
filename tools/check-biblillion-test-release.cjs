@@ -15,7 +15,7 @@ const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
   await page.screenshot({path:`outputs/biblillion-qa/test-release-${width}.png`,fullPage:true});
   await page.evaluate(()=>localStorage.removeItem('hs-biblillion-v1'));
  }
- for(const file of ['index.html','game.css','game.js','content.js','engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js','general-bank.js','question-settings.js','rewards.js','timer.js','passport.css','friendly-bank.js','mission-bank.js','country-areas.js','open-ended.js']){
+ for(const file of ['index.html','game.css','game.js','content.js','engine.js','expanded-bank.js','destinations.js','analytics.js','passport.js','general-bank.js','question-settings.js','rewards.js','timer.js','passport.css','friendly-bank.js','mission-bank.js','country-areas.js','open-ended.js','adventure.js','discovery.js','souvenirs.js']){
   const response=await page.request.get(origin+'/biblillion/'+file);assert.equal(response.status(),200);assert.equal(hash(await response.body()),hash(await fs.readFile('site-dist-biblillion-test/biblillion/'+file)),file+' deployment differs');
  }
  console.log('Passed desktop/mobile Resources navigation, test-only banner, same-site home link, /biblillion/ resume and cookie scope, and exact game asset hashes.');
