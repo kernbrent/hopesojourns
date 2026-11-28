@@ -1,6 +1,6 @@
 # Hope Sojourns website style guide
 
-Version 4.135
+Version 4.136
 
 Last reviewed: November 27, 2026
 
@@ -1017,7 +1017,7 @@ The passport uses an American-style navy cover, gold PASSPORT / UNITED STATES OF
 
 Inside, the visa page has a subtle engraved background, a page heading and seven large, faint numeral watermarks. Do not draw boxes, dashed outlines, active fills or visible stage labels around individual stamp positions. An earned destination stamp lands over its numeral, which fades out as the ink appears. Unfilled and skipped positions retain only their watermark numbers. Preserve stage/result descriptions for screen readers. Keep the slight stamp rotations, distressed ink and brief press animation; restored stamps are static. On phones the passport stays collapsible and the earned stamp also appears in the answer reveal.
 
-Frame Biblillion as common-knowledge discovery: “Start with the obvious. Discover the unexpected.” Every regular round has three approachable Bible/faith, two geography/travel and two everyday-life/care prompts. Reward familiar answers with stamps and unexpected ideas with higher editorial points. Most prompts offer 10 or more distinct responses and care prompts offer at least 20; synonyms count without inflating the displayed choices. Offer a free familiar starting answer. Scores describe game familiarity, never spiritual maturity, objective human worth or measured population percentages. Care and exploitation-awareness language emphasizes dignity, choice and listening; it must not diagnose a person or sensationalize their circumstances. The countdown starts at 25 seconds and uses text and color for its final ten seconds. Do not flash or use a ticking sound. The countdown is mandatory: omit pace choices and timer-off controls. Pause for hidden tabs and open help/privacy dialogs, and preserve remaining time on return. Expiry earns no points or stamp. Timeouts reveal a discovery rather than shaming the player.
+Frame Biblillion as common-knowledge discovery: “Start with the obvious. Discover the unexpected.” New rounds normally mix Bible/faith, geography/travel and everyday-life/care prompts. The mix can vary near the end of the unseen pool so every regular question appears before repeats. Reward familiar answers with stamps and unexpected ideas with higher editorial points. Most prompts offer 10 or more distinct responses and care prompts offer at least 20; synonyms count without inflating the displayed choices. Offer a free familiar starting answer. Scores describe game familiarity, never spiritual maturity, objective human worth or measured population percentages. Care and exploitation-awareness language emphasizes dignity, choice and listening; it must not diagnose a person or sensationalize their circumstances. The countdown starts at 25 seconds and uses text and color for its final ten seconds. Do not flash or use a ticking sound. The countdown is mandatory: omit pace choices and timer-off controls. Pause for hidden tabs and open help/privacy dialogs, and preserve remaining time on return. Expiry earns no points or stamp. Timeouts reveal a discovery rather than shaming the player.
 
 Keep broad and narrow answers together. A familiar answer such as job, church or family can earn a 35-point stamp; a specific less-obvious idea such as having a role or being asked for an opinion can earn 100. Accept ordinary equivalent wording without requiring the player's phrase to match the displayed answer exactly. Do not award extra points merely for adding words. Keep the reveal's canonical wording and score clear.
 
@@ -1035,7 +1035,14 @@ Each question starts at 25 seconds. A distinct unrecognized submitted answer lon
 
 Selected open-ended prompts use a brief Checking your idea status without pausing the clock. Show a new accepted answer in the usual reveal/stamp layout with provisional scoring language. In MMT, Answer review uses shared cards, labeled inputs, five familiar point options, a status filter and an explicit Save answer review button. Clearly distinguish AI verdict, editorial status and future points. Saving changes future checks, never previously earned stamps or points. Keep all controls reachable on phones with the shared menu closed.
 
+Daily renewal uses America/Chicago dates. A completed daily journey automatically becomes a fresh round on the next day, including when a tab stays open across midnight. An unfinished prior-day journey remains available with a prominent Start today’s new discovery invitation; explain that choosing it replaces that saved daily journey. Daily and Practice share the same history. Resuming a question or reading its reveal is not a new repeat. Clearing browser progress also clears question history; another browser/device has its own history.
+
+Unfamiliar answers on every active care prompt and listed open-ended travel prompts reach AI after local matching, even when the spelling checker has several suggestions. Accept ordinary punctuation and up to 100 characters, while screening links/contact details and instruction text. Explain whether an AI check, a saved AI decision or an editor decision rejected an idea. Service limits or unavailable checks must not be described as a wrong answer. Factual prompts clearly state that they use the reviewed bank rather than AI. Older pending invalid/uncertain AI decisions are checked once under the corrected policy; editor decisions remain authoritative.
+
+
 ## Revision history
+
+- November 27, 2026 — Version 4.136. Corrected AI fallback paths and feedback, added automatic new-day renewal and shared browser question history covering all 99 regular prompts. Local changes awaiting release approval.
 
 - November 27, 2026 — Version 4.135. Added bounded open-ended AI answer checks, private MMT answer review and limited retry/typing timer extensions. Authorized commit, push and test-only release after validation.
 

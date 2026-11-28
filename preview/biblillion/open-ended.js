@@ -1,6 +1,7 @@
-// Explicitly exclude factual geography, Scripture, and medical/safety advice prompts.
+// Care prompts ask for ideas, never diagnosis/advice. Factual Bible/geography stays curated.
 export const OPEN_ENDED_IDS=new Set(['packing','transport','map','landscape','retreat','warm-clothing','meet-neighbors','everyday-needs','welcome','lonely','safe-home','shared-meal','hospital-bag','care-kit','community','belonging','encouragement','time','homeless-needs','housing-barrier','dignity','refugee-welcome','language','new-city','family-keepsake','ask-support','trusted-help','listen-first','teamwork','good-guest','remember','follow-through'].map(id=>'mission-'+id));
-export const canJudge=q=>!!q?.active&&OPEN_ENDED_IDS.has(q.id);
-export const answerKey=value=>String(value??'').normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ');
-export const safeAnswer=value=>typeof value==='string'&&value.trim().length>=2&&value.trim().length<=80&&/^[\p{L}\p{M}\p{N} '\-’,]+$/u.test(value.trim())&&/[\p{L}]/u.test(value)&&!/[0-9][\d ()-]{6,}/.test(value)&&!/\b(?:ignore.{0,30}instructions?|system prompt|override|password)\b/i.test(value);
+export const canJudge=q=>!!q?.active&&(q.topic==='care'||OPEN_ENDED_IDS.has(q.id));
+export const answerKey=value=>String(value??'').normalize('NFKC').trim().toLowerCase().replace(/[.!?]+$/g,'').trim().replace(/\s+/g,' ');
+export const safeAnswer=value=>typeof value==='string'&&value.trim().length>=2&&value.trim().length<=100&&/^[\p{L}\p{M}\p{N}\s'’‘"“”.,!?&/():;\-]+$/u.test(value.trim())&&/[\p{L}]/u.test(value)&&!/(?:https?:|www\.|@|\b[\w-]+\.(?:com|org|net|edu)\b)/i.test(value)&&!/[0-9][\d ()-]{6,}/.test(value)&&!/\b(?:ignore.{0,30}instructions?|system prompt|override|password)\b/i.test(value);
+export function checkPath(q,value){if(!canJudge(q))return 'curated';if(!safeAnswer(value))return 'input';return 'judge';}
 export const validReceipt=(q,r)=>canJudge(q)&&r&&/^[a-f\d-]{36}$/i.test(r.id)&&r.questionId===q.id&&safeAnswer(r.name)&&[35,50,65,85,100].includes(r.points)&&typeof r.note==='string'&&r.note.length<=240;

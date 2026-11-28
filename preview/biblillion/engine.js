@@ -82,9 +82,48 @@ export function newRound(mode='daily',key=dateKey(),nonce=''){
  const seed=mode==='daily'?`daily:${key}:${BANK_VERSION}`:`practice:${nonce}:${BANK_VERSION}`;
  return {version:BANK_VERSION,mode,key,ids:(mode==='daily'?dailyQuestions(key):roundQuestions(seed)).map(q=>q.id),results:[],index:0,timingMode:'timed'};
 }
+export const HISTORY_SELECTION='browser-history-v1';
+const playableIds=new Set(PLAYABLE_QUESTIONS.map(q=>q.id));
+export function restoreHistory(value){return {version:1,cycle:Number.isSafeInteger(value?.cycle)&&value.cycle>=0?value.cycle:0,seen:[...new Set(Array.isArray(value?.seen)?value.seen.filter(id=>playableIds.has(id)):[])]};}
+export function mergeHistory(a,b){a=restoreHistory(a);b=restoreHistory(b);return a.cycle>b.cycle?a:b.cycle>a.cycle?b:{...a,seen:[...new Set([...a.seen,...b.seen])]};}
+export function historyRound(mode='daily',key=dateKey(),nonce=''){
+ return {...newRound(mode,key,nonce),selection:HISTORY_SELECTION,shownSlots:[]};
+}
+// Migrate only questions we can prove were displayed; future dealt slots are still unseen.
+export function seedHistory(history,rounds){
+ for(const r of rounds.filter(Boolean)){
+  const slots=r.selection===HISTORY_SELECTION?r.shownSlots:Array.from({length:Math.min(7,r.results.length+(r.destinationId&&r.index<7&&!r.results[r.index]?1:0))},(_,i)=>i);
+  for(const slot of slots||[]){const id=r.ids[slot];if(playableIds.has(id)&&!history.seen.includes(id))history.seen.push(id);}
+ }
+ return history;
+}
+export function adoptHistoryRound(round){
+ if(!round||round.version!==BANK_VERSION||round.selection===HISTORY_SELECTION)return round;
+ round.selection=HISTORY_SELECTION;round.shownSlots=Array.from({length:Math.min(7,round.results.length+(round.destinationId&&round.index<7&&!round.results[round.index]?1:0))},(_,i)=>i);return round;
+}
+export function showHistoryQuestion(history,round){
+ if(!round||!round.destinationId||round.index>=7||round.selection!==HISTORY_SELECTION)return false;
+ const slot=round.index;if(round.results[slot]||round.shownSlots.includes(slot))return false;
+ const alreadyShown=new Set(round.shownSlots.map(i=>round.ids[i]));
+ let unseen=PLAYABLE_QUESTIONS.filter(q=>!history.seen.includes(q.id)&&!alreadyShown.has(q.id));
+ if(!unseen.length&&history.seen.length===playableIds.size){history.cycle++;history.seen=[];unseen=PLAYABLE_QUESTIONS.filter(q=>!alreadyShown.has(q.id));}
+ if(!unseen.length)throw Error('No unseen discovery available.');
+ const proposed=QUESTIONS.find(q=>q.id===round.ids[slot]);
+ const preferred=unseen.filter(q=>q.topic===proposed.topic),pool=preferred.length?preferred:unseen;
+ const chosen=pool.find(q=>q.id===proposed.id)||shuffled(`history:${round.key}:${round.mode}:${history.cycle}:${slot}:${round.analyticsRoundId||''}`,pool)[0];
+ const other=round.ids.indexOf(chosen.id);
+ if(other!==-1&&other!==slot)[round.ids[slot],round.ids[other]]=[round.ids[other],round.ids[slot]];else round.ids[slot]=chosen.id;
+ round.shownSlots.push(slot);history.seen.push(chosen.id);return true;
+}
+export function rolloverDaily(store,today=dateKey()){
+ if(!store.daily||store.daily.key!==today&&(store.daily.results.length===7||!store.daily.destinationId&&!store.daily.results.length)){store.daily=historyRound('daily',today);return true;}return false;
+}
 export function restoreRound(value){
  if(!value||!SUPPORTED_BANKS.includes(value.version)||!['daily','practice'].includes(value.mode)||!/^\d{4}-\d{2}-\d{2}$/.test(value.key)||!Array.isArray(value.ids)||value.ids.length!==7||new Set(value.ids).size!==7||!value.ids.every(id=>QUESTIONS.slice(0,value.version===LEGACY_BANK_VERSION?14:value.version===PREVIOUS_BANK_VERSION?210:value.version===BALANCED_BANK_VERSION?286:QUESTIONS.length).some(q=>q.id===id&&(!COMMON_BANKS.includes(value.version)||q.active)))||!Array.isArray(value.results)||value.results.length>7)return null;
- try{if(value.mode==='daily'&&JSON.stringify(value.ids)!==JSON.stringify(expectedDaily(value.key,value.version).map(q=>q.id)))return null;}catch{return null;}
+ const personal=value.selection===HISTORY_SELECTION&&value.version===BANK_VERSION;
+ if(value.selection!==undefined&&!personal)return null;
+ if(personal&&(!Array.isArray(value.shownSlots)||value.shownSlots.some(i=>!Number.isInteger(i)||i<0||i>6)||new Set(value.shownSlots).size!==value.shownSlots.length))return null;
+ try{if(!personal&&value.mode==='daily'&&JSON.stringify(value.ids)!==JSON.stringify(expectedDaily(value.key,value.version).map(q=>q.id)))return null;}catch{return null;}
  const results=[];for(let i=0;i<value.results.length;i++){
   const r=value.results[i],q=QUESTIONS.find(q=>q.id===value.ids[i]);
   if(!r||typeof r.skipped!=='boolean'||r.timedOut===true&&!r.skipped)return null;
@@ -94,7 +133,7 @@ export function restoreRound(value){
  // Ignore supplied totals and scores. The reviewed content is authoritative.
  const index=Number.isInteger(value.index)&&value.index>=0&&value.index<=7?value.index:0;
  if(!(index===results.length||index===results.length-1))return null;
- return {version:value.version,mode:value.mode,key:value.key,ids:[...value.ids],results,index,timingMode:'timed',...(value.clock&&value.clock.slot===index&&Number.isFinite(value.clock.remainingMs)&&value.clock.remainingMs>=0&&value.clock.remainingMs<=45000?{clock:{slot:index,remainingMs:Math.min(QUESTION_MS,value.clock.remainingMs),cushionUsed:value.clock.cushionUsed===true,typing:value.clock.typing===true,attempts:Array.isArray(value.clock.attempts)?value.clock.attempts.filter(x=>typeof x==='string').slice(-50):[]}}:{}),...(typeof value.destinationId==='string'?{destinationId:value.destinationId.slice(0,50)}:{}),...(typeof value.analyticsRoundId==='string'&&/^[a-f0-9-]{36}$/i.test(value.analyticsRoundId)?{analyticsRoundId:value.analyticsRoundId}:{}),...(value.celebrated===true?{celebrated:true}:{})};
+ return {version:value.version,mode:value.mode,key:value.key,ids:[...value.ids],results,index,timingMode:'timed',...(personal?{selection:HISTORY_SELECTION,shownSlots:[...value.shownSlots]}:{}),...(value.clock&&value.clock.slot===index&&Number.isFinite(value.clock.remainingMs)&&value.clock.remainingMs>=0&&value.clock.remainingMs<=45000?{clock:{slot:index,remainingMs:Math.min(QUESTION_MS,value.clock.remainingMs),cushionUsed:value.clock.cushionUsed===true,typing:value.clock.typing===true,attempts:Array.isArray(value.clock.attempts)?value.clock.attempts.filter(x=>typeof x==='string').slice(-50):[]}}:{}),...(typeof value.destinationId==='string'?{destinationId:value.destinationId.slice(0,50)}:{}),...(typeof value.analyticsRoundId==='string'&&/^[a-f0-9-]{36}$/i.test(value.analyticsRoundId)?{analyticsRoundId:value.analyticsRoundId}:{}),...(value.celebrated===true?{celebrated:true}:{})};
 }
 export const totalFor=round=>round.results.reduce((sum,r)=>sum+r.points,0);
 export function submitAnswer(round,input,{skip=false,timedOut=false}={}){

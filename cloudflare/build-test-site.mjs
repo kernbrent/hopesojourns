@@ -111,7 +111,7 @@ if (biblillionTest) {
       if (entry.isDirectory()) await reviseCache(location);
       else if (entry.name.endsWith('.html')) {
         const html = await readFile(location, 'utf8');
-        await writeFile(location, html.replace(/\/script\.js\?v=[^"']+/g, '/script.js?v=2026-11-27.biblillion-judge1').replace(/\/admin\/mmt-navigation\.js\?v=[^"']+/g,'/admin/mmt-navigation.js?v=2026-11-27.biblillion-judge1').replace(/\/admin\/mmt-session\.js\?v=[^"']+/g,'/admin/mmt-session.js?v=2026-11-27.biblillion-judge1'));
+        await writeFile(location, html.replace(/\/script\.js\?v=[^"']+/g, '/script.js?v=2026-11-27.biblillion-history1').replace(/\/admin\/mmt-navigation\.js\?v=[^"']+/g,'/admin/mmt-navigation.js?v=2026-11-27.biblillion-history1').replace(/\/admin\/mmt-session\.js\?v=[^"']+/g,'/admin/mmt-session.js?v=2026-11-27.biblillion-history1'));
       }
     }
   }
